@@ -177,8 +177,40 @@ export interface VehiculoDocumento {
     vehiculo_id: number;
     categoria: VehiculoDocumentoCategoria;
     nombre_archivo: string;
+    /** Emisión / desde cuándo rige. OPCIONAL: hay documentos sin fecha (mig 100). */
+    fecha?: string | null;
+    /** Vencimiento. Si está, el documento entra en el contador del menú. */
+    fecha_vencimiento?: string | null;
+    observaciones?: string | null;
     fecha_subida?: string;
     created_at?: string;
+}
+
+/** Una cosa que vence en el módulo Vehículos (GET /vehiculos/vencimientos). */
+export interface VehiculoVencimiento {
+    /** De dónde sale: define el ícono y la etiqueta en el panel. */
+    categoria: 'documento' | 'revision' | 'mantencion' | 'seguro' | 'permiso' | 'licencia';
+    id: number;
+    /** null en licencias: son del conductor, no de un vehículo. */
+    vehiculo_id: number | null;
+    /** Tipo dentro de la categoría (ej. 'permiso_circulacion', 'tecnica', 'SOAP'). */
+    subtipo: string | null;
+    patente: string | null;
+    /** En licencias trae el nombre del conductor (la consulta reusa la columna). */
+    marca: string | null;
+    modelo: string | null;
+    fecha_vencimiento: string;
+    /** Negativo = ya venció (−3 = venció hace 3 días). */
+    dias_restantes: number;
+}
+
+/** Respuesta de GET /vehiculos/vencimientos. */
+export interface VehiculoVencimientosResumen {
+    items: VehiculoVencimiento[];
+    total: number;
+    vencidos: number;
+    por_vencer: number;
+    dias: number;
 }
 
 export interface VehiculoSeguro {

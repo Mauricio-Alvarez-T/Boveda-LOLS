@@ -6,11 +6,15 @@ import { IconButton } from '../ui/IconButton';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { compressImage } from '../../utils/compressImage';
+import { EstadoVencimiento } from './EstadoVencimiento';
 import type { VehiculoDocumento, VehiculoDocumentoCategoria, VehiculoRevision, VehiculoMantencion } from '../../types/entities';
 
-// Tipos del apartado. Los "file" suben un archivo (foto/PDF); los "data" abren un
-// formulario (lugar, fecha, vencimiento, observaciones, alerta) y se guardan en
-// las tablas de revisiones/mantenciones existentes.
+// Tipos del apartado:
+//  · "file" → suben un archivo (foto/PDF) y, opcionalmente, fecha, vencimiento y
+//    observaciones (mig 100). NO llevan alerta por email: su aviso es el contador
+//    de vencimientos del menú lateral.
+//  · "data" → formulario completo (lugar, fecha, vencimiento, observaciones y
+//    alerta por email) guardado en las tablas de revisiones/mantenciones.
 type Tipo =
     | { value: VehiculoDocumentoCategoria; label: string; kind: 'file' }
     | { value: 'revision_tecnica' | 'revision_gases'; label: string; kind: 'data'; endpoint: 'revisiones'; revTipo: 'tecnica' | 'gases' }
@@ -27,6 +31,10 @@ const TIPOS: Tipo[] = [
 ];
 
 const labelFile = (c: string) => TIPOS.find(t => t.value === c)?.label || c;
+
+/** Mensaje de error de la API con fallback — evita un `err: any` en cada catch. */
+const apiError = (err: unknown, fallback: string) =>
+    (err as { response?: { data?: { error?: string } } })?.response?.data?.error || fallback;
 const fmtFecha = (s?: string | null) => s ? String(s).split('T')[0].split('-').reverse().join('/') : '—';
 
 const EMPTY_FORM = { lugar: '', fecha: '', vencimiento: '', observaciones: '', diasAlerta: '30', emailAlerta: '', horaAlerta: '08:00' };
@@ -58,7 +66,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [form, setForm] = useState({ ...EMPTY_FORM });
-    const [editing, setEditing] = useState<{ kind: 'revision' | 'mantencion'; id: number } | null>(null);
+    const [editing, setEditing] = useState<{ kind: 'revision' | 'mantencion' | 'documento'; id: number } | null>(null);
     const [busy, setBusy] = useState(false);
     const [viewingId, setViewingId] = useState<number | null>(null);
     const [viewer, setViewer] = useState<{ url: string; mime: string; name: string } | null>(null);
@@ -66,9 +74,13 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
 
     const tipo = TIPOS.find(t => t.value === tipoValue)!;
     const isData = tipo.kind === 'data';
+    // Editando un documento ya cargado: se corrigen sus datos, el archivo no se reemplaza.
+    const editandoDoc = editing?.kind === 'documento';
     // Obligatorios para guardar: lugar ≥ 4, fecha, vencimiento y email ≥ 5 caracteres.
     const dataValido = form.lugar.trim().length >= 4 && !!form.fecha && !!form.vencimiento && form.emailAlerta.trim().length >= 5;
-    const listoParaGuardar = isData ? dataValido : !!file;
+    // En los documentos de archivo lo ÚNICO obligatorio es el archivo: fecha y
+    // vencimiento son opcionales porque hay documentos que no vencen (padrón).
+    const listoParaGuardar = isData ? dataValido : (editandoDoc || !!file);
 
     const fetchAll = useCallback(async () => {
         try {
@@ -118,6 +130,19 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
         setEditing({ kind: 'revision', id: r.id });
         setShowAdd(true);
     };
+    // Documentos de archivo: se editan SOLO los datos (fecha/vencimiento/observaciones).
+    // Para cambiar el archivo hay que eliminar el documento y subirlo de nuevo.
+    const handleEditDocumento = (d: VehiculoDocumento) => {
+        setTipoValue(d.categoria);
+        setForm({
+            ...EMPTY_FORM,
+            fecha: toDateInput(d.fecha), vencimiento: toDateInput(d.fecha_vencimiento),
+            observaciones: d.observaciones || '',
+        });
+        setFile(null);
+        setEditing({ kind: 'documento', id: d.id });
+        setShowAdd(true);
+    };
     const handleEditMantencion = (m: VehiculoMantencion) => {
         setTipoValue('mantencion');
         setForm({
@@ -129,8 +154,25 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
         setShowAdd(true);
     };
 
-    // Subir archivo (tipos "file")
+    // Subir archivo (tipos "file"). Si estamos editando, solo se actualizan los
+    // datos del documento (PUT), sin volver a subir el archivo.
     const handleUpload = async () => {
+        if (editandoDoc) {
+            setBusy(true);
+            try {
+                await api.put(`/vehiculos/${vehiculoId}/documentos/${editing!.id}`, {
+                    fecha: form.fecha || null,
+                    fecha_vencimiento: form.vencimiento || null,
+                    observaciones: form.observaciones.trim() || null,
+                });
+                toast.success('Documento actualizado');
+                resetForm();
+                fetchAll();
+            } catch (err) {
+                toast.error(apiError(err, 'Error al actualizar el documento'));
+            } finally { setBusy(false); }
+            return;
+        }
         if (!file) { toast.error('Selecciona un archivo (PDF o imagen)'); return; }
         setBusy(true);
         try {
@@ -142,12 +184,16 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
             const fd = new FormData();
             fd.append('archivo', archivo);
             fd.append('categoria', tipoValue);
+            // Opcionales: si el usuario no los llenó van vacíos y el backend guarda NULL.
+            fd.append('fecha', form.fecha);
+            fd.append('fecha_vencimiento', form.vencimiento);
+            fd.append('observaciones', form.observaciones.trim());
             await api.post(`/vehiculos/${vehiculoId}/documentos`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             toast.success('Documento agregado');
             resetForm();
             fetchAll();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al subir el documento');
+        } catch (err) {
+            toast.error(apiError(err, 'Error al subir el documento'));
         } finally { setBusy(false); }
     };
 
@@ -180,8 +226,8 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
             toast.success(editing ? 'Registro actualizado' : 'Registro guardado');
             resetForm();
             fetchAll();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al guardar el registro');
+        } catch (err) {
+            toast.error(apiError(err, 'Error al guardar el registro'));
         } finally { setBusy(false); }
     };
 
@@ -252,12 +298,12 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                         <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">{editing ? 'Editar registro' : 'Nuevo registro'}</span>
                         <div className="flex items-center gap-2">
                             {/* Gris (plomo) hasta estar listo; verde cuando se puede guardar */}
-                            <Button size="sm" aria-label={isData ? 'Guardar registro' : 'Subir documento'} title={isData ? 'Guardar registro' : 'Subir documento'}
+                            <Button size="sm" aria-label={isData || editandoDoc ? 'Guardar registro' : 'Subir documento'} title={isData || editandoDoc ? 'Guardar registro' : 'Subir documento'}
                                 onClick={isData ? handleSaveData : handleUpload} disabled={busy || !listoParaGuardar}
                                 variant={listoParaGuardar ? 'primary' : 'secondary'}
-                                leftIcon={busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : (isData ? <Save className="h-3.5 w-3.5" /> : <Upload className="h-3.5 w-3.5" />)}
+                                leftIcon={busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : (isData || editandoDoc ? <Save className="h-3.5 w-3.5" /> : <Upload className="h-3.5 w-3.5" />)}
                                 className="h-9 px-3 text-xs font-bold">
-                                {isData ? 'GUARDAR' : 'SUBIR'}
+                                {isData || editandoDoc ? 'GUARDAR' : 'SUBIR'}
                             </Button>
                             <IconButton size="sm" aria-label="Cancelar" title="Cancelar" onClick={resetForm}
                                 className="h-9 w-9" icon={<X className="h-4 w-4" />} />
@@ -269,8 +315,9 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                         {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
 
-                    {/* FILE: subir archivo + vista previa */}
-                    {!isData && (
+                    {/* FILE: subir archivo + vista previa. Al editar no aparece:
+                        el archivo no se reemplaza, se corrigen solo los datos. */}
+                    {!isData && !editandoDoc && (
                         <>
                             <input ref={fileInputRef} type="file" accept=".pdf,image/*"
                                 onChange={e => handleFileChange(e.target.files?.[0] || null)}
@@ -294,6 +341,33 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                             )}
                             <p className="text-micro text-muted-foreground/70">PDF o imagen. Las imágenes se comprimen automáticamente (objetivo ≤ 500 KB); los PDF se suben tal cual.</p>
                         </>
+                    )}
+
+                    {/* FILE: fecha, vencimiento y observaciones — OPCIONALES.
+                        Sin bloque de alerta por email: el aviso de estos documentos es
+                        el contador de vencimientos del menú lateral. */}
+                    {!isData && (
+                        <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                                <label className="flex flex-col gap-0.5">
+                                    <span className="text-micro font-bold text-muted-foreground uppercase">Fecha <span className="font-normal normal-case">(opcional)</span></span>
+                                    <input type="date" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
+                                        className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                                </label>
+                                <label className="flex flex-col gap-0.5">
+                                    <span className="text-micro font-bold text-muted-foreground uppercase">Vencimiento <span className="font-normal normal-case">(opcional)</span></span>
+                                    <input type="date" value={form.vencimiento} onChange={e => setForm(f => ({ ...f, vencimiento: e.target.value }))}
+                                        className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                                </label>
+                            </div>
+                            <textarea value={form.observaciones} onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))}
+                                rows={2} placeholder="Observaciones (opcional)"
+                                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                            <p className="text-micro text-muted-foreground/70">
+                                <Bell className="inline h-3 w-3 text-brand-primary mr-0.5 -mt-0.5" />
+                                Si pones vencimiento, el documento se cuenta en el aviso del menú Vehículos cuando falten 30 días o menos.
+                            </p>
+                        </div>
                     )}
 
                     {/* DATA: formulario lugar/fecha/vencimiento/observaciones + alerta */}
@@ -361,12 +435,25 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                 <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                                     <span className="text-xs font-bold text-brand-dark">{labelFile(doc.categoria)}</span>
                                     <span className="text-caption text-muted-foreground truncate" title={doc.nombre_archivo}>{doc.nombre_archivo}</span>
+                                    {(doc.fecha || doc.fecha_vencimiento) && (
+                                        <span className="text-caption text-muted-foreground">
+                                            {doc.fecha ? fmtFecha(doc.fecha) : 'Sin fecha'}
+                                            {doc.fecha_vencimiento ? ` → vence ${fmtFecha(doc.fecha_vencimiento)}` : ''}
+                                        </span>
+                                    )}
+                                    {doc.observaciones && <span className="text-micro text-muted-foreground/70 italic">{doc.observaciones}</span>}
+                                    <EstadoVencimiento fecha={doc.fecha_vencimiento} />
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
                                     <IconButton size="sm" aria-label="Ver documento" title="Ver documento" onClick={() => handleView(doc)}
                                         disabled={viewingId === doc.id}
                                         className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary"
                                         icon={viewingId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} />
+                                    {canEdit && (
+                                        <IconButton size="sm" aria-label="Editar datos del documento" title="Editar fecha y vencimiento"
+                                            onClick={() => handleEditDocumento(doc)}
+                                            className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary" icon={<Pencil className="h-4 w-4" />} />
+                                    )}
                                     {canDelete && (
                                         <IconButton size="sm" variant="danger" aria-label="Eliminar documento" title="Eliminar"
                                             onClick={() => handleDeleteDoc(doc)} className="h-10 w-10 sm:h-8 sm:w-8" icon={<Trash2 className="h-4 w-4" />} />
@@ -383,6 +470,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                         {r.planta ? `${r.planta} · ` : ''}{fmtFecha(r.fecha)} → vence {fmtFecha(r.fecha_vencimiento)}
                                     </span>
                                     {r.observaciones && <span className="text-micro text-muted-foreground/70 italic">{r.observaciones}</span>}
+                                    <EstadoVencimiento fecha={r.fecha_vencimiento} />
                                     <AlertaBadge dias={r.dias_alerta} email={r.email_alerta} />
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
@@ -406,6 +494,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                         {m.taller ? `${m.taller} · ` : ''}{fmtFecha(m.fecha)}{m.fecha_proxima ? ` → vence ${fmtFecha(m.fecha_proxima)}` : ''}
                                     </span>
                                     {m.descripcion && <span className="text-micro text-muted-foreground/70 italic">{m.descripcion}</span>}
+                                    <EstadoVencimiento fecha={m.fecha_proxima} />
                                     <AlertaBadge dias={m.dias_alerta} email={m.email_alerta} />
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0 mt-0.5">

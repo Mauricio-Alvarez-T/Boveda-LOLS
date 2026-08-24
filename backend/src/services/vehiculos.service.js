@@ -3,6 +3,10 @@ const path = require('path');
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 
+// multipart/form-data manda todo como string: '' significa "el usuario no llenó
+// el campo" y debe guardarse como NULL, no como fecha vacía (MySQL la rechaza).
+const nullSiVacio = v => (v == null || String(v).trim() === '' ? null : String(v).trim());
+
 // Cache de columnas por tabla — evita consultar INFORMATION_SCHEMA en cada request.
 const _colCache = {};
 async function existingCols(table) {
@@ -436,25 +440,52 @@ const vehiculosService = {
 
     async getDocumentos(vehiculoId) {
         const [rows] = await db.query(
-            `SELECT id, vehiculo_id, categoria, nombre_archivo, fecha_subida, created_at
+            `SELECT id, vehiculo_id, categoria, nombre_archivo, fecha, fecha_vencimiento,
+                    observaciones, fecha_subida, created_at
              FROM vehiculo_documentos WHERE vehiculo_id = ? AND activo = 1
              ORDER BY created_at DESC`, [vehiculoId]
         );
         return rows;
     },
 
-    async createDocumento(vehiculoId, { categoria, file, userId }) {
+    /**
+     * Alta de documento. `fecha`, `fecha_vencimiento` y `observaciones` son
+     * OPCIONALES: lo único obligatorio sigue siendo el archivo (hay documentos que
+     * no vencen, como el padrón). El vencimiento, si viene, alimenta el contador
+     * de vencimientos del menú — no hay alerta por email para estos documentos.
+     */
+    async createDocumento(vehiculoId, { categoria, file, userId, fecha, fecha_vencimiento, observaciones }) {
         if (!file) throw Object.assign(new Error('No se recibió archivo'), { statusCode: 400 });
         if (!categoria) throw Object.assign(new Error('La categoría es obligatoria'), { statusCode: 400 });
         const rutaRelativa = path.relative(UPLOADS_DIR, file.path);
         const [r] = await db.query(
-            `INSERT INTO vehiculo_documentos (vehiculo_id, categoria, nombre_archivo, ruta_archivo, subido_por)
-             VALUES (?, ?, ?, ?, ?)`,
-            [vehiculoId, categoria, file.originalname, rutaRelativa, userId || null]
+            `INSERT INTO vehiculo_documentos
+                (vehiculo_id, categoria, nombre_archivo, ruta_archivo, subido_por, fecha, fecha_vencimiento, observaciones)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [vehiculoId, categoria, file.originalname, rutaRelativa, userId || null,
+             nullSiVacio(fecha), nullSiVacio(fecha_vencimiento), nullSiVacio(observaciones)]
         );
         const [rows] = await db.query(
-            'SELECT id, vehiculo_id, categoria, nombre_archivo, fecha_subida, created_at FROM vehiculo_documentos WHERE id = ?',
+            `SELECT id, vehiculo_id, categoria, nombre_archivo, fecha, fecha_vencimiento,
+                    observaciones, fecha_subida, created_at
+             FROM vehiculo_documentos WHERE id = ?`,
             [r.insertId]
+        );
+        return rows[0];
+    },
+
+    /** Edita SOLO los datos del documento (fecha/vencimiento/observaciones); el archivo no se reemplaza. */
+    async updateDocumento(vehiculoId, docId, { fecha, fecha_vencimiento, observaciones }) {
+        const [r] = await db.query(
+            `UPDATE vehiculo_documentos SET fecha = ?, fecha_vencimiento = ?, observaciones = ?
+             WHERE id = ? AND vehiculo_id = ? AND activo = 1`,
+            [nullSiVacio(fecha), nullSiVacio(fecha_vencimiento), nullSiVacio(observaciones), docId, vehiculoId]
+        );
+        if (!r.affectedRows) throw Object.assign(new Error('Documento no encontrado'), { statusCode: 404 });
+        const [rows] = await db.query(
+            `SELECT id, vehiculo_id, categoria, nombre_archivo, fecha, fecha_vencimiento,
+                    observaciones, fecha_subida, created_at
+             FROM vehiculo_documentos WHERE id = ?`, [docId]
         );
         return rows[0];
     },
@@ -471,6 +502,94 @@ const vehiculosService = {
     async removeDocumento(vehiculoId, docId) {
         await db.query('UPDATE vehiculo_documentos SET activo = 0 WHERE id = ? AND vehiculo_id = ?', [docId, vehiculoId]);
         return { id: docId, activo: false };
+    },
+
+    // ── Contador de vencimientos (badge del menú) ─────────────────────
+
+    /**
+     * TODO lo que vence en el módulo, en una sola lista: documentos del vehículo,
+     * revisiones, mantenciones, seguros, permisos de circulación y licencias de
+     * conducir. Alimenta el número del menú lateral y el panel que se abre al
+     * hacer clic.
+     *
+     * Criterio (decisión usuario 2026-08-24): cuenta lo YA VENCIDO + lo que vence
+     * dentro de `dias` (default 30) — el mismo umbral que los estados de la ficha.
+     * Lo vencido no desaparece de la lista hasta que se renueva: si saliera del
+     * conteo, un documento vencido dejaría de avisar justo cuando más importa.
+     *
+     * `dias_restantes` es negativo si ya venció (−3 = venció hace 3 días).
+     */
+    async getVencimientos(dias = 30) {
+        const limite = Number.isFinite(Number(dias)) ? Math.max(0, Math.trunc(Number(dias))) : 30;
+
+        // Cada SELECT devuelve la misma forma para poder concatenarlos sin adaptar.
+        const [documentos] = await db.query(`
+            SELECT 'documento' AS categoria, d.id, d.vehiculo_id, d.categoria AS subtipo,
+                   v.patente, v.marca, v.modelo, d.fecha_vencimiento,
+                   DATEDIFF(d.fecha_vencimiento, CURDATE()) AS dias_restantes
+            FROM vehiculo_documentos d
+            JOIN vehiculos v ON v.id = d.vehiculo_id
+            WHERE d.activo = 1 AND v.activo = 1 AND d.fecha_vencimiento IS NOT NULL
+              AND d.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+        `, [limite]);
+
+        const [revisiones] = await db.query(`
+            SELECT 'revision' AS categoria, r.id, r.vehiculo_id, r.tipo AS subtipo,
+                   v.patente, v.marca, v.modelo, r.fecha_vencimiento,
+                   DATEDIFF(r.fecha_vencimiento, CURDATE()) AS dias_restantes
+            FROM vehiculo_revisiones r
+            JOIN vehiculos v ON v.id = r.vehiculo_id
+            WHERE r.activo = 1 AND v.activo = 1 AND r.fecha_vencimiento IS NOT NULL
+              AND r.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+        `, [limite]);
+
+        const [mantenciones] = await db.query(`
+            SELECT 'mantencion' AS categoria, m.id, m.vehiculo_id, m.tipo AS subtipo,
+                   v.patente, v.marca, v.modelo, m.fecha_proxima AS fecha_vencimiento,
+                   DATEDIFF(m.fecha_proxima, CURDATE()) AS dias_restantes
+            FROM vehiculo_mantenciones m
+            JOIN vehiculos v ON v.id = m.vehiculo_id
+            WHERE m.activo = 1 AND v.activo = 1 AND m.fecha_proxima IS NOT NULL
+              AND m.fecha_proxima <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+        `, [limite]);
+
+        const [seguros] = await db.query(`
+            SELECT 'seguro' AS categoria, s.id, s.vehiculo_id, s.tipo AS subtipo,
+                   v.patente, v.marca, v.modelo, s.fecha_vencimiento,
+                   DATEDIFF(s.fecha_vencimiento, CURDATE()) AS dias_restantes
+            FROM vehiculo_seguros s
+            JOIN vehiculos v ON v.id = s.vehiculo_id
+            WHERE s.activo = 1 AND v.activo = 1 AND s.fecha_vencimiento IS NOT NULL
+              AND s.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+        `, [limite]);
+
+        const [permisos] = await db.query(`
+            SELECT 'permiso' AS categoria, p.id, p.vehiculo_id, 'permiso_circulacion' AS subtipo,
+                   v.patente, v.marca, v.modelo, p.fecha_vencimiento,
+                   DATEDIFF(p.fecha_vencimiento, CURDATE()) AS dias_restantes
+            FROM vehiculo_permisos p
+            JOIN vehiculos v ON v.id = p.vehiculo_id
+            WHERE p.activo = 1 AND v.activo = 1 AND p.fecha_vencimiento IS NOT NULL
+              AND p.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+        `, [limite]);
+
+        // Licencias: son del conductor, no de un vehículo → sin vehiculo_id/patente.
+        const [licencias] = await db.query(`
+            SELECT 'licencia' AS categoria, t.id, NULL AS vehiculo_id, t.licencia_conducir AS subtipo,
+                   NULL AS patente, CONCAT(t.nombres, ' ', t.apellido_paterno) AS marca, NULL AS modelo,
+                   t.licencia_vencimiento AS fecha_vencimiento,
+                   DATEDIFF(t.licencia_vencimiento, CURDATE()) AS dias_restantes
+            FROM trabajadores t
+            WHERE t.activo = 1 AND t.licencia_vencimiento IS NOT NULL
+              AND t.licencia_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+        `, [limite]);
+
+        const items = [...documentos, ...revisiones, ...mantenciones, ...seguros, ...permisos, ...licencias]
+            // Lo más urgente primero: primero lo más vencido, después lo que vence antes.
+            .sort((a, b) => Number(a.dias_restantes) - Number(b.dias_restantes));
+
+        const vencidos = items.filter(i => Number(i.dias_restantes) < 0).length;
+        return { items, total: items.length, vencidos, por_vencer: items.length - vencidos, dias: limite };
     },
 
     // ── Alertas de vencimiento ────────────────────────────────────────

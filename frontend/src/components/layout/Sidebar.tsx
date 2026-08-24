@@ -20,6 +20,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 import { Logo } from '../ui/Logo';
+import { useVencimientosVehiculos } from '../../hooks/useVencimientosVehiculos';
+import { VencimientosPanel } from '../vehiculos/VencimientosPanel';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { IconButton } from '../ui/IconButton';
 
@@ -33,13 +35,23 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen }) => {
     const { user, logout, hasPermission } = useAuth();
     const location = useLocation();
+    // Contador de vencimientos del módulo Vehículos: número en el menú + panel al
+    // hacer clic. Reemplaza al aviso por correo de los documentos.
+    const vencimientos = useVencimientosVehiculos();
+    const [showVencimientos, setShowVencimientos] = React.useState(false);
 
     // Auto-close mobile drawer on route change
     React.useEffect(() => {
         setMobileOpen(false);
     }, [location.pathname]);
 
-    const menuItems = [
+    const menuItems: {
+        icon: React.ElementType; label: string; path: string; visible: boolean;
+        /** Contador opcional (hoy solo Vehículos). 0 o undefined = no se muestra. */
+        badge?: number;
+        /** true = hay algo vencido → rojo; false = solo por vencer → ámbar. */
+        badgeUrgente?: boolean;
+    }[] = [
         { icon: LayoutDashboard, label: 'Inicio', path: '/', visible: true },
         {
             icon: CheckSquare,
@@ -63,7 +75,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             icon: Truck,
             label: 'Vehículos',
             path: '/vehiculos',
-            visible: hasPermission('vehiculos.ver')
+            visible: hasPermission('vehiculos.ver'),
+            badge: vencimientos.total,
+            // Rojo si hay algo vencido; ámbar si solo faltan vencimientos por llegar.
+            badgeUrgente: vencimientos.vencidos > 0,
         },
         {
             icon: Archive,
@@ -134,6 +149,36 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                             >
                                 {item.label}
                             </motion.span>
+                        )}
+                        {/* Contador de vencimientos: se hace clic en el NÚMERO (no navega)
+                            para abrir el panel con el detalle. Menú colapsado: solo el número
+                            sobre el ícono, y el clic navega como cualquier otro item. */}
+                        {!!item.badge && (
+                            (isMobile || !isCollapsed) ? (
+                                /* eslint-disable-next-line no-restricted-syntax -- abre el panel sin navegar */
+                                <button
+                                    type="button"
+                                    onClick={e => { e.preventDefault(); e.stopPropagation(); setShowVencimientos(true); }}
+                                    title={`${item.badge} ${item.badge === 1 ? 'vencimiento' : 'vencimientos'} — ver detalle`}
+                                    aria-label={`Ver ${item.badge} ${item.badge === 1 ? 'vencimiento' : 'vencimientos'}`}
+                                    className={cn(
+                                        "ml-auto shrink-0 min-w-[22px] h-[22px] px-1.5 rounded-full text-micro font-black text-white flex items-center justify-center transition-transform hover:scale-110",
+                                        item.badgeUrgente ? "bg-destructive" : "bg-amber-500"
+                                    )}
+                                >
+                                    {item.badge}
+                                </button>
+                            ) : (
+                                <span
+                                    aria-hidden
+                                    className={cn(
+                                        "absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full text-micro font-black text-white flex items-center justify-center",
+                                        item.badgeUrgente ? "bg-destructive" : "bg-amber-500"
+                                    )}
+                                >
+                                    {item.badge}
+                                </span>
+                            )
                         )}
                     </NavLink>
                 ))}
@@ -220,6 +265,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                     </>
                 )}
             </AnimatePresence>
+
+            {/* Panel de vencimientos — se renderiza UNA vez (fuera de sidebarContent,
+                que se monta dos veces: escritorio y drawer móvil). */}
+            <VencimientosPanel
+                isOpen={showVencimientos}
+                onClose={() => setShowVencimientos(false)}
+                resumen={vencimientos}
+                loading={vencimientos.loading}
+            />
         </>
     );
 };

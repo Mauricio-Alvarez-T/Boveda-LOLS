@@ -16,6 +16,14 @@ router.get('/alertas', auth, checkPermission('vehiculos.ver'), async (req, res, 
     } catch (err) { next(err); }
 });
 
+// ── Contador de vencimientos del módulo (badge del menú) ───────────────
+// Devuelve vencidos + los que vencen dentro de `dias` (default 30), de todas
+// las fuentes del módulo. Va antes de /:id para que no lo capture.
+router.get('/vencimientos', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
+    try { res.json({ data: await svc.getVencimientos(req.query.dias) }); }
+    catch (err) { next(err); }
+});
+
 // ── Ventas / historial de vendidos (antes de /:id para que no sea capturado) ──
 router.get('/ventas', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
     try { res.json({ data: await svc.getVentas() }); }
@@ -151,6 +159,10 @@ router.post('/:id/documentos', auth, checkPermission('vehiculos.crear'), uploadV
             categoria: req.body.categoria,
             file: req.file,
             userId: req.user?.id,
+            // Opcionales: hay documentos que no vencen (padrón).
+            fecha: req.body.fecha,
+            fecha_vencimiento: req.body.fecha_vencimiento,
+            observaciones: req.body.observaciones,
         });
         res.status(201).json({ data: doc });
     } catch (err) { next(err); }
@@ -161,6 +173,11 @@ router.get('/:id/documentos/:docId/download', auth, checkPermission('vehiculos.v
         const { fullPath, fileName } = await svc.getDocumentoFilePath(req.params.id, req.params.docId);
         res.download(fullPath, fileName);
     } catch (err) { next(err); }
+});
+
+router.put('/:id/documentos/:docId', auth, checkPermission('vehiculos.editar'), async (req, res, next) => {
+    try { res.json({ data: await svc.updateDocumento(req.params.id, req.params.docId, req.body) }); }
+    catch (err) { next(err); }
 });
 
 router.delete('/:id/documentos/:docId', auth, checkPermission('vehiculos.eliminar'), async (req, res, next) => {
