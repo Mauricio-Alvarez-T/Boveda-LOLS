@@ -19,7 +19,9 @@ describe('asistenciaService.batchSave (P1.1)', () => {
         jest.clearAllMocks();
         mockConn = {
             beginTransaction: jest.fn(),
-            query: jest.fn(),
+            // Default con affectedRows: cubre el DELETE de limpieza de duplicados
+            // cross-obra (regla "fila vigente") sin agotar las cadenas Once.
+            query: jest.fn().mockResolvedValue([{ affectedRows: 0 }]),
             commit: jest.fn(),
             rollback: jest.fn(),
             release: jest.fn(),

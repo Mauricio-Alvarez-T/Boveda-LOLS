@@ -61,15 +61,16 @@ router.get('/:id/quick-view', auth, async (req, res, next) => {
             [id]
         );
 
-        // 3. Last 5 attendance records
+        // 3. Last 5 attendance records — solo la fila VIGENTE por día (con
+        // duplicados cross-obra gana la más nueva; regla en docs/reglas/asistencia.md).
         const [attendance] = await db.query(
             `SELECT a.fecha, a.hora_entrada, a.hora_salida, a.horas_extra, a.observacion,
                     ea.nombre as estado_nombre, ea.codigo as estado_codigo, ea.color as estado_color, ea.es_presente,
                     ta.nombre as tipo_ausencia_nombre
              FROM asistencias a
+             JOIN (SELECT MAX(id) AS mid FROM asistencias WHERE trabajador_id = ? GROUP BY fecha) v ON v.mid = a.id
              LEFT JOIN estados_asistencia ea ON a.estado_id = ea.id
              LEFT JOIN tipos_ausencia ta ON a.tipo_ausencia_id = ta.id
-             WHERE a.trabajador_id = ?
              ORDER BY a.fecha DESC
              LIMIT 5`, [id]
         );

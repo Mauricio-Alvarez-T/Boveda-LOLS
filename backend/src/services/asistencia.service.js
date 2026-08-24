@@ -260,6 +260,9 @@ const asistenciaService = {
             const booleanFields = new Set();
             const numericFields = new Set(['estado_id', 'tipo_ausencia_id', 'horas_extra']);
             const fieldsToCheck = ['estado_id', 'tipo_ausencia_id', 'observacion', 'hora_entrada', 'hora_salida', 'hora_colacion_inicio', 'hora_colacion_fin', 'horas_extra'];
+            // Filas escritas en esta transacción — para la limpieza de duplicados
+            // cross-obra (regla "fila vigente", docs/reglas/asistencia.md).
+            const escritos = [];
 
             for (const reg of registros) {
                 const fechaNormalizada = typeof reg.fecha === 'string' ? reg.fecha.split('T')[0] : reg.fecha;
@@ -318,6 +321,7 @@ const asistenciaService = {
                         ]
                     );
                     results.push({ trabajador_id: reg.trabajador_id, action: 'updated', id: old.id });
+                    escritos.push({ trabajador_id: reg.trabajador_id, fecha: fechaNormalizada, obra_id: globalObraId, id: old.id });
 
                     if (Object.keys(cambios).length > 0) {
                         logEntries.push({
@@ -351,6 +355,7 @@ const asistenciaService = {
                         ]
                     );
                     results.push({ trabajador_id: reg.trabajador_id, action: 'created', id: result.insertId });
+                    escritos.push({ trabajador_id: reg.trabajador_id, fecha: fechaNormalizada, obra_id: globalObraId, id: result.insertId });
 
                     logEntries.push({
                         trabajador_id: reg.trabajador_id,
@@ -363,6 +368,10 @@ const asistenciaService = {
                     });
                 }
             }
+
+            // Regla "fila vigente": borrar duplicados MÁS ANTIGUOS del mismo día
+            // en otras obras (protege TO y filas más nuevas — ver helper).
+            await this._limpiarDuplicadosCrossObra(conn, escritos);
 
             await conn.commit();
 
@@ -737,6 +746,72 @@ const asistenciaService = {
     },
 
     /**
+     * Prevención de duplicados cross-obra (regla "fila vigente"): al escribir
+     * asistencia de un (trabajador, fecha) en una obra, eliminar las filas del
+     * MISMO día en OTRAS obras, con dos protecciones:
+     *  - nunca borrar un TO (el par TO origen + A destino del traslado es legítimo);
+     *  - si la entrada trae `id`, solo borrar filas MÁS ANTIGUAS (a.id < id) —
+     *    re-guardar la obra origen tras un traslado no puede matar la fila real
+     *    del destino.
+     * Corre DENTRO de la transacción del caller. Devuelve filas borradas.
+     */
+    async _limpiarDuplicadosCrossObra(conn, escritos) {
+        if (!Array.isArray(escritos) || escritos.length === 0) return 0;
+        const CHUNK = 200;
+        let borradas = 0;
+        for (let i = 0; i < escritos.length; i += CHUNK) {
+            const chunk = escritos.slice(i, i + CHUNK);
+            const conds = [];
+            const params = [];
+            for (const e of chunk) {
+                if (e.id) {
+                    conds.push('(a.trabajador_id = ? AND a.fecha = ? AND a.obra_id <> ? AND a.id < ?)');
+                    params.push(e.trabajador_id, e.fecha, e.obra_id, e.id);
+                } else {
+                    conds.push('(a.trabajador_id = ? AND a.fecha = ? AND a.obra_id <> ?)');
+                    params.push(e.trabajador_id, e.fecha, e.obra_id);
+                }
+            }
+            const [res] = await conn.query(
+                `DELETE a FROM asistencias a
+                 WHERE a.estado_id <> (SELECT id FROM estados_asistencia WHERE codigo = 'TO')
+                   AND (${conds.join(' OR ')})`,
+                params
+            );
+            borradas += res.affectedRows || 0;
+        }
+        if (borradas > 0) {
+            logger.info('[asistencia] duplicados cross-obra eliminados (fila vigente)', { borradas });
+        }
+        return borradas;
+    },
+
+    /**
+     * REGLA "FILA VIGENTE" (docs/reglas/asistencia.md): un trabajador tiene UN
+     * estado por día. Si existen varias filas para el mismo (trabajador, fecha)
+     * en obras distintas (traslado TO+A, o duplicados históricos por cambio de
+     * obra), en los scopes SIN filtro de obra gana la fila de `id` MÁS ALTO
+     * (la última registrada). Las filas sintéticas de período (`id: null`)
+     * pierden ante cualquier fila real.
+     */
+    _filaVigente(registros) {
+        const porClave = new Map(); // "trabajador:fecha" → fila de mayor id
+        for (const r of registros) {
+            const f = typeof r.fecha === 'string'
+                ? r.fecha.split('T')[0]
+                : (r.fecha instanceof Date && !isNaN(r.fecha.getTime())
+                    ? r.fecha.toISOString().split('T')[0]
+                    : null);
+            if (!f) continue;
+            const key = `${r.trabajador_id}:${f}`;
+            const prev = porClave.get(key);
+            if (!prev || (r.id || 0) > (prev.id || 0)) porClave.set(key, r);
+        }
+        const vigentes = new Set(porClave.values());
+        return registros.filter(r => vigentes.has(r));
+    },
+
+    /**
      * Obtener asistencia de una obra en una fecha
      */
     async getByObraAndFecha(obraId, fecha) {
@@ -765,9 +840,17 @@ const asistenciaService = {
             queryParams.push(obraId);
         }
 
-        queryStr += ` ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC`;
+        queryStr += ` ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC, a.id ASC`;
 
-        const [rows] = await db.query(queryStr, queryParams);
+        let [rows] = await db.query(queryStr, queryParams);
+
+        // Regla "fila vigente": en el consolidado global un trabajador puede traer
+        // 2 filas del mismo día (obras distintas: traslado o duplicado histórico).
+        // Gana la más reciente. En la vista POR OBRA no se dedupea: cada obra debe
+        // seguir viendo su propia fila (p.ej. el TO de la obra origen).
+        if (obraId === 'ALL') {
+            rows = this._filaVigente(rows);
+        }
 
         // Completar con períodos activos no propagados (LM weekend, legacy data).
         // Garantiza que daily/WhatsApp ven mismo estado que Excel/Calendar modal.
@@ -866,9 +949,10 @@ const asistenciaService = {
         let where = [];
         let params = [];
 
-        if (obra_id && obra_id !== 'null' && obra_id !== 'undefined' && obra_id !== '') { 
-            where.push('a.obra_id = ?'); 
-            params.push(obra_id); 
+        const filtraPorObra = Boolean(obra_id && obra_id !== 'null' && obra_id !== 'undefined' && obra_id !== '');
+        if (filtraPorObra) {
+            where.push('a.obra_id = ?');
+            params.push(obra_id);
         }
         if (fecha_inicio) { where.push('a.fecha >= ?'); params.push(fecha_inicio); }
         if (fecha_fin) { where.push('a.fecha <= ?'); params.push(fecha_fin); }
@@ -913,16 +997,21 @@ const asistenciaService = {
              JOIN trabajadores t ON a.trabajador_id = t.id
              LEFT JOIN tipos_ausencia ta ON a.tipo_ausencia_id = ta.id
               ${whereClause}
-              ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC, a.fecha DESC`,
+              ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC, a.fecha DESC, a.id ASC`,
             [...params]
         );
 
+        // Regla "fila vigente": sin filtro de obra (calendario del trabajador,
+        // Excel global, WhatsApp) un mismo (trabajador, fecha) puede traer filas
+        // de varias obras — gana la más reciente. Con obra la UK garantiza 1 fila.
+        const rowsVigentes = filtraPorObra ? rows : this._filaVigente(rows);
+
         // Completar con períodos activos no propagados (LM weekend/feriado, etc.).
         // Solo si hay rango definido — sin fechas, no podemos acotar periodos.
-        let registros = rows;
+        let registros = rowsVigentes;
         if (fecha_inicio && fecha_fin) {
             const existingKeys = new Set(
-                rows.map(r => {
+                rowsVigentes.map(r => {
                     if (!r.fecha) return null;
                     const f = typeof r.fecha === 'string'
                         ? r.fecha.split('T')[0]
@@ -946,7 +1035,7 @@ const asistenciaService = {
                 activo: activo,
             });
             if (filasPeriodo.length > 0) {
-                registros = [...rows, ...filasPeriodo].sort((a, b) => {
+                registros = [...rowsVigentes, ...filasPeriodo].sort((a, b) => {
                     const ap = (a.apellido_paterno || '').toLocaleLowerCase();
                     const bp = (b.apellido_paterno || '').toLocaleLowerCase();
                     if (ap !== bp) return ap < bp ? -1 : 1;
@@ -2164,6 +2253,7 @@ const asistenciaService = {
 
             let diasAfectados = 0;
             let diasSaltados = 0;
+            const fechasEscritas = [];
             const current = new Date(inicio);
 
             while (current <= fin) {
@@ -2205,8 +2295,16 @@ const asistenciaService = {
                 );
 
                 diasAfectados++;
+                fechasEscritas.push(fechaStr);
                 current.setDate(current.getDate() + 1);
             }
+
+            // Regla "fila vigente": las filas del período recién escritas son las
+            // más nuevas — borrar duplicados del mismo día en OTRAS obras (≠ TO).
+            await this._limpiarDuplicadosCrossObra(
+                conn,
+                fechasEscritas.map(f => ({ trabajador_id, fecha: f, obra_id }))
+            );
 
             await conn.commit();
 
@@ -2493,18 +2591,28 @@ const asistenciaService = {
         const lastDay = new Date(anio, mes, 0).getDate();
         const endDate = `${anio}-${String(mes).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-        // 3. Obtener todas las faltas del mes
+        // 3. Obtener todas las faltas del mes.
+        //    Regla "fila vigente": una F solo cuenta si no existe una fila MÁS
+        //    NUEVA del mismo día en otra obra (duplicado histórico corregido).
         let faltasQuery = `
             SELECT a.trabajador_id, a.fecha, a.obra_id,
                    t.nombres, t.apellido_paterno, t.rut
             FROM asistencias a
             JOIN trabajadores t ON a.trabajador_id = t.id
             WHERE a.estado_id = ? AND a.fecha BETWEEN ? AND ? AND t.activo = 1 AND t.es_prueba = 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM asistencias a2
+                  WHERE a2.trabajador_id = a.trabajador_id AND a2.fecha = a.fecha
+                    AND a2.obra_id <> a.obra_id AND a2.id > a.id
+              )
         `;
         const params = [faltaId, startDate, endDate];
 
         if (obraId !== 'ALL') {
-            faltasQuery += ' AND t.obra_id = ?';
+            // Atribuir la falta a la obra DONDE OCURRIÓ (a.obra_id), no a la obra
+            // actual del trabajador (t.obra_id) — tras un traslado, las faltas
+            // históricas no deben migrar de obra.
+            faltasQuery += ' AND a.obra_id = ?';
             params.push(obraId);
         }
 

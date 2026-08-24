@@ -195,12 +195,19 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
     // ── 3. ASISTENCIA (si tiene permiso) ──
     if (canSee(permisos, 'asistencia')) {
         const today = new Date().toISOString().split('T')[0];
+        // Regla "fila vigente": con duplicados del mismo día en otras obras
+        // (traslado TO+A o histórico) cuenta solo la fila más nueva — cada
+        // trabajador aporta 1 al conteo del día (docs/reglas/asistencia.md).
+        const vigente = `AND NOT EXISTS (
+                SELECT 1 FROM asistencias a2
+                WHERE a2.trabajador_id = a.trabajador_id AND a2.fecha = a.fecha
+                  AND a2.obra_id <> a.obra_id AND a2.id > a.id)`;
         const [attendanceToday] = await pool.query(
             `SELECT ea.nombre as estado, ea.es_presente, COUNT(*) as count
              FROM asistencias a
              JOIN estados_asistencia ea ON a.estado_id = ea.id
              JOIN trabajadores t ON a.trabajador_id = t.id
-             WHERE a.fecha = ? AND t.es_prueba = 0 ${asistFilter}
+             WHERE a.fecha = ? AND t.es_prueba = 0 ${vigente} ${asistFilter}
              GROUP BY ea.id, ea.nombre, ea.es_presente`,
             [today, ...params]
         );
@@ -229,7 +236,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
              FROM asistencias a
              JOIN estados_asistencia ea ON a.estado_id = ea.id
              JOIN trabajadores t ON a.trabajador_id = t.id
-             WHERE a.fecha = ? AND t.es_prueba = 0 ${asistFilter}
+             WHERE a.fecha = ? AND t.es_prueba = 0 ${vigente} ${asistFilter}
              GROUP BY ea.es_presente`,
             [yesterday, ...params]
         );
@@ -248,7 +255,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
             JOIN trabajadores t ON a.trabajador_id = t.id
             JOIN estados_asistencia ea ON a.estado_id = ea.id
             LEFT JOIN obras o ON a.obra_id = o.id
-            WHERE a.fecha = ? AND t.es_prueba = 0 AND ea.es_presente = 0 ${asistFilter}
+            WHERE a.fecha = ? AND t.es_prueba = 0 AND ea.es_presente = 0 ${vigente} ${asistFilter}
             ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC
             LIMIT 20
         `, [today, ...params]);
@@ -263,6 +270,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
             JOIN estados_asistencia ea ON a.estado_id = ea.id
             JOIN trabajadores t ON a.trabajador_id = t.id
             WHERE a.fecha >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) AND t.es_prueba = 0
+            ${vigente}
             ${asistFilter ? 'AND a.obra_id = ?' : ''}
             GROUP BY a.fecha
             ORDER BY a.fecha ASC
