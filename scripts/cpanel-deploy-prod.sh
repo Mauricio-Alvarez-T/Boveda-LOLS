@@ -258,6 +258,59 @@ heal_deps() {
 heal_deps || echo "$(date '+%F %T') · heal-deps: falló (rc=$?) — no fatal"
 # --- heal-deps:end ---
 
+# --- migrate-once:begin — TEMPORAL (incidente 2026-08-24/25; QUITAR al cerrarlo) ---
+# El restore del hosting dejó las BDs sin las migraciones 100-102 (schema_migrations
+# termina en la 099 en ambas) y el panel no puede correr scripts: el Selector lanza
+# todo con ~/nodevenv/<app>/20/bin/npm, que el restore no devolvió → FileNotFoundError
+# ANTES de ejecutar nada. Se corre el runner por acá con node directo: migrate.js
+# carga su .env por ruta absoluta, usa el mysql2 del node_modules real (heal-deps) y
+# es idempotente (registra en schema_migrations). Marker al ÉXITO + lock anti-solape
+# + backoff 30 min si falló (mismo diseño que heal-deps).
+run_migrate_once() {
+    local done_marker="$BACK_DEST/tmp/.migrate-incidente-20260825.done"
+    [ -f "$done_marker" ] && return 0
+    local ht="$FRONT_DEST/api/.htaccess"
+    if [ ! -f "$ht" ] && grep -q '^PassengerAppRoot' "$FRONT_DEST/.htaccess" 2>/dev/null; then
+        ht="$FRONT_DEST/.htaccess"
+    fi
+    [ -f "$ht" ] || return 0
+    local nb
+    nb="$(sed -n 's/^PassengerNodejs[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}[[:space:]]*$/\1/p' "$ht" | tail -n1)"
+    { [ -n "$nb" ] && [ -x "$nb" ]; } || return 0
+    { [ -f "$BACK_DEST/scripts/migrate.js" ] && [ -d "$BACK_DEST/node_modules/mysql2" ]; } || return 0
+
+    mkdir -p "$BACK_DEST/tmp"
+    local mlog="$BACK_DEST/tmp/migrate-incidente.log"
+    # Backoff: si el último intento fue hace <30 min y falló, no martillar la BD.
+    if [ -f "$mlog" ] && [ -n "$(find "$mlog" -mmin -30 2>/dev/null)" ]; then
+        echo "$(date '+%F %T') · migrate-once: intento reciente (<30 min) — backoff"
+        return 0
+    fi
+    local lock="$BACK_DEST/tmp/.migrate-incidente.lock"
+    if [ -d "$lock" ] && [ -n "$(find "$lock" -maxdepth 0 -mmin +30 2>/dev/null)" ]; then
+        rmdir "$lock" 2>/dev/null || true
+    fi
+    if ! mkdir "$lock" 2>/dev/null; then
+        echo "$(date '+%F %T') · migrate-once: otro tick migrando (lock) — salto"
+        return 0
+    fi
+
+    echo "$(date '+%F %T') · migrate-once: aplicando migraciones pendientes con $nb (log: tmp/migrate-incidente.log)"
+    local rc=0 tmo=""
+    command -v timeout >/dev/null 2>&1 && tmo="timeout 600"
+    ( cd "$BACK_DEST" && $tmo "$nb" scripts/migrate.js ) > "$mlog" 2>&1 || rc=$?
+    rmdir "$lock" 2>/dev/null || true
+    if [ "$rc" = "0" ]; then
+        date > "$done_marker"
+        echo "$(date '+%F %T') · migrate-once: OK — migraciones aplicadas (marker escrito)"
+    else
+        echo "$(date '+%F %T') · migrate-once: falló (rc=$rc) — ver tmp/migrate-incidente.log; reintento en 30 min"
+    fi
+    return 0
+}
+run_migrate_once || echo "$(date '+%F %T') · migrate-once: falló (rc=$?) — no fatal"
+# --- migrate-once:end ---
+
 # --- diag:begin — Diagnóstico TEMPORAL del incidente 2026-08-24 (QUITAR al cerrarlo) ---
 # Escribe un resumen de estado en el docroot para poder leerlo por HTTP desde
 # afuera (este hosting no tiene SSH). Sin credenciales: la prueba de MySQL usa
@@ -323,6 +376,11 @@ diag_incidente() {
             echo "depsheal_log_mtime=$(date -r "$BACK_DEST/tmp/deps-heal.log" '+%F %T')"
             tail -n 8 "$BACK_DEST/tmp/deps-heal.log" 2>/dev/null | sed 's/^/npm> /'
         fi
+        if [ -f "$BACK_DEST/tmp/migrate-incidente.log" ]; then
+            echo "migrate_log_mtime=$(date -r "$BACK_DEST/tmp/migrate-incidente.log" '+%F %T')"
+            tail -n 12 "$BACK_DEST/tmp/migrate-incidente.log" 2>/dev/null | sed 's/^/mig> /'
+        fi
+        [ -f "$BACK_DEST/tmp/.migrate-incidente-20260825.done" ] && echo "migrate_marker=$(date -r "$BACK_DEST/tmp/.migrate-incidente-20260825.done" '+%F %T')" || echo "migrate_marker=NO"
         echo "deploylog_tail:"
         tail -n 8 "${REPO_DIR}.log" 2>/dev/null | sed 's/^/dl> /'
     } > "$out" 2>&1
