@@ -16,6 +16,10 @@
   el repo; caída 2026-08-24). `app.js` deprecado como startup (su catch traga errores).
   `node_modules` en el servidor es un symlink al nodevenv — recrear el venv lo rompe; lo repara
   Run NPM Install o el `heal_passenger` del cron (RUNBOOK §6).
+- **NO usar SAVE en Setup Node.js App para cambios menores** (caída 2026-08-24: un SAVE rompió
+  el mapeo CageFS del intérprete de ambos venv — reparación solo desde root). Editar la línea
+  del `.htaccess` a mano; SAVE solo para reconstruir el entorno, con el startup file corregido
+  a `index.js` en la misma sesión (RUNBOOK §6).
 - El deploy NO corre migraciones ni toca `.env`.
 
 ## Migraciones
