@@ -180,6 +180,9 @@ diag_incidente() {
     {
         echo "ts=$(date '+%F %T')"
         local ht="$FRONT_DEST/api/.htaccess"
+        if [ ! -f "$ht" ] && grep -q '^PassengerAppRoot' "$FRONT_DEST/.htaccess" 2>/dev/null; then
+            ht="$FRONT_DEST/.htaccess"
+        fi
         if [ -f "$ht" ]; then
             echo "htaccess=presente mtime=$(date -r "$ht" '+%F %T')"
             grep -E '^Passenger(StartupFile|Nodejs|AppRoot|AppType|BaseURI)' "$ht" 2>/dev/null | sed 's/^/ht> /'
@@ -218,7 +221,7 @@ diag_incidente() {
         for lg in "$BACK_DEST/startup_debug.log" "$BACK_DEST/startup_app.log"; do
             if [ -f "$lg" ]; then
                 echo "log_$(basename "$lg")_mtime=$(date -r "$lg" '+%F %T')"
-                tail -n 3 "$lg" 2>/dev/null | sed 's/^/log> /'
+                tail -n 40 "$lg" 2>/dev/null | sed 's/^/log> /'
             fi
         done
         echo "deploylog_tail:"
