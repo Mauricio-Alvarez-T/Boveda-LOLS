@@ -74,10 +74,12 @@ heal_passenger() {
     #    tail -n1: con directivas duplicadas Apache honra la ÚLTIMA.
     local sf
     sf="$(sed -n 's/^PassengerStartupFile[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}[[:space:]]*$/\1/p' "$ht" | tail -n1)"
-    if [ -n "$sf" ] && [ ! -s "$BACK_DEST/$sf" ]; then
+    #    app.js EXPLÍCITO también se normaliza a index.js: está DEPRECADO como startup
+    #    (su catch traga el error de require('./index') sin re-lanzar — RUNBOOK §1).
+    if [ -n "$sf" ] && { [ ! -s "$BACK_DEST/$sf" ] || [ "$sf" = "app.js" ]; }; then
         if [ -s "$BACK_DEST/index.js" ]; then
             sed -i 's|^PassengerStartupFile[[:space:]].*|PassengerStartupFile index.js|' "$ht"
-            echo "$(date '+%F %T') · heal: startup file '$sf' no existe o está vacío en $BACK_DEST → index.js"
+            echo "$(date '+%F %T') · heal: startup file '$sf' inexistente/vacío/deprecado en $BACK_DEST → index.js"
             changed=1
         else
             echo "$(date '+%F %T') · heal: ni '$sf' ni index.js existen en $BACK_DEST — backend sin desplegar, no toco nada"
@@ -170,6 +172,39 @@ heal_passenger() {
 # (deseado: su control de flujo es todo por if, nada depende de -e).
 heal_passenger || echo "$(date '+%F %T') · heal: falló (rc=$?) — no fatal, el deploy continúa"
 # --- heal:end ---
+
+# --- npmfix:begin — TEMPORAL (incidente 2026-08-24/25; QUITAR al cerrarlo) ---
+# La lib del venv quedó INCOMPLETA (falta 'tmp', dep transitiva de exceljs → la app
+# crashea al arrancar). El panel no puede correr NPM Install ("No such application"),
+# así que se completa UNA sola vez con el npm de /opt/alt, instalando a través del
+# symlink node_modules → lib del venv. Marker-file para no repetirse; se marca ANTES
+# de correr para que un tick solapado del cron no lo duplique.
+npmfix() {
+    local marker="$BACK_DEST/.npmfix-20260825"
+    local npmbin="/opt/alt/alt-nodejs20/root/usr/bin/npm"
+    [ -f "$marker" ] && return 0
+    [ -L "$BACK_DEST/node_modules" ] || return 0   # sin symlink aún → esperar al heal
+    [ -d "$BACK_DEST/node_modules/tmp" ] && return 0
+    if [ ! -x "$npmbin" ]; then
+        echo "$(date '+%F %T') · npmfix: no hay npm en $npmbin — completar deps a mano"
+        return 0
+    fi
+    date > "$marker"
+    echo "$(date '+%F %T') · npmfix: lib incompleta (falta 'tmp') → npm install --omit=dev en $BACK_DEST (una sola vez; log: ~/npmfix-$(basename "$BACK_DEST").log)"
+    ( cd "$BACK_DEST" && PATH="/opt/alt/alt-nodejs20/root/usr/bin:$PATH" \
+        "$npmbin" install --omit=dev --no-audit --no-fund ) \
+        >> "$HOME/npmfix-$(basename "$BACK_DEST").log" 2>&1
+    local rc=$?
+    echo "$(date '+%F %T') · npmfix: terminó rc=$rc"
+    if [ "$rc" = "0" ]; then
+        mkdir -p "$BACK_DEST/tmp"
+        date > "$BACK_DEST/tmp/restart.txt"
+        echo "$(date '+%F %T') · npmfix: Passenger reiniciado"
+    fi
+    return 0
+}
+npmfix || echo "$(date '+%F %T') · npmfix: falló (rc=$?) — no fatal"
+# --- npmfix:end ---
 
 # --- diag:begin — Diagnóstico TEMPORAL del incidente 2026-08-24 (QUITAR al cerrarlo) ---
 # Escribe un resumen de estado en el docroot para poder leerlo por HTTP desde
