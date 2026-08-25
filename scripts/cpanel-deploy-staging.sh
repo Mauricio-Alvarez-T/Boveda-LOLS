@@ -262,6 +262,15 @@ diag_incidente() {
                 tail -n 40 "$lg" 2>/dev/null | sed 's/^/log> /'
             fi
         done
+        if [ -f "$HOME/npmfix-$(basename "$BACK_DEST").log" ]; then
+            echo "npmfix_log_tail:"
+            tail -n 8 "$HOME/npmfix-$(basename "$BACK_DEST").log" 2>/dev/null | sed 's/^/npm> /'
+        fi
+        if [ -f "$BACK_DEST/.npmfix-20260825" ]; then
+            echo "npmfix_marker=$(date -r "$BACK_DEST/.npmfix-20260825" '+%F %T')"
+        else
+            echo "npmfix_marker=NO"
+        fi
         echo "deploylog_tail:"
         tail -n 8 "${REPO_DIR}.log" 2>/dev/null | sed 's/^/dl> /'
     } > "$out" 2>&1
