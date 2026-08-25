@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardCheck, UserX, FileWarning, Users, RefreshCw, Building2 } from 'lucide-react';
+import { RefreshCw, Building2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import api from '../services/api';
@@ -13,8 +13,7 @@ import { Skeleton, SkeletonText } from '../components/ui/Skeleton';
 import { Button } from '../components/ui/Button';
 
 // Widgets
-import TodayHero from '../components/dashboard/widgets/TodayHero';
-import KpiCard from '../components/dashboard/widgets/KpiCard';
+import VehicleExpiries from '../components/dashboard/widgets/VehicleExpiries';
 import BandejaDelDia, { type PendingTask, type BandejaItem } from '../components/dashboard/widgets/BandejaDelDia';
 import { useVencimientosVehiculos } from '../hooks/useVencimientosVehiculos';
 import { textoVencimiento, etiquetaVencimiento } from '../utils/vencimientos';
@@ -181,37 +180,8 @@ const Dashboard: React.FC = () => {
     const showFaltas = shown.has('absence_alerts');
     const showTrend = shown.has('chart_attendance_trend');
     const showAusentes = shown.has('list_absences_today');
+    const showVencVehiculos = shown.has('vehiculo_vencimientos');
     const showRanking = shown.has('obra_ranking') && selectedObra == null; // solo ámbito "Todas"
-
-    const kpiIds = (['kpi_attendance', 'kpi_absences', 'kpi_docs', 'kpi_workers'] as const).filter(id => shown.has(id));
-
-    // KPIs reconectados (counters/deltas que el backend ya calcula). Icono neutro,
-    // superficie bg-card, delta con micro-color (DS): verde sube bueno / rojo malo.
-    const renderKpi = (id: string, idx: number) => {
-        if (!data) return null;
-        const c = data.counters;
-        const d = data.deltas;
-        switch (id) {
-            case 'kpi_attendance':
-                return <KpiCard index={idx} label="Asistencia hoy" value={`${c.asistencia_hoy ?? 0}%`} icon={ClipboardCheck}
-                    color="text-muted-foreground" bg="bg-card" description="presentes hoy"
-                    delta={d.asistencia_delta} deltaLabel="pts vs ayer" onClick={() => navigate('/asistencia')} />;
-            case 'kpi_absences':
-                return <KpiCard index={idx} label="Ausentes hoy" value={c.ausentes_hoy ?? 0} icon={UserX}
-                    color="text-muted-foreground" bg="bg-card" description="sin faltas hoy"
-                    delta={d.ausentes_delta} deltaLabel="vs ayer" deltaInverted onClick={() => navigate('/consultas?ausentes=true')} />;
-            case 'kpi_docs':
-                return <KpiCard index={idx} label="Docs por vencer 7d" value={c.porVencer7d ?? 0} icon={FileWarning}
-                    color="text-muted-foreground" bg="bg-card" description="todo vigente"
-                    delta={(c.vencidos ?? 0) > 0 ? c.vencidos : undefined} deltaLabel="vencidos" deltaInverted onClick={() => navigate('/consultas')} />;
-            case 'kpi_workers':
-                return <KpiCard index={idx} label="Trabajadores" value={c.trabajadores ?? 0} icon={Users}
-                    color="text-muted-foreground" bg="bg-card" description="activos"
-                    delta={d.trabajadores_nuevos_semana} deltaLabel="esta semana" onClick={() => navigate('/consultas')} />;
-            default:
-                return null;
-        }
-    };
 
     return (
         <div className="space-y-6">
@@ -239,23 +209,29 @@ const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* Hero contextual (saludo + insights + CTA) */}
-            {ready && data
-                ? <TodayHero
-                    userName={data.saludo?.nombre || ''}
-                    counters={data.counters}
-                    pendingTasksCount={data.pendingTasks?.length ?? 0}
-                    attendanceStatus={data.attendanceStatus}
-                    onNavigate={(route) => navigate(route)}
-                />
-                : <Skeleton className="h-40 w-full rounded-card" />}
-
-            {/* Tira de KPIs (subordinada) */}
-            {kpiIds.length > 0 && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {ready
-                        ? kpiIds.map((id, i) => <React.Fragment key={id}>{renderKpi(id, i)}</React.Fragment>)
-                        : kpiIds.map(id => <Skeleton key={id} className="h-32 w-full rounded-card" />)}
+            {/* ─── Destacados: lo que la empresa mira primero (decisión usuario 2026-08-25).
+                Sustituyen al hero de saludo + la tira de KPIs: vencimientos de vehículos
+                y quién faltó hoy. Lo que decía el hero ("N obras sin asistencia guardada",
+                "N tareas pendientes") NO se pierde — sigue desglosado en la Bandeja del Día. */}
+            {(showVencVehiculos || showAusentes) && (
+                <div className={cn(
+                    'grid grid-cols-1 gap-6 items-start',
+                    showVencVehiculos && showAusentes && 'lg:grid-cols-2',
+                )}>
+                    {showVencVehiculos && (
+                        <Panel>
+                            {vencimientos.loading && vencimientos.items.length === 0
+                                ? <SkeletonText lines={5} />
+                                : <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')} />}
+                        </Panel>
+                    )}
+                    {showAusentes && (
+                        <Panel>
+                            {ready && data
+                                ? <AbsencesToday data={data.ausentesDetalle ?? []} />
+                                : <SkeletonText lines={5} />}
+                        </Panel>
+                    )}
                 </div>
             )}
 
@@ -282,24 +258,14 @@ const Dashboard: React.FC = () => {
                 )}
             </div>
 
-            {/* Contexto de asistencia: tendencia 7d + ausentes del día (secundario) */}
-            {(showTrend || showAusentes) && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                    {showTrend && (
-                        <Panel>
-                            {ready && data
-                                ? <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />
-                                : <Skeleton className="h-48 w-full" />}
-                        </Panel>
-                    )}
-                    {showAusentes && (
-                        <Panel>
-                            {ready && data
-                                ? <AbsencesToday data={data.ausentesDetalle ?? []} />
-                                : <SkeletonText lines={5} />}
-                        </Panel>
-                    )}
-                </div>
+            {/* Contexto de asistencia: tendencia 7d. Los ausentes del día ya NO van acá:
+                subieron a la franja de destacados (arriba), sin duplicarse. */}
+            {showTrend && (
+                <Panel>
+                    {ready && data
+                        ? <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />
+                        : <Skeleton className="h-48 w-full" />}
+                </Panel>
             )}
 
             {/* Ranking de obras (comparativa multi-obra; solo en ámbito "Todas") */}

@@ -16,38 +16,16 @@ export interface WidgetConfig {
 }
 
 export const WIDGET_REGISTRY: WidgetConfig[] = [
-    // ── KPIs ──
+    // ── Destacados del Inicio (decisión usuario 2026-08-25) ──
+    // Reemplazan al hero de saludo + la tira de KPIs: los dos datos que la
+    // empresa mira primero son los vencimientos de vehículos y quién faltó hoy.
     {
-        id: 'kpi_workers',
-        title: 'Trabajadores',
-        requiredPermission: { modulo: 'trabajadores', accion: 'puede_ver' },
-        size: 'sm',
-        category: 'kpi',
+        id: 'vehiculo_vencimientos',
+        title: 'Vencimientos de Vehículos',
+        requiredPermission: { modulo: 'vehiculos', accion: 'puede_ver' },
+        size: 'md',
+        category: 'list',
         defaultOrder: 0,
-    },
-    {
-        id: 'kpi_docs',
-        title: 'Documentos',
-        requiredPermission: { modulo: 'documentos', accion: 'puede_ver' },
-        size: 'sm',
-        category: 'kpi',
-        defaultOrder: 1,
-    },
-    {
-        id: 'kpi_attendance',
-        title: 'Asistencia Hoy',
-        requiredPermission: { modulo: 'asistencia', accion: 'puede_ver' },
-        size: 'sm',
-        category: 'kpi',
-        defaultOrder: 2,
-    },
-    {
-        id: 'kpi_absences',
-        title: 'Ausencias Hoy',
-        requiredPermission: { modulo: 'asistencia', accion: 'puede_ver' },
-        size: 'sm',
-        category: 'kpi',
-        defaultOrder: 3,
     },
 
     // ── Actionable Widgets ──
