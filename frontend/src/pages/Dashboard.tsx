@@ -211,12 +211,13 @@ const Dashboard: React.FC = () => {
 
             {/* ─── Destacados: lo que la empresa mira primero (decisión usuario 2026-08-25).
                 Sustituyen al hero de saludo + la tira de KPIs: vencimientos de vehículos
-                y quién faltó hoy. Lo que decía el hero ("N obras sin asistencia guardada",
+                y las faltas reiteradas del Art. 160 N°3 (las que tienen consecuencia
+                laboral). Lo que decía el hero ("N obras sin asistencia guardada",
                 "N tareas pendientes") NO se pierde — sigue desglosado en la Bandeja del Día. */}
-            {(showVencVehiculos || showAusentes) && (
+            {(showVencVehiculos || showFaltas) && (
                 <div className={cn(
                     'grid grid-cols-1 gap-6 items-start',
-                    showVencVehiculos && showAusentes && 'lg:grid-cols-2',
+                    showVencVehiculos && showFaltas && 'lg:grid-cols-2',
                 )}>
                     {showVencVehiculos && (
                         <Panel>
@@ -225,18 +226,18 @@ const Dashboard: React.FC = () => {
                                 : <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')} />}
                         </Panel>
                     )}
-                    {showAusentes && (
+                    {showFaltas && (
                         <Panel>
                             {ready && data
-                                ? <AbsencesToday data={data.ausentesDetalle ?? []} />
+                                ? <AbsenceAlerts data={data.trabajadoresConAlertas ?? []} onNavigate={(rut) => navigate(`/asistencia?q=${rut}`)} />
                                 : <SkeletonText lines={5} />}
                         </Panel>
                     )}
                 </div>
             )}
 
-            {/* Zona principal: Bandeja del Día (izq) + Faltas Art.160 (der, sticky) */}
-            <div className={cn('grid grid-cols-1 gap-6 items-start', showFaltas && 'lg:grid-cols-[1.5fr_1fr]')}>
+            {/* Zona principal: Bandeja del Día (izq) + Ausentes del Día (der, sticky) */}
+            <div className={cn('grid grid-cols-1 gap-6 items-start', showAusentes && 'lg:grid-cols-[1.5fr_1fr]')}>
                 <Panel>
                     {ready && data
                         ? <BandejaDelDia
@@ -249,17 +250,17 @@ const Dashboard: React.FC = () => {
                         : <SkeletonText lines={6} />}
                 </Panel>
 
-                {showFaltas && (
+                {showAusentes && (
                     <Panel className="lg:sticky lg:top-6">
                         {ready && data
-                            ? <AbsenceAlerts data={data.trabajadoresConAlertas ?? []} onNavigate={(rut) => navigate(`/asistencia?q=${rut}`)} />
+                            ? <AbsencesToday data={data.ausentesDetalle ?? []} />
                             : <SkeletonText lines={6} />}
                     </Panel>
                 )}
             </div>
 
             {/* Contexto de asistencia: tendencia 7d. Los ausentes del día ya NO van acá:
-                subieron a la franja de destacados (arriba), sin duplicarse. */}
+                están junto a la Bandeja (arriba), sin duplicarse. */}
             {showTrend && (
                 <Panel>
                     {ready && data
