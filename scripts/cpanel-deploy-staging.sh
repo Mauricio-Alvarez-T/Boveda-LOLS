@@ -176,38 +176,90 @@ heal_passenger() {
 heal_passenger || echo "$(date '+%F %T') · heal: falló (rc=$?) — no fatal, el deploy continúa"
 # --- heal:end ---
 
-# --- npmfix:begin — TEMPORAL (incidente 2026-08-24/25; QUITAR al cerrarlo) ---
-# La lib del venv quedó INCOMPLETA (falta 'tmp', dep transitiva de exceljs → la app
-# crashea al arrancar). El panel no puede correr NPM Install ("No such application"),
-# así que se completa UNA sola vez con el npm de /opt/alt, instalando a través del
-# symlink node_modules → lib del venv. Marker-file para no repetirse; se marca ANTES
-# de correr para que un tick solapado del cron no lo duplique.
-npmfix() {
-    local marker="$BACK_DEST/.npmfix-20260825"
-    local npmbin="/opt/alt/alt-nodejs20/root/usr/bin/npm"
-    [ -f "$marker" ] && return 0
-    [ -L "$BACK_DEST/node_modules" ] || return 0   # sin symlink aún → esperar al heal
-    [ -d "$BACK_DEST/node_modules/tmp" ] && return 0
-    if [ ! -x "$npmbin" ]; then
-        echo "$(date '+%F %T') · npmfix: no hay npm en $npmbin — completar deps a mano"
+# --- heal-deps:begin — TEMPORAL (incidente 2026-08-24/25; QUITAR al cerrarlo) ---
+# Sustituye a npmfix, que nunca corrió: su guard exigía que node_modules fuera
+# SYMLINK, pero un SAVE del panel (~10:28 del 25-08) lo dejó como DIRECTORIO real
+# PARCIAL (tiene express, no el árbol completo) y los requires siguen resolviendo
+# exceljs en la lib del venv, donde falta 'tmp' → crash en el primer require, la
+# app nunca llega a listen y Passenger responde 500 tras ~65s.
+# Diseño probe-driven, sin supuestos de topología: si los deps top-level del
+# backend NO CARGAN desde $BACK_DEST con el node del .htaccess, se instala un
+# node_modules REAL COMPLETO con `npm ci --omit=dev` (un dir completo gana a
+# NODE_PATH en la resolución, así el venv cojo deja de importar). En estado sano
+# el probe pasa y esto es un no-op. Reintenta con backoff de 30 min (mtime del
+# log) en vez de marker una-pasada: un fallo transitorio de npm no deja el fix
+# muerto. Revertir al venv cuando el hosting lo reconstruya (SAVE + NPM Install).
+heal_deps() {
+    local ht="$FRONT_DEST/api/.htaccess"
+    if [ ! -f "$ht" ] && grep -q '^PassengerAppRoot' "$FRONT_DEST/.htaccess" 2>/dev/null; then
+        ht="$FRONT_DEST/.htaccess"
+    fi
+    [ -f "$ht" ] || return 0
+    local nb
+    nb="$(sed -n 's/^PassengerNodejs[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}[[:space:]]*$/\1/p' "$ht" | tail -n1)"
+    { [ -n "$nb" ] && [ -x "$nb" ]; } || return 0
+    { [ -f "$BACK_DEST/package.json" ] && [ -f "$BACK_DEST/package-lock.json" ]; } || return 0
+
+    # Probe: CARGAR (require, no solo resolve) todos los deps top-level. Detecta
+    # transitivos ausentes (exceljs→tmp), árboles parciales y bindings nativos rotos.
+    local probe='for (const d of Object.keys(require("./package.json").dependencies)) require(d)'
+    if (cd "$BACK_DEST" && "$nb" -e "$probe") >/dev/null 2>&1; then
         return 0
     fi
-    date > "$marker"
-    echo "$(date '+%F %T') · npmfix: lib incompleta (falta 'tmp') → npm install --omit=dev en $BACK_DEST (una sola vez; log: ~/npmfix-$(basename "$BACK_DEST").log)"
-    ( cd "$BACK_DEST" && PATH="/opt/alt/alt-nodejs20/root/usr/bin:$PATH" \
-        "$npmbin" install --omit=dev --no-audit --no-fund ) \
-        >> "$HOME/npmfix-$(basename "$BACK_DEST").log" 2>&1
-    local rc=$?
-    echo "$(date '+%F %T') · npmfix: terminó rc=$rc"
-    if [ "$rc" = "0" ]; then
-        mkdir -p "$BACK_DEST/tmp"
+
+    mkdir -p "$BACK_DEST/tmp"
+    local hlog="$BACK_DEST/tmp/deps-heal.log"
+    # Backoff: si el último intento fue hace <30 min y seguimos rotos, no martillar
+    # npm cada 5 min (cuota o registry caídos se loguean una vez, no 6 por hora).
+    if [ -f "$hlog" ] && [ -n "$(find "$hlog" -mmin -30 2>/dev/null)" ]; then
+        echo "$(date '+%F %T') · heal-deps: deps rotos pero intento reciente (<30 min) — backoff"
+        return 0
+    fi
+    # Lock anti-solape entre ticks (npm puede tardar más que un tick); stale >30 min se libera.
+    local lock="$BACK_DEST/tmp/.deps-heal.lock"
+    if [ -d "$lock" ] && [ -n "$(find "$lock" -maxdepth 0 -mmin +30 2>/dev/null)" ]; then
+        rmdir "$lock" 2>/dev/null || true
+    fi
+    if ! mkdir "$lock" 2>/dev/null; then
+        echo "$(date '+%F %T') · heal-deps: otro tick instalando (lock) — salto"
+        return 0
+    fi
+
+    # npm del MISMO toolchain que el node configurado (no mezclar majors); se corre
+    # vía "$nb" para no depender del shebang del wrapper.
+    local root="${nb%/bin/node}" npmcli="" c
+    for c in "$root/lib/node_modules/npm/bin/npm-cli.js" "$root/bin/npm"; do
+        if [ -e "$c" ]; then npmcli="$c"; break; fi
+    done
+    if [ -z "$npmcli" ]; then
+        echo "$(date '+%F %T') · heal-deps: no hay npm bajo $root — sin canal de instalación"
+        rmdir "$lock" 2>/dev/null || true
+        return 0
+    fi
+
+    echo "$(date '+%F %T') · heal-deps: deps del backend NO cargan con $nb → npm ci --omit=dev (log: tmp/deps-heal.log)"
+    # Un symlink al venv roto se descarta (npm ci a través de él escribiría en el
+    # venv); sobre un dir real parcial, npm ci lo limpia y reinstala completo.
+    if [ -L "$BACK_DEST/node_modules" ]; then rm -f "$BACK_DEST/node_modules"; fi
+
+    local rc=0 tmo=""
+    command -v timeout >/dev/null 2>&1 && tmo="timeout 600"
+    ( cd "$BACK_DEST" && PATH="$root/bin:$PATH" $tmo "$nb" "$npmcli" ci --omit=dev --no-audit --no-fund ) > "$hlog" 2>&1 || rc=$?
+    rmdir "$lock" 2>/dev/null || true
+    if [ "$rc" != "0" ]; then
+        echo "$(date '+%F %T') · heal-deps: npm ci falló (rc=$rc) — ver $hlog; reintento en 30 min"
+        return 0
+    fi
+    if (cd "$BACK_DEST" && "$nb" -e "$probe") >/dev/null 2>&1; then
         date > "$BACK_DEST/tmp/restart.txt"
-        echo "$(date '+%F %T') · npmfix: Passenger reiniciado"
+        echo "$(date '+%F %T') · heal-deps: npm ci OK → node_modules real completo + Passenger reiniciado"
+    else
+        echo "$(date '+%F %T') · heal-deps: npm ci terminó pero los deps siguen sin cargar — ver $hlog"
     fi
     return 0
 }
-npmfix || echo "$(date '+%F %T') · npmfix: falló (rc=$?) — no fatal"
-# --- npmfix:end ---
+heal_deps || echo "$(date '+%F %T') · heal-deps: falló (rc=$?) — no fatal"
+# --- heal-deps:end ---
 
 # --- diag:begin — Diagnóstico TEMPORAL del incidente 2026-08-24 (QUITAR al cerrarlo) ---
 # Escribe un resumen de estado en el docroot para poder leerlo por HTTP desde
@@ -262,14 +314,17 @@ diag_incidente() {
                 tail -n 40 "$lg" 2>/dev/null | sed 's/^/log> /'
             fi
         done
-        if [ -f "$HOME/npmfix-$(basename "$BACK_DEST").log" ]; then
-            echo "npmfix_log_tail:"
-            tail -n 8 "$HOME/npmfix-$(basename "$BACK_DEST").log" 2>/dev/null | sed 's/^/npm> /'
+        if [ -n "$nb" ] && [ -x "$nb" ] && [ -f "$BACK_DEST/package.json" ]; then
+            if (cd "$BACK_DEST" && "$nb" -e 'for (const d of Object.keys(require("./package.json").dependencies)) require(d)') >/dev/null 2>&1; then
+                echo "deps=CARGAN"
+            else
+                echo "deps=NO_CARGAN"
+            fi
         fi
-        if [ -f "$BACK_DEST/.npmfix-20260825" ]; then
-            echo "npmfix_marker=$(date -r "$BACK_DEST/.npmfix-20260825" '+%F %T')"
-        else
-            echo "npmfix_marker=NO"
+        [ -L "$BACK_DEST/node_modules" ] && echo "node_modules_tipo=SYMLINK→$(readlink "$BACK_DEST/node_modules" 2>/dev/null)" || echo "node_modules_tipo=DIR_REAL"
+        if [ -f "$BACK_DEST/tmp/deps-heal.log" ]; then
+            echo "depsheal_log_mtime=$(date -r "$BACK_DEST/tmp/deps-heal.log" '+%F %T')"
+            tail -n 8 "$BACK_DEST/tmp/deps-heal.log" 2>/dev/null | sed 's/^/npm> /'
         fi
         echo "deploylog_tail:"
         tail -n 8 "${REPO_DIR}.log" 2>/dev/null | sed 's/^/dl> /'
