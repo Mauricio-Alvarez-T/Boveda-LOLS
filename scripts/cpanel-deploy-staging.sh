@@ -105,7 +105,30 @@ heal_passenger() {
             nb="$cand"
             changed=1
         else
-            echo "$(date '+%F %T') · heal: node '$nb' no existe y NO hay nodevenv >=18 para $(basename "$BACK_DEST") — recrear desde Setup Node.js App (elegir versión → SAVE → Run NPM Install)"
+            # FALLBACK de emergencia (incidente 2026-08-24/25): venv sin binario Y el
+            # panel rechaza regenerarlo ("No such application"). Passenger solo necesita
+            # UN node ejecutable; las libs de la app viven en el venv y las enlaza el
+            # paso 3 (N-API/JS puro → compatibles entre majors >=18). Preferencia:
+            # mismo major que las libs (20), luego 22, luego lo que haya >=18.
+            # Revertir al venv cuando el hosting lo reconstruya (basta un SAVE sano).
+            local sysn maj=""
+            for sysn in /opt/alt/alt-nodejs20/root/usr/bin/node \
+                        /opt/alt/alt-nodejs22/root/usr/bin/node \
+                        /opt/alt/alt-nodejs18/root/usr/bin/node \
+                        /usr/local/bin/node /usr/bin/node; do
+                [ -x "$sysn" ] || continue
+                maj="$("$sysn" -e 'console.log(process.versions.node.split(".")[0])' 2>/dev/null)" || maj=""
+                case "$maj" in ''|*[!0-9]*) continue ;; esac
+                if [ "$maj" -ge 18 ]; then cand="$sysn"; break; fi
+            done
+            if [ -n "$cand" ]; then
+                sed -i "s|^PassengerNodejs[[:space:]].*|PassengerNodejs \"$cand\"|" "$ht"
+                echo "$(date '+%F %T') · heal: venv sin binario → BYPASS node de sistema $cand (v$maj) — temporal hasta que hosting reconstruya el venv"
+                nb="$cand"
+                changed=1
+            else
+                echo "$(date '+%F %T') · heal: node '$nb' no existe, sin nodevenv >=18 NI node de sistema utilizable — se requiere intervención del hosting"
+            fi
         fi
     fi
 
@@ -175,6 +198,11 @@ diag_incidente() {
         [ -e "$BACK_DEST/node_modules" ] && { [ -d "$BACK_DEST/node_modules/express" ] && echo "node_modules=OK" || echo "node_modules=ROTO_O_SYMLINK_COLGANDO"; } || echo "node_modules=FALTA"
         [ -f "$BACK_DEST/.env" ] && echo "env=OK" || echo "env=FALTA"
         command -v cloudlinux-selector >/dev/null 2>&1 && echo "selector=disponible" || echo "selector=no"
+        local c
+        echo "opt_alt=$(ls -m /opt/alt 2>/dev/null || echo NO_VISIBLE)"
+        for c in /opt/alt/alt-nodejs20/root/usr/bin/node /opt/alt/alt-nodejs22/root/usr/bin/node /opt/alt/alt-nodejs18/root/usr/bin/node /usr/local/bin/node /usr/bin/node; do
+            [ -x "$c" ] && echo "sysnode $c = $("$c" -v 2>/dev/null || echo ERROR)"
+        done
         if command -v mysql >/dev/null 2>&1 && [ -f "$BACK_DEST/.env" ]; then
             local H U P N
             H=$(sed -n 's/^DB_HOST=//p' "$BACK_DEST/.env" | tr -d '\r"' | tail -1)
