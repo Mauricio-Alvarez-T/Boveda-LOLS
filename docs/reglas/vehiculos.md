@@ -80,6 +80,13 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
 - El Sidebar muestra `total` junto a "Vehículos" (rojo si `vencidos > 0`, ámbar si solo hay por
   vencer). El número es un **botón**: abre `VencimientosPanel` con el detalle, sin navegar. Menú
   colapsado → el número va sobre el ícono y no es clickeable.
+- **Checkbox "Avisar 30 días antes" por registro** (mig 105, `avisar_30d` en documentos, revisiones
+  y mantenciones; default 1): solo los registros marcados cuentan en el número del menú / panel /
+  bandeja. Es el mismo patrón de `avisar_alerta_seguro` (nivel vehículo) llevado a nivel de registro.
+  Pre-migración los filtros caen a la consulta sin filtro (todo avisa, comportamiento previo). En
+  documentos el flag se escribe en un UPDATE best-effort aparte del INSERT/UPDATE base — el alta
+  sigue funcionando con la migración pendiente. El bloque de email pasó a llamarse "Alerta de
+  vencimiento (correo)" para distinguirlo del aviso in-app.
 - Hook `useVencimientosVehiculos`: fetch silencioso (un error deja el badge en 0, no toast), refresco
   cada 10 min, y no llama nada sin permiso `vehiculos.ver`.
 - **El mismo número, desglosado en 3 niveles** (pedido 2026-08-24), todos con `VencimientosBadge` para

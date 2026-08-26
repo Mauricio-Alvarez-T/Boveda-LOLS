@@ -38,7 +38,7 @@ const apiError = (err: unknown, fallback: string) =>
     (err as { response?: { data?: { error?: string } } })?.response?.data?.error || fallback;
 const fmtFecha = (s?: string | null) => s ? String(s).split('T')[0].split('-').reverse().join('/') : '—';
 
-const EMPTY_FORM = { lugar: '', fecha: '', vencimiento: '', observaciones: '', diasAlerta: '30', emailAlerta: '', horaAlerta: '08:00' };
+const EMPTY_FORM = { lugar: '', fecha: '', vencimiento: '', observaciones: '', diasAlerta: '30', emailAlerta: '', horaAlerta: '08:00', avisar30d: true };
 
 // Opciones de anticipación del aviso. El valor es "días antes del vencimiento";
 // 0 = el mismo día. Se eligen de una lista para que quede claro (en vez de tipear).
@@ -136,6 +136,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
             lugar: r.planta || '', fecha: toDateInput(r.fecha), vencimiento: toDateInput(r.fecha_vencimiento),
             observaciones: r.observaciones || '', diasAlerta: r.dias_alerta != null ? String(r.dias_alerta) : '30',
             emailAlerta: r.email_alerta || '', horaAlerta: toTimeInput(r.hora_alerta),
+            avisar30d: r.avisar_30d == null ? true : !!Number(r.avisar_30d),
         });
         setEditing({ kind: 'revision', id: r.id });
         setShowAdd(true);
@@ -148,6 +149,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
             ...EMPTY_FORM,
             fecha: toDateInput(d.fecha), vencimiento: toDateInput(d.fecha_vencimiento),
             observaciones: d.observaciones || '',
+            avisar30d: d.avisar_30d == null ? true : !!Number(d.avisar_30d),
         });
         setFile(null);
         setEditing({ kind: 'documento', id: d.id });
@@ -159,6 +161,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
             lugar: m.taller || '', fecha: toDateInput(m.fecha), vencimiento: toDateInput(m.fecha_proxima),
             observaciones: m.descripcion || '', diasAlerta: m.dias_alerta != null ? String(m.dias_alerta) : '30',
             emailAlerta: m.email_alerta || '', horaAlerta: toTimeInput(m.hora_alerta),
+            avisar30d: m.avisar_30d == null ? true : !!Number(m.avisar_30d),
         });
         setEditing({ kind: 'mantencion', id: m.id });
         setShowAdd(true);
@@ -174,6 +177,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                     fecha: form.fecha || null,
                     fecha_vencimiento: form.vencimiento || null,
                     observaciones: form.observaciones.trim() || null,
+                    avisar_30d: form.avisar30d ? 1 : 0,
                 });
                 toast.success('Documento actualizado');
                 resetForm();
@@ -198,6 +202,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
             fd.append('fecha', form.fecha);
             fd.append('fecha_vencimiento', form.vencimiento);
             fd.append('observaciones', form.observaciones.trim());
+            fd.append('avisar_30d', form.avisar30d ? '1' : '0');
             await api.post(`/vehiculos/${vehiculoId}/documentos`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             toast.success('Documento agregado');
             resetForm();
@@ -224,6 +229,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                 const payload = {
                     tipo: tipo.revTipo, fecha: form.fecha, fecha_vencimiento: form.vencimiento,
                     planta: form.lugar.trim(), observaciones, resultado: 'aprobado', dias_alerta, email_alerta, hora_alerta,
+                    avisar_30d: form.avisar30d ? 1 : 0,
                 };
                 if (editing?.kind === 'revision') { await api.put(`/vehiculos/${vehiculoId}/revisiones/${editing.id}`, payload); registroId = editing.id; }
                 else { const res = await api.post(`/vehiculos/${vehiculoId}/revisiones`, payload); registroId = res.data?.data?.id ?? null; }
@@ -232,6 +238,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                     fecha: form.fecha, tipo: 'Mantención', km_al_realizar: 0,
                     taller: form.lugar.trim(), descripcion: observaciones, fecha_proxima: form.vencimiento,
                     dias_alerta, email_alerta, hora_alerta,
+                    avisar_30d: form.avisar30d ? 1 : 0,
                 };
                 if (editing?.kind === 'mantencion') { await api.put(`/vehiculos/${vehiculoId}/mantenciones/${editing.id}`, payload); registroId = editing.id; }
                 else { const res = await api.post(`/vehiculos/${vehiculoId}/mantenciones`, payload); registroId = res.data?.data?.id ?? null; }
@@ -398,10 +405,17 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                             <textarea value={form.observaciones} onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))}
                                 rows={2} placeholder="Observaciones (opcional)"
                                 className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
-                            <p className="text-micro text-muted-foreground/70">
-                                <Bell className="inline h-3 w-3 text-brand-primary mr-0.5 -mt-0.5" />
-                                Si pones vencimiento, el documento se cuenta en el aviso del menú Vehículos cuando falten 30 días o menos.
-                            </p>
+                            <label className="flex items-center gap-2.5 cursor-pointer select-none rounded-lg border border-border bg-card px-3 py-2">
+                                <input type="checkbox" checked={form.avisar30d}
+                                    onChange={e => setForm(f => ({ ...f, avisar30d: e.target.checked }))}
+                                    className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary" />
+                                <span className="flex flex-col">
+                                    <span className="text-xs font-semibold text-brand-dark">Avisar 30 días antes</span>
+                                    <span className="text-micro text-muted-foreground leading-snug">
+                                        Cuenta en el número del menú Vehículos (y en la bandeja del Inicio) cuando falten 30 días o menos.
+                                    </span>
+                                </span>
+                            </label>
                         </div>
                     )}
 
@@ -426,8 +440,19 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                             <textarea value={form.observaciones} onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))}
                                 rows={2} placeholder="Observaciones (opcional)"
                                 className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                            <label className="flex items-center gap-2.5 cursor-pointer select-none rounded-lg border border-border bg-card px-3 py-2">
+                                <input type="checkbox" checked={form.avisar30d}
+                                    onChange={e => setForm(f => ({ ...f, avisar30d: e.target.checked }))}
+                                    className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary" />
+                                <span className="flex flex-col">
+                                    <span className="text-xs font-semibold text-brand-dark">Avisar 30 días antes</span>
+                                    <span className="text-micro text-muted-foreground leading-snug">
+                                        Cuenta en el número del menú Vehículos (y en la bandeja del Inicio) cuando falten 30 días o menos.
+                                    </span>
+                                </span>
+                            </label>
                             <div className="rounded-lg border border-border bg-card p-2.5 space-y-1.5">
-                                <span className="text-micro font-bold text-muted-foreground uppercase flex items-center gap-1"><Bell className="h-3 w-3 text-brand-primary" /> Alerta de vencimiento</span>
+                                <span className="text-micro font-bold text-muted-foreground uppercase flex items-center gap-1"><Bell className="h-3 w-3 text-brand-primary" /> Alerta de vencimiento (correo)</span>
                                 <div className="grid grid-cols-2 gap-2">
                                     <label className="flex flex-col gap-0.5">
                                         <span className="text-micro text-muted-foreground">Anticipación del aviso</span>

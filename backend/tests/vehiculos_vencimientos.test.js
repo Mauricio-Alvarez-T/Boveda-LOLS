@@ -75,6 +75,30 @@ describe('getVencimientos — contador del menú', () => {
         expect(params).toEqual(['2000-01-01', 30]);
     });
 
+    test('documentos, revisiones y mantenciones respetan su checkbox avisar_30d', async () => {
+        mockFuentes({});
+        await svc.getVencimientos();
+        // Las 3 primeras consultas (docs, revisiones, mantenciones) llevan el filtro.
+        for (const i of [0, 1, 2]) {
+            expect(db.query.mock.calls[i][0]).toMatch(/avisar_30d = 1/);
+        }
+    });
+
+    test('pre-migración 105: si avisar_30d no existe, cae a la consulta sin filtro', async () => {
+        db.query
+            .mockRejectedValueOnce(errBadField())                              // documentos filtrados → no existe
+            .mockResolvedValueOnce([[fila({ categoria: 'documento', dias_restantes: 4 })]]) // fallback
+            .mockResolvedValueOnce([[]])                                       // revisiones
+            .mockResolvedValueOnce([[]])                                       // mantenciones
+            .mockResolvedValueOnce([[]])                                       // seguros
+            .mockResolvedValueOnce([[]])                                       // permisos
+            .mockResolvedValueOnce([[]]);                                      // leasing
+
+        const r = await svc.getVencimientos();
+        expect(r.total).toBe(1);
+        expect(db.query.mock.calls[1][0]).not.toMatch(/avisar_30d/);
+    });
+
     test('los seguros respetan el checkbox avisar_alerta_seguro del vehículo', async () => {
         mockFuentes({ seguros: [fila({ categoria: 'seguro', dias_restantes: 10 })] });
         await svc.getVencimientos();

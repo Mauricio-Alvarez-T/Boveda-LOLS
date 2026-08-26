@@ -359,7 +359,9 @@ const vehiculosService = {
             planta: data.planta || null, direccion: data.direccion || null, observaciones: data.observaciones || null,
             periodicidad_anios: data.periodicidad_anios ?? null,
             dias_alerta: data.dias_alerta ?? null, email_alerta: data.email_alerta || null, tel_alerta: data.tel_alerta || null,
-            hora_alerta: data.hora_alerta || null };
+            hora_alerta: data.hora_alerta || null,
+            // Checkbox "Avisar 30 días antes" (mig 105). Default 1: avisa salvo que se desmarque.
+            avisar_30d: data.avisar_30d === undefined ? 1 : (Number(data.avisar_30d) ? 1 : 0) };
         const { keys, vals } = await buildInsert('vehiculo_revisiones', obj);
         const [r] = await db.query(`INSERT INTO vehiculo_revisiones (${keys.join(',')}) VALUES (${keys.map(()=>'?').join(',')})`, vals);
         const [rows] = await db.query('SELECT * FROM vehiculo_revisiones WHERE id = ?', [r.insertId]);
@@ -367,7 +369,7 @@ const vehiculosService = {
     },
 
     async updateRevision(revisionId, data) {
-        const allowed = ['tipo','fecha','fecha_vencimiento','resultado','planta','direccion','observaciones','periodicidad_anios','dias_alerta','email_alerta','tel_alerta','hora_alerta'];
+        const allowed = ['tipo','fecha','fecha_vencimiento','resultado','planta','direccion','observaciones','periodicidad_anios','dias_alerta','email_alerta','tel_alerta','hora_alerta','avisar_30d'];
         const { fields, params } = await buildUpdate('vehiculo_revisiones', data, allowed);
         if (!fields.length) throw Object.assign(new Error('Sin campos para actualizar'), { statusCode: 400 });
         params.push(revisionId);
@@ -400,7 +402,8 @@ const vehiculosService = {
             costo: data.costo || null, taller: data.taller || null,
             fecha_proxima: data.fecha_proxima || null,
             dias_alerta: data.dias_alerta ?? null, email_alerta: data.email_alerta || null, tel_alerta: data.tel_alerta || null,
-            hora_alerta: data.hora_alerta || null };
+            hora_alerta: data.hora_alerta || null,
+            avisar_30d: data.avisar_30d === undefined ? 1 : (Number(data.avisar_30d) ? 1 : 0) };
         const { keys, vals } = await buildInsert('vehiculo_mantenciones', obj);
         const [r] = await db.query(`INSERT INTO vehiculo_mantenciones (${keys.join(',')}) VALUES (${keys.map(()=>'?').join(',')})`, vals);
         const [rows] = await db.query('SELECT * FROM vehiculo_mantenciones WHERE id = ?', [r.insertId]);
@@ -408,7 +411,7 @@ const vehiculosService = {
     },
 
     async updateMantencion(mantencionId, data) {
-        const allowed = ['fecha','tipo','km_al_realizar','descripcion','costo','taller','fecha_proxima','dias_alerta','email_alerta','tel_alerta','hora_alerta'];
+        const allowed = ['fecha','tipo','km_al_realizar','descripcion','costo','taller','fecha_proxima','dias_alerta','email_alerta','tel_alerta','hora_alerta','avisar_30d'];
         const { fields, params } = await buildUpdate('vehiculo_mantenciones', data, allowed);
         if (!fields.length) throw Object.assign(new Error('Sin campos para actualizar'), { statusCode: 400 });
         params.push(mantencionId);
@@ -465,13 +468,13 @@ const vehiculosService = {
     // ── Documentos / Antecedentes de Circulación ──────────────────────────
 
     async getDocumentos(vehiculoId) {
+        // SELECT * + sinRuta: expone avisar_30d cuando la columna exista sin
+        // acoplar la consulta a la migración; la ruta en disco jamás sale al JSON.
         const [rows] = await db.query(
-            `SELECT id, vehiculo_id, categoria, nombre_archivo, fecha, fecha_vencimiento,
-                    observaciones, fecha_subida, created_at
-             FROM vehiculo_documentos WHERE vehiculo_id = ? AND activo = 1
+            `SELECT * FROM vehiculo_documentos WHERE vehiculo_id = ? AND activo = 1
              ORDER BY created_at DESC`, [vehiculoId]
         );
-        return rows;
+        return rows.map(sinRuta);
     },
 
     /**
@@ -480,7 +483,7 @@ const vehiculosService = {
      * no vencen, como el padrón). El vencimiento, si viene, alimenta el contador
      * de vencimientos del menú — no hay alerta por email para estos documentos.
      */
-    async createDocumento(vehiculoId, { categoria, file, userId, fecha, fecha_vencimiento, observaciones }) {
+    async createDocumento(vehiculoId, { categoria, file, userId, fecha, fecha_vencimiento, observaciones, avisar_30d }) {
         if (!file) throw Object.assign(new Error('No se recibió archivo'), { statusCode: 400 });
         if (!categoria) throw Object.assign(new Error('La categoría es obligatoria'), { statusCode: 400 });
         const rutaRelativa = path.relative(UPLOADS_DIR, file.path);
@@ -491,29 +494,38 @@ const vehiculosService = {
             [vehiculoId, categoria, file.originalname, rutaRelativa, userId || null,
              nullSiVacio(fecha), nullSiVacio(fecha_vencimiento), nullSiVacio(observaciones)]
         );
-        const [rows] = await db.query(
-            `SELECT id, vehiculo_id, categoria, nombre_archivo, fecha, fecha_vencimiento,
-                    observaciones, fecha_subida, created_at
-             FROM vehiculo_documentos WHERE id = ?`,
-            [r.insertId]
-        );
-        return rows[0];
+        await this._setAvisar30dDocumento(r.insertId, avisar_30d);
+        const [rows] = await db.query('SELECT * FROM vehiculo_documentos WHERE id = ?', [r.insertId]);
+        return sinRuta(rows[0]);
     },
 
-    /** Edita SOLO los datos del documento (fecha/vencimiento/observaciones); el archivo no se reemplaza. */
-    async updateDocumento(vehiculoId, docId, { fecha, fecha_vencimiento, observaciones }) {
+    /**
+     * Setea el checkbox "Avisar 30 días antes" de un documento (mig 105) en un
+     * UPDATE aparte y best-effort: el INSERT/UPDATE base queda idéntico, así el
+     * alta de documentos sigue funcionando aunque la migración no haya corrido
+     * (pre-mig el flag simplemente no persiste y todo avisa, como siempre).
+     */
+    async _setAvisar30dDocumento(docId, avisar) {
+        if (avisar === undefined || avisar === null || avisar === '') return;
+        try {
+            await db.query('UPDATE vehiculo_documentos SET avisar_30d = ? WHERE id = ?',
+                [Number(avisar) ? 1 : 0, docId]);
+        } catch (e) {
+            if (e && e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+        }
+    },
+
+    /** Edita SOLO los datos del documento (fecha/vencimiento/observaciones/aviso); el archivo no se reemplaza. */
+    async updateDocumento(vehiculoId, docId, { fecha, fecha_vencimiento, observaciones, avisar_30d }) {
         const [r] = await db.query(
             `UPDATE vehiculo_documentos SET fecha = ?, fecha_vencimiento = ?, observaciones = ?
              WHERE id = ? AND vehiculo_id = ? AND activo = 1`,
             [nullSiVacio(fecha), nullSiVacio(fecha_vencimiento), nullSiVacio(observaciones), docId, vehiculoId]
         );
         if (!r.affectedRows) throw Object.assign(new Error('Documento no encontrado'), { statusCode: 404 });
-        const [rows] = await db.query(
-            `SELECT id, vehiculo_id, categoria, nombre_archivo, fecha, fecha_vencimiento,
-                    observaciones, fecha_subida, created_at
-             FROM vehiculo_documentos WHERE id = ?`, [docId]
-        );
-        return rows[0];
+        await this._setAvisar30dDocumento(docId, avisar_30d);
+        const [rows] = await db.query('SELECT * FROM vehiculo_documentos WHERE id = ?', [docId]);
+        return sinRuta(rows[0]);
     },
 
     async getDocumentoFilePath(vehiculoId, docId) {
@@ -597,38 +609,54 @@ const vehiculosService = {
         // FECHA_MINIMA descarta fechas imposibles de importaciones viejas
         // (1899-11-30, '0000-00-00'): sin este piso aparecían avisos de
         // "venció hace 46.288 días" que no significan nada.
-        const [documentos] = await db.query(`
-            SELECT 'documento' AS categoria, d.id, d.vehiculo_id, d.categoria AS subtipo,
-                   v.patente, v.marca, v.modelo, d.fecha_vencimiento,
-                   DATEDIFF(d.fecha_vencimiento, CURDATE()) AS dias_restantes
-            FROM vehiculo_documentos d
-            JOIN vehiculos v ON v.id = d.vehiculo_id
-            WHERE d.activo = 1 AND v.activo = 1 AND d.fecha_vencimiento IS NOT NULL
-              AND d.fecha_vencimiento >= ?
-              AND d.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
-        `, [FECHA_MINIMA, limite]);
+        // Cada registro tiene su checkbox "Avisar 30 días antes" (mig 105,
+        // default 1). Pre-migración el filtro cae a la consulta sin filtro.
+        const conAvisar = async (sqlBase) => {
+            try {
+                const [rows] = await db.query(sqlBase.replace('/*AVISAR*/', 'AND x.avisar_30d = 1'), [FECHA_MINIMA, limite]);
+                return rows;
+            } catch (e) {
+                if (e && e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+                const [rows] = await db.query(sqlBase.replace('/*AVISAR*/', ''), [FECHA_MINIMA, limite]);
+                return rows;
+            }
+        };
 
-        const [revisiones] = await db.query(`
-            SELECT 'revision' AS categoria, r.id, r.vehiculo_id, r.tipo AS subtipo,
-                   v.patente, v.marca, v.modelo, r.fecha_vencimiento,
-                   DATEDIFF(r.fecha_vencimiento, CURDATE()) AS dias_restantes
-            FROM vehiculo_revisiones r
-            JOIN vehiculos v ON v.id = r.vehiculo_id
-            WHERE r.activo = 1 AND v.activo = 1 AND r.fecha_vencimiento IS NOT NULL
-              AND r.fecha_vencimiento >= ?
-              AND r.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
-        `, [FECHA_MINIMA, limite]);
+        const documentos = await conAvisar(`
+            SELECT 'documento' AS categoria, x.id, x.vehiculo_id, x.categoria AS subtipo,
+                   v.patente, v.marca, v.modelo, x.fecha_vencimiento,
+                   DATEDIFF(x.fecha_vencimiento, CURDATE()) AS dias_restantes
+            FROM vehiculo_documentos x
+            JOIN vehiculos v ON v.id = x.vehiculo_id
+            WHERE x.activo = 1 AND v.activo = 1 AND x.fecha_vencimiento IS NOT NULL
+              /*AVISAR*/
+              AND x.fecha_vencimiento >= ?
+              AND x.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+        `);
 
-        const [mantenciones] = await db.query(`
-            SELECT 'mantencion' AS categoria, m.id, m.vehiculo_id, m.tipo AS subtipo,
-                   v.patente, v.marca, v.modelo, m.fecha_proxima AS fecha_vencimiento,
-                   DATEDIFF(m.fecha_proxima, CURDATE()) AS dias_restantes
-            FROM vehiculo_mantenciones m
-            JOIN vehiculos v ON v.id = m.vehiculo_id
-            WHERE m.activo = 1 AND v.activo = 1 AND m.fecha_proxima IS NOT NULL
-              AND m.fecha_proxima >= ?
-              AND m.fecha_proxima <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
-        `, [FECHA_MINIMA, limite]);
+        const revisiones = await conAvisar(`
+            SELECT 'revision' AS categoria, x.id, x.vehiculo_id, x.tipo AS subtipo,
+                   v.patente, v.marca, v.modelo, x.fecha_vencimiento,
+                   DATEDIFF(x.fecha_vencimiento, CURDATE()) AS dias_restantes
+            FROM vehiculo_revisiones x
+            JOIN vehiculos v ON v.id = x.vehiculo_id
+            WHERE x.activo = 1 AND v.activo = 1 AND x.fecha_vencimiento IS NOT NULL
+              /*AVISAR*/
+              AND x.fecha_vencimiento >= ?
+              AND x.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+        `);
+
+        const mantenciones = await conAvisar(`
+            SELECT 'mantencion' AS categoria, x.id, x.vehiculo_id, x.tipo AS subtipo,
+                   v.patente, v.marca, v.modelo, x.fecha_proxima AS fecha_vencimiento,
+                   DATEDIFF(x.fecha_proxima, CURDATE()) AS dias_restantes
+            FROM vehiculo_mantenciones x
+            JOIN vehiculos v ON v.id = x.vehiculo_id
+            WHERE x.activo = 1 AND v.activo = 1 AND x.fecha_proxima IS NOT NULL
+              /*AVISAR*/
+              AND x.fecha_proxima >= ?
+              AND x.fecha_proxima <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+        `);
 
         // Seguros: respetan el checkbox "Avisar alerta de seguro" del vehículo
         // (mig 103, default 1). Si la columna aún no existe, cae a la consulta

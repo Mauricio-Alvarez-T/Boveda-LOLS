@@ -190,6 +190,7 @@ router.post('/:id/documentos', auth, checkPermission('vehiculos.crear'), uploadV
             fecha: req.body.fecha,
             fecha_vencimiento: req.body.fecha_vencimiento,
             observaciones: req.body.observaciones,
+            avisar_30d: req.body.avisar_30d,
         });
         res.status(201).json({ data: doc });
     } catch (err) { next(err); }

@@ -192,6 +192,8 @@ export interface VehiculoDocumento {
     /** Vencimiento. Si está, el documento entra en el contador del menú. */
     fecha_vencimiento?: string | null;
     observaciones?: string | null;
+    /** Checkbox "Avisar 30 días antes" (mig 105, default true): cuenta en el aviso del menú. */
+    avisar_30d?: boolean | number;
     fecha_subida?: string;
     created_at?: string;
 }
@@ -254,6 +256,8 @@ export interface VehiculoRevision {
     email_alerta?: string | null;
     tel_alerta?: string | null;
     hora_alerta?: string | null;
+    /** Checkbox "Avisar 30 días antes" (mig 105, default true). */
+    avisar_30d?: boolean | number;
     activo: boolean;
 }
 
@@ -273,6 +277,8 @@ export interface VehiculoMantencion {
     email_alerta?: string | null;
     tel_alerta?: string | null;
     hora_alerta?: string | null;
+    /** Checkbox "Avisar 30 días antes" (mig 105, default true). */
+    avisar_30d?: boolean | number;
     activo: boolean;
 }
 
