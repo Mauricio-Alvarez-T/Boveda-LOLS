@@ -24,9 +24,10 @@ type Tipo =
 const TIPOS: Tipo[] = [
     { value: 'permiso_circulacion', label: 'Permiso de circulación', kind: 'file' },
     { value: 'seguro_terceros', label: 'Seguro contra terceros', kind: 'file' },
-    { value: 'primera_inscripcion', label: 'Primera inscripción (padrón)', kind: 'file' },
-    // soloFecha: este certificado no vence — se registra únicamente cuándo se
-    // ingresó (pedido 2026-08-27); sin vencimiento no hay nada que avisar.
+    // soloFecha: las inscripciones no vencen — se registra únicamente cuándo se
+    // ingresó el documento (pedido jefatura 2026-08-27); sin vencimiento no hay
+    // nada que avisar, así que tampoco se muestra el checkbox de 30 días.
+    { value: 'primera_inscripcion', label: 'Primera inscripción (padrón)', kind: 'file', soloFecha: true },
     { value: 'certificado_primera_inscripcion', label: 'Certificado de primera inscripción', kind: 'file', soloFecha: true },
     // "(seguro)" aclara de qué póliza se trata; el VALOR guardado sigue siendo 'poliza'.
     { value: 'poliza', label: 'Póliza (seguro)', kind: 'file' },
