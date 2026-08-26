@@ -189,7 +189,7 @@ const vehiculosService = {
         // Campos de mig 103 (fechas de leasing, avisar seguro): van por update(),
         // que filtra columnas existentes — así crear no rompe si falta la migración.
         const extras = {};
-        for (const k of ['leasing_fecha_inicio', 'leasing_fecha_termino', 'avisar_alerta_seguro']) {
+        for (const k of ['leasing_fecha_inicio', 'leasing_fecha_termino', 'avisar_alerta_seguro', 'leasing_terminado', 'leasing_traspaso_a']) {
             if (data[k] !== undefined) extras[k] = data[k];
         }
         if (Object.keys(extras).length) {
@@ -209,7 +209,7 @@ const vehiculosService = {
         // entorno, se omiten en silencio (mismo criterio que buildUpdate) en vez
         // de reventar TODO el guardado del vehículo con "Unknown column".
         let allowed = ['patente', 'marca', 'modelo', 'anio', 'tipo', 'kilometraje_actual', 'color', 'observaciones', 'activo', 'empresa_id', 'conductor_id', 'valor', 'precio_compra', 'es_leasing',
-            'leasing_fecha_inicio', 'leasing_fecha_termino', 'avisar_alerta_seguro'];
+            'leasing_fecha_inicio', 'leasing_fecha_termino', 'avisar_alerta_seguro', 'leasing_terminado', 'leasing_traspaso_a'];
         try {
             const cols = await existingCols('vehiculos');
             allowed = allowed.filter(f => cols.has(f));
@@ -673,6 +673,7 @@ const vehiculosService = {
                        DATEDIFF(v.leasing_fecha_termino, CURDATE()) AS dias_restantes
                 FROM vehiculos v
                 WHERE v.activo = 1 AND v.es_leasing = 1 AND v.leasing_fecha_termino IS NOT NULL
+                  AND v.leasing_terminado = 0
                   AND v.leasing_fecha_termino >= ?
                   AND v.leasing_fecha_termino <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
             `, [FECHA_MINIMA, limite]);

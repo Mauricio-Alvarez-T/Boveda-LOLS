@@ -3,7 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { CalendarCheck, X } from 'lucide-react';
+import { CalendarCheck } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import api from '../../services/api';
@@ -40,6 +40,8 @@ const schema = z.object({
     es_leasing: z.boolean().optional(),
     leasing_fecha_inicio: z.string().optional(),
     leasing_fecha_termino: z.string().optional(),
+    leasing_terminado: z.boolean().optional(),
+    leasing_traspaso_a: z.string().optional(),
     avisar_alerta_seguro: z.boolean().optional(),
     observaciones: z.string().optional(),
 }).superRefine((data, ctx) => {
@@ -75,6 +77,8 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             es_leasing: initialData.es_leasing ?? false,
             leasing_fecha_inicio: (initialData.leasing_fecha_inicio || '').slice(0, 10),
             leasing_fecha_termino: (initialData.leasing_fecha_termino || '').slice(0, 10),
+            leasing_terminado: !!initialData.leasing_terminado,
+            leasing_traspaso_a: initialData.leasing_traspaso_a || '',
             avisar_alerta_seguro: initialData.avisar_alerta_seguro ?? true,
             observaciones: initialData.observaciones || '',
         } : {
@@ -111,17 +115,13 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
     const patente = watch('patente');
     const mesRevision = mesRevisionPorPatente(patente);
 
-    // ── Cuotas del leasing (lista dinámica, manejada fuera de RHF) ──
-    // Solo fechas: el toggle "Pagada" se retiró a pedido de jefatura (2026-08-27).
+    // La sección de CUOTAS se retiró del formulario (jefatura 2026-08-27, 2ª vuelta);
+    // los datos históricos quedan en vehiculo_leasing_cuotas, sin UI.
     const esLeasing = watch('es_leasing');
-    const [cuotas, setCuotas] = useState<{ fecha: string }[]>(
-        (initialData?.cuotas || []).map(c => ({ fecha: (c.fecha || '').slice(0, 10) }))
-    );
+    const leasingTerminado = watch('leasing_terminado');
 
-    // FIX bug "no se guardan las cuotas": el modal de edición recibe la fila del
-    // LISTADO, que no trae cuotas ni fechas de leasing (solo getById las trae).
-    // Sin esta hidratación el form abría siempre vacío y al guardar PISABA las
-    // cuotas guardadas con []. Se rehidrata desde el detalle real.
+    // El modal de edición recibe la fila del LISTADO, que puede venir sin los
+    // campos de leasing (solo getById trae el detalle completo): se rehidrata.
     useEffect(() => {
         if (!initialData?.id) return;
         let vivo = true;
@@ -129,9 +129,10 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             .then(res => {
                 if (!vivo) return;
                 const v = res.data.data;
-                setCuotas((v.cuotas || []).map(c => ({ fecha: (c.fecha || '').slice(0, 10) })));
                 setValue('leasing_fecha_inicio', (v.leasing_fecha_inicio || '').slice(0, 10));
                 setValue('leasing_fecha_termino', (v.leasing_fecha_termino || '').slice(0, 10));
+                setValue('leasing_terminado', !!v.leasing_terminado);
+                setValue('leasing_traspaso_a', v.leasing_traspaso_a || '');
                 setValue('avisar_alerta_seguro', v.avisar_alerta_seguro == null ? true : !!v.avisar_alerta_seguro);
                 setValue('es_leasing', !!v.es_leasing);
             })
@@ -139,23 +140,18 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
         return () => { vivo = false; };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar con el id
     }, [initialData?.id]);
-    const [nuevaCuota, setNuevaCuota] = useState('');
-    const agregarCuota = () => {
-        if (!nuevaCuota) return;
-        setCuotas(prev => [...prev, { fecha: nuevaCuota }].sort((a, b) => a.fecha.localeCompare(b.fecha)));
-        setNuevaCuota('');
-    };
-    const quitarCuota = (i: number) => setCuotas(prev => prev.filter((_, idx) => idx !== i));
-    const fmtCuotaFecha = (f: string) => new Date(f + 'T00:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 
     const onSubmit = async (data: FormData) => {
         const payload = {
             ...data,
             empresa_id: data.empresa_id ? Number(data.empresa_id) : null,
             conductor_nombre: data.conductor_nombre?.trim() || null, // backend resuelve/crea en el catálogo
-            cuotas: data.es_leasing ? cuotas : [], // si no es leasing, se limpian
+            // OJO: cuotas ya NO se envía — la sección se retiró del form y no
+            // mandarla deja intacto lo guardado (el backend solo las toca si vienen).
             leasing_fecha_inicio: data.es_leasing ? (data.leasing_fecha_inicio || null) : null,
             leasing_fecha_termino: data.es_leasing ? (data.leasing_fecha_termino || null) : null,
+            leasing_terminado: data.es_leasing ? !!data.leasing_terminado : false,
+            leasing_traspaso_a: data.es_leasing && data.leasing_terminado ? (data.leasing_traspaso_a?.trim() || null) : null,
             avisar_alerta_seguro: data.avisar_alerta_seguro ?? true,
         };
         try {
@@ -313,47 +309,30 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                         El término del leasing entra al aviso de vencimientos del módulo (30 días antes).
                     </p>
 
-                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider pt-1">Cuotas del leasing (fechas)</label>
-                    <div className="flex gap-2">
+                    {/* Término del leasing: el contrato YA finalizó. Al marcarlo, este
+                        vehículo deja de avisar el vencimiento (ya fue gestionado) y se
+                        registra a quién quedó traspasado. */}
+                    <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-border bg-muted/30 px-3.5 py-3 hover:border-brand-primary/40 transition-colors">
                         <input
-                            type="date"
-                            value={nuevaCuota}
-                            onChange={e => setNuevaCuota(e.target.value)}
-                            className="flex-1 min-w-0 px-3 h-11 rounded-xl border border-border bg-card text-base text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+                            type="checkbox"
+                            {...register('leasing_terminado')}
+                            className="mt-0.5 h-5 w-5 shrink-0 rounded border-border text-brand-primary focus:ring-brand-primary cursor-pointer"
                         />
-                        {/* eslint-disable-next-line no-restricted-syntax -- botón "agregar cuota" con estilo propio inline */}
-                        <button
-                            type="button"
-                            onClick={agregarCuota}
-                            disabled={!nuevaCuota}
-                            className="shrink-0 px-4 h-11 rounded-xl bg-brand-primary text-white text-sm font-semibold disabled:opacity-50 active:scale-[0.98] transition"
-                        >
-                            Agregar
-                        </button>
-                    </div>
-                    {cuotas.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">Aún no agregas cuotas. Indica la fecha de cada una.</p>
-                    ) : (
-                        <>
-                            <ul className="divide-y divide-border rounded-lg border border-border">
-                                {cuotas.map((c, i) => (
-                                    <li key={i} className="flex items-center gap-3 px-3 py-2">
-                                        <span className="w-5 shrink-0 text-xs font-bold text-muted-foreground">{i + 1}</span>
-                                        <span className="flex-1 min-w-0 text-sm text-brand-dark">{fmtCuotaFecha(c.fecha)}</span>
-                                        {/* eslint-disable-next-line no-restricted-syntax -- icon-button "quitar cuota" con estilo propio inline */}
-                                        <button
-                                            type="button"
-                                            onClick={() => quitarCuota(i)}
-                                            title="Quitar cuota"
-                                            className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-600 transition"
-                                        >
-                                            <X className="h-4 w-4" />
-                                            <span className="sr-only">Quitar cuota</span>
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        </>
+                        <span className="flex flex-col">
+                            <span className="text-sm font-semibold text-brand-dark">Término de leasing</span>
+                            <span className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                                Márcalo cuando el contrato ya finalizó: el vehículo deja de aparecer en el
+                                aviso de vencimientos y queda registrado el traspaso.
+                            </span>
+                        </span>
+                    </label>
+                    {leasingTerminado && (
+                        <div>
+                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Traspaso a:</label>
+                            <input type="text" {...register('leasing_traspaso_a')}
+                                placeholder="Ej: LOLS (opción de compra), devuelto al banco, vendido a…"
+                                className="w-full px-3 h-11 rounded-xl border border-border bg-card text-base text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                        </div>
                     )}
                 </div>
             )}
@@ -374,10 +353,10 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                     className="mt-0.5 h-5 w-5 shrink-0 rounded border-border text-brand-primary focus:ring-brand-primary cursor-pointer"
                 />
                 <span className="flex flex-col">
-                    <span className="text-sm font-semibold text-brand-dark">Avisar alerta de seguro</span>
+                    <span className="text-sm font-semibold text-brand-dark">Alerta de renovación de seguro</span>
                     <span className="text-xs text-muted-foreground mt-0.5 leading-snug">
                         Con esto marcado, los vencimientos de seguro de este vehículo aparecen en el aviso del
-                        módulo Vehículos (número del menú y bandeja del Inicio).
+                        módulo Vehículos (número del menú y bandeja del Inicio) para renovarlo a tiempo.
                     </span>
                 </span>
             </label>

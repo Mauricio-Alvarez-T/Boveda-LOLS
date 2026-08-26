@@ -40,9 +40,15 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
 
 ## Leasing (migs 095 + 103)
 
-- `es_leasing` + cuotas (`vehiculo_leasing_cuotas`: solo FECHAS — el toggle "Pagada" se retiró de la
-  UI a pedido de jefatura 2026-08-27; la columna `pagada` se conserva sin uso) + **fechas de
-  contrato** `leasing_fecha_inicio` / `leasing_fecha_termino` (mig 103).
+- `es_leasing` + **fechas de contrato** `leasing_fecha_inicio` / `leasing_fecha_termino` (mig 103).
+- **La sección de CUOTAS se retiró del formulario** (jefatura 2026-08-27, 2ª vuelta; antes ya se había
+  quitado el toggle "Pagada"). La tabla `vehiculo_leasing_cuotas` conserva los datos históricos sin
+  UI; el form ya NO envía `cuotas` (el backend solo las toca si vienen en el payload).
+- **Término de leasing** (mig 104): checkbox `leasing_terminado` + campo `leasing_traspaso_a`
+  ("Traspaso a:", visible solo con el check marcado). Un leasing terminado **deja de avisar** en el
+  contador de vencimientos — ya fue gestionado. El traspaso solo persiste si terminado=1.
+- El checkbox de seguro se llama **"Alerta de renovación de seguro"** (misma columna
+  `avisar_alerta_seguro` de mig 103).
 - **El fin del leasing entra al contador de vencimientos** (30 días antes, mismo umbral que todo):
   categoría `leasing`, subtipo `fin_leasing`, etiqueta "Fin de leasing". Pre-migración la consulta
   degrada a vacío (catch ER_BAD_FIELD_ERROR).
