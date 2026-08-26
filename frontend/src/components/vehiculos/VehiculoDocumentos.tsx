@@ -6,6 +6,7 @@ import { IconButton } from '../ui/IconButton';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { compressImage } from '../../utils/compressImage';
+import { cn } from '../../utils/cn';
 import { EstadoVencimiento } from './EstadoVencimiento';
 import type { VehiculoDocumento, VehiculoDocumentoCategoria, VehiculoRevision, VehiculoMantencion } from '../../types/entities';
 
@@ -16,7 +17,7 @@ import type { VehiculoDocumento, VehiculoDocumentoCategoria, VehiculoRevision, V
 //  · "data" → formulario completo (lugar, fecha, vencimiento, observaciones y
 //    alerta por email) guardado en las tablas de revisiones/mantenciones.
 type Tipo =
-    | { value: VehiculoDocumentoCategoria; label: string; kind: 'file' }
+    | { value: VehiculoDocumentoCategoria; label: string; kind: 'file'; soloFecha?: boolean }
     | { value: 'revision_tecnica' | 'revision_gases'; label: string; kind: 'data'; endpoint: 'revisiones'; revTipo: 'tecnica' | 'gases' }
     | { value: 'mantencion'; label: string; kind: 'data'; endpoint: 'mantenciones' };
 
@@ -24,6 +25,9 @@ const TIPOS: Tipo[] = [
     { value: 'permiso_circulacion', label: 'Permiso de circulación', kind: 'file' },
     { value: 'seguro_terceros', label: 'Seguro contra terceros', kind: 'file' },
     { value: 'primera_inscripcion', label: 'Primera inscripción (padrón)', kind: 'file' },
+    // soloFecha: este certificado no vence — se registra únicamente cuándo se
+    // ingresó (pedido 2026-08-27); sin vencimiento no hay nada que avisar.
+    { value: 'certificado_primera_inscripcion', label: 'Certificado de primera inscripción', kind: 'file', soloFecha: true },
     // "(seguro)" aclara de qué póliza se trata; el VALOR guardado sigue siendo 'poliza'.
     { value: 'poliza', label: 'Póliza (seguro)', kind: 'file' },
     { value: 'revision_tecnica', label: 'Revisión técnica', kind: 'data', endpoint: 'revisiones', revTipo: 'tecnica' },
@@ -200,7 +204,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
             fd.append('categoria', tipoValue);
             // Opcionales: si el usuario no los llenó van vacíos y el backend guarda NULL.
             fd.append('fecha', form.fecha);
-            fd.append('fecha_vencimiento', form.vencimiento);
+            fd.append('fecha_vencimiento', tipo.kind === 'file' && tipo.soloFecha ? '' : form.vencimiento);
             fd.append('observaciones', form.observaciones.trim());
             fd.append('avisar_30d', form.avisar30d ? '1' : '0');
             await api.post(`/vehiculos/${vehiculoId}/documentos`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -385,26 +389,29 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                         </>
                     )}
 
-                    {/* FILE: fecha, vencimiento y observaciones — OPCIONALES.
-                        Sin bloque de alerta por email: el aviso de estos documentos es
-                        el contador de vencimientos del menú lateral. */}
+                    {/* FILE: fecha (y vencimiento salvo tipos soloFecha) — OPCIONALES.
+                        Observaciones se retiró del form a pedido (2026-08-27); el estado
+                        se conserva oculto para no pisar lo guardado al editar. Sin bloque
+                        de alerta por email: el aviso es el contador del menú. */}
                     {!isData && (
                         <div className="space-y-2">
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className={cn('grid gap-2', tipo.kind === 'file' && tipo.soloFecha ? 'grid-cols-1' : 'grid-cols-2')}>
                                 <label className="flex flex-col gap-0.5">
-                                    <span className="text-micro font-bold text-muted-foreground uppercase">Fecha <span className="font-normal normal-case">(opcional)</span></span>
+                                    <span className="text-micro font-bold text-muted-foreground uppercase">
+                                        {tipo.kind === 'file' && tipo.soloFecha ? 'Fecha de ingreso' : 'Fecha'} <span className="font-normal normal-case">(opcional)</span>
+                                    </span>
                                     <input type="date" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
                                         className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
                                 </label>
-                                <label className="flex flex-col gap-0.5">
-                                    <span className="text-micro font-bold text-muted-foreground uppercase">Vencimiento <span className="font-normal normal-case">(opcional)</span></span>
-                                    <input type="date" value={form.vencimiento} onChange={e => setForm(f => ({ ...f, vencimiento: e.target.value }))}
-                                        className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
-                                </label>
+                                {!(tipo.kind === 'file' && tipo.soloFecha) && (
+                                    <label className="flex flex-col gap-0.5">
+                                        <span className="text-micro font-bold text-muted-foreground uppercase">Vencimiento <span className="font-normal normal-case">(opcional)</span></span>
+                                        <input type="date" value={form.vencimiento} onChange={e => setForm(f => ({ ...f, vencimiento: e.target.value }))}
+                                            className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                                    </label>
+                                )}
                             </div>
-                            <textarea value={form.observaciones} onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))}
-                                rows={2} placeholder="Observaciones (opcional)"
-                                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                            {!(tipo.kind === 'file' && tipo.soloFecha) && (
                             <label className="flex items-center gap-2.5 cursor-pointer select-none rounded-lg border border-border bg-card px-3 py-2">
                                 <input type="checkbox" checked={form.avisar30d}
                                     onChange={e => setForm(f => ({ ...f, avisar30d: e.target.checked }))}
@@ -416,6 +423,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                                     </span>
                                 </span>
                             </label>
+                            )}
                         </div>
                     )}
 

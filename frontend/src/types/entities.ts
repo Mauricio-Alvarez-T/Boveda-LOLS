@@ -180,6 +180,7 @@ export type VehiculoDocumentoCategoria =
     | 'permiso_circulacion'
     | 'seguro_terceros'
     | 'primera_inscripcion'
+    | 'certificado_primera_inscripcion'
     | 'poliza';
 
 export interface VehiculoDocumento {
