@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Clock, FileText, Wrench, ShieldCheck, ScrollText, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Clock, FileText, Wrench, ShieldCheck, ScrollText, CalendarClock, ChevronRight } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { cn } from '../../utils/cn';
 import { textoVencimiento, etiquetaVencimiento } from '../../utils/vencimientos';
@@ -20,6 +20,7 @@ const META: Record<VehiculoVencimiento['categoria'], { Icon: React.ElementType }
     mantencion: { Icon: Wrench },
     seguro:     { Icon: ShieldCheck },
     permiso:    { Icon: ScrollText },
+    leasing:    { Icon: CalendarClock },
 };
 
 const fmtFecha = (s: string) => String(s).split('T')[0].split('-').reverse().join('/');

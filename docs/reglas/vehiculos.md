@@ -38,6 +38,25 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
 - ⚠️ Las fechas se parsean a mano (`parseFechaLocal`): `new Date('2026-08-24')` es medianoche **UTC**
   y en Chile cae el día anterior, corriendo todos los avisos un día.
 
+## Leasing (migs 095 + 103)
+
+- `es_leasing` + cuotas (`vehiculo_leasing_cuotas`: solo FECHAS — el toggle "Pagada" se retiró de la
+  UI a pedido de jefatura 2026-08-27; la columna `pagada` se conserva sin uso) + **fechas de
+  contrato** `leasing_fecha_inicio` / `leasing_fecha_termino` (mig 103).
+- **El fin del leasing entra al contador de vencimientos** (30 días antes, mismo umbral que todo):
+  categoría `leasing`, subtipo `fin_leasing`, etiqueta "Fin de leasing". Pre-migración la consulta
+  degrada a vacío (catch ER_BAD_FIELD_ERROR).
+- `avisar_alerta_seguro` (mig 103, default 1): checkbox "Avisar alerta de seguro" en el form del
+  vehículo. En 0, los seguros de ESE vehículo no cuentan en el aviso. Pre-migración el filtro cae a
+  la consulta sin filtro (comportamiento previo).
+- ⚠️ **Bug corregido 2026-08-27** ("el leasing no se guarda"): el modal de edición recibe la fila del
+  LISTADO, que no trae cuotas (solo `getById` las trae) → el form abría vacío y al guardar PISABA
+  las cuotas con `[]`. Fix: `VehiculoForm` se hidrata desde `GET /vehiculos/:id` al montar en modo
+  edición. Regla: todo form de edición que maneje colecciones hijas debe hidratarse del DETALLE, no
+  de la fila de la lista.
+- `update()` de vehículos filtra la whitelist por columnas EXISTENTES (`existingCols`): se puede
+  desplegar código de mig 103 antes de correrla sin romper el guardado.
+
 ## Contador de vencimientos en el menú (decisión usuario 2026-08-24)
 
 - `GET /vehiculos/vencimientos?dias=30` (`vehiculos.service.getVencimientos`) junta **las 5 fuentes

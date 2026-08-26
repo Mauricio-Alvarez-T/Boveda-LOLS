@@ -61,6 +61,7 @@ export const SUBTIPOS_VENCIMIENTO: Record<string, string> = {
     tecnica: 'Revisión técnica',
     gases: 'Revisión de gases',
     mecanica: 'Revisión mecánica',
+    fin_leasing: 'Fin de leasing',
 };
 
 /** Etiqueta por categoría cuando el subtipo no dice nada útil. */
@@ -70,6 +71,7 @@ export const CATEGORIAS_VENCIMIENTO: Record<string, string> = {
     mantencion: 'Mantención',
     seguro: 'Seguro',
     permiso: 'Permiso de circulación',
+    leasing: 'Fin de leasing',
 };
 
 /** "Revisión de gases" a partir de (categoria, subtipo). Compartido por el panel y los tooltips. */

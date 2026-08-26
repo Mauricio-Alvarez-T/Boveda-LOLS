@@ -186,6 +186,16 @@ const vehiculosService = {
             [patente.toUpperCase().trim(), marca, modelo, anio, tipo, kilometraje_actual, color || null, observaciones || null, empresa_id || null, resolvedConductorId, valor || 0, precio_compra || 0, es_leasing ? 1 : 0]
         );
         if (data.cuotas !== undefined) await this._replaceCuotas(result.insertId, data.cuotas);
+        // Campos de mig 103 (fechas de leasing, avisar seguro): van por update(),
+        // que filtra columnas existentes — así crear no rompe si falta la migración.
+        const extras = {};
+        for (const k of ['leasing_fecha_inicio', 'leasing_fecha_termino', 'avisar_alerta_seguro']) {
+            if (data[k] !== undefined) extras[k] = data[k];
+        }
+        if (Object.keys(extras).length) {
+            try { await this.update(result.insertId, extras); }
+            catch (e) { /* mig 103 pendiente: el resto del vehículo ya quedó creado */ }
+        }
         return this.getById(result.insertId);
     },
 
@@ -195,7 +205,15 @@ const vehiculosService = {
         if (data.conductor_nombre !== undefined) {
             data.conductor_id = await this.resolveConductorId(data.conductor_nombre);
         }
-        const allowed = ['patente', 'marca', 'modelo', 'anio', 'tipo', 'kilometraje_actual', 'color', 'observaciones', 'activo', 'empresa_id', 'conductor_id', 'valor', 'precio_compra', 'es_leasing'];
+        // Los 3 últimos son de mig 103: si la columna aún no existe en este
+        // entorno, se omiten en silencio (mismo criterio que buildUpdate) en vez
+        // de reventar TODO el guardado del vehículo con "Unknown column".
+        let allowed = ['patente', 'marca', 'modelo', 'anio', 'tipo', 'kilometraje_actual', 'color', 'observaciones', 'activo', 'empresa_id', 'conductor_id', 'valor', 'precio_compra', 'es_leasing',
+            'leasing_fecha_inicio', 'leasing_fecha_termino', 'avisar_alerta_seguro'];
+        try {
+            const cols = await existingCols('vehiculos');
+            allowed = allowed.filter(f => cols.has(f));
+        } catch (e) { /* information_schema no disponible: se intenta con todo */ }
         const fields = [];
         const params = [];
         allowed.forEach(f => {
@@ -612,7 +630,11 @@ const vehiculosService = {
               AND m.fecha_proxima <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
         `, [FECHA_MINIMA, limite]);
 
-        const [seguros] = await db.query(`
+        // Seguros: respetan el checkbox "Avisar alerta de seguro" del vehículo
+        // (mig 103, default 1). Si la columna aún no existe, cae a la consulta
+        // sin filtro — comportamiento previo intacto.
+        let seguros;
+        const SEGUROS_BASE = `
             SELECT 'seguro' AS categoria, s.id, s.vehiculo_id, s.tipo AS subtipo,
                    v.patente, v.marca, v.modelo, s.fecha_vencimiento,
                    DATEDIFF(s.fecha_vencimiento, CURDATE()) AS dias_restantes
@@ -620,8 +642,15 @@ const vehiculosService = {
             JOIN vehiculos v ON v.id = s.vehiculo_id
             WHERE s.activo = 1 AND v.activo = 1 AND s.fecha_vencimiento IS NOT NULL
               AND s.fecha_vencimiento >= ?
-              AND s.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+              AND s.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)`;
+        try {
+            [seguros] = await db.query(SEGUROS_BASE + `
+              AND v.avisar_alerta_seguro = 1
         `, [FECHA_MINIMA, limite]);
+        } catch (e) {
+            if (e && e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+            [seguros] = await db.query(SEGUROS_BASE, [FECHA_MINIMA, limite]);
+        }
 
         const [permisos] = await db.query(`
             SELECT 'permiso' AS categoria, p.id, p.vehiculo_id, 'permiso_circulacion' AS subtipo,
@@ -634,7 +663,24 @@ const vehiculosService = {
               AND p.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
         `, [FECHA_MINIMA, limite]);
 
-        const items = [...documentos, ...revisiones, ...mantenciones, ...seguros, ...permisos]
+        // Fin de leasing (mig 103): pedido de jefatura — avisar 30 días antes del
+        // término del contrato. Pre-migración la columna no existe → fuente vacía.
+        let leasing = [];
+        try {
+            [leasing] = await db.query(`
+                SELECT 'leasing' AS categoria, v.id, v.id AS vehiculo_id, 'fin_leasing' AS subtipo,
+                       v.patente, v.marca, v.modelo, v.leasing_fecha_termino AS fecha_vencimiento,
+                       DATEDIFF(v.leasing_fecha_termino, CURDATE()) AS dias_restantes
+                FROM vehiculos v
+                WHERE v.activo = 1 AND v.es_leasing = 1 AND v.leasing_fecha_termino IS NOT NULL
+                  AND v.leasing_fecha_termino >= ?
+                  AND v.leasing_fecha_termino <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+            `, [FECHA_MINIMA, limite]);
+        } catch (e) {
+            if (e && e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+        }
+
+        const items = [...documentos, ...revisiones, ...mantenciones, ...seguros, ...permisos, ...leasing]
             // Cinturón por si igual entra una fecha corrupta: sin días calculables
             // la fila se mostraría como "Vence hoy", que sería mentira.
             // OJO con el null: Number(null) es 0 y pasa el isFinite, por eso va aparte.

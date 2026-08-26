@@ -128,6 +128,12 @@ export interface Vehiculo {
     precio_compra?: number;
     /** TRUE si el vehículo está en leasing (arriendo financiero, no es propio). */
     es_leasing?: boolean;
+    /** Inicio del contrato de leasing (mig 103). */
+    leasing_fecha_inicio?: string | null;
+    /** Fin del contrato; entra al contador de vencimientos 30 días antes (mig 103). */
+    leasing_fecha_termino?: string | null;
+    /** Si false, los seguros de este vehículo no cuentan en el aviso (mig 103; default true). */
+    avisar_alerta_seguro?: boolean;
     /** Cuotas del leasing (solo si es_leasing). Las trae el backend en getById. */
     cuotas?: VehiculoLeasingCuota[];
     observaciones?: string | null;
@@ -192,7 +198,7 @@ export interface VehiculoDocumento {
  */
 export interface VehiculoVencimiento {
     /** De dónde sale: define el ícono y la etiqueta en el panel. */
-    categoria: 'documento' | 'revision' | 'mantencion' | 'seguro' | 'permiso';
+    categoria: 'documento' | 'revision' | 'mantencion' | 'seguro' | 'permiso' | 'leasing';
     id: number;
     vehiculo_id: number | null;
     /** Tipo dentro de la categoría (ej. 'permiso_circulacion', 'tecnica', 'SOAP'). */

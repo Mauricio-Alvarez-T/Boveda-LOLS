@@ -27,34 +27,78 @@ const fila = (over = {}) => ({
     fecha_vencimiento: '2026-09-01', dias_restantes: 10, ...over,
 });
 
-/** Encola las 5 consultas de getVencimientos en orden. */
-const mockFuentes = ({ documentos = [], revisiones = [], mantenciones = [], seguros = [], permisos = [] }) => {
+/** Encola las 6 consultas de getVencimientos en orden. */
+const mockFuentes = ({ documentos = [], revisiones = [], mantenciones = [], seguros = [], permisos = [], leasing = [] }) => {
     db.query
         .mockResolvedValueOnce([documentos])
         .mockResolvedValueOnce([revisiones])
         .mockResolvedValueOnce([mantenciones])
         .mockResolvedValueOnce([seguros])
-        .mockResolvedValueOnce([permisos]);
+        .mockResolvedValueOnce([permisos])
+        .mockResolvedValueOnce([leasing]);
 };
+
+/** Error de columna inexistente (migración pendiente) como lo tira mysql2. */
+const errBadField = () => Object.assign(new Error('Unknown column'), { code: 'ER_BAD_FIELD_ERROR' });
 
 describe('getVencimientos — contador del menú', () => {
     beforeEach(() => jest.clearAllMocks());
 
-    test('junta las 5 fuentes del vehículo en una sola lista', async () => {
+    test('junta las 6 fuentes del vehículo en una sola lista', async () => {
         mockFuentes({
             documentos:   [fila({ categoria: 'documento',  dias_restantes: 5 })],
             revisiones:   [fila({ categoria: 'revision',   dias_restantes: 20 })],
             mantenciones: [fila({ categoria: 'mantencion', dias_restantes: 12 })],
             seguros:      [fila({ categoria: 'seguro',     dias_restantes: 30 })],
             permisos:     [fila({ categoria: 'permiso',    dias_restantes: 1 })],
+            leasing:      [fila({ categoria: 'leasing',    subtipo: 'fin_leasing', dias_restantes: 29 })],
         });
 
         const r = await svc.getVencimientos();
 
-        expect(r.total).toBe(5);
-        expect(db.query).toHaveBeenCalledTimes(5);
+        expect(r.total).toBe(6);
+        expect(db.query).toHaveBeenCalledTimes(6);
         expect(new Set(r.items.map(i => i.categoria)))
-            .toEqual(new Set(['documento', 'revision', 'mantencion', 'seguro', 'permiso']));
+            .toEqual(new Set(['documento', 'revision', 'mantencion', 'seguro', 'permiso', 'leasing']));
+    });
+
+    test('el fin de leasing entra al contador (30 días antes, pedido de jefatura)', async () => {
+        mockFuentes({ leasing: [fila({ categoria: 'leasing', subtipo: 'fin_leasing', dias_restantes: 29 })] });
+
+        const r = await svc.getVencimientos();
+
+        expect(r.total).toBe(1);
+        expect(r.items[0].categoria).toBe('leasing');
+        const [sql, params] = db.query.mock.calls[5];
+        expect(sql).toMatch(/es_leasing = 1/);
+        expect(sql).toMatch(/leasing_fecha_termino IS NOT NULL/);
+        expect(params).toEqual(['2000-01-01', 30]);
+    });
+
+    test('los seguros respetan el checkbox avisar_alerta_seguro del vehículo', async () => {
+        mockFuentes({ seguros: [fila({ categoria: 'seguro', dias_restantes: 10 })] });
+        await svc.getVencimientos();
+        const [sql] = db.query.mock.calls[3];
+        expect(sql).toMatch(/avisar_alerta_seguro = 1/);
+    });
+
+    test('pre-migración 103: seguros cae a la consulta sin filtro y leasing queda vacío', async () => {
+        db.query
+            .mockResolvedValueOnce([[]])                                       // documentos
+            .mockResolvedValueOnce([[]])                                       // revisiones
+            .mockResolvedValueOnce([[]])                                       // mantenciones
+            .mockRejectedValueOnce(errBadField())                              // seguros filtrados → columna no existe
+            .mockResolvedValueOnce([[fila({ categoria: 'seguro', dias_restantes: 3 })]]) // fallback sin filtro
+            .mockResolvedValueOnce([[]])                                       // permisos
+            .mockRejectedValueOnce(errBadField());                             // leasing → columna no existe
+
+        const r = await svc.getVencimientos();
+
+        expect(r.total).toBe(1);
+        expect(r.items[0].categoria).toBe('seguro');
+        // La consulta de fallback NO lleva el filtro nuevo.
+        const [fallbackSql] = db.query.mock.calls[4];
+        expect(fallbackSql).not.toMatch(/avisar_alerta_seguro/);
     });
 
     test('NO consulta licencias de conducir: el aviso es de los papeles del vehículo', async () => {
@@ -109,7 +153,7 @@ describe('getVencimientos — contador del menú', () => {
         expect(r.items.map(i => i.dias_restantes)).toEqual([-40, 2, 25]);
     });
 
-    test('el rango de días se castea y se pasa a las 5 consultas', async () => {
+    test('el rango de días se castea y se pasa a las 6 consultas', async () => {
         mockFuentes({});
         // Llega como string desde req.query (?dias=15)
         const r = await svc.getVencimientos('15');
