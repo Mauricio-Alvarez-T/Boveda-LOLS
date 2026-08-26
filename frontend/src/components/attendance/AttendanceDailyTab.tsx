@@ -23,6 +23,9 @@ import { flagOff } from '../../utils/flags';
 import { useSetPageHeader } from '../../context/PageHeaderContext';
 import { useAuth } from '../../context/AuthContext';
 import { WorkerDocsContent } from './modals/WorkerDocsContent';
+import { BorrarAsistenciaModal, type BorrableItem } from './modals/BorrarAsistenciaModal';
+import { toast } from 'sonner';
+import api from '../../services/api';
 
 // Nuevos hooks y componentes modulares
 import { useAttendanceData, useAttendanceActions, useAttendanceExport } from '../../hooks/attendance';
@@ -78,6 +81,64 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
     const [selectedWorker, setSelectedWorker] = useState<Trabajador | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [markedRows, setMarkedRows] = useState<Set<number>>(new Set());
+    // Goma de borrar: borrado correctivo de la asistencia guardada del día.
+    const [showBorrar, setShowBorrar] = useState(false);
+    const [borrando, setBorrando] = useState(false);
+
+    // Solo lo GUARDADO se puede borrar: attendance[w.id].id existe únicamente en
+    // registros que vinieron de la BD (los defaults sintetizados no lo tienen).
+    const borrables = useMemo((): BorrableItem[] => workers
+        .filter(w => attendance[w.id]?.id != null)
+        .map(w => {
+            const a = attendance[w.id]!;
+            const estado = estados.find(e => e.id === a.estado_id);
+            return {
+                trabajadorId: w.id,
+                nombre: [w.nombres, w.apellido_paterno, w.apellido_materno].filter(Boolean).join(' '),
+                rut: w.rut || '',
+                estadoCodigo: estado?.codigo || '?',
+            };
+        })
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')), [workers, attendance, estados]);
+
+    const handleBorrarAsistencia = async (trabajadorIds: number[]) => {
+        setBorrando(true);
+        try {
+            const res = await api.post<{ data: { borrados: number; trabajadores: number; con_periodo: number; traslados_restantes: number } }>('/asistencias/borrar-dia', {
+                fecha: date,
+                trabajador_ids: trabajadorIds,
+                // Con obra seleccionada solo se borra ESA obra; en Reporte Global, el día completo.
+                ...(selectedObra ? { obra_id: selectedObra.id } : {}),
+            });
+            const { borrados, trabajadores, con_periodo, traslados_restantes } = res.data.data;
+            if (borrados > 0) {
+                // La grilla rehidrata defaults 'A' al recargar: sin este texto el día
+                // borrado luce IGUAL que antes y parece que la goma no hizo nada.
+                toast.success(
+                    `Se borró la asistencia de ${trabajadores} trabajador(es) (${borrados} registro(s)). La vista vuelve a proponer "A" por defecto: el día queda SIN registros hasta que vuelvas a Guardar.`,
+                    { duration: 9000 }
+                );
+            } else {
+                toast.info('No había registros guardados que borrar');
+            }
+            if (con_periodo > 0) {
+                toast.warning(
+                    `${con_periodo} trabajador(es) tienen un PERÍODO activo (vacaciones/licencia) que cubre este día: su estado va a reaparecer. Para quitarlo, elimina el período desde el calendario del trabajador.`,
+                    { duration: 12000 }
+                );
+            }
+            if (traslados_restantes > 0) {
+                toast.warning(
+                    `Ojo: ${traslados_restantes} traslado(s) de obra (TO) de ese día siguen vivos en otra obra y cuentan día trabajado. Bórralos desde la obra de origen o desde el Reporte Global.`,
+                    { duration: 12000 }
+                );
+            }
+            setShowBorrar(false);
+            fetchAttendanceInfo();
+        } catch (err) {
+            toast.error((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al borrar la asistencia');
+        } finally { setBorrando(false); }
+    };
     const [trasladoWorker, setTrasladoWorker] = useState<Trabajador | null>(null);
     const [showSearchBox, setShowSearchBox] = useState(false);
 
@@ -195,6 +256,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                 }}
                 repeating={repeating}
                 isGlobal={isGlobalActive}
+                onBorrarAsistencia={() => setShowBorrar(true)}
                 reportMonth={reportMonth}
                 reportYear={reportYear}
                 setReportMonth={setReportMonth}
@@ -571,6 +633,16 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                 // abierto desde la fila en modo global salía sin el panel de asignación.
                 obraId={selectedObra?.id ?? calendarWorker?.obra_id ?? undefined}
                 onSuccess={fetchAttendanceInfo}
+            />
+
+            <BorrarAsistenciaModal
+                isOpen={showBorrar}
+                onClose={() => setShowBorrar(false)}
+                fecha={date}
+                items={borrables}
+                busy={borrando}
+                onConfirm={handleBorrarAsistencia}
+                obraNombre={selectedObra?.nombre ?? null}
             />
 
             <TrasladoObraModal

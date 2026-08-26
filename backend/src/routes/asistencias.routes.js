@@ -178,6 +178,14 @@ router.post('/periodos', auth, checkPermission('asistencia.periodo.crear'), vali
 });
 
 // Traslado de Obra (TO)
+// Borrado correctivo del día (goma de borrar). MISMA gate que escribir asistencia:
+// quien puede guardarla puede corregirla — sin permiso nuevo ni re-login.
+router.post('/borrar-dia', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.borrarDia, { strip: true }), async (req, res, next) => {
+    try {
+        res.json({ data: await asistenciaService.borrarDia(req.body, req.user.id, req) });
+    } catch (err) { next(err); }
+});
+
 router.post('/traslado-obra', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.trasladoObra, { strip: true }), async (req, res, next) => {
     try {
         const result = await asistenciaService.trasladoObra(req.body, req.user.id, req);

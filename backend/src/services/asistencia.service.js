@@ -400,6 +400,125 @@ const asistenciaService = {
      * Pensado para flujos tipo "Repetir día anterior" y futuras cargas bulk de
      * múltiples días / obras en un único POST.
      */
+    /**
+     * Borrado correctivo (goma de borrar): elimina la asistencia GUARDADA de uno
+     * o varios trabajadores en una fecha. Nace del caso real 2026-08-26: marcaron
+     * asistencia a los 194 trabajadores en el día equivocado y no había deshacer.
+     *
+     * Alcance:
+     *   · con obra_id → solo las filas de ESA obra (lo que la vista por obra muestra).
+     *   · sin obra_id (Reporte Global) → TODAS las filas del día del trabajador,
+     *     incluidas duplicadas cross-obra y pares de traslado TO+A: "borrar el día"
+     *     significa dejarlo limpio, no dejar vivo un duplicado oculto (regla
+     *     "fila vigente", docs/reglas/asistencia.md).
+     *
+     * El DELETE es físico: log_asistencia cae por FK ON DELETE CASCADE, y el
+     * borrado queda auditado en logs_actividad (quién, fecha, cuántos, quiénes).
+     * Se seleccionan ids exactos ANTES de borrar — no se borra nada que se haya
+     * creado entre medio.
+     */
+    async borrarDia({ fecha, trabajador_ids, obra_id }, userId, req) {
+        const MAX_TRABAJADORES = 500;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fecha || ''))) {
+            throw Object.assign(new Error('Fecha inválida (se espera YYYY-MM-DD)'), { statusCode: 400 });
+        }
+        const ids = [...new Set((trabajador_ids || []).map(Number))];
+        if (ids.length === 0 || ids.some(n => !Number.isInteger(n) || n < 1)) {
+            throw Object.assign(new Error('trabajador_ids debe ser una lista de ids válidos'), { statusCode: 400 });
+        }
+        if (ids.length > MAX_TRABAJADORES) {
+            throw Object.assign(new Error(`Demasiados trabajadores en un solo borrado (${ids.length}). Máximo: ${MAX_TRABAJADORES}.`), { statusCode: 400 });
+        }
+
+        let where = 'fecha = ? AND trabajador_id IN (?)';
+        const params = [fecha, ids];
+        if (obra_id) { where += ' AND obra_id = ?'; params.push(Number(obra_id)); }
+
+        // Snapshot completo ANTES de borrar: estado/horas/observación por fila.
+        // Va entero al log de auditoría — sin esto, un borrado sobre el día
+        // equivocado sería irreconstruible (log_asistencia cae por FK CASCADE).
+        const [filas] = await db.query(
+            `SELECT id, trabajador_id, obra_id, estado_id, horas_extra, observacion
+             FROM asistencias WHERE ${where}`,
+            params
+        );
+        if (filas.length === 0) return { borrados: 0, trabajadores: 0, con_periodo: 0, traslados_restantes: 0 };
+
+        await db.query('DELETE FROM asistencias WHERE id IN (?)', [[...filas.map(f => f.id)]]);
+
+        const afectados = [...new Set(filas.map(f => f.trabajador_id))];
+
+        // Avisos post-borrado (nunca revierten nada; ante error informan 0):
+        // 1) Días cubiertos por un PERÍODO activo (V/LM…): el período los va a
+        //    re-sintetizar en la vista — la goma no cancela períodos.
+        let conPeriodo = 0;
+        try {
+            const [pers] = await db.query(
+                `SELECT COUNT(DISTINCT p.trabajador_id) AS n
+                 FROM periodos_ausencia p
+                 WHERE p.activo = TRUE AND p.trabajador_id IN (?)
+                   AND ? BETWEEN p.fecha_inicio AND p.fecha_fin`,
+                [afectados, fecha]
+            );
+            conPeriodo = Number(pers[0]?.n) || 0;
+        } catch (e) { /* informativo */ }
+
+        // 2) Con scope por obra se puede partir un par de traslado TO+A: si se
+        //    borró la llegada (A destino), el TO del origen queda vivo y sigue
+        //    contando día trabajado. Se detecta y se avisa.
+        let trasladosRestantes = 0;
+        if (obra_id) {
+            try {
+                const [tos] = await db.query(
+                    `SELECT COUNT(*) AS n
+                     FROM asistencias a
+                     JOIN estados_asistencia ea ON ea.id = a.estado_id
+                     WHERE a.fecha = ? AND a.trabajador_id IN (?) AND a.obra_id <> ?
+                       AND ea.codigo = 'TO'`,
+                    [fecha, afectados, Number(obra_id)]
+                );
+                trasladosRestantes = Number(tos[0]?.n) || 0;
+            } catch (e) { /* informativo */ }
+        }
+
+        // Auditoría: un solo log con snapshot por fila (permite restauración
+        // manual). El lookup de nombres es OPCIONAL: si falla, se loguea igual
+        // con los ids — un borrado masivo jamás queda sin rastro.
+        try {
+            let lista = afectados;
+            try {
+                const [nombres] = await db.query(
+                    'SELECT id, nombres, apellido_paterno FROM trabajadores WHERE id IN (?)',
+                    [afectados]
+                );
+                lista = nombres
+                    .map(w => `${w.nombres} ${w.apellido_paterno}`.trim())
+                    .sort((a, b) => a.localeCompare(b, 'es'));
+            } catch (e) { /* nombres opcionales: los ids bastan para el rastro */ }
+            const detalle = JSON.stringify({
+                resumen: `Borrado correctivo: ${filas.length} registro(s) de asistencia del ${fecha} (${afectados.length} trabajador(es))${obra_id ? ` en obra ${obra_id}` : ' en todas las obras'}`,
+                fecha,
+                obra_id: obra_id || null,
+                registros_borrados: filas.length,
+                trabajadores: lista,
+                // Snapshot restaurable: qué tenía cada fila al momento de borrar.
+                filas: filas.map(f => ({
+                    trabajador_id: f.trabajador_id, obra_id: f.obra_id, estado_id: f.estado_id,
+                    ...(f.horas_extra != null && Number(f.horas_extra) !== 0 ? { horas_extra: f.horas_extra } : {}),
+                    ...(f.observacion ? { observacion: f.observacion } : {}),
+                })),
+            });
+            await logManualActivity(userId, 'asistencias', 'DELETE', null, detalle, req);
+        } catch (e) { /* la auditoría nunca revierte un borrado ya hecho */ }
+
+        return {
+            borrados: filas.length,
+            trabajadores: afectados.length,
+            con_periodo: conPeriodo,
+            traslados_restantes: trasladosRestantes,
+        };
+    },
+
     async batchSave(registros, registradoPor, req) {
         if (!Array.isArray(registros) || registros.length === 0) return [];
 

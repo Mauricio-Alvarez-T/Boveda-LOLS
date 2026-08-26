@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Save, MoreHorizontal, FileDown, CalendarRange, CopyPlus, Plus, Building2, Check } from 'lucide-react';
+import { Save, MoreHorizontal, FileDown, CalendarRange, CopyPlus, Plus, Building2, Check, Eraser } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import RequirePermission from '../../auth/RequirePermission';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
@@ -22,6 +22,8 @@ interface AttendanceHeaderActionsProps {
     repetirDiaAnterior?: () => void;
     repeating?: boolean;
     isGlobal?: boolean;
+    /** Abre el modal de borrado correctivo (goma de borrar) del día visible. */
+    onBorrarAsistencia?: () => void;
     /** Reporte mensual — selección de período + exportar (botón compacto en mobile). */
     reportMonth: string;
     reportYear: string;
@@ -57,6 +59,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
     repetirDiaAnterior,
     repeating = false,
     isGlobal = false,
+    onBorrarAsistencia,
     reportMonth,
     reportYear,
     setReportMonth,
@@ -231,6 +234,24 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                 >
                     <Save className="h-4 w-4" />
                 </Button>
+
+                {/* Goma de borrar: borrado correctivo de la asistencia guardada del día.
+                    Misma gate que Guardar (quien guarda corrige). No se bloquea en
+                    feriado/finde: el error que se corrige puede estar en cualquier día. */}
+                {onBorrarAsistencia && (
+                    <RequirePermission permiso="asistencia.guardar">
+                        <Button
+                            variant="ghost"
+                            onClick={onBorrarAsistencia}
+                            disabled={saving || loading || !hasWorkers}
+                            title="Borrar asistencia del día (corrección)"
+                            aria-label="Borrar asistencia del día"
+                            className="h-9 w-9 p-0 justify-center rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                            <Eraser className="h-4 w-4" />
+                        </Button>
+                    </RequirePermission>
+                )}
             </div>
         </div>
     );

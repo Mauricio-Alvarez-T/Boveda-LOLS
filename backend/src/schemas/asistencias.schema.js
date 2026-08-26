@@ -76,4 +76,14 @@ const guardarHorarios = {
     },
 };
 
-module.exports = { batch, bulk, actualizar, crearPeriodo, trasladoObra, guardarHorarios };
+// POST /borrar-dia — borrado correctivo: elimina la asistencia guardada de uno o
+// varios trabajadores en UNA fecha (caso real: marcaron a todos en el día
+// equivocado y no había cómo deshacerlo). trabajador_ids se valida en detalle
+// (enteros, tope) en el service.
+const borrarDia = {
+    fecha: { required: true, type: 'string', format: 'date' },
+    trabajador_ids: { required: true, type: 'array', minLength: 1 },
+    obra_id: { type: 'integer', min: 1 },
+};
+
+module.exports = { batch, bulk, actualizar, crearPeriodo, trasladoObra, guardarHorarios, borrarDia };

@@ -33,6 +33,29 @@ Cada estado tiene 2 flags con semántica DISTINTA:
 - Obras con `participa_asistencia=0` no aparecen en el selector de obra en /asistencia
   (`ObraSelector.tsx` route-aware + guard en `AttendanceDailyTab.tsx`; mig 075).
 
+## Borrado correctivo (goma de borrar) — 2026-08-26
+
+- **Botón goma** en la barra del Registro Diario (junto a Guardar): borra la asistencia
+  GUARDADA de uno o varios trabajadores en la fecha visible. Nace del caso real: marcaron
+  a los 194 trabajadores en el día equivocado y no existía deshacer.
+- `POST /asistencias/borrar-dia` (`asistencia.service.borrarDia`): valida fecha/ids
+  (tope 500), selecciona los ids exactos y borra por esos ids (race-safe). **Gate:
+  `asistencia.guardar`** — quien puede guardar puede corregir; sin permiso nuevo
+  (evita migración + re-login).
+- **Alcance**: con obra seleccionada borra solo las filas de ESA obra; en Reporte
+  Global borra el día COMPLETO del trabajador (duplicados cross-obra y pares TO+A
+  incluidos — coherente con la regla "fila vigente" de abajo: borrar el día es
+  dejarlo limpio, no dejar vivo un duplicado oculto).
+- El DELETE es físico; `log_asistencia` cae por FK CASCADE. Queda **un log de
+  auditoría** en `logs_actividad` (type DELETE) con fecha, obra, cuántos y la lista
+  de trabajadores. El fallo del log jamás revierte el borrado.
+- UI: el modal solo lista trabajadores con registro guardado (`attendance[w.id].id`
+  existe ⇔ vino de la BD), selección explícita + "Seleccionar todos" + confirm final.
+- ⚠️ Si el día borrado está cubierto por un **período de ausencia** (V/LM), el período
+  sigue vivo: al recargar, el día se rehidrata desde el período. Para eso está el
+  eliminador de períodos, no la goma.
+- Anti-regresión: `backend/tests/asistencia_borrar.test.js`.
+
 ## Registro vigente (duplicados cross-obra) — 2026-08-24
 
 La UK es `(trabajador, obra, fecha)` → pueden existir 2+ filas del mismo día en obras
