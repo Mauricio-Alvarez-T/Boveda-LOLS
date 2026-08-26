@@ -401,12 +401,82 @@ const asistenciaService = {
      * múltiples días / obras en un único POST.
      */
     /**
+     * Lista COMPLETA de lo borrable en una fecha (alimenta el modal de la goma).
+     * La grilla del Registro Diario NO sirve como fuente: deja invisibles
+     * (caso real TOESCA 2026-08-27) a
+     *   1. miembros actuales de la obra cuya fila del día vive en OTRA obra
+     *      (marcados antes de un traslado — la grilla los rehidrata como
+     *      "sin guardar"),
+     *   2. trabajadores FINIQUITADOS con filas (la vista filtra t.activo=1
+     *      pero el Excel sí los pinta),
+     *   3. filas en obras finalizadas.
+     * Este método los incluye todos; solo `es_prueba = 1` queda fuera
+     * (aislamiento de datos de prueba). Devuelve un item por trabajador con el
+     * detalle de SUS filas (obra + estado) para que el modal muestre dónde vive
+     * cada registro antes de borrar.
+     */
+    async getBorrables(fecha, obraId) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fecha || ''))) {
+            throw Object.assign(new Error('Fecha inválida (se espera YYYY-MM-DD)'), { statusCode: 400 });
+        }
+        let where = 'a.fecha = ? AND t.es_prueba = 0';
+        const params = [fecha];
+        if (obraId) {
+            // Filas EN la obra (de cualquiera, incl. ex-miembros e inactivos) +
+            // filas de MIEMBROS ACTUALES de la obra guardadas en otras obras.
+            where += ' AND (a.obra_id = ? OR t.obra_id = ?)';
+            params.push(Number(obraId), Number(obraId));
+        }
+        const [rows] = await db.query(
+            `SELECT a.trabajador_id, a.obra_id, ea.codigo AS estado_codigo,
+                    t.nombres, t.apellido_paterno, t.rut, t.activo,
+                    t.obra_id AS obra_actual_id,
+                    o.nombre AS obra_nombre, oa.nombre AS obra_actual_nombre
+             FROM asistencias a
+             JOIN trabajadores t ON t.id = a.trabajador_id
+             JOIN estados_asistencia ea ON ea.id = a.estado_id
+             LEFT JOIN obras o ON o.id = a.obra_id
+             LEFT JOIN obras oa ON oa.id = t.obra_id
+             WHERE ${where}
+             ORDER BY t.apellido_paterno ASC, t.nombres ASC, a.id ASC`,
+            params
+        );
+        const porTrabajador = new Map();
+        for (const r of rows) {
+            if (!porTrabajador.has(r.trabajador_id)) {
+                porTrabajador.set(r.trabajador_id, {
+                    trabajador_id: r.trabajador_id,
+                    nombre: `${r.apellido_paterno || ''} ${r.nombres || ''}`.trim(),
+                    rut: r.rut,
+                    activo: !!r.activo,
+                    obra_actual_id: r.obra_actual_id,
+                    obra_actual_nombre: r.obra_actual_nombre || 'Sin Obra',
+                    filas: [],
+                });
+            }
+            porTrabajador.get(r.trabajador_id).filas.push({
+                obra_id: r.obra_id,
+                obra_nombre: r.obra_nombre || `Obra ${r.obra_id}`,
+                estado_codigo: r.estado_codigo,
+                es_to: r.estado_codigo === 'TO',
+            });
+        }
+        return [...porTrabajador.values()];
+    },
+
+    /**
      * Borrado correctivo (goma de borrar): elimina la asistencia GUARDADA de uno
      * o varios trabajadores en una fecha. Nace del caso real 2026-08-26: marcaron
      * asistencia a los 194 trabajadores en el día equivocado y no había deshacer.
      *
-     * Alcance:
-     *   · con obra_id → solo las filas de ESA obra (lo que la vista por obra muestra).
+     * Alcance ("borrar el DÍA del trabajador", 2026-08-26 v2):
+     *   · con obra_id → las filas de ESA obra (cualquier estado) MÁS las filas del
+     *     mismo día en OTRAS obras cuyo estado no sea TO. Bajo la regla "fila
+     *     vigente" esas filas ajenas son duplicados/errores por definición — caso
+     *     real TOESCA: se marcó el día antes de un traslado, la fila vieja quedaba
+     *     invisible para la vista de la obra nueva y el Excel global la seguía
+     *     pintando. El TO de origen (par TO+A legítimo) se PRESERVA y se avisa en
+     *     traslados_restantes.
      *   · sin obra_id (Reporte Global) → TODAS las filas del día del trabajador,
      *     incluidas duplicadas cross-obra y pares de traslado TO+A: "borrar el día"
      *     significa dejarlo limpio, no dejar vivo un duplicado oculto (regla
@@ -432,7 +502,12 @@ const asistenciaService = {
 
         let where = 'fecha = ? AND trabajador_id IN (?)';
         const params = [fecha, ids];
-        if (obra_id) { where += ' AND obra_id = ?'; params.push(Number(obra_id)); }
+        if (obra_id) {
+            // Filas de ESTA obra + filas del día en otras obras que NO sean TO
+            // (duplicados/errores bajo la regla fila-vigente). El TO ajeno vive.
+            where += ` AND (obra_id = ? OR estado_id <> (SELECT id FROM estados_asistencia WHERE codigo = 'TO'))`;
+            params.push(Number(obra_id));
+        }
 
         // Snapshot completo ANTES de borrar: estado/horas/observación por fila.
         // Va entero al log de auditoría — sin esto, un borrado sobre el día

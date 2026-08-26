@@ -66,10 +66,10 @@ describe('asistenciaService.borrarDia', () => {
         expect(delParams).toEqual([[11, 12, 13]]);
     });
 
-    test('con obra_id el alcance queda scopeado a esa obra y detecta TO restantes', async () => {
+    test('con obra_id borra el DÍA del trabajador: esa obra + filas ≠TO de otras obras; el TO ajeno vive y se avisa', async () => {
         db.query
-            .mockResolvedValueOnce([FILAS.slice(0, 2)])                        // SELECT
-            .mockResolvedValueOnce([{ affectedRows: 2 }])                      // DELETE
+            .mockResolvedValueOnce([FILAS])                                    // SELECT (incluye la cross-obra 13)
+            .mockResolvedValueOnce([{ affectedRows: 3 }])                      // DELETE
             .mockResolvedValueOnce(SIN_PERIODOS)                               // aviso períodos
             .mockResolvedValueOnce([[{ n: 1 }]])                               // TO vivo en otra obra
             .mockResolvedValueOnce([[{ id: 1, nombres: 'Ana', apellido_paterno: 'Soto' }]]);
@@ -77,9 +77,15 @@ describe('asistenciaService.borrarDia', () => {
         const r = await svc.borrarDia({ fecha: '2026-08-27', trabajador_ids: [1, 2], obra_id: 5 }, 9, {});
 
         const [selSql, selParams] = db.query.mock.calls[0];
-        expect(selSql).toMatch(/AND obra_id = \?/);
+        // Regla fila-vigente (v2, caso TOESCA): las filas del día en OTRAS obras son
+        // duplicados/errores por definición y también caen — salvo el TO del traslado.
+        expect(selSql).toMatch(/AND \(obra_id = \? OR estado_id <> \(SELECT id FROM estados_asistencia WHERE codigo = 'TO'\)\)/);
         expect(selParams).toEqual(['2026-08-27', [1, 2], 5]);
-        // Aviso: al borrar solo el lado de una obra puede quedar el TO del origen vivo.
+        // El DELETE sigue siendo por ids exactos del snapshot (race-safe).
+        const [delSql, delParams] = db.query.mock.calls[1];
+        expect(delSql).toMatch(/DELETE FROM asistencias WHERE id IN/);
+        expect(delParams).toEqual([[11, 12, 13]]);
+        // Aviso: el TO del origen queda vivo a propósito.
         expect(r.traslados_restantes).toBe(1);
         const [toSql] = db.query.mock.calls[3];
         expect(toSql).toMatch(/ea\.codigo = 'TO'/);
@@ -174,6 +180,78 @@ describe('asistenciaService.borrarDia', () => {
         db.query.mockResolvedValueOnce([[]]);
         await svc.borrarDia({ fecha: '2026-08-27', trabajador_ids: [7, 7, 7] }, 9, {});
         expect(db.query.mock.calls[0][1]).toEqual(['2026-08-27', [7]]);
+    });
+});
+
+describe('asistenciaService.getBorrables', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    const ROWS = [
+        // Ana: fila en la obra 5 (miembro actual, activa).
+        { trabajador_id: 1, obra_id: 5, estado_codigo: 'A', nombres: 'Ana', apellido_paterno: 'Soto', rut: '1-9', activo: true, obra_actual_id: 5, obra_nombre: 'TOESCA', obra_actual_nombre: 'TOESCA' },
+        // Luis: miembro actual de la 5 pero su fila del día vive en la obra 7 (caso TOESCA).
+        { trabajador_id: 2, obra_id: 7, estado_codigo: 'A', nombres: 'Luis', apellido_paterno: 'Rev', rut: '2-7', activo: true, obra_actual_id: 5, obra_nombre: 'DOMEYKO', obra_actual_nombre: 'TOESCA' },
+        // Pedro: FINIQUITADO con fila en la obra 5 + par TO en la 7.
+        { trabajador_id: 3, obra_id: 5, estado_codigo: 'A', nombres: 'Pedro', apellido_paterno: 'Paz', rut: '3-5', activo: false, obra_actual_id: 9, obra_nombre: 'TOESCA', obra_actual_nombre: 'OTRA' },
+        { trabajador_id: 3, obra_id: 7, estado_codigo: 'TO', nombres: 'Pedro', apellido_paterno: 'Paz', rut: '3-5', activo: false, obra_actual_id: 9, obra_nombre: 'DOMEYKO', obra_actual_nombre: 'OTRA' },
+    ];
+
+    test('con obra: incluye filas EN la obra y filas de MIEMBROS de la obra en otras obras; sin filtro de activos', async () => {
+        db.query.mockResolvedValueOnce([ROWS]);
+        const r = await svc.getBorrables('2026-08-27', 5);
+
+        const [sql, params] = db.query.mock.calls[0];
+        expect(sql).toMatch(/\(a\.obra_id = \? OR t\.obra_id = \?\)/);
+        expect(sql).toMatch(/t\.es_prueba = 0/);
+        // Los finiquitados con filas DEBEN aparecer (el Excel los pinta; antes eran
+        // imborrables). t.activo va como COLUMNA (para el badge), nunca como filtro.
+        expect(sql).not.toMatch(/t\.activo\s*=/);
+        expect(params).toEqual(['2026-08-27', 5, 5]);
+
+        expect(r).toHaveLength(3);
+        const luis = r.find(i => i.trabajador_id === 2);
+        expect(luis.filas).toEqual([{ obra_id: 7, obra_nombre: 'DOMEYKO', estado_codigo: 'A', es_to: false }]);
+        const pedro = r.find(i => i.trabajador_id === 3);
+        expect(pedro.activo).toBe(false);
+        expect(pedro.filas).toHaveLength(2);
+        expect(pedro.filas[1]).toEqual({ obra_id: 7, obra_nombre: 'DOMEYKO', estado_codigo: 'TO', es_to: true });
+    });
+
+    test('sin obra (Reporte Global): todas las filas del día, sin scope', async () => {
+        db.query.mockResolvedValueOnce([ROWS]);
+        await svc.getBorrables('2026-08-27');
+        const [sql, params] = db.query.mock.calls[0];
+        expect(sql).not.toMatch(/a\.obra_id = \?/);
+        expect(params).toEqual(['2026-08-27']);
+    });
+
+    test('fecha inválida → 400 sin tocar la BD', async () => {
+        await expect(svc.getBorrables('27-08-2026', 5)).rejects.toThrow(/Fecha inválida/);
+        expect(db.query).not.toHaveBeenCalled();
+    });
+});
+
+describe('GET /api/asistencias/borrables — gate de permiso', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    test('403 sin asistencia.guardar', async () => {
+        const res = await request(app)
+            .get('/api/asistencias/borrables?fecha=2026-08-27&obra_id=5')
+            .set('Authorization', 'Bearer ' + makeToken(['asistencia.ver']));
+        expect(res.status).toBe(403);
+        expect(db.query).not.toHaveBeenCalled();
+    });
+
+    test('con asistencia.guardar responde la lista agrupada', async () => {
+        db.query.mockResolvedValueOnce([[
+            { trabajador_id: 1, obra_id: 5, estado_codigo: 'A', nombres: 'Ana', apellido_paterno: 'Soto', rut: '1-9', activo: true, obra_actual_id: 5, obra_nombre: 'TOESCA', obra_actual_nombre: 'TOESCA' },
+        ]]);
+        const res = await request(app)
+            .get('/api/asistencias/borrables?fecha=2026-08-27&obra_id=5')
+            .set('Authorization', 'Bearer ' + makeToken(['asistencia.guardar']));
+        expect(res.status).toBe(200);
+        expect(res.body.data).toHaveLength(1);
+        expect(res.body.data[0]).toMatchObject({ trabajador_id: 1, nombre: 'Soto Ana', activo: true });
     });
 });
 

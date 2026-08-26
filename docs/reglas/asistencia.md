@@ -42,15 +42,24 @@ Cada estado tiene 2 flags con semántica DISTINTA:
   (tope 500), selecciona los ids exactos y borra por esos ids (race-safe). **Gate:
   `asistencia.guardar`** — quien puede guardar puede corregir; sin permiso nuevo
   (evita migración + re-login).
-- **Alcance**: con obra seleccionada borra solo las filas de ESA obra; en Reporte
-  Global borra el día COMPLETO del trabajador (duplicados cross-obra y pares TO+A
-  incluidos — coherente con la regla "fila vigente" de abajo: borrar el día es
-  dejarlo limpio, no dejar vivo un duplicado oculto).
+- **Alcance (v2, 2026-08-26 — caso TOESCA)**: la goma borra "el DÍA del trabajador".
+  Con obra seleccionada: las filas de ESA obra (cualquier estado) MÁS las filas del
+  mismo día en OTRAS obras cuyo estado no sea TO — bajo la regla "fila vigente" esas
+  filas ajenas son duplicados/errores por definición (caso real: se marcó el 27-ago
+  antes de un traslado; la fila vieja era invisible en la vista de la obra nueva y
+  el Excel global la seguía pintando, mientras el Excel por obra salía vacío). El TO
+  de origen (par TO+A) SE PRESERVA y `traslados_restantes` lo avisa. En Reporte
+  Global: el día COMPLETO, TO+A incluidos.
 - El DELETE es físico; `log_asistencia` cae por FK CASCADE. Queda **un log de
   auditoría** en `logs_actividad` (type DELETE) con fecha, obra, cuántos y la lista
   de trabajadores. El fallo del log jamás revierte el borrado.
-- UI: el modal solo lista trabajadores con registro guardado (`attendance[w.id].id`
-  existe ⇔ vino de la BD), selección explícita + "Seleccionar todos" + confirm final.
+- UI: el modal se alimenta de **`GET /asistencias/borrables?fecha&obra_id`**
+  (`getBorrables`, mismo gate) — NO de la grilla, que deja invisibles: (1) miembros
+  de la obra con la fila del día en otra obra, (2) FINIQUITADOS con filas (la vista
+  filtra `t.activo=1` pero el Excel los pinta), (3) filas en obras finalizadas.
+  El endpoint los incluye todos (solo `es_prueba=1` queda fuera) y detalla dónde
+  vive cada fila; el modal muestra badges ("registro en X", "TO en X (se conserva)",
+  "Finiquitado"). Selección explícita + "Seleccionar todos" + confirm final.
 - ⚠️ Si el día borrado está cubierto por un **período de ausencia** (V/LM), el período
   sigue vivo: al recargar, el día se rehidrata desde el período. Para eso está el
   eliminador de períodos, no la goma.

@@ -23,7 +23,7 @@ import { flagOff } from '../../utils/flags';
 import { useSetPageHeader } from '../../context/PageHeaderContext';
 import { useAuth } from '../../context/AuthContext';
 import { WorkerDocsContent } from './modals/WorkerDocsContent';
-import { BorrarAsistenciaModal, type BorrableItem } from './modals/BorrarAsistenciaModal';
+import { BorrarAsistenciaModal } from './modals/BorrarAsistenciaModal';
 import { toast } from 'sonner';
 import api from '../../services/api';
 
@@ -85,22 +85,9 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
     const [showBorrar, setShowBorrar] = useState(false);
     const [borrando, setBorrando] = useState(false);
 
-    // Solo lo GUARDADO se puede borrar: attendance[w.id].id existe únicamente en
-    // registros que vinieron de la BD (los defaults sintetizados no lo tienen).
-    const borrables = useMemo((): BorrableItem[] => workers
-        .filter(w => attendance[w.id]?.id != null)
-        .map(w => {
-            const a = attendance[w.id]!;
-            const estado = estados.find(e => e.id === a.estado_id);
-            return {
-                trabajadorId: w.id,
-                nombre: [w.nombres, w.apellido_paterno, w.apellido_materno].filter(Boolean).join(' '),
-                rut: w.rut || '',
-                estadoCodigo: estado?.codigo || '?',
-            };
-        })
-        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')), [workers, attendance, estados]);
-
+    // La lista de borrables la carga el propio modal desde GET /asistencias/borrables:
+    // la grilla NO sirve como fuente (deja invisibles registros en otras obras,
+    // finiquitados y obras finalizadas — caso real TOESCA 2026-08-27).
     const handleBorrarAsistencia = async (trabajadorIds: number[]) => {
         setBorrando(true);
         try {
@@ -639,9 +626,9 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                 isOpen={showBorrar}
                 onClose={() => setShowBorrar(false)}
                 fecha={date}
-                items={borrables}
                 busy={borrando}
                 onConfirm={handleBorrarAsistencia}
+                obraId={selectedObra?.id ?? null}
                 obraNombre={selectedObra?.nombre ?? null}
             />
 

@@ -178,6 +178,16 @@ router.post('/periodos', auth, checkPermission('asistencia.periodo.crear'), vali
 });
 
 // Traslado de Obra (TO)
+// Lista completa de lo borrable en una fecha (alimenta el modal de la goma):
+// incluye filas invisibles para la grilla (miembro con fila en otra obra,
+// finiquitados con filas, obras finalizadas). Mismo gate que borrar.
+router.get('/borrables', auth, checkPermission('asistencia.guardar'), async (req, res, next) => {
+    try {
+        const { fecha, obra_id } = req.query;
+        res.json({ data: await asistenciaService.getBorrables(fecha, obra_id) });
+    } catch (err) { next(err); }
+});
+
 // Borrado correctivo del día (goma de borrar). MISMA gate que escribir asistencia:
 // quien puede guardarla puede corregirla — sin permiso nuevo ni re-login.
 router.post('/borrar-dia', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.borrarDia, { strip: true }), async (req, res, next) => {
