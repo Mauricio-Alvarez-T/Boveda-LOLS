@@ -426,6 +426,7 @@ Estos fallbacks evitan que `env-validator.js` lance excepción al importar el ap
 
 | Error | Causa | Solución |
 |---|---|---|
+| Backends caídos con la página HTML de Passenger ("Web application could not be started") — en uno o ambos entornos | El proceso Node no logra ARRANCAR (no es un bug de endpoint): deps/node_modules/venv, .env, binario de Node o MySQL al boot. | Seguir el playbook de métodos de diagnóstico: **`docs/incidentes/2026-08-24_caida_backends.md`** (índice señal→método: forma del error, aislar código vs infra, mapa síntoma→etapa del boot, forense de restore, canal cron cuando el panel no ejecuta). |
 | `errno 150 — Cannot add foreign key constraint` | Tabla referenciada no existe. Bootstrap saltó su migración. | Correr `npm run migrate:fix-prod` o equivalente. |
 | `errno 1050 — Table already exists` | Migración no idempotente / se re-ejecutó. | Usar `CREATE TABLE IF NOT EXISTS`. Si es error del fix script: tolerado automáticamente. |
 | `errno 1061 — Duplicate key name` | Índice ya creado previamente. | Usar `CREATE INDEX IF NOT EXISTS` o tolerar en fix script. |
