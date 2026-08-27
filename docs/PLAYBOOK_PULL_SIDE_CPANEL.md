@@ -195,6 +195,11 @@ tail -n 40 ~/deploy-staging.log
 
 Éxito = la última línea es `… · deploy OK → <sha>` o `… · sin cambios (<sha>)`.
 
+> **El cron también migra la BD** (bloque `auto-migrate` del `.sh`, desde 2026-08-27): al detectar
+> `.sql` nuevos en `db/migrations/` corre `node scripts/migrate.js` y publica el resultado en
+> `https://<host>/migrate-status.txt` (el rsync del frontend lo excluye del `--delete`). Detalle en
+> `docs/RUNBOOK.md § 3.2`.
+
 ---
 
 ## 5. Gotchas (qué mirar cuando algo falla)

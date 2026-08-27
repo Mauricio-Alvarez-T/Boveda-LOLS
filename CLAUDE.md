@@ -44,7 +44,11 @@ El deploy es automático vía GitHub Actions al hacer push a `main` o `develop`.
 2. Las migraciones van en `backend/db/migrations/NNN_descripcion.sql` (numeradas secuencialmente).
 3. Toda migración debe ser **idempotente**: `CREATE TABLE IF NOT EXISTS`, `INSERT IGNORE`, `ADD COLUMN IF NOT EXISTS`.
 4. El runner de migraciones tiene un **bootstrap** que puede marcar migraciones como aplicadas sin ejecutarlas. Ver `docs/RUNBOOK.md § 3.3` antes de correr `migrate` en producción por primera vez.
-5. Para correr migraciones en producción: cPanel → Setup Node.js App → Run JS script → `migrate`.
+5. **Las migraciones se aplican SOLAS al desplegar (desde 2026-08-27):** el cron de deploy detecta
+   archivos nuevos en `db/migrations/` y corre `migrate.js` (bloque `auto-migrate` en
+   `scripts/cpanel-deploy-*.sh`). Verificar en `https://<host>/migrate-status.txt` (fecha + OK/FALLO).
+   El camino del panel (Run JS script → `migrate`) está ROTO desde el restore del 2026-08-24
+   (FileNotFoundError del npm del venv) — no lo recomiendes. Ver `docs/RUNBOOK.md § 3.2`.
 
 ### Deploy
 1. Siempre probar en staging (`develop`) antes de mergear a `main`.

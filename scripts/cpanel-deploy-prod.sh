@@ -86,12 +86,14 @@ heal_passenger() {
         fi
     fi
 
-    # 2) Binario de Node: si el configurado no existe (venv borrado/recreado),
+    # 2) Binario de Node: si el configurado no existe O ESTÁ VACÍO (venv
+    #    borrado/recreado, o la truncación del incidente 2026-08-24 — mismo caso
+    #    que el startup file: 0 bytes con bit +x pasa -x pero no ejecuta nada),
     #    apuntar al nodevenv de MAYOR versión numérica, mínimo 18 (sharp exige
     #    Node >= 18.17; y un venv viejo tampoco tendría los node_modules).
     local nb
     nb="$(sed -n 's/^PassengerNodejs[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}[[:space:]]*$/\1/p' "$ht" | tail -n1)"
-    if [ -n "$nb" ] && [ ! -x "$nb" ]; then
+    if [ -n "$nb" ] && { [ ! -x "$nb" ] || [ ! -s "$nb" ]; }; then
         local cand="" best=0 n v
         for n in "$HOME/nodevenv/$(basename "$BACK_DEST")"/*/bin/node; do
             v="${n%/bin/node}"; v="${v##*/}"
@@ -100,7 +102,7 @@ heal_passenger() {
         done
         if [ -n "$cand" ]; then
             sed -i "s|^PassengerNodejs[[:space:]].*|PassengerNodejs \"$cand\"|" "$ht"
-            echo "$(date '+%F %T') · heal: node '$nb' no existe → $cand"
+            echo "$(date '+%F %T') · heal: node '$nb' no existe/está vacío → $cand"
             nb="$cand"
             changed=1
         else
@@ -258,17 +260,23 @@ heal_deps() {
 heal_deps || echo "$(date '+%F %T') · heal-deps: falló (rc=$?) — no fatal"
 # --- heal-deps:end ---
 
-# --- migrate-once:begin — TEMPORAL (incidente 2026-08-24/25; QUITAR al cerrarlo) ---
-# El restore del hosting dejó las BDs sin las migraciones 100-102 (schema_migrations
-# termina en la 099 en ambas) y el panel no puede correr scripts: el Selector lanza
-# todo con ~/nodevenv/<app>/20/bin/npm, que el restore no devolvió → FileNotFoundError
-# ANTES de ejecutar nada. Se corre el runner por acá con node directo: migrate.js
-# carga su .env por ruta absoluta, usa el mysql2 del node_modules real (heal-deps) y
-# es idempotente (registra en schema_migrations). Marker al ÉXITO + lock anti-solape
-# + backoff 30 min si falló (mismo diseño que heal-deps).
-run_migrate_once() {
-    local done_marker="$BACK_DEST/tmp/.migrate-incidente-20260825.done"
-    [ -f "$done_marker" ] && return 0
+# --- auto-migrate:begin — Migraciones automáticas por cron (PERMANENTE, 2026-08-27) ---
+# Generaliza el migrate-once del incidente 2026-08-24/25: el panel de cPanel SIGUE
+# sin poder correr scripts (el Selector lanza todo con el npm del venv que el restore
+# no devolvió → FileNotFoundError antes de ejecutar nada), así que las migraciones
+# se aplican por acá. Dispara cuando la firma (md5 por archivo) de db/migrations
+# difiere de la del último migrate EXITOSO (marker con la firma): las migraciones
+# llegan solo por deploy, un .sql ya aplicado no se re-ejecuta (schema_migrations)
+# y re-correr migrate.js sobre un set aplicado es no-op — firma por CONTENIDO para
+# que un .sql corregido in situ dispare de inmediato (y resetee el backoff).
+# migrate.js sale con rc!=0 si algo falla — un set que falló reintenta cada 30 min
+# hasta pasar (el marker solo se escribe al ÉXITO).
+# Diseño defensivo heredado: lock anti-solape + backoff 30 min SOLO tras fallo del
+# MISMO set (un set nuevo resetea el backoff) + timeout 600 + jamás tumba el deploy.
+# Al aplicar toca tmp/restart.txt (existingCols cachea columnas por proceso) y
+# publica UNA línea en el docroot (migrate-status.txt) para verificar por HTTP
+# (hosting sin SSH): fecha + OK/FALLO, sin detalle de errores ni credenciales.
+run_auto_migrate() {
     local ht="$FRONT_DEST/api/.htaccess"
     if [ ! -f "$ht" ] && grep -q '^PassengerAppRoot' "$FRONT_DEST/.htaccess" 2>/dev/null; then
         ht="$FRONT_DEST/.htaccess"
@@ -276,40 +284,68 @@ run_migrate_once() {
     [ -f "$ht" ] || return 0
     local nb
     nb="$(sed -n 's/^PassengerNodejs[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}[[:space:]]*$/\1/p' "$ht" | tail -n1)"
-    { [ -n "$nb" ] && [ -x "$nb" ]; } || return 0
+    # -s además de -x: un bin/node VACÍO con bit de ejecución (la truncación real
+    # del incidente 2026-08-24) pasa -x, y execvp+ENOEXEC lo degrada a sh → un
+    # "éxito" exit 0 sin migrar nada que dejaría el marker envenenado para siempre.
+    { [ -n "$nb" ] && [ -x "$nb" ] && [ -s "$nb" ]; } || return 0
     { [ -f "$BACK_DEST/scripts/migrate.js" ] && [ -d "$BACK_DEST/node_modules/mysql2" ]; } || return 0
 
-    mkdir -p "$BACK_DEST/tmp"
-    local mlog="$BACK_DEST/tmp/migrate-incidente.log"
-    # Backoff: si el último intento fue hace <30 min y falló, no martillar la BD.
-    if [ -f "$mlog" ] && [ -n "$(find "$mlog" -mmin -30 2>/dev/null)" ]; then
-        echo "$(date '+%F %T') · migrate-once: intento reciente (<30 min) — backoff"
+    local firma marker="$BACK_DEST/tmp/.migrate-aplicado.lista"
+    firma="$(cd "$BACK_DEST/db/migrations" 2>/dev/null && LC_ALL=C md5sum *.sql 2>/dev/null | LC_ALL=C sort)"
+    [ -n "$firma" ] || return 0
+    if [ -f "$marker" ] && [ "$firma" = "$(cat "$marker")" ]; then
         return 0
     fi
-    local lock="$BACK_DEST/tmp/.migrate-incidente.lock"
+
+    # heal-deps instalando (su npm ci puede cruzar ticks): migrar contra un
+    # node_modules a medio escribir falla y quema el backoff de 30 min — posponer.
+    if [ -d "$BACK_DEST/tmp/.deps-heal.lock" ]; then
+        echo "$(date '+%F %T') · auto-migrate: heal-deps en curso (lock) — pospongo"
+        return 0
+    fi
+
+    mkdir -p "$BACK_DEST/tmp"
+    local mlog="$BACK_DEST/tmp/migrate-auto.log"
+    local intento="$BACK_DEST/tmp/.migrate-intento.lista"
+    # Backoff: mismo set que el último intento Y log de hace <30 min → esperar.
+    if [ -f "$intento" ] && [ "$firma" = "$(cat "$intento")" ] && [ -n "$(find "$mlog" -mmin -30 2>/dev/null)" ]; then
+        echo "$(date '+%F %T') · auto-migrate: intento reciente del mismo set (<30 min) — backoff"
+        return 0
+    fi
+    local lock="$BACK_DEST/tmp/.migrate-auto.lock"
     if [ -d "$lock" ] && [ -n "$(find "$lock" -maxdepth 0 -mmin +30 2>/dev/null)" ]; then
         rmdir "$lock" 2>/dev/null || true
     fi
     if ! mkdir "$lock" 2>/dev/null; then
-        echo "$(date '+%F %T') · migrate-once: otro tick migrando (lock) — salto"
+        echo "$(date '+%F %T') · auto-migrate: otro tick migrando (lock) — salto"
         return 0
     fi
 
-    echo "$(date '+%F %T') · migrate-once: aplicando migraciones pendientes con $nb (log: tmp/migrate-incidente.log)"
+    printf '%s\n' "$firma" > "$intento"
+    echo "$(date '+%F %T') · auto-migrate: migraciones nuevas — corriendo migrate.js con $nb (log: tmp/migrate-auto.log)"
     local rc=0 tmo=""
     command -v timeout >/dev/null 2>&1 && tmo="timeout 600"
     ( cd "$BACK_DEST" && $tmo "$nb" scripts/migrate.js ) > "$mlog" 2>&1 || rc=$?
     rmdir "$lock" 2>/dev/null || true
-    if [ "$rc" = "0" ]; then
-        date > "$done_marker"
-        echo "$(date '+%F %T') · migrate-once: OK — migraciones aplicadas (marker escrito)"
+    local resumen
+    resumen="$(tail -n 1 "$mlog" 2>/dev/null | tr -d '\r')"
+    # Éxito = rc 0 Y salida no vacía: migrate.js siempre imprime; un node roto
+    # que "termina bien" mudo NO es un migrate exitoso (defensa en profundidad
+    # del -s de arriba) — cae al camino FALLO y el retry lo toma al sanar.
+    if [ "$rc" = "0" ] && [ -n "$resumen" ]; then
+        printf '%s\n' "$firma" > "$marker"
+        rm -f "$intento"
+        date > "$BACK_DEST/tmp/restart.txt"
+        echo "$(date '+%F %T') · auto-migrate: OK — $resumen (Passenger reiniciado)"
+        printf '%s · OK · %s\n' "$(date '+%F %T')" "$resumen" > "$FRONT_DEST/migrate-status.txt" 2>/dev/null || true
     else
-        echo "$(date '+%F %T') · migrate-once: falló (rc=$rc) — ver tmp/migrate-incidente.log; reintento en 30 min"
+        echo "$(date '+%F %T') · auto-migrate: falló (rc=$rc) — ver tmp/migrate-auto.log; reintento en 30 min"
+        printf '%s · FALLO rc=%s — revisar tmp/migrate-auto.log del backend\n' "$(date '+%F %T')" "$rc" > "$FRONT_DEST/migrate-status.txt" 2>/dev/null || true
     fi
     return 0
 }
-run_migrate_once || echo "$(date '+%F %T') · migrate-once: falló (rc=$?) — no fatal"
-# --- migrate-once:end ---
+run_auto_migrate || echo "$(date '+%F %T') · auto-migrate: falló (rc=$?) — no fatal"
+# --- auto-migrate:end ---
 
 # 1) Traer lo último de la rama de build
 git fetch origin "$BRANCH" --quiet
@@ -331,13 +367,15 @@ if command -v rsync >/dev/null 2>&1; then
     #   .well-known/ → AutoSSL/Let's Encrypt
     #   .htaccess    → routing del SPA
     #   api/         → mount de Passenger del backend (boveda.lols.cl/api) — borrarlo ROMPE la API
+    #   migrate-status.txt → estado del último auto-migrate (lo escribe el bloque de arriba)
     rsync -a --delete \
         --exclude '.well-known/' \
         --exclude '.htaccess' \
+        --exclude 'migrate-status.txt' \
         --exclude 'api/' \
         "$REPO_DIR/frontend/dist/" "$FRONT_DEST/"
 else
-    find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.htaccess' ! -name 'api' -exec rm -rf {} +
+    find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.htaccess' ! -name 'migrate-status.txt' ! -name 'api' -exec rm -rf {} +
     cp -a "$REPO_DIR/frontend/dist/." "$FRONT_DEST/"
 fi
 
@@ -353,6 +391,23 @@ if command -v rsync >/dev/null 2>&1; then
 else
     cp -a "$REPO_DIR/backend/." "$BACK_DEST/"
 fi
+
+# 3a) Espejo EXACTO de db/migrations (el rsync de arriba no lleva --delete porque
+#     preserva uploads/.env/tmp): sin esto, un .sql borrado o renombrado en el repo
+#     sobreviviría en el destino — la firma lo seguiría incluyendo y, si era el que
+#     fallaba, el retry quedaría en loop perpetuo (y un renombre con el mismo
+#     prefijo NNN activaría el guard anti-duplicados de migrate.js, bloqueando TODO
+#     el set). Espejar solo esta subcarpeta es seguro: ahí no viven datos.
+if command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete "$REPO_DIR/backend/db/migrations/" "$BACK_DEST/db/migrations/"
+else
+    rm -rf "$BACK_DEST/db/migrations"
+    cp -a "$REPO_DIR/backend/db/migrations" "$BACK_DEST/db/"
+fi
+
+# 3b) Migraciones del backend recién copiado — mismo tick del deploy (la llamada
+#     inicial de auto-migrate corrió ANTES del rsync, con la firma anterior).
+run_auto_migrate || echo "$(date '+%F %T') · auto-migrate: falló (rc=$?) — no fatal"
 
 # 4) Reiniciar Passenger
 mkdir -p "$BACK_DEST/tmp"
