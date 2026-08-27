@@ -14,7 +14,7 @@
 > Mauricio y la de Marcos) más la IA de cPanel como manos dentro del panel.
 >
 > Documento COLABORATIVO: la Parte 1 la escribió la sesión de Mauricio; la Parte 2 la
-> escribe la sesión de Marcos (pendiente).
+> escribió la sesión de Marcos.
 
 ---
 
@@ -30,6 +30,11 @@
 | Los logs de la app están VACÍOS | 1.6 |
 | El hosting restauró un backup — ¿qué retrocedió? | 1.7 |
 | El panel de cPanel no puede ejecutar nada | 1.8 |
+| Hay que ver el estado interno del servidor muchas veces seguidas | 2.1 |
+| Un automatismo debe tocar config que el panel también reescribe | 2.2 |
+| Un bloque de auto-reparación corre pero no repara nada | 2.3 |
+| La herramienta oficial de reparación está bloqueada por el propio daño | 2.4 |
+| Se va a activar un automatismo que escribe o borra solo en producción | 2.5 |
 
 ---
 
@@ -169,17 +174,168 @@ lanza todo con el npm del venv). **Pregunta**: ¿cómo correr algo en el servido
 
 ---
 
-## Parte 2 — Metodologías (sesión Marcos) — ⏳ PENDIENTE
+## Parte 2 — Metodologías (sesión Marcos)
 
-> Esta sección la completa la sesión de Marcos. Sugerencia de contenido (métodos, no
-> conclusiones): el diagnóstico publicado por HTTP (`_diag-incidente.txt` en el
-> docroot: qué campos expone y por qué), el diseño de `heal_passenger` (reparación
-> guiada por verificación: solo corrige lo verificablemente roto, guardia anti-carrera
-> con el panel), la evolución npmfix → `heal-deps` **probe-driven** (probar que los
-> deps CARGAN en vez de asumir topología), y la verificación adversarial usada en la
-> goma de borrar (revisores independientes con evidencia).
+### 2.1 Publicar el diagnóstico por HTTP cuando hay que mirar muchas veces
 
-<!-- MARCOS: escribe aquí -->
+**Señal**: no hay SSH, el estado interno del servidor hay que consultarlo **repetidamente**
+(cada pocos minutos, durante horas) y cada consulta cuesta un round-trip por manos de
+terceros. **Pregunta que responde**: ¿cómo tener un tablero de estado del servidor que se
+actualice solo y se lea desde afuera?
+
+- Patrón: el **cron de deploy** (que ya corre cada 5 min — ver 1.8) escribe un archivo de
+  texto plano en el docroot; se lee con `curl https://<host>/_diag-incidente.txt`. Cada
+  tick lo reescribe → siempre trae estado de hace ≤5 min sin pedirle nada a nadie.
+- Diseñar cada campo como **respuesta binaria a una pregunta concreta**, no como volcado:
+
+  | Campo | Pregunta que contesta |
+  |---|---|
+  | `htaccess=presente mtime=…` + las líneas `Passenger*` | ¿Qué config rige HOY? ¿La tocó alguien recién? |
+  | `node_bin=OK\|NO_EXISTE` | ¿El `PassengerNodejs` del `.htaccess` es ejecutable? |
+  | `venvs_app`, `venvs_todos` (`ls -m`) | ¿Qué virtualenvs existen realmente? |
+  | `index.js=OK\|FALTA`, `env=OK\|FALTA` | ¿Está desplegado el backend y su `.env`? |
+  | `node_modules=OK\|FALTA\|ROTO_O_SYMLINK_COLGANDO` | ¿Puede resolver dependencias? |
+  | `selector=disponible\|no` | ¿Existe el CLI del vendor en el entorno del cron? |
+  | `sysnode <ruta> = vXX` por candidato | ¿Qué intérpretes hay fuera del venv? (ver 2.4) |
+  | `mysql=OK\|FALLA` | ¿La BD acepta las credenciales del `.env`? |
+  | `log_<archivo>_mtime` + `tail` de los logs de arranque | ¿Murió en el boot y dónde? (ver 1.6) |
+  | `deploylog_tail` | ¿Qué hizo el cron en los últimos ticks? |
+
+- **Regla de secretos**: el diag prueba la BD leyendo el `.env` **solo en memoria** y publica
+  únicamente `OK`/`FALLA`. Nunca imprimir valores de `.env`, ni variables de entorno, ni
+  rutas con tokens: el archivo vive en una **URL pública**.
+- **Es temporal por definición**: publica estado interno sin autenticación. Su retiro entra
+  en el DoD del incidente (bloque delimitado `# --- diag:begin/end ---` para que quitarlo
+  sea un solo corte).
+- **Gotcha 1 — el deploy lo borra**: el `rsync --delete` del frontend limpia el docroot, así
+  que un archivo escrito una sola vez desaparece en el siguiente deploy. Por eso se
+  **reescribe en cada tick** (la alternativa es excluirlo del `--delete`).
+- **Gotcha 2 — validar el CONTENIDO, no el HTTP 200**: con el rewrite del SPA, pedir un
+  archivo inexistente devuelve **200 con el `index.html`**. El chequeo correcto es que la
+  respuesta empiece por el campo esperado (`case "$out" in ts=*)`), no que el código sea 200.
+- El diag **crece con las preguntas**: cada vez que apareció una duda nueva se le agregó un
+  campo (los `sysnode` disponibles, colas de log más largas, el estado del bloque de
+  reparación). Costo de agregar un campo: un push. Costo de no tenerlo: un round-trip humano
+  por cada consulta.
+
+### 2.2 Reparación guiada por verificación (`heal_passenger`)
+
+**Señal**: una config crítica la reescriben **dos actores** (el panel del hosting y
+nosotros) y hay que repararla automáticamente sin pelearse con el otro. **Pregunta que
+responde**: ¿cómo automatizar una reparación sin que cause más daño del que arregla?
+
+- **Cada reparación se dispara por una verificación, no por una suposición.** Una condición
+  observable por reparación, y si no se puede verificar rota, no se toca:
+
+  | Se repara | Solo si |
+  |---|---|
+  | `PassengerStartupFile` → `index.js` | el archivo apuntado **no existe o está vacío** (`[ ! -s ]`) **y** `index.js` sí tiene contenido |
+  | `PassengerNodejs` → otro intérprete | el binario configurado **no es ejecutable** (`[ ! -x ]`) |
+  | symlink `node_modules` | **no hay nada** en la ruta (`[ ! -e ]`, que tampoco ve un symlink colgando) **y** la lib destino tiene paquetes reales |
+
+- **No completar lo ausente**: si la línea `PassengerStartupFile` no está, se deja así — el
+  default del runtime puede ser correcto. Reparar ≠ opinar.
+- **`[ ! -s ]` en vez de `[ ! -f ]`**: un archivo de **0 bytes existe** y pasa cualquier
+  check de existencia, pero como módulo exporta `{}` y el servidor arranca sin app. Los
+  chequeos de existencia mienten; los de contenido no.
+- **Guardia anti-carrera**: si el archivo fue modificado hace menos de 2 minutos
+  (`find "$f" -mmin -2`), saltar el tick. Un guardado a medias del panel no debe encontrarse
+  con el heal escribiendo encima. `sed -i` es atómico (tmp+rename), lo que evita el resto.
+- **Jamás tumbar el canal que repara**: la llamada va con `|| echo "…falló, no fatal"`. En un
+  hosting sin SSH ese cron es el único canal de reparación; si el heal aborta el script, se
+  pierde también el deploy. (Bajo `set -euo pipefail`, además, un `sed | head` puede morir por
+  SIGPIPE y matar el script entero: el `||` desactiva `-e` dentro de la función.)
+- **Silencio en estado sano**: solo si algo cambió (`changed=1`) se toca `tmp/restart.txt`.
+  Un automatismo que reinicia "por las dudas" en cada tick es un incidente esperando.
+- **No asumir topología entre entornos**: prod y staging tenían el bloque Passenger en rutas
+  distintas (`<docroot>/api/.htaccess` vs el `.htaccess` del docroot, herencia de cómo se creó
+  cada app). El heal busca la primera y cae a la segunda si contiene el bloque; asumir una
+  sola ruta hacía que en un entorno el heal solo registrara "FALTA el archivo" indefinidamente.
+
+### 2.3 Probe-driven en vez de guard por topología (`npmfix` → `heal-deps`)
+
+**Señal**: un bloque de auto-reparación **corre en cada tick pero no repara nada**, y no deja
+ni una línea en el log. **Pregunta que responde**: ¿por qué un automatismo aparentemente
+correcto no actúa?
+
+- **Primero: buscar los `return 0` silenciosos.** Una salida temprana sin log es
+  indistinguible de "no hacía falta actuar". Regla: **todo camino de salida o loguea, o
+  publica su estado** — en este incidente lo que delató el problema fue un campo del diag
+  (`npmfix_marker=NO`), no el log.
+- **El fallo, como ejemplo de método**: el guard exigía una **topología** — que
+  `node_modules` fuera un symlink (`[ -L ]`). Cuando quedó como directorio real *parcial*, el
+  guard salía en silencio. Se estaba verificando la **forma** del recurso, no su **función**.
+- **Rediseño probe-driven**: en vez de inspeccionar estructura, **provocar el comportamiento**
+  y observar si funciona — cargando los deps de verdad con el intérprete que usa el servidor:
+
+  ```
+  "$node_del_htaccess" -e 'for (const d of Object.keys(require("./package.json").dependencies)) require(d)'
+  ```
+
+  Un solo chequeo detecta symlink colgando, directorio parcial, dependencia transitiva
+  ausente y binding nativo incompatible — **sin enumerar ninguno de esos casos**.
+- **Regla general transferible**: verificar el **efecto**, no la causa presunta.
+  `[ -d node_modules/express ]` responde "existe la carpeta"; `require("express")` responde
+  "la app puede arrancar", que es la pregunta que importa. Todo guard escrito sobre una
+  estructura asumida caduca cuando otro actor cambia esa estructura.
+- **Andamiaje obligatorio** para un bloque que repara solo:
+  - **lock-dir** anti-solape (`mkdir` es atómico) con liberación del lock añejo por `mmin`:
+    una instalación puede tardar más que el intervalo del cron.
+  - **backoff por `mtime` del log** (p.ej. 30 min) en vez de marker de una sola pasada: un
+    marker deja el fix muerto tras un fallo transitorio de red; el backoff reintenta sin
+    martillar.
+  - **no-op silencioso en estado sano**: el probe pasa y el bloque no hace nada.
+  - `timeout` cuando esté disponible, invocado de forma condicional
+    (`command -v timeout >/dev/null && tmo="timeout 600"`).
+
+### 2.4 Romper el bucle "solo el proveedor puede arreglarlo"
+
+**Señal**: la herramienta oficial de reparación **está bloqueada por el mismo daño que
+debería reparar** (p.ej. el panel valida la app antes de operar y responde
+`No such application`), y no hay Terminal ni CLI del vendor. **Pregunta que responde**:
+¿queda algo del lado usuario, o solo esperar al hosting?
+
+- **Preguntar qué necesita el runtime, no qué provee el vendor.** El servidor de aplicaciones
+  no necesita el virtualenv del panel: necesita **un binario ejecutable** y **un árbol de
+  módulos**. Ambas cosas pueden existir fuera de la herramienta rota.
+- **Inventariar primitivas antes de rendirse**: publicar en el diag qué hay disponible
+  (`ls -m /opt/alt`, y `node -v` real de cada candidato) convierte "¿habrá otro node?" en un
+  dato. Lo mismo con `command -v` de cada binario que el plan necesite.
+- **Aplicar el bypass con degradación explícita**: elegir el candidato de la **misma versión
+  mayor** que las librerías instaladas, dejar en el log que es temporal y anotar la condición
+  de reversión. Un parche que no dice cómo revertirse se vuelve permanente por olvido.
+- **Distinguir "borrado" de "desvinculado" ANTES de pedir una restauración**: si el `mtime`
+  de un directorio está intacto y solo cambió el `ctime`, **nadie borró archivos adentro** —
+  cambió la metadata del inodo (un mapeo o montaje que se deshizo). Es la diferencia entre
+  pedirle al hosting "restauren mis archivos" (restore que puede retroceder datos — ver 1.7)
+  y "reconstruyan el mapeo". El ticket al proveedor mejora porque llega con la hipótesis
+  fácil ya descartada.
+- El bypass no reemplaza al ticket: **corre en paralelo**. Restablece el servicio mientras el
+  proveedor resuelve lo que solo él puede tocar.
+
+### 2.5 Verificación adversarial antes de landear un automatismo
+
+**Señal**: se va a activar un bloque que **escribe o borra solo, en producción, cada pocos
+minutos, sin nadie mirando**. **Pregunta que responde**: ¿qué hace este código en los casos
+que no pensé?
+
+- **Enumerar los estados posibles del recurso ANTES de escribir el guard.** Para
+  `node_modules`: symlink sano / symlink colgando / directorio real completo / directorio real
+  **parcial** / ausente. Un guard que contempla dos de esos cinco falla en silencio en los
+  otros tres (ver 2.3).
+- **Revisores independientes con evidencia, no opinión**: cada objeción debe venir con el
+  caso concreto que la dispara y, si se puede, un sandbox que lo reproduzca. "Esto podría
+  fallar" no es accionable; "con el archivo en 0 bytes toma esta rama y no repara" sí lo es.
+- **Preguntas que pagan siempre**: ¿qué pasa si corre dos veces a la vez? ¿si el archivo está
+  a medio escribir? ¿si el disco está lleno o la cuota agotada? ¿puede entrar en bucle de
+  reescritura+reinicio? ¿pisa algo que otro actor legítimo escribió recién?
+- **Guardias mínimas para cualquier bloque que borre**: que el borrado sea siempre del
+  **propio artefacto** (`.tmp`, el lock propio), nunca de rutas del usuario; y que un borrado
+  sobre un symlink **no siga al destino** (`rm -f` sobre el enlace — nunca `rm -rf` sobre la
+  ruta, que vacía la carpeta apuntada).
+- **Cambio mínimo bajo presión**: durante una caída la tentación es reescribir el script
+  entero. Cada bloque nuevo va delimitado (`# --- nombre:begin/end ---`), es independiente de
+  los demás y se puede quitar con un solo corte sin tocar el resto.
 
 ---
 
