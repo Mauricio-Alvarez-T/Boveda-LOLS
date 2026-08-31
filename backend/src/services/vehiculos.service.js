@@ -189,7 +189,7 @@ const vehiculosService = {
         // Campos de mig 103 (fechas de leasing, avisar seguro): van por update(),
         // que filtra columnas existentes — así crear no rompe si falta la migración.
         const extras = {};
-        for (const k of ['leasing_fecha_inicio', 'leasing_fecha_termino', 'avisar_alerta_seguro', 'leasing_terminado', 'leasing_traspaso_a']) {
+        for (const k of ['leasing_fecha_inicio', 'leasing_fecha_termino', 'avisar_alerta_seguro', 'leasing_terminado', 'leasing_traspaso_a', 'avisar_leasing_30d']) {
             if (data[k] !== undefined) extras[k] = data[k];
         }
         if (Object.keys(extras).length) {
@@ -205,11 +205,11 @@ const vehiculosService = {
         if (data.conductor_nombre !== undefined) {
             data.conductor_id = await this.resolveConductorId(data.conductor_nombre);
         }
-        // Los 3 últimos son de mig 103: si la columna aún no existe en este
-        // entorno, se omiten en silencio (mismo criterio que buildUpdate) en vez
-        // de reventar TODO el guardado del vehículo con "Unknown column".
+        // Los últimos son de migs 103/104/106: si la columna aún no existe en
+        // este entorno, se omiten en silencio (mismo criterio que buildUpdate) en
+        // vez de reventar TODO el guardado del vehículo con "Unknown column".
         let allowed = ['patente', 'marca', 'modelo', 'anio', 'tipo', 'kilometraje_actual', 'color', 'observaciones', 'activo', 'empresa_id', 'conductor_id', 'valor', 'precio_compra', 'es_leasing',
-            'leasing_fecha_inicio', 'leasing_fecha_termino', 'avisar_alerta_seguro', 'leasing_terminado', 'leasing_traspaso_a'];
+            'leasing_fecha_inicio', 'leasing_fecha_termino', 'avisar_alerta_seguro', 'leasing_terminado', 'leasing_traspaso_a', 'avisar_leasing_30d'];
         try {
             const cols = await existingCols('vehiculos');
             allowed = allowed.filter(f => cols.has(f));
@@ -692,21 +692,32 @@ const vehiculosService = {
         `, [FECHA_MINIMA, limite]);
 
         // Fin de leasing (mig 103): pedido de jefatura — avisar 30 días antes del
-        // término del contrato. Pre-migración la columna no existe → fuente vacía.
-        let leasing = [];
-        try {
-            [leasing] = await db.query(`
+        // término del contrato. Su checkbox "Avisar 30 días antes" es
+        // avisar_leasing_30d (mig 106, default 1); leasing_terminado es OTRA cosa
+        // (el contrato ya finalizó) y por eso se filtran por separado.
+        // Pre-migración de la 106 se reintenta sin ese filtro; si falta la 103
+        // entera (no existe leasing_fecha_termino), la fuente queda vacía.
+        const LEASING_SQL = `
                 SELECT 'leasing' AS categoria, v.id, v.id AS vehiculo_id, 'fin_leasing' AS subtipo,
                        v.patente, v.marca, v.modelo, v.leasing_fecha_termino AS fecha_vencimiento,
                        DATEDIFF(v.leasing_fecha_termino, CURDATE()) AS dias_restantes
                 FROM vehiculos v
                 WHERE v.activo = 1 AND v.es_leasing = 1 AND v.leasing_fecha_termino IS NOT NULL
                   AND v.leasing_terminado = 0
+                  /*AVISAR_LEASING*/
                   AND v.leasing_fecha_termino >= ?
                   AND v.leasing_fecha_termino <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
-            `, [FECHA_MINIMA, limite]);
+            `;
+        let leasing = [];
+        try {
+            [leasing] = await db.query(LEASING_SQL.replace('/*AVISAR_LEASING*/', 'AND v.avisar_leasing_30d = 1'), [FECHA_MINIMA, limite]);
         } catch (e) {
             if (e && e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+            try {
+                [leasing] = await db.query(LEASING_SQL.replace('/*AVISAR_LEASING*/', ''), [FECHA_MINIMA, limite]);
+            } catch (e2) {
+                if (e2 && e2.code !== 'ER_BAD_FIELD_ERROR') throw e2;
+            }
         }
 
         const items = [...documentos, ...revisiones, ...mantenciones, ...seguros, ...permisos, ...leasing]

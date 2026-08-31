@@ -136,6 +136,8 @@ export interface Vehiculo {
     leasing_terminado?: boolean;
     /** A quién quedó el vehículo al terminar el leasing (compra, banco, venta...). */
     leasing_traspaso_a?: string | null;
+    /** Si false, el término del leasing no cuenta en el aviso (mig 106; default true). */
+    avisar_leasing_30d?: boolean;
     /** Si false, los seguros de este vehículo no cuentan en el aviso (mig 103; default true). */
     avisar_alerta_seguro?: boolean;
     /** Cuotas del leasing (solo si es_leasing). Las trae el backend en getById. */

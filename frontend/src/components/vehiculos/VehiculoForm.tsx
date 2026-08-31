@@ -42,6 +42,7 @@ const schema = z.object({
     leasing_fecha_termino: z.string().optional(),
     leasing_terminado: z.boolean().optional(),
     leasing_traspaso_a: z.string().optional(),
+    avisar_leasing_30d: z.boolean().optional(),
     avisar_alerta_seguro: z.boolean().optional(),
     observaciones: z.string().optional(),
 }).superRefine((data, ctx) => {
@@ -79,6 +80,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             leasing_fecha_termino: (initialData.leasing_fecha_termino || '').slice(0, 10),
             leasing_terminado: !!initialData.leasing_terminado,
             leasing_traspaso_a: initialData.leasing_traspaso_a || '',
+            avisar_leasing_30d: initialData.avisar_leasing_30d ?? true,
             avisar_alerta_seguro: initialData.avisar_alerta_seguro ?? true,
             observaciones: initialData.observaciones || '',
         } : {
@@ -89,6 +91,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             valor: 0,
             precio_compra: 0,
             es_leasing: false,
+            avisar_leasing_30d: true,
             avisar_alerta_seguro: true,
         },
     });
@@ -133,6 +136,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                 setValue('leasing_fecha_termino', (v.leasing_fecha_termino || '').slice(0, 10));
                 setValue('leasing_terminado', !!v.leasing_terminado);
                 setValue('leasing_traspaso_a', v.leasing_traspaso_a || '');
+                setValue('avisar_leasing_30d', v.avisar_leasing_30d == null ? true : !!v.avisar_leasing_30d);
                 setValue('avisar_alerta_seguro', v.avisar_alerta_seguro == null ? true : !!v.avisar_alerta_seguro);
                 setValue('es_leasing', !!v.es_leasing);
             })
@@ -152,6 +156,9 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             leasing_fecha_termino: data.es_leasing ? (data.leasing_fecha_termino || null) : null,
             leasing_terminado: data.es_leasing ? !!data.leasing_terminado : false,
             leasing_traspaso_a: data.es_leasing && data.leasing_terminado ? (data.leasing_traspaso_a?.trim() || null) : null,
+            // Sin leasing el flag vuelve a 1: si mañana se marca "¿Es leasing?"
+            // otra vez, arranca avisando (default de la mig 106), no silenciado.
+            avisar_leasing_30d: data.es_leasing ? (data.avisar_leasing_30d ?? true) : true,
             avisar_alerta_seguro: data.avisar_alerta_seguro ?? true,
         };
         try {
@@ -305,9 +312,24 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                             )}
                         </div>
                     </div>
-                    <p className="text-micro text-muted-foreground/70">
-                        El término del leasing entra al aviso de vencimientos del módulo (30 días antes).
-                    </p>
+                    {/* Aviso 30 días antes del término (mig 106). Mismo rol que
+                        "Avisar 30 días antes" de documentos/revisiones y que
+                        "Alerta de renovación de seguro": controla el aviso IN-APP.
+                        Va aquí, pegado a las fechas, porque es sobre ellas que actúa. */}
+                    <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-border bg-muted/30 px-3.5 py-3 hover:border-brand-primary/40 transition-colors">
+                        <input
+                            type="checkbox"
+                            {...register('avisar_leasing_30d')}
+                            className="mt-0.5 h-5 w-5 shrink-0 rounded border-border text-brand-primary focus:ring-brand-primary cursor-pointer"
+                        />
+                        <span className="flex flex-col">
+                            <span className="text-sm font-semibold text-brand-dark">Avisar 30 días antes</span>
+                            <span className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                                Con esto marcado, el término del leasing aparece en el aviso de vencimientos
+                                del módulo Vehículos (número del menú y bandeja del Inicio) para renovarlo a tiempo.
+                            </span>
+                        </span>
+                    </label>
 
                     {/* Término del leasing: el contrato YA finalizó. Al marcarlo, este
                         vehículo deja de avisar el vencimiento (ya fue gestionado) y se

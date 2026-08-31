@@ -52,6 +52,14 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
 - **El fin del leasing entra al contador de vencimientos** (30 días antes, mismo umbral que todo):
   categoría `leasing`, subtipo `fin_leasing`, etiqueta "Fin de leasing". Pre-migración la consulta
   degrada a vacío (catch ER_BAD_FIELD_ERROR).
+- `avisar_leasing_30d` (mig 106, default 1): checkbox **"Avisar 30 días antes"** dentro del bloque
+  de leasing, pegado a las fechas. En 0, el término de ESE leasing no cuenta en el aviso. Cierra la
+  asimetría: era la única fuente con fecha sin interruptor propio, y silenciarla obligaba a marcar
+  "Término de leasing" — que significa otra cosa (contrato finalizado) y arrastra el traspaso.
+  **`leasing_terminado` y `avisar_leasing_30d` son independientes**: el primero dice que el contrato
+  ya acabó, el segundo si se quiere el recordatorio. Ambos filtran por separado en la consulta.
+  Pre-migración el filtro cae a la consulta sin él (todo avisa, comportamiento previo). Al desmarcar
+  "¿Es leasing?" el flag se reenvía en 1, para que reactivar el leasing no arranque silenciado.
 - `avisar_alerta_seguro` (mig 103, default 1): checkbox "Avisar alerta de seguro" en el form del
   vehículo. En 0, los seguros de ESE vehículo no cuentan en el aviso. Pre-migración el filtro cae a
   la consulta sin filtro (comportamiento previo).
@@ -87,6 +95,13 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
   documentos el flag se escribe en un UPDATE best-effort aparte del INSERT/UPDATE base — el alta
   sigue funcionando con la migración pendiente. El bloque de email pasó a llamarse "Alerta de
   vencimiento (correo)" para distinguirlo del aviso in-app.
+- **Las 6 fuentes del contador y su interruptor** (estado tras mig 106): documentos, revisiones y
+  mantenciones → `avisar_30d`; seguros → `avisar_alerta_seguro`; leasing → `avisar_leasing_30d`;
+  **permisos de circulación → sin interruptor** (avisan siempre; único hueco que queda).
+- ⚠️ **Todos estos checkboxes controlan SOLO el aviso in-app** (número del menú, panel y bandeja del
+  Inicio). **NO controlan los correos** de `scripts/alertas_vehiculos.js`, que se disparan por
+  `dias_alerta` + `email_alerta` de cada registro y no consultan ninguno de estos flags. Desmarcar
+  un checkbox NO silencia el correo.
 - Hook `useVencimientosVehiculos`: fetch silencioso (un error deja el badge en 0, no toast), refresco
   cada 10 min, y no llama nada sin permiso `vehiculos.ver`.
 - **El mismo número, desglosado en 3 niveles** (pedido 2026-08-24), todos con `VencimientosBadge` para
