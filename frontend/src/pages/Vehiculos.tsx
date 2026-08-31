@@ -519,7 +519,7 @@ const VehiculosPage: React.FC = () => {
                     {vehiculosFiltrados.map(v => (
                         <div key={v.id}
                             onClick={() => setSelected(v)}
-                            title="Ver detalle y documentos"
+                            title="Abrir detalle, documentos y edición"
                             className={cn(
                                 'relative cursor-pointer transition-all px-4 md:px-6 py-3 border-l-[3px]',
                                 'border-b border-b-border/50 last:border-b-0',
@@ -554,12 +554,9 @@ const VehiculosPage: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0">
-                                    {hasPermission('vehiculos.editar') && (
-                                        <IconButton size="sm" aria-label="Editar vehículo" title="Editar vehículo"
-                                            onClick={e => { e.stopPropagation(); setEditVehiculo(v); setModalVehiculo(true); }}
-                                            className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary"
-                                            icon={<Edit2 className="h-4 w-4" />} />
-                                    )}
+                                    {/* Sin lápiz: la fila entera es la card que abre el detalle,
+                                        y Editar está dentro de ese panel. Vender y dar de baja
+                                        se quedan acá porque son acciones sobre la fila. */}
                                     {hasPermission('vehiculos.editar') && (
                                         <IconButton size="sm" aria-label="Vender vehículo" title="Vender (dar de baja por venta)"
                                             onClick={e => { e.stopPropagation(); setVehiculoVender(v); }}
@@ -595,6 +592,16 @@ const VehiculosPage: React.FC = () => {
                         {selected.conductor_nombre && <span className="text-brand-primary"> · {selected.conductor_nombre}</span>}
                     </h4>
                 </div>
+                {/* Editar vive acá desde que la fila es una card entera: el clic en la
+                    fila abre este panel, así que el lápiz de la fila sobraba (y competía
+                    con el clic). Sigue respetando el permiso vehiculos.editar. */}
+                {hasPermission('vehiculos.editar') && (
+                    <Button type="button" variant="outline" size="sm" className="shrink-0"
+                        onClick={() => { setEditVehiculo(selected); setModalVehiculo(true); }}>
+                        <Edit2 className="h-4 w-4 mr-1.5" />
+                        Editar
+                    </Button>
+                )}
                 <IconButton size="sm" aria-label="Cerrar detalle" onClick={() => setSelected(null)}
                     className="hidden lg:flex" icon={<X className="h-4 w-4" />} />
             </div>
