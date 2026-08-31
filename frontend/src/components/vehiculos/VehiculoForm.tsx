@@ -3,7 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { CalendarCheck } from 'lucide-react';
+import { CalendarCheck, AlertTriangle } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import api from '../../services/api';
@@ -218,6 +218,26 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                         corresponde al mes de <b className="text-brand-primary">{mesRevision}</b>.
                         <span className="block text-xs text-muted-foreground mt-0.5">
                             Calendario MTT referencial para vehículos particulares.
+                        </span>
+                    </p>
+                </div>
+            )}
+
+            {/* Recordatorio de revisión SEMESTRAL (DS 156/1990 art. 7 inc. 1º). El
+                sistema no puede decidirlo solo: depende del peso real del vehículo y
+                de la región de inscripción, datos que no tenemos. Se muestra el texto
+                y la persona evalúa si su caso aplica. No se muestra en motos, donde
+                ninguna de las dos causales puede darse. */}
+            {mesRevision && tipoActual !== 'moto' && (
+                <div className="flex items-start gap-2.5 rounded-xl border border-amber-300/60 bg-amber-50/60 px-3.5 py-2.5">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                    <p className="text-sm text-brand-dark leading-snug">
+                        <b>Recuerda:</b> algunos vehículos tienen revisión técnica cada <b>6 meses</b>,
+                        no una vez al año. Aplica a los de <b>carga sobre 1.750 kg</b> y a las
+                        <b> camionetas, jeeps y furgones inscritos a nombre de la empresa</b> que
+                        circulan en la Región Metropolitana.
+                        <span className="block text-xs text-muted-foreground mt-0.5">
+                            Verifica si este vehículo está en ese caso: el mes de arriba supone revisión anual.
                         </span>
                     </p>
                 </div>

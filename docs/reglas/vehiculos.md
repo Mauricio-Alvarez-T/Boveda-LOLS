@@ -149,10 +149,13 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
   **también a motos** (el art. 7 lo dice expresamente; la 1ª revisión de moto dura 2 años). **NO
   aplica a maquinaria** (cada 4 años, DTO 289/1995) ni a **remolques** (cada 6 meses, art. 7 inc. 1º)
   → para esos dos tipos el recuadro se oculta, para no mostrar un mes equivocado.
-- ⚠️ **Pendiente conocido (no implementado):** el art. 7 inc. 1º del DS 156 somete a revisión
-  **cada 6 meses** a los vehículos de carga de más de 1.750 kg y a camionetas/jeeps/furgones de la
-  RM inscritos **a nombre de persona jurídica** — es decir, buena parte de una flota de empresa. El
-  recuadro sigue mostrando el calendario anual "referencial" en esos casos.
+- **Recordatorio de revisión SEMESTRAL** (decisión del dueño 2026-08-31): el art. 7 inc. 1º del
+  DS 156 somete a revisión **cada 6 meses** a los vehículos de carga de más de 1.750 kg y a
+  camionetas/jeeps/furgones de la RM inscritos **a nombre de persona jurídica** — buena parte de una
+  flota de empresa. **El sistema NO lo decide solo**: depende del peso real y de la región de
+  inscripción, datos que no se registran. Se muestra un recuadro ámbar bajo el del calendario, con
+  el texto de la regla, y **la persona evalúa si su caso aplica**. Oculto en motos (ninguna causal
+  puede darse) y en maquinaria/remolque (ahí no se muestra ningún recuadro).
 
 ## Permisos
 
