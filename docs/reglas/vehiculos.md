@@ -135,6 +135,24 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
   Modal, auto-selección del primer ítem en desktop. Las demás páginas convergen a este patrón
   (plan v2, Fases 3/5).
 - Filtros: texto libre + dropdowns (patente/marca/modelo/tipo) generados de los datos.
+- **Patente: la validación de formato AVISA, no bloquea** (mig 107, `frontend/src/utils/patente.ts`).
+  Motivo: en Chile conviven varios formatos vigentes y exigir uno solo impedía cargar vehículos
+  reales (caso 2026-08-31: no se podía registrar una moto). Formatos reconocidos, por
+  Decreto 53/1984 MTT art. 2 y 2º bis — **el formato lo define el número de RUEDAS, no el tipo**:
+  `LLLL+NN` (4+ ruedas: autos, camionetas, camiones, buses, maquinaria y remolques del Registro
+  Especial), `LLL+NN` (motos, formato actual), `LL+NNN` (motos antiguas), `LL+NNNN` (vehículos
+  anteriores a 2007) y `LLL+NNN` (carros de arrastre municipales REMUCAR — formato de fuente
+  secundaria, no normativa). **Las patentes antiguas siguen vigentes: no hay recambio obligatorio.**
+  Si no calza con ninguno se muestra una advertencia ámbar bajo el campo y se puede guardar igual.
+- **Tipos** (mig 107): camioneta, camión, auto, furgón, bus, **moto, maquinaria, remolque**, otro.
+- **Recuadro de revisión técnica por último dígito** (DS 156/1990 art. 7): aplica a autos y
+  **también a motos** (el art. 7 lo dice expresamente; la 1ª revisión de moto dura 2 años). **NO
+  aplica a maquinaria** (cada 4 años, DTO 289/1995) ni a **remolques** (cada 6 meses, art. 7 inc. 1º)
+  → para esos dos tipos el recuadro se oculta, para no mostrar un mes equivocado.
+- ⚠️ **Pendiente conocido (no implementado):** el art. 7 inc. 1º del DS 156 somete a revisión
+  **cada 6 meses** a los vehículos de carga de más de 1.750 kg y a camionetas/jeeps/furgones de la
+  RM inscritos **a nombre de persona jurídica** — es decir, buena parte de una flota de empresa. El
+  recuadro sigue mostrando el calendario anual "referencial" en esos casos.
 
 ## Permisos
 

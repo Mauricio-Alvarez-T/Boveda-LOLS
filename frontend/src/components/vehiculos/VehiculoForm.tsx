@@ -11,24 +11,24 @@ import type { Vehiculo, Conductor, EmpresaVehiculo } from '../../types/entities'
 import type { ApiResponse } from '../../types';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import { mesRevisionPorPatente } from '../../utils/revisionTecnica';
+import { advertenciaPatente } from '../../utils/patente';
 
 const schema = z.object({
-    // Patente: 4 letras + 2 números (formato chileno actual). Se ignoran separadores
-    // (· - espacio) al validar: "ABCD12", "ABCD-12" y "ABCD·12" son válidos.
+    // Patente: sólo obligatoria. El formato NO bloquea — hay varios formatos
+    // chilenos vigentes a la vez (motos, maquinaria, remolques municipales y las
+    // patentes anteriores a 2007) y exigir uno solo impedía cargar vehículos
+    // reales. Si no calza con ninguno conocido se muestra una advertencia bajo el
+    // campo (advertenciaPatente), pero se puede guardar. Ver utils/patente.ts.
     patente: z.string()
         .trim()
-        .min(1, 'La patente es obligatoria')
-        .refine(
-            (s) => /^[A-Z]{4}[0-9]{2}$/.test(s.replace(/[^A-Za-z0-9]/g, '').toUpperCase()),
-            'La patente debe tener 4 letras y 2 números (ej: ABCD·12)'
-        ),
+        .min(1, 'La patente es obligatoria'),
     marca:   z.string().trim().min(3, 'La marca debe tener al menos 3 caracteres'),
     modelo:  z.string().trim().min(2, 'El modelo debe tener al menos 2 caracteres'),
     anio:    z.coerce.number()
         .int('El año debe ser un número entero')
         .min(1990, 'El año debe ser 1990 o posterior')
         .max(new Date().getFullYear() + 1, 'El año no puede ser futuro'),
-    tipo:    z.enum(['camioneta','camion','auto','furgon','bus','otro']),
+    tipo:    z.enum(['camioneta','camion','auto','furgon','bus','moto','maquinaria','remolque','otro']),
     empresa_id: z.string().optional(),      // id de empresa de flota (select) o '' (sin asignar)
     conductor_nombre: z.string().optional(),// nombre escrito/elegido; el backend lo resuelve o crea en el catálogo
     kilometraje_actual: z.coerce.number()
@@ -114,9 +114,15 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             .catch(() => { /* si falla, el select queda solo con "Sin asignar"; no bloquea el alta */ });
     }, []);
 
-    // Mes de revisión técnica según el último dígito de la patente (calendario MTT)
+    // Mes de revisión técnica según el último dígito de la patente (calendario MTT).
+    // El DS 156/1990 art. 7 aplica ese calendario a autos y TAMBIÉN a motos, pero NO
+    // a maquinaria (revisión cada 4 años, DTO 289/1995) ni a remolques (cada 6 meses,
+    // art. 7 inciso 1º). Para esos dos se oculta el recuadro: dar un mes equivocado
+    // es peor que no dar ninguno.
     const patente = watch('patente');
-    const mesRevision = mesRevisionPorPatente(patente);
+    const tipoActual = watch('tipo');
+    const mesRevision = ['maquinaria', 'remolque'].includes(tipoActual) ? null : mesRevisionPorPatente(patente);
+    const avisoPatente = advertenciaPatente(patente || '');
 
     // La sección de CUOTAS se retiró del formulario (jefatura 2026-08-27, 2ª vuelta);
     // los datos históricos quedan en vehiculo_leasing_cuotas, sin UI.
@@ -178,8 +184,14 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
     return (
         <form id="vehiculo-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input label="Patente" placeholder="Ej: ABCD·12" {...register('patente')}
-                    error={errors.patente?.message} />
+                <div>
+                    <Input label="Patente" placeholder="Ej: ABCD·12 · moto ABC·12" {...register('patente')}
+                        error={errors.patente?.message} />
+                    {/* Advertencia, no error: el campo se puede guardar igual (ver utils/patente.ts). */}
+                    {!errors.patente && avisoPatente && (
+                        <p className="text-xs text-amber-600 mt-1.5 leading-snug">{avisoPatente}</p>
+                    )}
+                </div>
                 <div>
                     <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Tipo</label>
                     <select {...register('tipo')}
@@ -189,6 +201,9 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                         <option value="auto">Auto</option>
                         <option value="furgon">Furgón</option>
                         <option value="bus">Bus</option>
+                        <option value="moto">Moto</option>
+                        <option value="maquinaria">Maquinaria</option>
+                        <option value="remolque">Remolque / carro de arrastre</option>
                         <option value="otro">Otro</option>
                     </select>
                 </div>

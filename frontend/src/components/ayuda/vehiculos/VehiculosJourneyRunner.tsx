@@ -23,7 +23,7 @@ interface FlujoConfig {
 const CONFIG: Record<Flujo, FlujoConfig> = {
     registrar: {
         labels: ['Guardar', 'Nuevo vehículo'],
-        instruccion: 'Elige una empresa de flota (a la izquierda), pulsa el botón "+" (Nuevo vehículo) de esa empresa, completa el formulario (patente con 4 letras y 2 números —ej. ABCD12—, marca, modelo, año y color) y pulsa "Guardar".',
+        instruccion: 'Elige una empresa de flota (a la izquierda), pulsa el botón "+" (Nuevo vehículo) de esa empresa, completa el formulario (patente —ej. ABCD12 en autos, ABC12 en motos—, marca, modelo, año, tipo y color) y pulsa "Guardar".',
         accion: 'crear',
         finTitulo: '¡Vehículo registrado!',
         recap: [

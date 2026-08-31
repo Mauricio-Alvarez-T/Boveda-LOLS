@@ -113,7 +113,8 @@ export interface Vehiculo {
     marca: string;
     modelo: string;
     anio: number;
-    tipo: 'camioneta' | 'camion' | 'auto' | 'furgon' | 'bus' | 'otro';
+    /** moto/maquinaria/remolque desde mig 107 (flota de constructora). */
+    tipo: 'camioneta' | 'camion' | 'auto' | 'furgon' | 'bus' | 'moto' | 'maquinaria' | 'remolque' | 'otro';
     /** Empresa de flota asignada (FK a empresas_vehiculos). Null = sin asignar. */
     empresa_id?: number | null;
     /** Nombre/color de la empresa, enriquecidos por el backend vía JOIN. */
