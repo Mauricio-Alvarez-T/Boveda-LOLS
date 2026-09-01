@@ -760,4 +760,38 @@ describe('Asistencia Service - Excel base 30 (día 31 y columnas DESCUENTOS)', (
         expect(descQ2).toContain('Dia 31 (F): descuenta 1');
         expect(descQ2).toContain('Fuera contrato: 16-30');
     });
+
+    // ── 13: EXCEPCIÓN ingreso el 31 (jefatura 2026-08-27) ──
+    // Caso real: 5 trabajadores ingresaron el 31-ago, trabajaron, y el Excel les
+    // pagaba 0 (días 1-30 fuera de contrato + "el 31 no suma"). SOLO cuando el
+    // contrato EMPIEZA el 31, el 31 con código pagador suma 1 a Q2.
+    test('ingreso el 31 con A el 31: suma 1 día a Q2 (único caso donde el 31 paga)', async () => {
+        const registros = [
+            { trabajador_id: 1, obra_id: 10, fecha: '2026-03-31', estado_id: 1 }
+        ];
+        mockDb({ workers: mockWorker({ fecha_ingreso: '2026-03-31' }), registros });
+        const ws = await generarHojaLols('2026-03-01', '2026-03-31');
+
+        expect(ws.getCell(9, DIA31_COL).value).toBe('A');
+        // El término pagador del 31 va FUERA del MAX(0,…): aditivo 0 − penal 0 + A el 31 = 1.
+        const f = ws.getCell(9, Q2_COL).value.formula;
+        expect(f).toContain('MAX(0,');
+        expect(f).toContain('))+COUNTIF(AO9');
+        const descQ2 = String(ws.getCell(9, DESC_Q2_COL).value);
+        expect(descQ2).toContain('Dia 31 (ingreso el 31, A): suma 1');
+    });
+
+    test('mes completo con A el 31: la excepción NO aplica (el 31 sigue sin sumar, total 30)', async () => {
+        const registros = [
+            ...asistenciasHabiles(2026, 2, 30),
+            { trabajador_id: 1, obra_id: 10, fecha: '2026-03-31', estado_id: 1 }
+        ];
+        mockDb({ workers: mockWorker({ fecha_ingreso: '2026-01-05' }), registros });
+        const ws = await generarHojaLols('2026-03-01', '2026-03-31');
+
+        const f = ws.getCell(9, Q2_COL).value.formula;
+        expect(f).not.toContain('))+COUNTIF(AO9');
+        expect(evalTotales(ws, 9).total).toBe(30);
+        expect(String(ws.getCell(9, DESC_Q2_COL).value)).not.toContain('suma 1');
+    });
 });

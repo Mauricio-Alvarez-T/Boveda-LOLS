@@ -131,6 +131,11 @@ Regla jefatura 2026-08-17: los pagos SIEMPRE se calculan base 30 — mes de 31 s
   códigos no-pago))`. Códigos que descuentan el 31: los con `cuenta_dia_trabajado=0`
   (F/LM/PSG) más `'-'` (estado desconocido). El 31 asistido/FDS/vacío es NEUTRO
   (vacío no descuenta → exports históricos no cambian). Falta el 31 → Q1+Q2 = 29.
+  **EXCEPCIÓN ingreso el 31 (jefatura 2026-08-27)**: si la `fecha_ingreso` del
+  trabajador es EXACTAMENTE el día 31 del mes exportado, el 31 con código pagador
+  (`cuenta_dia_trabajado=1`) SUMA 1 a Q2 — sin ella quedaba en 0 pese a haber
+  trabajado (días 1-30 fuera de contrato). F el 31 sigue dando 0; ningún otro
+  trabajador cambia. DESC Q2 lo explicita: `Dia 31 (ingreso el 31, A): suma 1`.
 - **Relleno de meses cortos** (días 29/30 de febrero): pagan como FDS solo si el
   contrato cubre el último día real del mes Y ese día no quedó en código no-pago
   (LM 20→28-feb = 19 días, no 21 — la ausencia a fin de mes extiende su descuento).

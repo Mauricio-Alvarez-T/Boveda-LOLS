@@ -1743,7 +1743,7 @@ const asistenciaService = {
                     return { codigo, nombre, color: est.color, suma: codigosSumanDia.includes(codigo) };
                 }).filter((v, i, a) => a.findIndex(t => t.codigo === v.codigo) === i), // Unique by consolidated code
                 { codigo: MARKER_FDS, nombre: 'Fin de Semana / Feriado', color: null, suma: true },
-                { codigo: '31', nombre: 'Dia 31: solo descuenta (pago base 30)', suma: false }
+                { codigo: '31', nombre: 'Dia 31: solo descuenta (base 30); excepcion: ingreso el 31 suma', suma: false }
             ];
             const halfLegend = Math.ceil(legendItems.length / 2);
             
@@ -2171,7 +2171,17 @@ const asistenciaService = {
                 const countifParts2 = allCodigos.map(cod => `COUNTIF(${q2Range},"${cod}")`);
                 const d31Addr = ws.getCell(rowIdx, dia31Col).address;
                 const penal31 = [...codigosNoPagan].map(cod => `COUNTIF(${d31Addr},"${cod}")`).join('+');
-                const q2Formula = `MAX(0,${countifParts2.join('+')}-(${penal31}))`;
+                // EXCEPCIÓN INGRESO EL 31 (jefatura 2026-08-27): un contrato que
+                // EMPIEZA el día 31 quedaría en 0 pese a haber trabajado (días 1-30
+                // fuera de contrato y el 31 por base-30 no suma). SOLO en ese caso el
+                // 31 con código pagador suma 1 a Q2 (F el 31 sigue dando 0: no es
+                // pagador). Ningún otro trabajador cambia — exports históricos intactos.
+                const dia31Real = dias.find(d => d.num === 31 && !d.esFantasma);
+                const ingresoEl31 = !!(dia31Real && workerIngreso && workerIngreso === dia31Real.fStr);
+                const suma31 = ingresoEl31
+                    ? '+' + codigosSumanDia.map(cod => `COUNTIF(${d31Addr},"${cod}")`).join('+')
+                    : '';
+                const q2Formula = `MAX(0,${countifParts2.join('+')}-(${penal31}))${suma31}`;
                 ws.getCell(rowIdx, q2Col).value = { formula: q2Formula };
 
                 // Total: Q1 + Q2
@@ -2230,6 +2240,10 @@ const asistenciaService = {
                 const lineasQ2 = buildDescuentos(16, 31);
                 if (codigosNoPagan.has(renderedByNum[31])) {
                     lineasQ2.push(`Dia 31 (${renderedByNum[31]}): descuenta 1`);
+                }
+                if (ingresoEl31 && codigosSumanDia.includes(renderedByNum[31])) {
+                    // Para que remuneraciones vea de dónde sale el día del recién ingresado.
+                    lineasQ2.push(`Dia 31 (ingreso el 31, ${renderedByNum[31]}): suma 1`);
                 }
                 if (daysInMonth < 30 && renderedByNum[daysInMonth + 1] === '') {
                     lineasQ2.push(`Dias ${daysInMonth + 1}-30: sin relleno base 30 (contrato/ausencia fin de mes)`);
