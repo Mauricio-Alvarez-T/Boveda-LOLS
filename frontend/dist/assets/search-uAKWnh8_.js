@@ -1,0 +1,1 @@
+import{c}from"./index-BFd83UOt.js";const e=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"m9 12 2 2 4-4",key:"dzmm74"}]],a=c("circle-check",e);const r=[["path",{d:"m21 21-4.34-4.34",key:"14j7rj"}],["circle",{cx:"11",cy:"11",r:"8",key:"4ej97u"}]],t=c("search",r);export{a as C,t as S};
