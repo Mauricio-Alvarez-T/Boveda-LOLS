@@ -101,8 +101,9 @@ rechazo con motivo obligatorio y visible al solicitante; **sin firma** de ningú
 1. **Terreno** (`trabajadores.solicitud.crear`): Consultas → CREAR → **"Nuevo ingreso"**
    (`consultas/CreatePanel.tsx`) → modal "Nuevo ingreso · Ficha de solicitud"
    (`SolicitudIngresoForm.tsx`). RUT es el **primer campo** (formato en vivo + check anti-duplicado,
-   ver abajo); luego los ○ obligatorios; los — opcionales van en la barra colapsable "Datos
-   personales (opcional)" + observaciones. Catálogos: `/cargos?activo=true` y
+   ver abajo); luego los ○ obligatorios; después, **todo visible y plano** (sin barra colapsable,
+   pedido de oficina 2026-09-08): datos personales, tallas, pago de remuneraciones y observaciones —
+   todos opcionales; la oficina completa lo que falte. Catálogos: `/cargos?activo=true` y
    `/obras?activo=true&incluir_prueba=true`. **Sin empresa.** `POST /api/solicitudes-ingreso` →
    estado `pendiente` → toast "Solicitud enviada a administración".
 2. **Aviso a oficina** = contador ámbar (no hay notificaciones in-app, precedente del repo):
@@ -132,10 +133,12 @@ rechazo con motivo obligatorio y visible al solicitante; **sin firma** de ningú
 |---|---|---|
 | ○ obligatorios | `rut`, `nombres`, `apellido_paterno`, `cargo_id`, `obra_id`, `fecha_ingreso` | Terreno |
 | — opcionales | `apellido_materno`, `fecha_nacimiento`, `estado_civil`, `direccion`, `comuna`, `afp`, `salud`, `nacionalidad`, `telefono`, `cargas_familiares` (0-255), `observaciones` | Terreno (la oficina puede completarlos/corregirlos) |
+| Tallas (mig 109) | `talla_calzado` (35-47), `talla_pantalon` (38-50), `talla_polera` (S/M/L/XL/XXL) | Terreno, opcionales |
+| Pago (mig 109) | `cuenta_rut` (Sí/No → boolean), `banco`, `tipo_cuenta` (vista \| corriente), `numero_cuenta` (dígitos/letras/guiones, máx. 30) | Terreno, opcionales. **Cuenta RUT = Sí ⇒ el backend fija `banco=BancoEstado`, `tipo_cuenta=vista`, `numero_cuenta` = RUT sin DV**, ignorando lo que mande el cliente |
 | Solo oficina | **`empresa_id` (obligatoria para crear el trabajador)**, `categoria_reporte` (obra / operaciones / rotativo, default `obra`) | Oficina, al aprobar |
 
-Sin marca en la ficha → **no existen** en Bóveda: calzado/pantalones/poleras, cuenta RUT, cuenta
-corriente. Validación de forma en `backend/src/schemas/solicitudesIngreso.schema.js` (mini-DSL de
+Desde 2026-09-08 la ficha digital es **1:1 con la de papel** (antes se excluían tallas y cuenta;
+oficina pidió integrarlas). Lo único que sigue fuera es la firma. Validación de forma en `backend/src/schemas/solicitudesIngreso.schema.js` (mini-DSL de
 `validateBody`, `{ strip: true }`: toda clave no declarada se descarta — anti mass-assignment);
 reglas de negocio en `services/solicitudIngreso.service.js` (`_normalizarFicha`: DV del RUT, trims,
 `''` → `NULL`, `formatRut` antes de guardar). Los opcionales viajan como `null` cuando van vacíos.
@@ -145,7 +148,10 @@ los tres formularios (`DatosPersonalesFields`): comuna = **solo Región Metropol
 buscador), AFP = las 7 vigentes, salud = **FONASA + cada isapre**. Listas en
 `frontend/src/config/catalogosPersonales.ts`. El backend **no** valida enum a propósito: una ficha o
 trabajador guardado antes con texto libre se conserva y el select lo muestra como opción extra
-(`toSelectOptions`) para no perderlo al re-guardar.
+(`toSelectOptions`) para no perderlo al re-guardar. Mismo criterio para **tallas** (`TALLAS_*`) y
+**bancos** (`BANCOS_CHILE`, incluye "Otro"). El bloque de pago pregunta primero "¿Paga a cuenta
+RUT?": con **Sí** no pide nada más (BancoEstado / vista / N° = RUT sin DV, derivados en el service);
+con **No** despliega banco (select), tipo de cuenta (radio vista/corriente) y número.
 
 **Aviso WhatsApp tras enviar (2026-09-08).** Al crear la solicitud, el modal pasa a una pantalla de
 confirmación (resumen: trabajador, RUT, obra, cargo, fecha) con botón **"Enviar por WhatsApp"**:

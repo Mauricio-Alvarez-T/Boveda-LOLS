@@ -321,6 +321,77 @@ describe('POST /api/solicitudes-ingreso', () => {
         expect(db.query).not.toHaveBeenCalled();
     });
 
+    describe('ficha completa (mig 109): tallas + cuenta bancaria', () => {
+        const insertCols = () => {
+            const [sql, values] = db.query.mock.calls[2];
+            const cols = sql.match(/\(([^)]+)\) VALUES/)[1].split(',').map(s => s.trim());
+            return Object.fromEntries(cols.map((c, i) => [c, values[i]]));
+        };
+        const mockCrearOk = () => db.query
+            .mockResolvedValueOnce([[]])
+            .mockResolvedValueOnce([[]])
+            .mockResolvedValueOnce([{ insertId: 50 }])
+            .mockResolvedValueOnce([[{ ...SOLICITUD_ROW, id: 50 }]]);
+
+        test('400 por forma/rango: talla_calzado 34, talla_pantalon 51, talla_polera XS, tipo_cuenta "" o inválido, cuenta_rut no boolean', async () => {
+            let res = await post(tokenTerreno, { ...FICHA, talla_calzado: 34 });
+            expect(res.status).toBe(400);
+            expect(res.body.error).toMatch(/talla_calzado debe ser >= 35/);
+
+            res = await post(tokenTerreno, { ...FICHA, talla_pantalon: 51 });
+            expect(res.status).toBe(400);
+            expect(res.body.error).toMatch(/talla_pantalon debe ser <= 50/);
+
+            res = await post(tokenTerreno, { ...FICHA, talla_polera: 'XS' });
+            expect(res.status).toBe(400);
+            expect(res.body.error).toMatch(/talla_polera debe ser uno de: S, M, L, XL, XXL/);
+
+            // '' NO es null para el `in` del mini-DSL → el front manda null, nunca ''.
+            res = await post(tokenTerreno, { ...FICHA, tipo_cuenta: '' });
+            expect(res.status).toBe(400);
+            expect(res.body.error).toMatch(/tipo_cuenta debe ser uno de: vista, corriente/);
+
+            res = await post(tokenTerreno, { ...FICHA, cuenta_rut: 'si' });
+            expect(res.status).toBe(400);
+            expect(res.body.error).toMatch(/cuenta_rut debe ser true\|false/);
+
+            res = await post(tokenTerreno, { ...FICHA, numero_cuenta: '123 456' });
+            expect(res.status).toBe(400);
+            expect(res.body.error).toMatch(/numero_cuenta solo admite/);
+
+            expect(db.query).not.toHaveBeenCalled();
+        });
+
+        test('cuenta_rut=true fuerza BancoEstado / vista / número = RUT sin DV aunque el cliente mande otro banco', async () => {
+            mockCrearOk();
+            const res = await post(tokenTerreno, {
+                ...FICHA, cuenta_rut: true, banco: 'Santander', tipo_cuenta: 'corriente', numero_cuenta: '999',
+                talla_calzado: 42, talla_pantalon: 44, talla_polera: 'xl',
+            });
+            expect(res.status).toBe(201);
+            expect(insertCols()).toMatchObject({
+                cuenta_rut: true, banco: 'BancoEstado', tipo_cuenta: 'vista', numero_cuenta: '12345678',
+                talla_calzado: 42, talla_pantalon: 44, talla_polera: 'XL',
+            });
+        });
+
+        test('cuenta_rut=false conserva banco / tipo / número tal como vienen; sin datos → NULL', async () => {
+            mockCrearOk();
+            let res = await post(tokenTerreno, { ...FICHA, cuenta_rut: false, banco: 'Santander', tipo_cuenta: 'corriente', numero_cuenta: '0-123-456-7' });
+            expect(res.status).toBe(201);
+            expect(insertCols()).toMatchObject({ cuenta_rut: false, banco: 'Santander', tipo_cuenta: 'corriente', numero_cuenta: '0-123-456-7' });
+
+            db.query.mockClear();
+            mockCrearOk();
+            res = await post(tokenTerreno, FICHA);
+            expect(res.status).toBe(201);
+            expect(insertCols()).toMatchObject({
+                cuenta_rut: null, banco: null, tipo_cuenta: null, numero_cuenta: null,
+                talla_calzado: null, talla_pantalon: null, talla_polera: null,
+            });
+        });
+    });
+
     test('409 si el RUT ya existe en trabajadores (ACTIVO): mensaje con el nombre y sin INSERT', async () => {
         db.query.mockResolvedValueOnce([[TRAB_ACTIVO]]);
 

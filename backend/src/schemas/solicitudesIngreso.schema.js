@@ -14,6 +14,10 @@
  *   ○ obligatorios: rut, nombres, apellido_paterno, cargo_id, obra_id, fecha_ingreso
  *   — opcionales: apellido_materno, fecha_nacimiento, estado_civil, direccion,
  *     comuna, afp, salud, nacionalidad, telefono, cargas_familiares, observaciones
+ *   Ficha completa (mig 109, pedido de oficina 2026-09-08), también opcionales:
+ *     talla_calzado (35-47), talla_pantalon (38-50), talla_polera (S-XXL),
+ *     cuenta_rut (boolean; con true el service fija BancoEstado/vista/RUT sin DV),
+ *     banco, tipo_cuenta (vista | corriente), numero_cuenta.
  *   EMPRESA la pone la oficina al aprobar → solo en `aprobar`, obligatoria.
  */
 
@@ -37,6 +41,13 @@ const fichaRules = {
     nacionalidad: { type: 'string', maxLength: 60 },
     telefono: { type: 'string', maxLength: 20 },
     cargas_familiares: { type: 'integer', min: 0, max: 255 },   // TINYINT UNSIGNED
+    talla_calzado: { type: 'integer', min: 35, max: 47 },
+    talla_pantalon: { type: 'integer', min: 38, max: 50 },
+    talla_polera: { type: 'string', maxLength: 5 },             // S/M/L/XL/XXL (lista en el service, case-insensitive)
+    cuenta_rut: { type: 'boolean' },
+    banco: { type: 'string', maxLength: 60 },
+    tipo_cuenta: { type: 'string', in: ['vista', 'corriente'] },
+    numero_cuenta: { type: 'string', maxLength: 30 },
     observaciones: { type: 'string', maxLength: 2000 },
 };
 

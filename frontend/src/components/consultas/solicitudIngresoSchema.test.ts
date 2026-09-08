@@ -3,6 +3,7 @@
  * de terreno vs. el de la oficina, y cómo se traducen los opcionales a la API.
  */
 import {
+    datosPersonalesSchema,
     solicitudIngresoSchema, aprobarSolicitudSchema,
     normalizarDatosPersonales, buildSolicitudPayload, buildAprobarPayload,
     datosPersonalesDefaults, listarDatosPersonales,
@@ -92,7 +93,41 @@ describe('normalizarDatosPersonales / payloads', () => {
             nacionalidad: null,
             telefono: null,
             cargas_familiares: 2,
+            talla_calzado: null,
+            talla_pantalon: null,
+            talla_polera: null,
+            cuenta_rut: null,
+            banco: null,
+            tipo_cuenta: null,
+            numero_cuenta: null,
         });
+    });
+
+    it('tallas → número; polera texto; vacías → null', () => {
+        const n = normalizarDatosPersonales({ ...fichaTerreno, talla_calzado: '42', talla_pantalon: '44', talla_polera: 'XL' });
+        expect(n.talla_calzado).toBe(42);
+        expect(n.talla_pantalon).toBe(44);
+        expect(n.talla_polera).toBe('XL');
+    });
+
+    it("cuenta RUT 'si' → true + BancoEstado/vista, número null (lo deriva el backend del RUT) aunque el form traiga otro banco", () => {
+        const n = normalizarDatosPersonales({ ...fichaTerreno, cuenta_rut: 'si', banco: 'Santander', tipo_cuenta: 'corriente', numero_cuenta: '999' });
+        expect(n).toMatchObject({ cuenta_rut: true, banco: 'BancoEstado', tipo_cuenta: 'vista', numero_cuenta: null });
+    });
+
+    it("cuenta RUT 'no' → false y conserva banco/tipo/número; '' → null en todo", () => {
+        const n = normalizarDatosPersonales({ ...fichaTerreno, cuenta_rut: 'no', banco: 'Santander', tipo_cuenta: 'corriente', numero_cuenta: '0-123' });
+        expect(n).toMatchObject({ cuenta_rut: false, banco: 'Santander', tipo_cuenta: 'corriente', numero_cuenta: '0-123' });
+        expect(normalizarDatosPersonales({ ...fichaTerreno, cuenta_rut: '', tipo_cuenta: '' })).toMatchObject({ cuenta_rut: null, tipo_cuenta: null });
+    });
+
+    it('schema: tallas fuera de rango y tipo_cuenta inválido rebotan', () => {
+        expect(datosPersonalesSchema.safeParse({ talla_calzado: '34' }).success).toBe(false);
+        expect(datosPersonalesSchema.safeParse({ talla_calzado: '47', talla_pantalon: '38' }).success).toBe(true);
+        expect(datosPersonalesSchema.safeParse({ talla_pantalon: '51' }).success).toBe(false);
+        expect(datosPersonalesSchema.safeParse({ tipo_cuenta: 'ahorro' }).success).toBe(false);
+        expect(datosPersonalesSchema.safeParse({ cuenta_rut: 'si' }).success).toBe(true);
+        expect(datosPersonalesSchema.safeParse({ numero_cuenta: '12 34' }).success).toBe(false);
     });
 
     it('cargas vacías → null (no 0): "sin dato" ≠ "cero cargas"', () => {
@@ -125,6 +160,15 @@ describe('datosPersonalesDefaults / listarDatosPersonales', () => {
         expect(d.cargas_familiares).toBe('1');
         expect(d.afp).toBe('');
         expect(Object.values(datosPersonalesDefaults(null)).every(v => v === '')).toBe(true);
+        // boolean de la API → select 'si'/'no'; tallas numéricas → string.
+        expect(datosPersonalesDefaults({ cuenta_rut: true, talla_calzado: 42 })).toMatchObject({ cuenta_rut: 'si', talla_calzado: '42' });
+        expect(datosPersonalesDefaults({ cuenta_rut: false }).cuenta_rut).toBe('no');
+    });
+
+    it('listar: cuenta_rut → Sí/No (false NO se omite), tipo_cuenta legible', () => {
+        const items = listarDatosPersonales({ cuenta_rut: false, banco: 'Santander', tipo_cuenta: 'corriente', numero_cuenta: '0-123' });
+        expect(items.map(i => `${i.label}=${i.value}`)).toEqual(['Cuenta RUT=No', 'Banco=Santander', 'Tipo de cuenta=Cuenta corriente', 'N° de cuenta=0-123']);
+        expect(listarDatosPersonales({ cuenta_rut: true })[0].value).toBe('Sí');
     });
 
     it('listar: solo los presentes, en orden de la ficha, con 0 cargas como dato válido', () => {

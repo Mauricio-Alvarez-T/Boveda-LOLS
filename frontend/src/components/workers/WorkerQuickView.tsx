@@ -44,6 +44,13 @@ interface WorkerData {
     salud?: string | null;
     nacionalidad?: string | null;
     cargas_familiares?: number | null;
+    talla_calzado?: number | null;
+    talla_pantalon?: number | null;
+    talla_polera?: string | null;
+    cuenta_rut?: boolean | null;
+    banco?: string | null;
+    tipo_cuenta?: string | null;
+    numero_cuenta?: string | null;
 }
 
 /** GET /trabajadores/:id/resumen — stats de contrato/asistencia para la ficha. */

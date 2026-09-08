@@ -21,7 +21,8 @@ import {
 } from '../consultas/solicitudIngresoSchema';
 
 // Extiende los "Datos personales" de la ficha de ingreso digital (mig 108): los
-// mismos 8 opcionales que llena terreno en la solicitud viven en la ficha del trabajador.
+// mismos opcionales que llena terreno en la solicitud (datos personales, tallas y
+// cuenta bancaria — mig 108/109) viven en la ficha del trabajador.
 const workerSchema = datosPersonalesSchema.extend({
     rut: z.string().min(1, 'El RUT es requerido').refine(validateRut, 'RUT inválido'),
     nombres: z.string().min(2, 'Suelen ser al menos 2 caracteres'),

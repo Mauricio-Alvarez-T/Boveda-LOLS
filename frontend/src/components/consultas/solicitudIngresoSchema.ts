@@ -16,6 +16,7 @@
 import * as z from 'zod';
 import { validateRut } from '../../utils/rut';
 import { fmtFecha, normalizarFecha } from '../../utils/format';
+import { BANCO_CUENTA_RUT, TIPOS_CUENTA } from '../../config/catalogosPersonales';
 
 export const ESTADO_CIVIL_OPTIONS = [
     { value: 'Soltero/a', label: 'Soltero/a' },
@@ -36,7 +37,13 @@ export const avisoRutExiste = (nombre: string) =>
     `Ya existe un trabajador con este RUT (${nombre}). Revisa si hay un error en la digitación; si el RUT es correcto, contacta a administración vía WhatsApp.`;
 export const AVISO_SOLICITUD_PENDIENTE = 'Ya hay una solicitud de ingreso pendiente para este RUT.';
 
-/** Campos opcionales de la ficha ("Datos personales"). Todos string en el form. */
+/**
+ * Campos opcionales de la ficha ("Datos personales" + tallas + pago). Todos string en
+ * el form. `cuenta_rut` es 'si' | 'no' | '' (select) y viaja a la API como boolean|null.
+ */
+const tallaStr = (min: number, max: number) => z.string().optional()
+    .refine(v => !v || (/^\d+$/.test(v.trim()) && Number(v) >= min && Number(v) <= max), `Entre ${min} y ${max}`);
+
 export const datosPersonalesSchema = z.object({
     fecha_nacimiento: z.string().optional(),
     estado_civil: z.string().optional(),
@@ -48,6 +55,14 @@ export const datosPersonalesSchema = z.object({
     telefono: z.string().optional(),
     cargas_familiares: z.string().optional()
         .refine(v => !v || /^\d+$/.test(v.trim()), 'Debe ser un número entero mayor o igual a 0'),
+    talla_calzado: tallaStr(35, 47),
+    talla_pantalon: tallaStr(38, 50),
+    talla_polera: z.string().optional(),
+    cuenta_rut: z.string().optional().refine(v => !v || v === 'si' || v === 'no', 'Selecciona Sí o No'),
+    banco: z.string().optional(),
+    tipo_cuenta: z.string().optional().refine(v => !v || v === 'vista' || v === 'corriente', 'Selecciona el tipo de cuenta'),
+    numero_cuenta: z.string().optional()
+        .refine(v => !v || /^[A-Za-z0-9-]{1,30}$/.test(v.trim()), 'Solo dígitos, letras y guiones (máx. 30)'),
 });
 
 /** Ficha que llena TERRENO (○ + —). Sin empresa: la pone la oficina al aprobar. */
@@ -88,7 +103,16 @@ export const DATOS_PERSONALES_LABELS: Record<DatosPersonalesKey, string> = {
     afp: 'AFP',
     salud: 'Salud',
     cargas_familiares: 'Cargas familiares',
+    talla_calzado: 'Calzado',
+    talla_pantalon: 'Pantalón',
+    talla_polera: 'Polera',
+    cuenta_rut: 'Cuenta RUT',
+    banco: 'Banco',
+    tipo_cuenta: 'Tipo de cuenta',
+    numero_cuenta: 'N° de cuenta',
 };
+
+const etiquetaTipoCuenta = (v: string) => TIPOS_CUENTA.find(t => t.value === v)?.label ?? v;
 
 /** '' / espacios / null → null; si no, el texto sin espacios en los bordes. */
 const strOrNull = (v: string | null | undefined): string | null => {
@@ -96,9 +120,15 @@ const strOrNull = (v: string | null | undefined): string | null => {
     return t ? t : null;
 };
 
-/** Normaliza los opcionales para la API: '' → null, cargas a número entero (o null). */
+/**
+ * Normaliza los opcionales para la API: '' → null, números a number (o null),
+ * cuenta_rut 'si'/'no' → true/false. Con cuenta RUT = Sí el banco y el tipo van
+ * fijos (BancoEstado / vista) y el número lo deriva el backend del RUT (va null).
+ */
 export function normalizarDatosPersonales(d: DatosPersonalesFormValues) {
     const cargas = strOrNull(d.cargas_familiares);
+    const num = (v: string | null | undefined) => { const s = strOrNull(v); return s == null ? null : Number(s); };
+    const cuentaRut = d.cuenta_rut === 'si' ? true : d.cuenta_rut === 'no' ? false : null;
     return {
         fecha_nacimiento: strOrNull(d.fecha_nacimiento),
         estado_civil: strOrNull(d.estado_civil),
@@ -109,6 +139,13 @@ export function normalizarDatosPersonales(d: DatosPersonalesFormValues) {
         nacionalidad: strOrNull(d.nacionalidad),
         telefono: strOrNull(d.telefono),
         cargas_familiares: cargas == null ? null : Number(cargas),
+        talla_calzado: num(d.talla_calzado),
+        talla_pantalon: num(d.talla_pantalon),
+        talla_polera: strOrNull(d.talla_polera),
+        cuenta_rut: cuentaRut,
+        banco: cuentaRut === true ? BANCO_CUENTA_RUT : strOrNull(d.banco),
+        tipo_cuenta: cuentaRut === true ? 'vista' : strOrNull(d.tipo_cuenta),
+        numero_cuenta: cuentaRut === true ? null : strOrNull(d.numero_cuenta),
     };
 }
 
@@ -137,12 +174,12 @@ export function buildAprobarPayload(d: AprobarSolicitudFormValues) {
 }
 
 /** Fuente para precargar un form: la API entrega null/number, el form quiere strings. */
-type DatosPersonalesApi = Partial<Record<DatosPersonalesKey, string | number | null | undefined>>;
+type DatosPersonalesApi = Partial<Record<DatosPersonalesKey, string | number | boolean | null | undefined>>;
 
 /** Valores iniciales de los datos personales para `useForm` a partir de un registro de la API. */
 export function datosPersonalesDefaults(src: DatosPersonalesApi | null | undefined): DatosPersonalesFormValues {
     const s = src ?? {};
-    const txt = (v: string | number | null | undefined) => (v == null ? '' : String(v));
+    const txt = (v: string | number | boolean | null | undefined) => (v == null ? '' : String(v));
     return {
         fecha_nacimiento: normalizarFecha(txt(s.fecha_nacimiento)),
         estado_civil: txt(s.estado_civil),
@@ -153,6 +190,14 @@ export function datosPersonalesDefaults(src: DatosPersonalesApi | null | undefin
         nacionalidad: txt(s.nacionalidad),
         telefono: txt(s.telefono),
         cargas_familiares: txt(s.cargas_familiares),
+        talla_calzado: txt(s.talla_calzado),
+        talla_pantalon: txt(s.talla_pantalon),
+        talla_polera: txt(s.talla_polera),
+        // boolean de la API (typeCast TINYINT(1)) → 'si' | 'no'; null → '' (sin dato).
+        cuenta_rut: s.cuenta_rut === true ? 'si' : s.cuenta_rut === false ? 'no' : '',
+        banco: txt(s.banco),
+        tipo_cuenta: txt(s.tipo_cuenta),
+        numero_cuenta: txt(s.numero_cuenta),
     };
 }
 
@@ -167,7 +212,10 @@ export function listarDatosPersonales(src: DatosPersonalesApi | null | undefined
     for (const key of Object.keys(DATOS_PERSONALES_LABELS) as DatosPersonalesKey[]) {
         const raw = src[key];
         if (raw == null || raw === '') continue;
-        const value = key === 'fecha_nacimiento' ? fmtFecha(normalizarFecha(String(raw))) : String(raw);
+        const value = key === 'fecha_nacimiento' ? fmtFecha(normalizarFecha(String(raw)))
+            : key === 'cuenta_rut' ? (raw === true || raw === 'si' ? 'Sí' : 'No')
+            : key === 'tipo_cuenta' ? etiquetaTipoCuenta(String(raw))
+            : String(raw);
         if (!value) continue;
         out.push({ key, label: DATOS_PERSONALES_LABELS[key], value });
     }

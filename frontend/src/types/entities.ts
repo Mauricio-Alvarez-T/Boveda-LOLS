@@ -94,6 +94,14 @@ export interface Trabajador {
     salud?: string | null;
     nacionalidad?: string | null;
     cargas_familiares?: number | null;
+    // Ficha completa (mig 109): tallas + pago de remuneraciones.
+    talla_calzado?: number | null;
+    talla_pantalon?: number | null;
+    talla_polera?: string | null;
+    cuenta_rut?: boolean | null;
+    banco?: string | null;
+    tipo_cuenta?: 'vista' | 'corriente' | string | null;
+    numero_cuenta?: string | null;
 }
 
 // ── Solicitudes de ingreso (ficha digital, mig 108) ───────────────────
@@ -129,6 +137,13 @@ export interface SolicitudIngreso {
     nacionalidad: string | null;
     telefono: string | null;
     cargas_familiares: number | null;
+    talla_calzado: number | null;
+    talla_pantalon: number | null;
+    talla_polera: string | null;
+    cuenta_rut: boolean | null;
+    banco: string | null;
+    tipo_cuenta: string | null;
+    numero_cuenta: string | null;
     observaciones: string | null;
     solicitante_id: number;
     solicitante_nombre?: string | null;

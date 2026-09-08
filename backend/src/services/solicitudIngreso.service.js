@@ -29,6 +29,10 @@ const logger = require('../utils/logger-structured');
 const PERMISO_APROBAR = 'trabajadores.solicitud.aprobar';
 const ESTADOS = ['pendiente', 'aprobada', 'rechazada'];
 const CATEGORIAS_REPORTE = ['obra', 'operaciones', 'rotativo'];
+// Ficha completa (mig 109): tallas y cuenta bancaria.
+const TALLAS_POLERA = ['S', 'M', 'L', 'XL', 'XXL'];
+const TIPOS_CUENTA = ['vista', 'corriente'];
+const BANCO_CUENTA_RUT = 'BancoEstado';
 
 // Campos de la ficha que viven tanto en solicitudes_ingreso como en trabajadores.
 const CAMPOS_FICHA = [
@@ -36,6 +40,8 @@ const CAMPOS_FICHA = [
     'cargo_id', 'obra_id', 'fecha_ingreso',
     'fecha_nacimiento', 'estado_civil', 'direccion', 'comuna',
     'afp', 'salud', 'nacionalidad', 'telefono', 'cargas_familiares',
+    'talla_calzado', 'talla_pantalon', 'talla_polera',
+    'cuenta_rut', 'banco', 'tipo_cuenta', 'numero_cuenta',
     'observaciones',
 ];
 // Los que se copian al trabajador al aprobar: `observaciones` es solo de la
@@ -54,6 +60,27 @@ const intOrNull = (v) => {
     if (v === undefined || v === null || v === '') return null;
     const n = Number(v);
     return Number.isInteger(n) ? n : null;
+};
+
+// validateBody ya exige boolean real; acá solo se tolera ausencia.
+const boolOrNull = (v) => (v === undefined || v === null || v === '' ? null : v === true);
+
+/** Entero opcional dentro de [min, max] o 400 con el nombre del campo. */
+const intEnRango = (v, nombre, min, max) => {
+    const n = intOrNull(v);
+    if (n !== null && (n < min || n > max)) {
+        throw httpError(`${nombre} debe estar entre ${min} y ${max}`, 400);
+    }
+    return n;
+};
+
+/** Texto opcional restringido a una lista, o 400. */
+const enLista = (v, nombre, lista) => {
+    const s = strOrNull(v);
+    if (s !== null && !lista.includes(s)) {
+        throw httpError(`${nombre} debe ser uno de: ${lista.join(', ')}`, 400);
+    }
+    return s;
 };
 
 // Solo la parte YYYY-MM-DD (tolera ISO completo si el front manda un Date serializado).
@@ -118,8 +145,26 @@ function _normalizarFicha(data = {}) {
         throw httpError('cargas_familiares debe estar entre 0 y 255', 400);
     }
 
+    const rut = formatRut(rutIn);
+
+    // Pago de remuneraciones (mig 109). Cuenta RUT = SÍ → BancoEstado / vista /
+    // número = RUT sin DV, derivados acá (fuente de verdad) ignorando lo que
+    // mande el cliente. NO → banco/tipo/número tal como vienen (opcionales).
+    const cuentaRut = boolOrNull(data.cuenta_rut);
+    let banco = strOrNull(data.banco);
+    let tipoCuenta = enLista(data.tipo_cuenta, 'tipo_cuenta', TIPOS_CUENTA);
+    let numeroCuenta = strOrNull(data.numero_cuenta);
+    if (numeroCuenta !== null && !/^[A-Za-z0-9-]{1,30}$/.test(numeroCuenta)) {
+        throw httpError('numero_cuenta solo admite dígitos, letras y guiones (máx. 30)', 400);
+    }
+    if (cuentaRut === true) {
+        banco = BANCO_CUENTA_RUT;
+        tipoCuenta = 'vista';
+        numeroCuenta = cleanRut(rut).slice(0, -1);   // cuerpo del RUT sin dígito verificador
+    }
+
     return {
-        rut: formatRut(rutIn),
+        rut,
         nombres,
         apellido_paterno: apellidoPaterno,
         apellido_materno: strOrNull(data.apellido_materno),
@@ -135,6 +180,13 @@ function _normalizarFicha(data = {}) {
         nacionalidad: strOrNull(data.nacionalidad),
         telefono: strOrNull(data.telefono),
         cargas_familiares: cargas,
+        talla_calzado: intEnRango(data.talla_calzado, 'talla_calzado', 35, 47),
+        talla_pantalon: intEnRango(data.talla_pantalon, 'talla_pantalon', 38, 50),
+        talla_polera: enLista(strOrNull(data.talla_polera)?.toUpperCase(), 'talla_polera', TALLAS_POLERA),
+        cuenta_rut: cuentaRut,
+        banco,
+        tipo_cuenta: tipoCuenta,
+        numero_cuenta: numeroCuenta,
         observaciones: strOrNull(data.observaciones),
     };
 }

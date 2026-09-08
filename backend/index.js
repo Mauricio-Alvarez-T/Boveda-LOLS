@@ -308,7 +308,10 @@ try {
       'licencia_conducir', 'licencia_vencimiento',
       // Datos personales de la ficha de ingreso digital (mig 108) — editables en WorkerForm.
       'fecha_nacimiento', 'estado_civil', 'direccion', 'comuna',
-      'afp', 'salud', 'nacionalidad', 'cargas_familiares'
+      'afp', 'salud', 'nacionalidad', 'cargas_familiares',
+      // Ficha completa (mig 109): tallas + cuenta bancaria.
+      'talla_calzado', 'talla_pantalon', 'talla_polera',
+      'cuenta_rut', 'banco', 'tipo_cuenta', 'numero_cuenta'
     ],
     testFlagColumn: 'es_prueba',
     // Herencia: un trabajador nuevo asignado a una obra de prueba hereda el flag

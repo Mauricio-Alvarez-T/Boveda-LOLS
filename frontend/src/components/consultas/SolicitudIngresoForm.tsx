@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Loader2, AlertTriangle, CheckCircle2, Send, ChevronDown, ChevronRight } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle2, Send } from 'lucide-react';
 
 import { formatRut, validateRut } from '../../utils/rut';
 import api from '../../services/api';
@@ -60,7 +60,6 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onEnviada, onClose, onCa
     const [errorCatalogos, setErrorCatalogos] = useState<string | null>(null);
     const [obras, setObras] = useState<SelectOption[]>([]);
     const [cargos, setCargos] = useState<SelectOption[]>([]);
-    const [mostrarOpcionales, setMostrarOpcionales] = useState(false);
 
     // ── Verificación en vivo del RUT (patrón de WorkerForm) ──
     const [rutStatus, setRutStatus] = useState<RutStatus>('idle');
@@ -348,36 +347,22 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onEnviada, onClose, onCa
                 />
             </div>
 
-            {/* ── Datos personales (opcional) — barra colapsable con contenedor (DS: fondo verde + texto blanco) ── */}
-            {/* eslint-disable-next-line no-restricted-syntax -- disclosure (header colapsable full-width) */}
-            <button
-                type="button"
-                onClick={() => setMostrarOpcionales(v => !v)}
-                aria-expanded={mostrarOpcionales}
-                aria-controls="solicitud-datos-personales"
-                className="flex w-full items-center justify-between rounded-xl bg-brand-primary px-4 py-2.5 text-left text-white transition-colors hover:bg-[#027A3B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:ring-offset-2"
-            >
-                <span className="text-sm font-semibold">
-                    Datos personales <span className="font-normal opacity-80">(opcional)</span>
-                </span>
-                {mostrarOpcionales ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </button>
-
-            {mostrarOpcionales && (
-                <div id="solicitud-datos-personales" className="space-y-4">
-                    <DatosPersonalesFields register={register} errors={errors} control={control} />
-                    <div className="w-full space-y-1.5">
-                        <label htmlFor="solicitud-observaciones" className="text-sm font-medium text-muted-foreground ml-0.5">Observaciones</label>
-                        <textarea
-                            id="solicitud-observaciones"
-                            rows={3}
-                            placeholder="Cualquier antecedente útil para administración"
-                            className="flex w-full rounded-xl border border-border bg-card px-4 py-2 text-base text-brand-dark placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 focus-visible:border-brand-primary transition-all resize-none"
-                            {...register('observaciones')}
-                        />
-                    </div>
+            {/* ── Ficha completa, plana (pedido de oficina 2026-09-08): sin barra colapsable, todo visible.
+                Siguen siendo opcionales — oficina completa lo que falte. Subtítulo neutro (DS: sin tinte). ── */}
+            <div id="solicitud-datos-personales" className="space-y-4 pt-2 border-t border-border">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Datos personales</p>
+                <DatosPersonalesFields register={register} errors={errors} control={control} />
+                <div className="w-full space-y-1.5">
+                    <label htmlFor="solicitud-observaciones" className="text-sm font-medium text-muted-foreground ml-0.5">Observaciones</label>
+                    <textarea
+                        id="solicitud-observaciones"
+                        rows={3}
+                        placeholder="Cualquier antecedente útil para administración"
+                        className="flex w-full rounded-xl border border-border bg-card px-4 py-2 text-base text-brand-dark placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 focus-visible:border-brand-primary transition-all resize-none"
+                        {...register('observaciones')}
+                    />
                 </div>
-            )}
+            </div>
 
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-border">
                 <Button type="button" variant="ghost" onClick={onCancel} disabled={loading}>
