@@ -305,7 +305,10 @@ try {
       'rut', 'nombres', 'apellido_paterno', 'apellido_materno',
       'fecha_ingreso', 'fecha_desvinculacion', 'email', 'telefono',
       'cargo_id', 'obra_id', 'empresa_id', 'activo', 'categoria_reporte', 'es_prueba',
-      'licencia_conducir', 'licencia_vencimiento'
+      'licencia_conducir', 'licencia_vencimiento',
+      // Datos personales de la ficha de ingreso digital (mig 108) — editables en WorkerForm.
+      'fecha_nacimiento', 'estado_civil', 'direccion', 'comuna',
+      'afp', 'salud', 'nacionalidad', 'cargas_familiares'
     ],
     testFlagColumn: 'es_prueba',
     // Herencia: un trabajador nuevo asignado a una obra de prueba hereda el flag
@@ -425,6 +428,7 @@ safeRoute('/api/facturas-inventario', './src/routes/facturas-inventario.routes',
 safeRoute('/api/discrepancias', './src/routes/discrepancias.routes', 'Discrepancias');
 safeRoute('/api/bombas-hormigon', './src/routes/bombas-hormigon.routes', 'Bombas Hormigón');
 safeRoute('/api/trabajadores', './src/routes/trabajadores.routes', 'Trabajadores (especializadas)');
+safeRoute('/api/solicitudes-ingreso', './src/routes/solicitudes-ingreso.routes', 'Solicitudes de Ingreso (ficha digital)');
 safeRoute('/api/documentos', './src/routes/documentos.routes', 'Documentos');
 safeRoute('/api/asistencias', './src/routes/asistencias.routes', 'Asistencias');
 safeRoute('/api/sabados-extra', './src/routes/sabados-extra.routes', 'Sábados Extra');

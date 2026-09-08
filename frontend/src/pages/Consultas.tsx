@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     Search,
     Filter,
@@ -6,6 +7,7 @@ import {
     Mail,
     SearchCheck,
     X,
+    ClipboardList,
     Building2,
     CheckSquare,
     UserCheck,
@@ -41,6 +43,9 @@ import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useAuth } from '../context/AuthContext';
 import { FilterPanel } from '../components/consultas/FilterPanel';
 import { CreatePanel } from '../components/consultas/CreatePanel';
+import { SolicitudIngresoForm } from '../components/consultas/SolicitudIngresoForm';
+import { SolicitudesIngresoPanel } from '../components/consultas/SolicitudesIngresoPanel';
+import { useSolicitudesIngreso } from '../hooks/useSolicitudesIngreso';
 
 import {
     useConsultasFilters,
@@ -58,6 +63,12 @@ const formatFechaIngreso = (f?: string | null): string | null => {
 };
 
 const ConsultasPage: React.FC = () => {
+    const { hasPermission } = useAuth();
+    // Ficha de ingreso digital: terreno solicita, oficina aprueba. Consultas es visible
+    // con cualquiera de los tres permisos (ver Sidebar), así que puede no haber grilla.
+    const puedeVerTrabajadores = hasPermission('trabajadores.ver');
+    const verSolicitudes = hasPermission('trabajadores.solicitud.crear') || hasPermission('trabajadores.solicitud.aprobar');
+
     // --- Custom Hooks ---
     // 1. Filtros
     const {
@@ -82,7 +93,7 @@ const ConsultasPage: React.FC = () => {
         workers, loading, performSearch
     } = useConsultasData({
         search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, filterIngresoDesde, filterIngresoHasta
-    });
+    }, puedeVerTrabajadores);
 
     // Etiqueta legible (MM/AAAA) del filtro de aniversario, si está activo.
     const aniversario10mLabel = useMemo(() => {
@@ -142,8 +153,21 @@ const ConsultasPage: React.FC = () => {
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [showCreatePanel, setShowCreatePanel] = useState(false);
     
-    const { hasPermission } = useAuth();
-
+    // ── Solicitudes de ingreso (ficha digital): la pestaña alterna con la grilla ──
+    const [searchParams, setSearchParams] = useSearchParams();
+    const solicitudes = useSolicitudesIngreso();
+    const [solicitudesVersion, setSolicitudesVersion] = useState(0);
+    // Quien solo puede solicitar (terreno) no tiene grilla que ver: cae directo a sus solicitudes.
+    const showSolicitudes = verSolicitudes && (searchParams.get('tab') === 'solicitudes' || !puedeVerTrabajadores);
+    const toggleSolicitudes = useCallback(() => {
+        setShowMobileFilters(false);
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (next.get('tab') === 'solicitudes') next.delete('tab');
+            else next.set('tab', 'solicitudes');
+            return next;
+        });
+    }, [setSearchParams]);
 
     // Modificando Header Global
     const headerTitle = useMemo(() => (
@@ -170,8 +194,34 @@ const ConsultasPage: React.FC = () => {
         <div className="flex items-center gap-1.5 md:gap-2">
             {/* Desktop Desktop Actions */}
             <div className="hidden md:flex items-center gap-2">
-                <Button 
-                    variant={showCreatePanel ? 'primary' : 'outline'} 
+                {/* Solicitudes de ingreso: alterna grilla ↔ lista. Contador ÁMBAR = pendientes (solo con aprobar). */}
+                {verSolicitudes && puedeVerTrabajadores && (
+                    <Button
+                        size="sm"
+                        variant={showSolicitudes ? 'primary' : 'outline'}
+                        onClick={toggleSolicitudes}
+                        title={showSolicitudes ? 'Volver a la búsqueda de trabajadores' : 'Solicitudes de ingreso (ficha digital)'}
+                        leftIcon={<ClipboardList className="h-3.5 w-3.5" />}
+                        className={cn(
+                            "h-9 px-4 rounded-xl font-semibold gap-2 border-border shadow-sm transition-all duration-300",
+                            showSolicitudes
+                                ? "bg-brand-primary text-white border-transparent"
+                                : "bg-card text-brand-dark hover:bg-background"
+                        )}
+                    >
+                        <span>Solicitudes</span>
+                        {solicitudes.pendientes > 0 && (
+                            <span className={cn(
+                                "flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-micro font-bold tabular-nums transition-colors duration-300",
+                                showSolicitudes ? "bg-card text-amber-700 dark:text-amber-300" : "bg-amber-500 text-white"
+                            )}>
+                                {solicitudes.pendientes}
+                            </span>
+                        )}
+                    </Button>
+                )}
+                <Button
+                    variant={showCreatePanel ? 'primary' : 'outline'}
                     size="sm" 
                     onClick={() => {
                         setShowCreatePanel(prev => !prev);
@@ -187,6 +237,8 @@ const ConsultasPage: React.FC = () => {
                 >
                     {showCreatePanel ? 'CERRAR' : 'CREAR'}
                 </Button>
+                {/* Filtros / Exportar / Limpiar son de la grilla: en la pestaña de solicitudes no aplican. */}
+                {!showSolicitudes && (<>
                 <Button
                     size="sm"
                     onClick={() => {
@@ -242,12 +294,32 @@ const ConsultasPage: React.FC = () => {
                         icon={<X className="h-4 w-4" />}
                     />
                 )}
+                </>)}
             </div>
 
             {/* Mobile Actions — icon-buttons del DS: gris idle → verde hover, sin
-                relleno activo. El estado se indica por el icono (Plus rota, Filter↔X)
-                y el badge, no por el color de fondo. */}
+                relleno activo. El estado se indica por el icono (Plus rota, Filter↔X,
+                ClipboardList↔SearchCheck) y el badge, no por el color de fondo. */}
             <div className="lg:hidden flex items-center gap-2">
+                {verSolicitudes && puedeVerTrabajadores && (
+                    <IconButton
+                        variant="ghost"
+                        aria-label={showSolicitudes ? 'Volver a la búsqueda de trabajadores' : 'Solicitudes de ingreso'}
+                        aria-pressed={showSolicitudes}
+                        onClick={toggleSolicitudes}
+                        className="relative rounded-xl border border-border shadow-sm"
+                        icon={<>
+                            {showSolicitudes
+                                ? <SearchCheck className="h-4 w-4 animate-in fade-in zoom-in duration-300" />
+                                : <ClipboardList className="h-4 w-4 animate-in fade-in zoom-in duration-300" />}
+                            {solicitudes.pendientes > 0 && (
+                                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-0.5 items-center justify-center rounded-full text-micro font-bold tabular-nums bg-amber-500 text-white shadow-sm">
+                                    {solicitudes.pendientes}
+                                </span>
+                            )}
+                        </>}
+                    />
+                )}
                 <IconButton
                     variant="ghost"
                     aria-label="Crear"
@@ -255,6 +327,7 @@ const ConsultasPage: React.FC = () => {
                     className="rounded-xl border border-border shadow-sm"
                     icon={<Plus className={cn("h-4 w-4 transition-transform duration-300 ease-out", showCreatePanel ? "rotate-45 scale-110" : "")} />}
                 />
+                {!showSolicitudes && (<>
                 {/* Export Excel — paridad con desktop. Mismo gating de permiso/data. */}
                 <IconButton
                     variant="ghost"
@@ -280,9 +353,11 @@ const ConsultasPage: React.FC = () => {
                         )}
                     </>}
                 />
+                </>)}
             </div>
         </div>
-    ), [workers.length, exporting, activeFilterCount, showMobileFilters, showCreatePanel, exportIds]);
+    ), [workers.length, exporting, activeFilterCount, showMobileFilters, showCreatePanel, exportIds,
+        showSolicitudes, solicitudes.pendientes, verSolicitudes, puedeVerTrabajadores, toggleSolicitudes]);
 
     useSetPageHeader(headerTitle, headerActions);
 
@@ -381,9 +456,17 @@ const ConsultasPage: React.FC = () => {
                 </div>
             )}
 
-            {/* Main Content Area */}
+            {/* Solicitudes de ingreso (ficha digital): reemplaza la grilla con ?tab=solicitudes.
+                Al aprobar una, el trabajador ya existe → recargar la grilla para que aparezca. */}
+            {showSolicitudes ? (
+                <SolicitudesIngresoPanel
+                    refreshKey={solicitudesVersion}
+                    onAprobada={() => performSearch(true)}
+                />
+            ) : (
+            /* Main Content Area */
             <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
-                
+
                 {/* Header Acciones Múltiples */}
                 <div className="h-[60px] border-b border-border bg-card/50 px-3 flex items-center justify-between shrink-0 gap-3">
                     {/* Botón RESULTADOS — estilo igual que pestaña activa de Inventario */}
@@ -651,6 +734,7 @@ const ConsultasPage: React.FC = () => {
                     <span>Actualizado en tiempo real</span>
                 </div>
             </div>
+            )}
 
             {/* Modals */}
             <EnvioEmailModal
@@ -694,6 +778,25 @@ const ConsultasPage: React.FC = () => {
                         onSuccess={() => {
                             setModalType(null);
                             performSearch(true);
+                        }}
+                    />
+                )}
+            </Modal>
+
+            {/* Solicitud de ingreso (ficha digital): terreno la envía, la oficina la revisa en la pestaña Solicitudes */}
+            <Modal
+                isOpen={modalType === 'solicitud'}
+                onClose={() => setModalType(null)}
+                title="Nuevo ingreso · Ficha de solicitud"
+                size="lg"
+            >
+                {modalType === 'solicitud' && (
+                    <SolicitudIngresoForm
+                        onCancel={() => setModalType(null)}
+                        onSuccess={() => {
+                            setModalType(null);
+                            solicitudes.refetch();
+                            setSolicitudesVersion(v => v + 1);
                         }}
                     />
                 )}

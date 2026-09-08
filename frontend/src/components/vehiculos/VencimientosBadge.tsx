@@ -10,6 +10,8 @@ interface Props {
     onClick?: (e: React.MouseEvent) => void;
     /** Texto del tooltip; por defecto un resumen de cuántos son. */
     title?: string;
+    /** aria-label/title de la variante clickeable cuando NO son vencimientos (ej. solicitudes de ingreso). */
+    ariaLabel?: string;
     className?: string;
 }
 
@@ -20,7 +22,7 @@ interface Props {
  *   rojo  = hay algo ya vencido,
  *   ámbar = solo cosas por vencer (≤30 días).
  */
-export const VencimientosBadge: React.FC<Props> = ({ total, vencidos, onClick, title, className }) => {
+export const VencimientosBadge: React.FC<Props> = ({ total, vencidos, onClick, title, ariaLabel, className }) => {
     if (!total) return null;
 
     const label = title ?? (
@@ -38,7 +40,7 @@ export const VencimientosBadge: React.FC<Props> = ({ total, vencidos, onClick, t
 
     return (
         /* eslint-disable-next-line no-restricted-syntax -- abre el panel sin navegar */
-        <button type="button" onClick={onClick} title={`${label} — ver detalle`} aria-label={`Ver vencimientos: ${label}`}
+        <button type="button" onClick={onClick} title={ariaLabel ?? `${label} — ver detalle`} aria-label={ariaLabel ?? `Ver vencimientos: ${label}`}
             className={cn(clases, 'transition-transform hover:scale-110')}>
             {total}
         </button>

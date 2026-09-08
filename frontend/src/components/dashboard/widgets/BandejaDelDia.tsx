@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     Inbox, ClipboardCheck, FileText, Users, FileX, Boxes, ArrowLeftRight,
-    ArrowRight, ChevronDown, ChevronRight, Truck
+    ArrowRight, ChevronDown, ChevronRight, Truck, UserPlus
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { EmptyState } from '../../ui/EmptyState';
@@ -36,6 +36,8 @@ interface Props {
     inventoryItems?: BandejaItem[];
     /** Vencimientos de vehículos (diferidos, gated por vehiculos.ver). Van bajo Asistencia. */
     vehiculoItems?: BandejaItem[];
+    /** Solicitudes de ingreso pendientes (ficha digital; gated por trabajadores.solicitud.aprobar). */
+    solicitudItems?: BandejaItem[];
     onNavigate: (route: string) => void;
 }
 
@@ -90,18 +92,19 @@ const GroupHeader: React.FC<{ collapsed: boolean; icon: React.ElementType; label
         );
     };
 
-const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, inventoryItems = [], vehiculoItems = [], onNavigate }) => {
+const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, inventoryItems = [], vehiculoItems = [], solicitudItems = [], onNavigate }) => {
     // Solo Vehículos arranca abierto (pedido de obra 2026-08-24): es el aviso que
     // se mira primero. El resto se abre al hacer clic. La clave ausente significa
     // "usar el default", así que un grupo nuevo nace cerrado sin tocar nada más.
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
     const estaColapsado = (key: string) => collapsed[key] ?? key !== GRUPO_ABIERTO_POR_DEFECTO;
 
-    const total = tasks.length + (trabajadoresSinDocs > 0 ? 1 : 0) + inventoryItems.length + vehiculoItems.length;
+    const total = tasks.length + (trabajadoresSinDocs > 0 ? 1 : 0) + inventoryItems.length + vehiculoItems.length + solicitudItems.length;
     const criticalCount =
         tasks.filter(t => t.severity === 'critical').length +
         inventoryItems.filter(i => i.severity === 'critical').length +
-        vehiculoItems.filter(i => i.severity === 'critical').length;
+        vehiculoItems.filter(i => i.severity === 'critical').length +
+        solicitudItems.filter(i => i.severity === 'critical').length;
 
     if (total === 0) {
         return (
@@ -199,6 +202,8 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
 
             {/* Orden pedido por obra: Vehículos (desplegado) → Asistencia → el resto. */}
             {renderGrupoExterno('vehiculos', 'Vehículos', Truck, vehiculoItems)}
+            {/* Solicitudes de ingreso (ficha digital): fichas de terreno esperando a la oficina. */}
+            {renderGrupoExterno('solicitudes', 'Solicitudes de ingreso', UserPlus, solicitudItems)}
             {GROUPS.filter(g => g.key === 'asistencia').map(renderGrupoTareas)}
             {GROUPS.filter(g => g.key !== 'asistencia').map(renderGrupoTareas)}
 

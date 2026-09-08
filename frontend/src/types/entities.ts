@@ -84,6 +84,63 @@ export interface Trabajador {
     licencia_conducir?: string | null;
     /** Fecha de vencimiento de la licencia de conducir. */
     licencia_vencimiento?: string | null;
+    // ── Ficha de ingreso digital (mig 108): datos personales opcionales ──
+    // Los llena terreno en la solicitud o la oficina en WorkerForm; todos NULL-ables.
+    fecha_nacimiento?: string | null;
+    estado_civil?: string | null;
+    direccion?: string | null;
+    comuna?: string | null;
+    afp?: string | null;
+    salud?: string | null;
+    nacionalidad?: string | null;
+    cargas_familiares?: number | null;
+}
+
+// ── Solicitudes de ingreso (ficha digital, mig 108) ───────────────────
+
+/** Ciclo de vida de una solicitud: nace pendiente; la oficina la aprueba (crea el trabajador) o la rechaza con motivo. */
+export type SolicitudIngresoEstado = 'pendiente' | 'aprobada' | 'rechazada';
+
+/**
+ * Fila de `solicitudes_ingreso` tal como la entrega GET /solicitudes-ingreso
+ * (con los *_nombre resueltos por LEFT JOIN). `empresa_id` la pone la OFICINA
+ * al aprobar — terreno no la llena.
+ */
+export interface SolicitudIngreso {
+    id: number;
+    estado: SolicitudIngresoEstado;
+    rut: string;
+    nombres: string;
+    apellido_paterno: string;
+    apellido_materno: string | null;
+    cargo_id: number | null;
+    cargo_nombre?: string | null;
+    obra_id: number | null;
+    obra_nombre?: string | null;
+    empresa_id: number | null;
+    empresa_nombre?: string | null;
+    fecha_ingreso: string;
+    fecha_nacimiento: string | null;
+    estado_civil: string | null;
+    direccion: string | null;
+    comuna: string | null;
+    afp: string | null;
+    salud: string | null;
+    nacionalidad: string | null;
+    telefono: string | null;
+    cargas_familiares: number | null;
+    observaciones: string | null;
+    solicitante_id: number;
+    solicitante_nombre?: string | null;
+    fecha_solicitud: string;
+    resuelto_por: number | null;
+    resuelto_por_nombre?: string | null;
+    fecha_resolucion: string | null;
+    motivo_rechazo: string | null;
+    /** Trabajador creado al aprobar (null mientras está pendiente o si fue rechazada). */
+    trabajador_id: number | null;
+    created_at?: string;
+    updated_at?: string;
 }
 
 // ── Módulo Vehículos ──────────────────────────────────────────────────

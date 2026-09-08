@@ -16,6 +16,7 @@ import { Button } from '../components/ui/Button';
 import VehicleExpiries from '../components/dashboard/widgets/VehicleExpiries';
 import BandejaDelDia, { type PendingTask, type BandejaItem } from '../components/dashboard/widgets/BandejaDelDia';
 import { useVencimientosVehiculos } from '../hooks/useVencimientosVehiculos';
+import { useSolicitudesIngreso } from '../hooks/useSolicitudesIngreso';
 import { textoVencimiento, etiquetaVencimiento } from '../utils/vencimientos';
 import type { DashboardAlerta } from '../hooks/inventario/useDashboardEjecutivo';
 import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
@@ -106,6 +107,21 @@ const Dashboard: React.FC = () => {
 
     const permisos = user?.permisos ?? [];
     const canInventario = permisos.includes('inventario.ver');
+
+    // Solicitudes de ingreso pendientes (ficha digital): mismo store que el badge de
+    // Consultas. Una sola fila-resumen, solo para quien aprueba y solo si hay algo.
+    const solicitudes = useSolicitudesIngreso();
+    const canAprobarSolicitudes = permisos.includes('trabajadores.solicitud.aprobar');
+    const solicitudItems = useMemo((): BandejaItem[] => {
+        const n = solicitudes.pendientes;
+        if (!canAprobarSolicitudes || n <= 0) return [];
+        return [{
+            severity: 'warning',
+            title: `${n} solicitud${n === 1 ? '' : 'es'} de ingreso pendiente${n === 1 ? '' : 's'}`,
+            description: 'Fichas de terreno por revisar: aprobar crea al trabajador',
+            ruta: '/consultas?tab=solicitudes',
+        }];
+    }, [canAprobarSolicitudes, solicitudes.pendientes]);
     const { visibleWidgets } = useDashboardLayout(user?.id ?? 0, permisos);
 
     // Widgets que el usuario puede ver (gating por permiso granular). El layout es
@@ -245,6 +261,7 @@ const Dashboard: React.FC = () => {
                             trabajadoresSinDocs={data.counters.trabajadoresSinDocs}
                             inventoryItems={invItems}
                             vehiculoItems={vehiculoItems}
+                            solicitudItems={solicitudItems}
                             onNavigate={(route) => navigate(route)}
                         />
                         : <SkeletonText lines={6} />}

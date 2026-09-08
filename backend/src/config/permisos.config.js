@@ -34,6 +34,9 @@ const MAESTRO_PERMISOS = [
     ['trabajadores.depurar',        'Trabajadores', 'Depurar Trabajador',        'Eliminar permanentemente trabajadores finiquitados', 6],
     ['trabajadores.financiero.ver', 'Trabajadores', '$ Ver Datos Financieros',   'Trabajadores → Ficha del Trabajador: si está denegado, oculta la sección de sueldo base, anticipos y descuentos. (Campos en desarrollo — aún no implementados en la UI.)', 7],
     ['trabajadores.financiero.editar','Trabajadores','$ Editar Datos Financieros','Trabajadores → Ficha del Trabajador: si está denegado, los campos de sueldo, anticipos y descuentos aparecen como solo lectura. Requiere también "Ver Datos Financieros". (Campos en desarrollo.)', 8],
+    // Ficha de ingreso digital (mig 108): terreno solicita, oficina aprueba.
+    ['trabajadores.solicitud.crear',  'Trabajadores', 'Solicitar Ingreso de Trabajador',          'Consultas → botón "Nuevo ingreso": permite llenar la ficha de ingreso digital (solicitud) de un trabajador nuevo SIN necesidad de "Crear Trabajador". La solicitud queda pendiente hasta que oficina la apruebe. Pensado para supervisores / prevencionistas en terreno.', 9],
+    ['trabajadores.solicitud.aprobar','Trabajadores', 'Aprobar / Rechazar Solicitudes de Ingreso', 'Consultas → Solicitudes: permite revisar las fichas de ingreso pendientes, corregirlas, asignar la empresa y aprobarlas (crea el trabajador) o rechazarlas con motivo. Habilita el contador de pendientes en el menú.', 10],
 
     // DOCUMENTOS
     ['documentos.ver',              'Documentos', 'Ver Documentos',              'Ver la documentación de los trabajadores', 1],

@@ -202,6 +202,9 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'trabajadores.depurar':                    { seccion: 'configuracion', subseccion: 'Trabajadores', verbo: 'eliminar', sensible: 'critico' },
     'trabajadores.financiero.ver':             { seccion: 'configuracion', subseccion: 'Trabajadores', verbo: 'ver',    sensible: 'financiero' },
     'trabajadores.financiero.editar':          { seccion: 'configuracion', subseccion: 'Trabajadores', verbo: 'editar', sensible: 'financiero' },
+    // Ficha de ingreso digital (mig 108): terreno solicita, oficina aprueba/rechaza.
+    'trabajadores.solicitud.crear':            { seccion: 'configuracion', subseccion: 'Trabajadores', verbo: 'crear' },
+    'trabajadores.solicitud.aprobar':          { seccion: 'configuracion', subseccion: 'Trabajadores', verbo: 'editar' },
 
     // Empresas
     'empresas.ver':                            { seccion: 'configuracion', subseccion: 'Empresas', verbo: 'ver' },

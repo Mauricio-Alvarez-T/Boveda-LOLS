@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 
 interface CreatePanelProps {
     hasPermission: (perm: string) => boolean;
-    setModalType: (type: 'form' | 'empresa' | 'obra' | 'cargo' | 'tipodoc' | null) => void;
+    setModalType: (type: 'form' | 'empresa' | 'obra' | 'cargo' | 'tipodoc' | 'solicitud' | null) => void;
     setSelectedWorkerForAction: (worker: any) => void;
 }
 
@@ -18,10 +18,16 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
     setModalType,
     setSelectedWorkerForAction
 }) => {
-    const items: { perm: string; label: string; icon: React.ElementType; onClick: () => void }[] = [
+    const items: { perm: string; label: string; icon: React.ElementType; onClick: () => void; title?: string }[] = [
         {
             perm: 'trabajadores.crear', label: 'Trabajador', icon: UserPlus,
             onClick: () => { setSelectedWorkerForAction(null); setModalType('form'); }
+        },
+        {
+            // Ficha de ingreso digital: terreno SOLICITA (sin empresa); la oficina aprueba y crea.
+            perm: 'trabajadores.solicitud.crear', label: 'Nuevo ingreso', icon: UserPlus,
+            title: 'Solicitar ingreso de trabajador (ficha digital)',
+            onClick: () => setModalType('solicitud')
         },
         {
             perm: 'empresas.crear', label: 'Empresa', icon: Building2,
@@ -53,7 +59,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={item.onClick}
-                        title={`Nuevo ${item.label}`}
+                        title={item.title ?? `Nuevo ${item.label}`}
                         leftIcon={<Icon className="h-4 w-4 shrink-0" />}
                         className="shrink-0 whitespace-nowrap uppercase tracking-[0.12em] text-caption font-black text-muted-foreground hover:text-brand-primary"
                     >

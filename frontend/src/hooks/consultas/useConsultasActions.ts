@@ -3,7 +3,7 @@ import api from '../../services/api';
 import { toast } from 'sonner';
 import type { Trabajador } from '../../types/entities';
 
-export type ModalType = 'form' | 'finiquito' | 'empresa' | 'obra' | 'cargo' | 'tipodoc' | 'depurar' | null;
+export type ModalType = 'form' | 'finiquito' | 'empresa' | 'obra' | 'cargo' | 'tipodoc' | 'depurar' | 'solicitud' | null;
 
 export const useConsultasActions = (onRefreshList: () => void) => {
     const [modalType, setModalType] = useState<ModalType>(null);

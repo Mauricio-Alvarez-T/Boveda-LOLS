@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail, Download, ArrowLeft, FilePlus, Save, Eye, CalendarCheck, CalendarOff, CalendarClock, AlertTriangle } from 'lucide-react';
+import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail, Download, ArrowLeft, FilePlus, Save, Eye, CalendarCheck, CalendarOff, CalendarClock, AlertTriangle, IdCard } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import { fmtFecha } from '../../utils/format';
+import { listarDatosPersonales } from '../consultas/solicitudIngresoSchema';
 import { IconButton } from '../ui/IconButton';
 import { cn } from '../../utils/cn';
 import { WorkerCalendarModal } from '../attendance/WorkerCalendarModal';
@@ -34,6 +35,15 @@ interface WorkerData {
     fecha_desvinculacion: string | null;
     categoria_reporte: string;
     activo: boolean;
+    // Datos personales (ficha de ingreso digital, mig 108) — opcionales, solo lectura acá.
+    fecha_nacimiento?: string | null;
+    estado_civil?: string | null;
+    direccion?: string | null;
+    comuna?: string | null;
+    afp?: string | null;
+    salud?: string | null;
+    nacionalidad?: string | null;
+    cargas_familiares?: number | null;
 }
 
 /** GET /trabajadores/:id/resumen — stats de contrato/asistencia para la ficha. */
@@ -171,6 +181,8 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     const completedDocs = docs.filter((d: any) => d.activo !== false).length;
     const docPct = totalRequired > 0 ? Math.round((completedDocs / totalRequired) * 100) : 0;
     const initials = worker ? `${(worker.apellido_paterno || '')[0]}${worker.nombres[0]}` : '';
+    // Solo los datos personales que existen (el teléfono ya se muestra en Contacto).
+    const datosPersonales = listarDatosPersonales(worker).filter(d => d.key !== 'telefono');
 
     const handleCalendarSelectRange = (start: string, end: string) => {
         setPeriodSelection({ start, end });
@@ -296,6 +308,29 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                     <span className="text-sm text-brand-dark truncate">{worker.email}</span>
                                                 </a>
                                             )}
+                                        </div>
+                                    )}
+
+                                    {/* ── Datos personales (ficha de ingreso digital) — solo lectura; se editan en WorkerForm ── */}
+                                    {datosPersonales.length > 0 && (
+                                        <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                                            <p className="text-caption font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
+                                                <IdCard className="h-3.5 w-3.5" /> Datos personales
+                                            </p>
+                                            <dl className="grid grid-cols-2 gap-2">
+                                                {datosPersonales.map(d => (
+                                                    <div
+                                                        key={d.key}
+                                                        className={cn(
+                                                            'rounded-xl bg-background border border-border px-3 py-2 min-w-0',
+                                                            d.key === 'direccion' && 'col-span-2'
+                                                        )}
+                                                    >
+                                                        <dt className="text-micro text-muted-foreground uppercase font-bold tracking-wide">{d.label}</dt>
+                                                        <dd className="text-sm font-bold text-brand-dark mt-0.5 break-words">{d.value}</dd>
+                                                    </div>
+                                                ))}
+                                            </dl>
                                         </div>
                                     )}
 

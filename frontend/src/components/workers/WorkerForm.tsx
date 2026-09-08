@@ -15,8 +15,14 @@ import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import api from '../../services/api';
 import type { Trabajador, Empresa, Obra, Cargo } from '../../types/entities';
 import type { ApiResponse } from '../../types';
+import { DatosPersonalesFields } from './DatosPersonalesFields';
+import {
+    datosPersonalesSchema, datosPersonalesDefaults, normalizarDatosPersonales,
+} from '../consultas/solicitudIngresoSchema';
 
-const workerSchema = z.object({
+// Extiende los "Datos personales" de la ficha de ingreso digital (mig 108): los
+// mismos 8 opcionales que llena terreno en la solicitud viven en la ficha del trabajador.
+const workerSchema = datosPersonalesSchema.extend({
     rut: z.string().min(1, 'El RUT es requerido').refine(validateRut, 'RUT inválido'),
     nombres: z.string().min(2, 'Suelen ser al menos 2 caracteres'),
     apellido_paterno: z.string().min(2, 'Requerido'),
@@ -97,6 +103,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
     } = useForm<WorkerFormData>({
         resolver: zodResolver(workerSchema) as any,
         defaultValues: initialData ? {
+            ...datosPersonalesDefaults(initialData),
             rut: initialData.rut,
             nombres: initialData.nombres,
             apellido_paterno: initialData.apellido_paterno,
@@ -114,6 +121,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
         } : {
             // Defaults explícitos para trabajador nuevo: garantizan que la validación
             // dispare el mensaje en español del schema (no el genérico "Invalid input").
+            ...datosPersonalesDefaults(null),
             rut: '',
             nombres: '',
             apellido_paterno: '',
@@ -164,12 +172,14 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
             return;
         }
         setLoading(true);
+        // Datos personales: '' → null y cargas a número (la API no quiere strings vacíos).
+        const payload = { ...data, ...normalizarDatosPersonales(data) };
         try {
             if (initialData) {
-                await api.put(`/trabajadores/${initialData.id}`, data);
+                await api.put(`/trabajadores/${initialData.id}`, payload);
                 toast.success('Trabajador actualizado con éxito');
             } else {
-                await api.post('/trabajadores', data);
+                await api.post('/trabajadores', payload);
                 toast.success('Trabajador registrado con éxito');
             }
             onSuccess();
@@ -355,6 +365,12 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                     {...register('licencia_vencimiento')}
                 />
             </div>
+
+            {/* Datos personales (ficha de ingreso digital, mig 108) — mismos controles que la
+                solicitud de terreno. Teléfono ya está arriba, por eso incluirTelefono=false. */}
+            <div className="h-px bg-white/5 my-1" />
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Datos personales</p>
+            <DatosPersonalesFields register={register} errors={errors} incluirTelefono={false} />
 
             <div className="py-1">
                 <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-3">

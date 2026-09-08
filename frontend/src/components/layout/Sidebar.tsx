@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
     Users,
@@ -21,6 +21,7 @@ import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 import { Logo } from '../ui/Logo';
 import { useVencimientosVehiculos } from '../../hooks/useVencimientosVehiculos';
+import { useSolicitudesIngreso } from '../../hooks/useSolicitudesIngreso';
 import { VencimientosPanel } from '../vehiculos/VencimientosPanel';
 import { VencimientosBadge } from '../vehiculos/VencimientosBadge';
 import { ThemeToggle } from '../ui/ThemeToggle';
@@ -36,10 +37,14 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen }) => {
     const { user, logout, hasPermission } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
     // Contador de vencimientos del módulo Vehículos: número en el menú + panel al
     // hacer clic. Reemplaza al aviso por correo de los documentos.
     const vencimientos = useVencimientosVehiculos();
     const [showVencimientos, setShowVencimientos] = React.useState(false);
+    // Solicitudes de ingreso pendientes (ficha digital): número en Consultas; el clic
+    // lleva a la pestaña de solicitudes. Solo cuenta para quien puede aprobar.
+    const solicitudes = useSolicitudesIngreso();
 
     // Auto-close mobile drawer on route change
     React.useEffect(() => {
@@ -48,10 +53,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
 
     const menuItems: {
         icon: React.ElementType; label: string; path: string; visible: boolean;
-        /** Contador opcional (hoy solo Vehículos). 0 o undefined = no se muestra. */
+        /** Contador opcional (Vehículos: vencimientos; Consultas: solicitudes de ingreso). 0 o undefined = no se muestra. */
         badge?: number;
-        /** true = hay algo vencido → rojo; false = solo por vencer → ámbar. */
+        /** true = hay algo vencido → rojo; false = pendiente/por vencer → ámbar. */
         badgeUrgente?: boolean;
+        /** Tooltip del contador; sin él, VencimientosBadge arma el suyo ("N por vencer"). */
+        badgeTitle?: string;
+        /** aria-label del botón del contador; sin él VencimientosBadge anuncia "Ver vencimientos: …". */
+        badgeAriaLabel?: string;
+        /** Qué hace el clic en el NÚMERO (menú expandido). Sin él abre el panel de vencimientos. */
+        onBadgeClick?: (e: React.MouseEvent) => void;
     }[] = [
         { icon: LayoutDashboard, label: 'Inicio', path: '/', visible: true },
         {
@@ -64,7 +75,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             icon: SearchCheck,
             label: 'Consultas',
             path: '/consultas',
+            // También para quien solo participa de la ficha de ingreso digital (terreno u oficina).
             visible: hasPermission('trabajadores.ver')
+                || hasPermission('trabajadores.solicitud.crear')
+                || hasPermission('trabajadores.solicitud.aprobar'),
+            // Pendiente = ÁMBAR (por hacer, no es error). El store ya devuelve 0 sin permiso de aprobar.
+            badge: solicitudes.pendientes,
+            badgeUrgente: false,
+            badgeTitle: `${solicitudes.pendientes} solicitud${solicitudes.pendientes === 1 ? '' : 'es'} de ingreso pendiente${solicitudes.pendientes === 1 ? '' : 's'}`,
+            badgeAriaLabel: 'Ver solicitudes de ingreso pendientes',
+            onBadgeClick: () => { setMobileOpen(false); navigate('/consultas?tab=solicitudes'); },
         },
         {
             icon: Package,
@@ -151,20 +171,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                                 {item.label}
                             </motion.span>
                         )}
-                        {/* Contador de vencimientos: se hace clic en el NÚMERO (no navega)
-                            para abrir el panel con el detalle. Menú colapsado: solo el número
-                            sobre el ícono, y el clic navega como cualquier otro item. */}
+                        {/* Contador: se hace clic en el NÚMERO (no en el item) y ejecuta
+                            `onBadgeClick` si el item lo define (Consultas → pestaña de
+                            solicitudes); si no, abre el panel de vencimientos (Vehículos).
+                            Menú colapsado: solo el número sobre el ícono, y el clic navega
+                            como cualquier otro item. */}
                         {!!item.badge && (
                             (isMobile || !isCollapsed) ? (
                                 <VencimientosBadge
                                     total={item.badge}
                                     vencidos={item.badgeUrgente ? 1 : 0}
-                                    onClick={e => { e.preventDefault(); e.stopPropagation(); setShowVencimientos(true); }}
+                                    title={item.badgeTitle}
+                                    ariaLabel={item.badgeAriaLabel}
+                                    onClick={e => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (item.onBadgeClick) item.onBadgeClick(e);
+                                        else setShowVencimientos(true);
+                                    }}
                                     className="ml-auto"
                                 />
                             ) : (
                                 <VencimientosBadge total={item.badge} vencidos={item.badgeUrgente ? 1 : 0}
-                                    className="absolute top-1 right-1" />
+                                    title={item.badgeTitle} className="absolute top-1 right-1" />
                             )
                         )}
                     </NavLink>

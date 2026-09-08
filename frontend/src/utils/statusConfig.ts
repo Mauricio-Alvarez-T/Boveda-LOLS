@@ -19,6 +19,7 @@ import {
     Clock, CheckCircle2, Truck, PackageOpen, PackageCheck, XCircle, Ban,
     ArrowUp, ArrowDown,
 } from 'lucide-react';
+import type { SolicitudIngresoEstado } from '../types/entities';
 
 export interface StatusConfigEntry {
     label: string;
@@ -138,6 +139,15 @@ export const sabadoEstadoConfig: StatusMap<SabadoEstado> = {
     cancelada: { label: 'Cancelada', classes: NEUTRAL, icon: Ban },
 };
 
+/* ── Solicitud de ingreso (ficha digital, mig 108): estado ──────────── */
+// Color = significado (DS): pendiente = ÁMBAR (por hacer, no es un error),
+// aprobada = verde (éxito), rechazada = rojo (terminal/negativo).
+export const solicitudIngresoEstadoConfig: StatusMap<SolicitudIngresoEstado> = {
+    pendiente: { label: 'Pendiente', classes: AMBER, icon: Clock,        borderLeft: 'border-l-amber-400' },
+    aprobada:  { label: 'Aprobada',  classes: GREEN, icon: CheckCircle2, borderLeft: 'border-l-green-500' },
+    rechazada: { label: 'Rechazada', classes: RED,   icon: XCircle,      borderLeft: 'border-l-red-400' },
+};
+
 /* ── Registro por dominio (para <StatusBadge domain=... />) ─────────── */
 export const statusDomains = {
     transferencia: transferenciaEstadoConfig,
@@ -149,6 +159,7 @@ export const statusDomains = {
     obra: obraEstadoConfig,
     vehiculoRevision: vehiculoRevisionConfig,
     sabadoEstado: sabadoEstadoConfig,
+    solicitudIngresoEstado: solicitudIngresoEstadoConfig,
 } as const;
 
 export type StatusDomain = keyof typeof statusDomains;

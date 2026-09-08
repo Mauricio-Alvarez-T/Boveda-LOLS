@@ -36,7 +36,11 @@ const LABEL_MAP = {
     fecha: 'Fecha', monto: 'Monto', patente: 'Patente', marca: 'Marca', modelo: 'Modelo',
     // Facturas de inventario.
     numero_factura: 'N° factura', proveedor: 'Proveedor', fecha_factura: 'Fecha factura',
-    monto_neto: 'Monto neto', precio_unitario: 'Precio unitario', bodega_id: 'Bodega'
+    monto_neto: 'Monto neto', precio_unitario: 'Precio unitario', bodega_id: 'Bodega',
+    // Ficha de ingreso digital (mig 108): datos personales del trabajador.
+    fecha_nacimiento: 'F. Nacimiento', estado_civil: 'Estado civil', comuna: 'Comuna',
+    afp: 'AFP', salud: 'Salud', nacionalidad: 'Nacionalidad', cargas_familiares: 'Cargas familiares',
+    observaciones: 'Observaciones', motivo_rechazo: 'Motivo rechazo'
 };
 
 // Acciones consideradas "ruido" cuando el usuario sólo quiere ver cambios
@@ -59,7 +63,24 @@ const ACCIONES_VISIBLES = ['CREATE', 'UPDATE', 'DELETE', 'UPLOAD', 'EMAIL'];
  * se construye `SELECT ${labelExpr} AS label FROM ${tabla} WHERE id = ?`.
  * `bodyKeys` es la lista priorizada de campos a probar en CREATE.
  */
+
+// Ficha de ingreso digital (mig 108). Se registra bajo DOS claves con el mismo
+// resolver: el activityLogger deriva el módulo del path
+// (`/api/solicitudes-ingreso/...`) y el log manual del service (aprobar) usa
+// el nombre de la tabla (`solicitudes_ingreso`).
+const SOLICITUD_INGRESO_RESOLVER = {
+    tipo: 'solicitud_ingreso',
+    tabla: 'solicitudes_ingreso',
+    labelExpr: "CONCAT(nombres, ' ', apellido_paterno, ' (', rut, ')')",
+    bodyKeys: [
+        (b) => (b.nombres && b.apellido_paterno) ? `${b.nombres} ${b.apellido_paterno}` : null,
+        'rut',
+    ],
+};
+
 const ENTIDAD_RESOLVERS = {
+    'solicitudes-ingreso': SOLICITUD_INGRESO_RESOLVER,
+    solicitudes_ingreso: SOLICITUD_INGRESO_RESOLVER,
     trabajadores: {
         tipo: 'trabajador',
         tabla: 'trabajadores',

@@ -183,31 +183,30 @@ const createCrudService = (tableName, options = {}) => {
                 );
                 return { id: result.insertId, ...data };
             } catch (err) {
-                // If it's a duplicate entry error (ER_DUP_ENTRY)
-                if (err.errno === 1062 || err.code === 'ER_DUP_ENTRY') {
+                // If it's a duplicate entry error (ER_DUP_ENTRY): "reciclar" la fila
+                // INACTIVA homónima (catálogos con UNIQUE(nombre)/UNIQUE(razon_social)).
+                //
+                // BLINDAJE (ficha de ingreso, 2026-09): SOLO si hay campo de búsqueda.
+                // Sin `nombre`/`razon_social` (caso `trabajadores`, cuya UNIQUE es el
+                // RUT) el reciclaje degeneraba en `DELETE FROM trabajadores WHERE
+                // activo = 0` — borraba EN DURO a TODOS los finiquitados para
+                // reintentar el INSERT. Ahora el ER_DUP_ENTRY sigue al errorHandler
+                // → 409 limpio ("El registro ya existe").
+                const searchField = data.nombre ? 'nombre' : (data.razon_social ? 'razon_social' : null);
+                if (searchField && (err.errno === 1062 || err.code === 'ER_DUP_ENTRY')) {
                     // Determine which inactive column exists in this table
                     const [cols] = await db.query(`SHOW COLUMNS FROM ${tableName} WHERE Field IN ('activo', 'activa')`);
                     const inactiveCol = cols.length > 0 ? cols[0].Field : null;
 
                     if (inactiveCol) {
-                        const searchField = data.nombre ? 'nombre' : (data.razon_social ? 'razon_social' : null);
-                        let inactiveQuery = `SELECT id FROM ${tableName} WHERE ${inactiveCol} = 0`;
-                        let queryParams = [];
-
-                        if (searchField) {
-                            inactiveQuery += ` AND ${searchField} = ?`;
-                            queryParams.push(data[searchField]);
-                        }
-                        inactiveQuery += ` LIMIT 1`;
-
-                        const [inactive] = await db.query(inactiveQuery, queryParams);
+                        const queryParams = [data[searchField]];
+                        const [inactive] = await db.query(
+                            `SELECT id FROM ${tableName} WHERE ${inactiveCol} = 0 AND ${searchField} = ? LIMIT 1`,
+                            queryParams
+                        );
 
                         if (inactive.length > 0) {
-                            if (searchField) {
-                                await db.query(`DELETE FROM ${tableName} WHERE ${inactiveCol} = 0 AND ${searchField} = ?`, queryParams);
-                            } else {
-                                await db.query(`DELETE FROM ${tableName} WHERE ${inactiveCol} = 0`);
-                            }
+                            await db.query(`DELETE FROM ${tableName} WHERE ${inactiveCol} = 0 AND ${searchField} = ?`, queryParams);
 
                             const [retryResult] = await db.query(
                                 `INSERT INTO ${tableName} (${fields.join(', ')}) VALUES (${placeholders})`,

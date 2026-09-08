@@ -23,7 +23,11 @@ export interface FetchWorkersParams {
     filterIngresoHasta: string;
 }
 
-export const useConsultasData = (filters: FetchWorkersParams) => {
+/**
+ * @param enabled false = no consultar la grilla (usuario sin `trabajadores.ver`, p. ej.
+ *   terreno que solo llega a Consultas por la ficha de ingreso digital): evita el 403 + toast.
+ */
+export const useConsultasData = (filters: FetchWorkersParams, enabled: boolean = true) => {
     // Catálogos
     const [empresas, setEmpresas] = useState<{value: string | number; label: string}[]>([]);
     const [obras, setObras] = useState<{value: string | number; label: string}[]>([]);
@@ -61,6 +65,7 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
         isInitial: boolean = false,
         onSuccessInitial?: () => void
     ) => {
+        if (!enabled) return;
         // Cancelar la petición anterior en vuelo y abrir una nueva.
         abortRef.current?.abort();
         const controller = new AbortController();
@@ -116,7 +121,7 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
                 fetchingRef.current = false;
             }
         }
-    }, [filters, page]);
+    }, [filters, page, enabled]);
 
 
     const loadMore = useCallback(() => {
