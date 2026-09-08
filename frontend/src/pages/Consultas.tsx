@@ -793,11 +793,13 @@ const ConsultasPage: React.FC = () => {
                 {modalType === 'solicitud' && (
                     <SolicitudIngresoForm
                         onCancel={() => setModalType(null)}
-                        onSuccess={() => {
-                            setModalType(null);
+                        onEnviada={() => {
+                            // La solicitud ya existe: refrescar badge y lista aunque el usuario
+                            // cierre el modal con la X en vez de "Cerrar".
                             solicitudes.refetch();
                             setSolicitudesVersion(v => v + 1);
                         }}
+                        onClose={() => setModalType(null)}
                     />
                 )}
             </Modal>

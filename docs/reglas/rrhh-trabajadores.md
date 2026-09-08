@@ -140,6 +140,20 @@ corriente. Validación de forma en `backend/src/schemas/solicitudesIngreso.schem
 reglas de negocio en `services/solicitudIngreso.service.js` (`_normalizarFicha`: DV del RUT, trims,
 `''` → `NULL`, `formatRut` antes de guardar). Los opcionales viajan como `null` cuando van vacíos.
 
+**Catálogos de datos personales (2026-09-08).** `comuna`, `afp` y `salud` se llenan por dropdown en
+los tres formularios (`DatosPersonalesFields`): comuna = **solo Región Metropolitana** (52, con
+buscador), AFP = las 7 vigentes, salud = **FONASA + cada isapre**. Listas en
+`frontend/src/config/catalogosPersonales.ts`. El backend **no** valida enum a propósito: una ficha o
+trabajador guardado antes con texto libre se conserva y el select lo muestra como opción extra
+(`toSelectOptions`) para no perderlo al re-guardar.
+
+**Aviso WhatsApp tras enviar (2026-09-08).** Al crear la solicitud, el modal pasa a una pantalla de
+confirmación (resumen: trabajador, RUT, obra, cargo, fecha) con botón **"Enviar por WhatsApp"**:
+mensaje puro (`solicitudIngresoWhatsApp.ts`) con nombre, obra, fecha de contratación
+(dd-mm-aaaa) y solicitante; envío con `utils/whatsappShare.ts` (copia al portapapeles + abre
+WhatsApp). Sin permiso adicional: quien puede solicitar puede avisar (no lleva datos sensibles).
+Badge y lista se refrescan apenas el POST responde, aunque se cierre con la X.
+
 ### Estados
 
 `pendiente` (default) → `aprobada` | `rechazada`. Ambos finales: aprobar o rechazar una solicitud

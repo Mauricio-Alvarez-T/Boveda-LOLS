@@ -330,7 +330,7 @@ const FormRevision: React.FC<{ s: SolicitudIngreso; onResuelta: (a: SolicitudAcc
 
                     {/* ── Datos personales (opcionales; quedan en la ficha del trabajador) ── */}
                     <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Datos personales</p>
-                    <DatosPersonalesFields register={register} errors={errors} />
+                    <DatosPersonalesFields register={register} errors={errors} control={control} />
                     <div className="w-full space-y-1.5">
                         <label htmlFor="revisar-observaciones" className="text-sm font-medium text-muted-foreground ml-0.5">Observaciones</label>
                         <textarea

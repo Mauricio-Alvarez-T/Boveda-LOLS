@@ -7,7 +7,7 @@ import { Loader2, AlertTriangle, CheckCircle2, Send, ChevronDown, ChevronRight }
 import { formatRut, validateRut } from '../../utils/rut';
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
-import type { Obra, Cargo } from '../../types/entities';
+import type { Obra, Cargo, SolicitudIngreso } from '../../types/entities';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import type { SelectOption } from '../ui/Select';
@@ -15,6 +15,9 @@ import { Button } from '../ui/Button';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import { showApiError } from '../../utils/toastUtils';
 import { DatosPersonalesFields } from '../workers/DatosPersonalesFields';
+import WhatsAppIcon from '../ui/WhatsAppIcon';
+import { copyAndShare } from '../../utils/whatsappShare';
+import { buildSolicitudIngresoMessage, fechaContratacion, nombreCompletoSolicitud } from './solicitudIngresoWhatsApp';
 import {
     solicitudIngresoSchema, buildSolicitudPayload, datosPersonalesDefaults,
     avisoRutExiste, AVISO_SOLICITUD_PENDIENTE,
@@ -31,7 +34,10 @@ export interface CheckRutResponse {
 type RutStatus = 'idle' | 'checking' | 'existe' | 'pendiente' | 'disponible';
 
 interface Props {
-    onSuccess: () => void;
+    /** Se llama apenas el POST responde OK (el padre refresca badge y lista). El modal sigue abierto. */
+    onEnviada: (solicitud: SolicitudIngreso) => void;
+    /** Botón "Cerrar" de la pantalla de confirmación. */
+    onClose: () => void;
     onCancel: () => void;
 }
 
@@ -44,8 +50,10 @@ interface Props {
  * pendientes. Si choca, aviso ámbar y el envío queda bloqueado.
  * Sin campo Empresa: la asigna administración al aprobar.
  */
-export const SolicitudIngresoForm: React.FC<Props> = ({ onSuccess, onCancel }) => {
+export const SolicitudIngresoForm: React.FC<Props> = ({ onEnviada, onClose, onCancel }) => {
     const [loading, setLoading] = useState(false);
+    // Solicitud ya creada → el modal pasa a la pantalla de confirmación (resumen + WhatsApp).
+    const [enviada, setEnviada] = useState<SolicitudIngreso | null>(null);
     const [initializing, setInitializing] = useState(true);
     // Los catálogos dependen de obras.ver / cargos.ver (rutas CRUD): un rol que solo
     // tenga solicitud.crear recibe 403 → aviso explícito en vez de selects vacíos.
@@ -113,7 +121,17 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onSuccess, onCancel }) =
         },
     });
 
-    useFormDirtyProtection(isDirty);
+    // Una vez enviada, ya no hay nada que perder: no bloquear el cierre.
+    useFormDirtyProtection(isDirty && !enviada);
+
+    const handleWhatsApp = async () => {
+        if (!enviada) return;
+        // Dentro del click (gesto de usuario) para que window.open no sea bloqueado.
+        const { copied, opened } = await copyAndShare(buildSolicitudIngresoMessage(enviada), 'Solicitud de ingreso');
+        if (opened) toast.success('WhatsApp abierto', { description: copied ? 'El mensaje también quedó en tu portapapeles.' : undefined });
+        else if (copied) toast.info('Mensaje copiado al portapapeles');
+        else toast.error('No se pudo abrir WhatsApp ni copiar el mensaje');
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -143,9 +161,9 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onSuccess, onCancel }) =
         if (bloqueado) return;
         setLoading(true);
         try {
-            await api.post('/solicitudes-ingreso', buildSolicitudPayload(data));
-            toast.success('Solicitud enviada a administración');
-            onSuccess();
+            const res = await api.post<ApiResponse<SolicitudIngreso>>('/solicitudes-ingreso', buildSolicitudPayload(data));
+            setEnviada(res.data.data);
+            onEnviada(res.data.data);
         } catch (err) {
             // 409 = RUT ya existe / solicitud pendiente (el backend re-valida); 400 = ficha inválida.
             showApiError(err, 'No se pudo enviar la solicitud');
@@ -153,6 +171,45 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onSuccess, onCancel }) =
             setLoading(false);
         }
     };
+
+    if (enviada) {
+        const resumen: [string, string][] = [
+            ['Trabajador', nombreCompletoSolicitud(enviada)],
+            ['RUT', enviada.rut],
+            ['Obra', enviada.obra_nombre || '—'],
+            ['Cargo', enviada.cargo_nombre || '—'],
+            ['Fecha de ingreso', fechaContratacion(enviada.fecha_ingreso) || '—'],
+        ];
+        return (
+            <div className="space-y-6" role="status">
+                <div className="flex flex-col items-center text-center pt-2">
+                    <div className="h-12 w-12 rounded-full bg-success/10 text-success flex items-center justify-center">
+                        <CheckCircle2 className="h-7 w-7" />
+                    </div>
+                    <h3 className="mt-3 text-lg font-semibold text-foreground">Solicitud enviada a administración</h3>
+                    <p className="text-sm text-muted-foreground">Queda pendiente de revisión. Puedes avisar por WhatsApp.</p>
+                </div>
+
+                <dl className="rounded-xl border border-border bg-card divide-y divide-border">
+                    {resumen.map(([k, v]) => (
+                        <div key={k} className="flex items-baseline justify-between gap-4 px-4 py-2.5 text-sm">
+                            <dt className="text-muted-foreground shrink-0">{k}</dt>
+                            <dd className="font-medium text-foreground text-right">{v}</dd>
+                        </div>
+                    ))}
+                </dl>
+
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-border">
+                    <Button type="button" variant="ghost" onClick={onClose}>
+                        Cerrar
+                    </Button>
+                    <Button type="button" onClick={handleWhatsApp} leftIcon={<WhatsAppIcon className="h-4 w-4" />}>
+                        Enviar por WhatsApp
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
     if (initializing) {
         return (
@@ -308,7 +365,7 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onSuccess, onCancel }) =
 
             {mostrarOpcionales && (
                 <div id="solicitud-datos-personales" className="space-y-4">
-                    <DatosPersonalesFields register={register} errors={errors} />
+                    <DatosPersonalesFields register={register} errors={errors} control={control} />
                     <div className="w-full space-y-1.5">
                         <label htmlFor="solicitud-observaciones" className="text-sm font-medium text-muted-foreground ml-0.5">Observaciones</label>
                         <textarea

@@ -370,7 +370,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                 solicitud de terreno. Teléfono ya está arriba, por eso incluirTelefono=false. */}
             <div className="h-px bg-white/5 my-1" />
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Datos personales</p>
-            <DatosPersonalesFields register={register} errors={errors} incluirTelefono={false} />
+            <DatosPersonalesFields register={register} errors={errors} control={control} incluirTelefono={false} />
 
             <div className="py-1">
                 <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-3">
