@@ -81,6 +81,9 @@ describe('numeroALetras', () => {
         [553553, 'quinientos cincuenta y tres mil quinientos cincuenta y tres'],
         [600000, 'seiscientos mil'], [1000000, 'un millón'], [2100000, 'dos millones cien mil'],
         [1234567, 'un millón doscientos treinta y cuatro mil quinientos sesenta y siete'],
+        // Apócope del 'uno' final ante sustantivo masculino (millones).  no separa 'veinti|uno'.
+        [21000000, 'veintiún millones'], [21500000, 'veintiún millones quinientos mil'], [121000000, 'ciento veintiún millones'],
+        [31000000, 'treinta y un millones'], [101000000, 'ciento un millones'],
     ])('%i → %s', (n, esperado) => {
         expect(numeroALetras(n)).toBe(esperado);
     });
@@ -91,6 +94,14 @@ describe('numeroALetras', () => {
         expect(montoEnLetras(2500000)).toBe('dos millones quinientos mil pesos');
         expect(montoEnLetras(1)).toBe('un peso');
         expect(capitalizar(montoEnLetras(600000))).toBe('Seiscientos mil pesos');
+
+        // El monto va seguido de 'pesos': el 'uno' final se apocopa (≈10% de los sueldos termina en 1).
+        expect(montoEnLetras(553551)).toBe('quinientos cincuenta y tres mil quinientos cincuenta y un pesos');
+        expect(montoEnLetras(553521)).toBe('quinientos cincuenta y tres mil quinientos veintiún pesos');
+        expect(montoEnLetras(480031)).toBe('cuatrocientos ochenta mil treinta y un pesos');
+        expect(montoEnLetras(500001)).toBe('quinientos mil un pesos');
+        expect(montoEnLetras(21)).toBe('veintiún pesos');
+        expect(montoEnLetras(21000000)).toBe('veintiún millones de pesos');
     });
 
     test('rechaza fuera de rango', () => {
@@ -204,5 +215,24 @@ describe('plantillas de documentos', () => {
         expect(html).toContain('Pedro Terreno');
         expect(html).toContain('&lt;script&gt;');
         expect(p.nombreBase({ solicitud })).toBe('Solicitud_Ingreso_Soto_Ana_Maria');
+    });
+
+    test('SOLICITUD_INGRESO: un DATETIME de mysql2 (Date local) no corre el día', () => {
+        // mysql2 entrega los DATETIME como Date en hora local; con toISOString() una solicitud de las
+        // 22:30 en Chile (UTC-3) se imprimía con la fecha del día siguiente.
+        const p = getPlantilla('SOLICITUD_INGRESO');
+        const solicitud = {
+            id: 41, estado: 'pendiente', rut: '12.345.678-5', nombres: 'Ana', apellido_paterno: 'Soto', apellido_materno: null,
+            fecha_solicitud: new Date(2026, 8, 8, 22, 30), fecha_resolucion: new Date(2026, 8, 9, 23, 45),
+        };
+        const html = p.build({ hoy: '2026-09-11', solicitud, datos: {} });
+        expect(html).toContain('Fecha: 08/09/2026');        // 22:30 del 8, no el 9
+        expect(html).toContain('Resuelta el 09/09/2026');   // 23:45 del 9, no el 10
+        expect(html).not.toContain('10/09/2026');
+    });
+
+    test('docGenerador: fechaCorta/fechaLarga leen un Date en hora local', () => {
+        expect(g.fechaCorta(new Date(2026, 8, 8, 22, 30))).toBe('08/09/2026');
+        expect(g.fechaLarga(new Date(2026, 8, 8, 23, 59))).toBe('08 de septiembre de 2026');
     });
 });

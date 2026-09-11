@@ -50,7 +50,9 @@ const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', '
 
 function _parse(iso) {
     if (!iso) return null;
-    const s = iso instanceof Date ? iso.toISOString().slice(0, 10) : String(iso).slice(0, 10);
+    // Un Date se lee en hora LOCAL: mysql2 devuelve los DATETIME así y toISOString() correría el día
+    // para todo lo registrado después de las 21:00 en Chile (UTC-3).
+    const s = iso instanceof Date ? hoyYmd(iso) : String(iso).slice(0, 10);
     const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!m) return null;
     return { y: Number(m[1]), mo: Number(m[2]), d: Number(m[3]) };

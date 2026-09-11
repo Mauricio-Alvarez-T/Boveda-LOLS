@@ -34,6 +34,14 @@ function menorQueMil(n, { apocopar = false } = {}) {
     return partes.join(' ');
 }
 
+/**
+ * Apócope del "uno" final ante un sustantivo masculino: "veintiún millones", "cincuenta y un pesos".
+ * El orden importa: `\b` no separa "veinti|uno" (ambos lados son \w), así que ese caso va primero.
+ */
+function apocoparUno(s) {
+    return String(s).replace(/veintiuno$/, 'veintiún').replace(/\buno$/, 'un');
+}
+
 function numeroALetras(valor) {
     const n = Math.trunc(Math.abs(Number(valor) || 0));
     if (n === 0) return 'cero';
@@ -46,7 +54,7 @@ function numeroALetras(valor) {
 
     if (millones) {
         if (millones === 1) partes.push('un millón');
-        else partes.push(`${numeroALetras(millones).replace(/\buno$/, 'un')} millones`);
+        else partes.push(`${apocoparUno(numeroALetras(millones))} millones`);
     }
     if (miles) {
         if (miles === 1) partes.push('mil');
@@ -57,10 +65,13 @@ function numeroALetras(valor) {
     return partes.join(' ').replace(/\s+/g, ' ').trim();
 }
 
-/** "quinientos … pesos" / "un millón de pesos" / "un peso". */
+/**
+ * "quinientos … pesos" / "un millón de pesos" / "un peso".
+ * El monto va seguido de "pesos", así que el "uno" final se apocopa: 553.551 → "…cincuenta y un pesos".
+ */
 function montoEnLetras(valor, moneda = 'pesos') {
     const n = Math.trunc(Math.abs(Number(valor) || 0));
-    const letras = numeroALetras(n);
+    const letras = apocoparUno(numeroALetras(n));
     if (n === 1) return 'un peso';
     // Millones exactos llevan "de": "dos millones de pesos"; con resto no: "dos millones cien mil pesos".
     if (n >= 1e6 && n % 1e6 === 0) return `${letras} de ${moneda}`;

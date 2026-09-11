@@ -16,8 +16,12 @@ function fila(label, valor) {
 function build(ctx) {
     const s = ctx.solicitud;
     const nombre = [s.nombres, s.apellido_paterno, s.apellido_materno].filter(Boolean).join(' ');
-    const fechaSol = s.fecha_solicitud ? String(s.fecha_solicitud instanceof Date ? s.fecha_solicitud.toISOString() : s.fecha_solicitud).slice(0, 10) : null;
-    const fechaRes = s.fecha_resolucion ? String(s.fecha_resolucion instanceof Date ? s.fecha_resolucion.toISOString() : s.fecha_resolucion).slice(0, 10) : null;
+    // `fecha_solicitud`/`fecha_resolucion` son DATETIME y mysql2 los entrega como Date en hora LOCAL:
+    // con toISOString() toda solicitud registrada después de las 21:00 en Chile se imprimiría al día
+    // siguiente. `g.hoyYmd(d)` arma el YYYY-MM-DD con los getters locales.
+    const ymd = (v) => (v == null ? null : (v instanceof Date ? g.hoyYmd(v) : String(v).slice(0, 10)));
+    const fechaSol = ymd(s.fecha_solicitud);
+    const fechaRes = ymd(s.fecha_resolucion);
     const seccion = (t) => `<tr><td colspan="2" style="background:#eee"><b>${t}</b></td></tr>`;
     return (
         g.encabezado('FICHA DE SOLICITUD DE INGRESO', { fecha: fechaSol }) +

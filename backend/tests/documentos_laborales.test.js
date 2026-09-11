@@ -39,6 +39,7 @@ const db = require('../src/config/db');
 const { logManualActivity } = require('../src/middleware/logger');
 const documentoService = require('../src/services/documento.service');
 const zipService = require('../src/services/zip.service');
+const { resetSchemaCache } = require('../src/utils/schema');
 const jwt = require('jsonwebtoken');
 
 const SECRET = process.env.JWT_SECRET || 'secret';
@@ -297,7 +298,7 @@ describe('descarga / impresión y restricción por tipo', () => {
 
         // Generado pero con contenido que no es el del motor (archivo reemplazado a mano en el servidor).
         db.query.mockReset().mockResolvedValue([[]]);
-        fs.readFileSync.mockImplementation((p, enc) => (String(p).includes('uploads') ? ' binario' : jest.requireActual('fs').readFileSync(p, enc)));
+        fs.readFileSync.mockImplementation((p, enc) => (String(p).includes('uploads') ? 'binario' : jest.requireActual('fs').readFileSync(p, enc)));
         db.query.mockResolvedValueOnce([[FILA]]);
         res = await request(app).get(`${BASE}/501/html`).set('Authorization', `Bearer ${tokenDescargar}`);
         expect(res.status).toBe(409);
@@ -472,5 +473,56 @@ describe('GET /solicitudes-ingreso/:id/doc', () => {
         const res = await request(app).get('/api/solicitudes-ingreso/41/doc').set('Authorization', `Bearer ${tokenDescargar}`);
         expect(res.status).toBe(200);
         expect(sqlCalls().some(s => /INSERT/i.test(s))).toBe(false);
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('empresas: representante legal (mig 110) con degradación', () => {
+    const tokenEmpresas = makeToken(['empresas.crear', 'empresas.editar']);
+
+    beforeEach(() => resetSchemaCache());
+
+    afterAll(() => resetSchemaCache());
+
+    test('un alta sin representante NO paga la introspección de esquema', async () => {
+        db.query.mockResolvedValueOnce([{ insertId: 10 }]).mockResolvedValueOnce([[{ id: 10 }]]);
+        const res = await request(app).post('/api/empresas').set('Authorization', `Bearer ${tokenEmpresas}`)
+            .send({ rut: '76.123.456-7', razon_social: 'Nueva Empresa' });
+        expect(res.status).toBe(201);
+        expect(sqlCalls().some(x => /INFORMATION_SCHEMA/i.test(x))).toBe(false);
+    });
+
+    test('con la mig 110 aplicada, el UPDATE guarda representante_nombre y representante_rut', async () => {
+        db.query
+            .mockResolvedValueOnce([[{ COLUMN_NAME: 'representante_nombre' }, { COLUMN_NAME: 'representante_rut' }]])  // INFORMATION_SCHEMA
+            .mockResolvedValueOnce([{ affectedRows: 1 }])
+            .mockResolvedValueOnce([[{ id: 1 }]]);
+        const res = await request(app).put('/api/empresas/1').set('Authorization', `Bearer ${tokenEmpresas}`)
+            .send({ razon_social: 'LOLS', representante_nombre: 'Luis Lazcano Silva', representante_rut: '7.907.220-6' });
+        expect(res.status).not.toBe(500);
+        const upd = sqlCalls().find(x => /UPDATE empresas/i.test(x));
+        expect(upd).toMatch(/representante_nombre = ?/);
+        expect(upd).toMatch(/representante_rut = ?/);
+    });
+
+    test('mig 110 PENDIENTE: los campos se descartan y el UPDATE vuelve al comportamiento anterior (sin 500)', async () => {
+        db.query
+            .mockResolvedValueOnce([[{ COLUMN_NAME: 'rut' }, { COLUMN_NAME: 'razon_social' }]])  // sin representante_*
+            .mockResolvedValueOnce([{ affectedRows: 1 }])
+            .mockResolvedValueOnce([[{ id: 1 }]]);
+        const res = await request(app).put('/api/empresas/1').set('Authorization', `Bearer ${tokenEmpresas}`)
+            .send({ razon_social: 'LOLS', representante_nombre: 'Luis Lazcano Silva', representante_rut: '7.907.220-6' });
+        expect(res.status).not.toBe(500);
+        const upd = sqlCalls().find(x => /UPDATE empresas/i.test(x));
+        expect(upd).toMatch(/razon_social = ?/);
+        expect(upd).not.toMatch(/representante_/);
+    });
+
+    test("mig 110 PENDIENTE y SOLO representante en el body: 400 sin campos validos, nunca 500", async () => {
+        db.query.mockResolvedValueOnce([[{ COLUMN_NAME: 'rut' }]]);
+        const res = await request(app).put('/api/empresas/1').set('Authorization', `Bearer ${tokenEmpresas}`)
+            .send({ representante_nombre: 'Luis Lazcano Silva' });
+        expect(res.status).toBe(400);
+        expect(sqlCalls().some(x => /UPDATE empresas/i.test(x))).toBe(false);
     });
 });

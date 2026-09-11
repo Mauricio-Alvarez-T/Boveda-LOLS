@@ -122,32 +122,18 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
         return () => window.removeEventListener('resize', check);
     }, []);
 
-    // Abre un documento del trabajador en una pestaña nueva (vista previa).
+    /**
+     * Abre un documento del trabajador: PDF, imagen y TXT en una pestaña; Word y el resto se guardan
+     * con su nombre (`modoApertura` decide). Un tipo restringido (contrato/finiquito/anexo, mig 110)
+     * va por /documentos-laborales, que exige documentos.laborales.descargar y muestra el 403 con el
+     * nombre del permiso que falta.
+     */
     const handleViewDoc = async (doc: any) => {
         if (!doc?.id) return;
         setViewingDocId(doc.id);
-        // Tipo restringido (contrato/finiquito/anexo, mig 110): solo por /documentos-laborales con su gate;
-        // el helper muestra el 403 con el nombre del permiso si falta.
-        if (doc.restringido) {
-            try { await descargarArchivo(api, `/documentos-laborales/${doc.id}/download`, { nombre: doc.nombre_archivo }); }
-            finally { setViewingDocId(null); }
-            return;
-        }
+        const url = doc.restringido ? `/documentos-laborales/${doc.id}/download` : `/documentos/download/${doc.id}`;
         try {
-            const res = await api.get(`/documentos/download/${doc.id}`, { responseType: 'blob' });
-            // Tipo MIME por extensión (los docs del trabajador se auto-convierten a PDF);
-            // sin type correcto el navegador abriría los bytes como texto.
-            const ext = (doc.nombre_archivo?.split('.').pop() || 'pdf').toLowerCase();
-            const mimeByExt: Record<string, string> = {
-                pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg',
-                png: 'image/png', webp: 'image/webp', gif: 'image/gif', txt: 'text/plain',
-            };
-            const mime = mimeByExt[ext] || res.headers['content-type'] || 'application/octet-stream';
-            const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
-            window.open(url, '_blank');
-            setTimeout(() => window.URL.revokeObjectURL(url), 60000);
-        } catch {
-            toast.error('No se pudo abrir el documento');
+            await descargarArchivo(api, url, { nombre: doc.nombre_archivo, fallbackError: 'No se pudo abrir el documento' });
         } finally {
             setViewingDocId(null);
         }

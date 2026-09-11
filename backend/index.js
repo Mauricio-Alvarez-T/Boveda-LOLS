@@ -105,12 +105,26 @@ app.use('/api/auth', require('./src/routes/auth.routes'));
 const createCrudRoutes = require('./src/routes/crud.routes');
 
 try {
+  // representante_* (mig 110): firma contratos y finiquitos generados por Bóveda (plan Gestiones B2).
+  // Degradación D-I: el deploy reinicia el backend AUNQUE la migración falle, y EmpresaForm manda
+  // siempre ambos campos → sin este guard, crear/editar una empresa daría 500 "Unknown column".
+  // Los hooks corren después del filtro de whitelist y antes de armar el SQL.
+  const { hasCols } = require('./src/utils/schema');
+  const quitarRepresentanteSiFalta = async (safeData) => {
+    // Solo se paga la introspección cuando el body trae los campos nuevos.
+    if (safeData.representante_nombre === undefined && safeData.representante_rut === undefined) return;
+    if (!(await hasCols('empresas', 'representante_nombre', 'representante_rut'))) {
+      delete safeData.representante_nombre;
+      delete safeData.representante_rut;
+    }
+  };
   app.use('/api/empresas', createCrudRoutes('empresas', 'empresas', {
     searchFields: ['rut', 'razon_social'],
     useSoftDelete: true,
     orderBy: 'razon_social ASC',
-    // representante_* (mig 110): firma contratos y finiquitos generados por Bóveda (plan Gestiones B2).
-    allowedFields: ['rut', 'razon_social', 'direccion', 'telefono', 'email', 'activo', 'representante_nombre', 'representante_rut']
+    allowedFields: ['rut', 'razon_social', 'direccion', 'telefono', 'email', 'activo', 'representante_nombre', 'representante_rut'],
+    beforeCreate: (safeData) => quitarRepresentanteSiFalta(safeData),
+    beforeUpdate: (_id, safeData) => quitarRepresentanteSiFalta(safeData),
   }));
   // ── Obras: opciones extraídas para reusar el service en el PUT con cascada ──
   const createCrudService = require('./src/services/crud.service');

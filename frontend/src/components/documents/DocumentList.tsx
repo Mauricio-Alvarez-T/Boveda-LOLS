@@ -33,9 +33,11 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
     const fetchDocuments = async () => {
         setLoading(true);
         try {
-            const res = await api.get<ApiResponse<Documento[]>>(`/documentos/trabajador/${trabajadorId}`);
-            const data = Array.isArray(res.data.data) ? res.data.data : [];
-            setDocuments(data);
+            // El endpoint responde el ARRAY plano (sin envelope `{data}`): leer solo `res.data.data`
+            // dejaba la lista siempre vacía. Se acepta cualquiera de las dos formas.
+            const res = await api.get<ApiResponse<Documento[]> | Documento[]>(`/documentos/trabajador/${trabajadorId}`);
+            const raw = (res.data as ApiResponse<Documento[]>)?.data ?? res.data;
+            setDocuments(Array.isArray(raw) ? raw : []);
         } catch (err) {
             toast.error('Error al cargar documentos');
         } finally {
