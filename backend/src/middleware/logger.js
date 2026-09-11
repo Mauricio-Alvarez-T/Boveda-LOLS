@@ -244,6 +244,10 @@ const activityLogger = async (req, res, next) => {
             // Excluir queries de solo lectura que usan POST (ej. KPIs con arreglos grandes)
             if (req.originalUrl.match(/\/(kpi|exportar|enviar|download)/i)) return;
 
+            // Sueldos por cargo (mig 111): el body trae montos y este módulo no está en validModulos
+            // (se volcaría el body completo al detalle). El service registra un log manual sin cifras.
+            if (/^\/api\/cargo-sueldos(\/|$)/.test(req.originalUrl.split('?')[0])) return;
+
             try {
                 const usuario_id = req.user ? req.user.id : null;
                 const ip = req.ip || req.connection.remoteAddress;

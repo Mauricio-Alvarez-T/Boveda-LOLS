@@ -12,7 +12,9 @@
 // Campos sensibles o ruidosos que jamás deben ir al log.
 const EXCLUDED_KEYS = new Set([
     'id', 'created_at', 'updated_at', 'password', 'password_hash',
-    'user_agent', 'token', 'refresh_token'
+    'user_agent', 'token', 'refresh_token',
+    // Montos de remuneración (plan Gestiones B3/B5): nunca al detalle del log (lo ve sistema.logs.ver).
+    'sueldo_base', 'bono_colacion', 'bono_movilizacion'
 ]);
 
 // Etiquetas humanas para keys técnicas (usadas en `buildResumen`).
@@ -40,7 +42,9 @@ const LABEL_MAP = {
     // Ficha de ingreso digital (mig 108): datos personales del trabajador.
     fecha_nacimiento: 'F. Nacimiento', estado_civil: 'Estado civil', comuna: 'Comuna',
     afp: 'AFP', salud: 'Salud', nacionalidad: 'Nacionalidad', cargas_familiares: 'Cargas familiares',
-    observaciones: 'Observaciones', motivo_rechazo: 'Motivo rechazo'
+    observaciones: 'Observaciones', motivo_rechazo: 'Motivo rechazo',
+    // Sueldo por cargo (mig 111).
+    evento: 'Evento', cargo: 'Cargo', cambio_montos: 'Cambió montos'
 };
 
 // Acciones consideradas "ruido" cuando el usuario sólo quiere ver cambios
@@ -107,6 +111,13 @@ const ENTIDAD_RESOLVERS = {
         tabla: 'cargos',
         labelExpr: 'nombre',
         bodyKeys: ['nombre'],
+    },
+    // /api/cargo-sueldos/:cargoId — item_id es el cargo (el log manual del service lo etiqueta).
+    'cargo-sueldos': {
+        tipo: 'cargo',
+        tabla: 'cargos',
+        labelExpr: 'nombre',
+        bodyKeys: ['cargo'],
     },
     usuarios: {
         tipo: 'usuario',

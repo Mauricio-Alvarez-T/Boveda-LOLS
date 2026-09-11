@@ -74,8 +74,8 @@ const MAESTRO_PERMISOS = [
     ['cargos.eliminar',             'Cargos', 'Eliminar Cargo',                  'Eliminar cargos', 4],
     // Parámetros de sueldo por cargo (plan Gestiones B3, mig 111). $ pero NO en PERMISOS_FINANCIEROS
     // (esa lista es solo inventario); la marca visual vive en permisosHierarchy.ts.
-    ['cargos.sueldo.ver',           'Cargos', '$ Ver Parámetros de Sueldo',      '(Disponible próximamente) Configuración → Cargos: ver sueldo base, colación y movilización por cargo.', 5],
-    ['cargos.sueldo.editar',        'Cargos', '$ Editar Parámetros de Sueldo',   '(Disponible próximamente) Configuración → Cargos: modificar los parámetros de sueldo del cargo (queda historial). Requiere también "Ver Parámetros de Sueldo".', 6],
+    ['cargos.sueldo.ver',           'Cargos', '$ Ver Parámetros de Sueldo',      'Configuración → Cargos: ver sueldo base, colación y movilización por cargo.', 5],
+    ['cargos.sueldo.editar',        'Cargos', '$ Editar Parámetros de Sueldo',   'Configuración → Cargos: modificar los parámetros de sueldo del cargo (queda historial). Requiere también "Ver Parámetros de Sueldo".', 6],
 
     // CONFIGURACIÓN: CONDUCTORES
     ['conductores.ver',             'Conductores', 'Ver Conductores',           'Ver el catálogo de conductores', 1],

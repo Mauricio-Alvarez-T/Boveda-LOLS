@@ -288,3 +288,32 @@ de `/:id`. Errores con el patrón del repo: `throw Object.assign(new Error(msg),
   `empresas.ver` + `obras.ver` + `cargos.ver`. Sin ellos la UI lo avisa explícitamente.
   Follow-up: endpoint `/solicitudes-ingreso/catalogos` gateado por los permisos propios.
 - Lista y badge consultan con `incluir_prueba=true` (paridad con la grilla de Consultas).
+
+## Sueldo por cargo (plan Gestiones B3, mig 111 — 2026-09-11)
+
+- Decisión del dueño: los parámetros de sueldo viven **solo por cargo** (sin monto propio por
+  trabajador) y **se imprimen en el contrato** (B5 congela en la metadata del documento el valor
+  vigente al emitir). Parámetros: `sueldo_base`, `bono_colacion`, `bono_movilizacion` (CLP enteros,
+  `INT UNSIGNED`: el pool no usa `decimalNumbers`), `observaciones`.
+- Tabla **`cargo_sueldos`** 1:1 con `cargos` (FK `ON DELETE RESTRICT`: el "reciclaje" de cargos del
+  CRUD genérico ya no puede borrar el historial → 409 vía `ER_ROW_IS_REFERENCED_2`). Los montos
+  NUNCA salen por `/api/cargos` (lo consume terreno con `cargos.ver`).
+- **`cargo_sueldos_historial`** append-only: una fila por cada cambio de algún monto (quién, cuándo).
+  Editar solo observaciones no genera historial.
+- API `/api/cargo-sueldos` (`routes/cargo-sueldos.routes.js`, `services/cargoSueldo.service.js`):
+  `GET /` [`cargos.sueldo.ver`] lista cargos activos con `sueldo` (o `null`); `GET /:cargoId`,
+  `GET /:cargoId/historial` [ver]; `PUT /:cargoId` [`cargos.sueldo.editar` + `validateBody` strip]
+  → transacción `FOR UPDATE` (404 si el cargo no existe) + `INSERT … ON DUPLICATE KEY UPDATE` +
+  historial si cambió un monto. Gates **exclusivos** (sin OR con `cargos.editar`). Degradación:
+  con la mig 111 pendiente (errno 1146) `GET /` devuelve los cargos con `sueldo: null`.
+- Permisos `cargos.sueldo.ver` / `cargos.sueldo.editar` (módulo **Cargos**, `sensible: 'financiero'`
+  solo en `permisosHierarchy.ts`; NO en `PERMISOS_FINANCIEROS`). La migración los crea y los da solo
+  al Super Administrador; **el dueño asigna a RRHH a mano** (Configuración → Roles + re-login).
+- Historial de Actividad: el logger global excluye `/api/cargo-sueldos` (el body trae montos); el
+  service registra un log manual `sueldo_cargo_actualizado` con cargo y `cambio_montos`, **sin cifras**;
+  `sueldo_base`/`bono_*` están en `EXCLUDED_KEYS`.
+- UI: Configuración → Cargos muestra la columna "Sueldo base" y el icono Banknote (solo con `.ver`);
+  `CargoSueldoModal` (3 `CurrencyInput`, total mensual, historial colapsable; solo lectura sin `.editar`).
+  Lógica pura en `cargoSueldoSchema.ts` (+ test).
+- Tests: `backend/tests/cargo_sueldos.test.js` (403 exclusivos, 400 de forma, 404, historial condicional,
+  rollback, log sin montos, fallback 1146, `/api/cargos` sin sueldo).

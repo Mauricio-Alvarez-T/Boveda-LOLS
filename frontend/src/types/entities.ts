@@ -52,6 +52,33 @@ export interface Cargo {
     activo: boolean;
 }
 
+/** Parámetros de sueldo vigentes de un cargo (mig 111; GET /cargo-sueldos). Montos CLP enteros. */
+export interface CargoSueldo {
+    id: number | null;
+    cargo_id: number;
+    cargo_nombre?: string;
+    sueldo_base: number;
+    bono_colacion: number;
+    bono_movilizacion: number;
+    observaciones: string | null;
+    actualizado_por: number | null;
+    actualizado_por_nombre?: string | null;
+    updated_at?: string | null;
+}
+
+/** Una fila por cambio de montos (append-only; GET /cargo-sueldos/:id/historial). */
+export interface CargoSueldoHistorial {
+    id: number;
+    cargo_id: number;
+    sueldo_base: number;
+    bono_colacion: number;
+    bono_movilizacion: number;
+    observaciones: string | null;
+    cambiado_por: number | null;
+    cambiado_por_nombre?: string | null;
+    cambiado_en: string;
+}
+
 export interface Conductor {
     id: number;
     nombre: string;

@@ -275,3 +275,12 @@ Tras merge `develop → main`:
 ---
 
 > **Cierre:** Información $ ahora gateada por permisos granulares. Defensa en profundidad backend + frontend. Política deny-by-default. Pendiente: merge a `main` + correr `migrate` en cPanel producción para aplicar la 043.
+
+---
+
+## Actualización 2026-09-11 — sueldo por cargo (plan Gestiones B3)
+
+Los "campos futuros" de remuneración se materializaron **por cargo**, no por trabajador:
+tabla `cargo_sueldos` (+ historial) gateada por `cargos.sueldo.ver/.editar` (módulo Cargos).
+`trabajadores.financiero.*` y `sanitizeTrabajadorFinanciero` siguen reservados para un eventual
+monto por trabajador (no pedido). Detalle: `docs/reglas/rrhh-trabajadores.md § Sueldo por cargo`.

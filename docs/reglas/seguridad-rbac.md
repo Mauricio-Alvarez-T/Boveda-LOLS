@@ -26,6 +26,9 @@
   `inventario.resumen.ver_valores`, `asistencia.horas_extra.ver`,
   `trabajadores.financiero.ver/editar`.
 - Política: solo Super Admin (rol 1) los recibe automáticamente; al resto se asignan a mano.
+- `cargos.sueldo.ver/.editar` (mig 111, plan Gestiones B3) son $ pero viven en el módulo **Cargos** y
+  NO en `PERMISOS_FINANCIEROS` (lista exclusiva de inventario); gates exclusivos sin patrón OR; los montos
+  jamás entran a `logs_actividad` (exclusión en `logger.js` + `EXCLUDED_KEYS`). Ver rrhh-trabajadores.md.
 - **Doble defensa**: la UI oculta columnas/cards Y el backend **sanitiza el JSON**
   (`backend/src/utils/sanitizeFinancialFields.js`) — sin permiso, los montos no llegan ni por
   DevTools. El backend es la fuente de verdad.
