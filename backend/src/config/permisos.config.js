@@ -45,8 +45,8 @@ const MAESTRO_PERMISOS = [
     ['documentos.eliminar',         'Documentos', 'Eliminar Documentos',         'Eliminar archivos de documentación', 4],
     // Documentos laborales generados por Bóveda (plan Gestiones B2/B6, migs 110/113). Pre-registrados
     // en B1 para que el catálogo/hierarchy no se editen en paralelo; se asignan a roles en su bloque.
-    ['documentos.laborales.emitir',    'Documentos', 'Emitir Documentos Laborales',                 '(Disponible próximamente) Gestiones → ficha del trabajador: emitir contrato, kit de ingreso, finiquito y carta de amonestación generados por Bóveda.', 5],
-    ['documentos.laborales.descargar', 'Documentos', '⚠️ Descargar / Imprimir Documentos Laborales', '(Disponible próximamente) Descargar o imprimir contratos, finiquitos y anexos laborales — solo oficina (RRHH, TI, administración). Incluye ver la remuneración impresa en el contrato.', 6],
+    ['documentos.laborales.emitir',    'Documentos', 'Emitir Documentos Laborales',                 'Gestiones → ficha del trabajador: emitir contrato, kit de ingreso, finiquito y carta de amonestación generados por Bóveda.', 5],
+    ['documentos.laborales.descargar', 'Documentos', '⚠️ Descargar / Imprimir Documentos Laborales', 'Descargar o imprimir contratos, finiquitos y anexos laborales — solo oficina (RRHH, TI, administración). Incluye ver la remuneración impresa en el contrato.', 6],
     ['documentos.entrega.registrar',   'Documentos', 'Registrar Entrega Física',                    '(Disponible próximamente) Registrar a quién, cuándo y cuántas copias de un documento se entregaron en papel; habilita el grupo "Documentos por entregar" del Inicio.', 7],
 
     // REPORTES (Gestiones — antes Consultas)

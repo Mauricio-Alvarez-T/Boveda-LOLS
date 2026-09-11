@@ -17,9 +17,9 @@
 import type { ElementType } from 'react';
 import {
     Clock, CheckCircle2, Truck, PackageOpen, PackageCheck, XCircle, Ban,
-    ArrowUp, ArrowDown,
+    ArrowUp, ArrowDown, Download, Upload,
 } from 'lucide-react';
-import type { SolicitudIngresoEstado } from '../types/entities';
+import type { SolicitudIngresoEstado, DocumentoEstado } from '../types/entities';
 
 export interface StatusConfigEntry {
     label: string;
@@ -38,6 +38,15 @@ const NEUTRAL = 'bg-muted text-muted-foreground border-border dark:bg-muted dark
 const GREEN = 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800/60';
 const RED = 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60';
 const AMBER = 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60';
+const BLUE = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60';
+
+/* ── Documentos: estado (mig 110; plan Gestiones B2/B6) ─────────────── */
+export const documentoEstadoConfig: StatusMap<DocumentoEstado> = {
+    subido:     { label: 'Subido',     classes: NEUTRAL, icon: Upload,       borderLeft: 'border-l-border' },
+    generado:   { label: 'Generado',   classes: AMBER,   icon: Clock,        borderLeft: 'border-l-amber-400' },
+    descargado: { label: 'Descargado', classes: BLUE,    icon: Download,     borderLeft: 'border-l-blue-400' },
+    entregado:  { label: 'Entregado',  classes: GREEN,   icon: CheckCircle2, borderLeft: 'border-l-green-500' },
+};
 
 /* ── Transferencias: estado ─────────────────────────────────────────── */
 export type TransferenciaEstado =
@@ -160,6 +169,7 @@ export const statusDomains = {
     vehiculoRevision: vehiculoRevisionConfig,
     sabadoEstado: sabadoEstadoConfig,
     solicitudIngresoEstado: solicitudIngresoEstadoConfig,
+    documentoEstado: documentoEstadoConfig,
 } as const;
 
 export type StatusDomain = keyof typeof statusDomains;

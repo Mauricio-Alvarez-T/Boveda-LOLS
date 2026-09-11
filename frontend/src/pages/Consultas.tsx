@@ -47,7 +47,7 @@ import EnvioEmailModal from '../components/workers/EnvioEmailModal';
 import WorkerQuickView from '../components/workers/WorkerQuickView';
 import { DesvincularModal } from '../components/workers/DesvincularModal';
 import { ReactivarModal } from '../components/workers/ReactivarModal';
-import { ConstanciaModal } from '../components/workers/ConstanciaModal';
+import { EmitirAmonestacionModal } from '../components/documents/EmitirAmonestacionModal';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useAuth } from '../context/AuthContext';
 import { FilterPanel } from '../components/consultas/FilterPanel';
@@ -670,12 +670,13 @@ const ConsultasPage: React.FC = () => {
 
                                         {/* 3. Acciones (Derecha) */}
                                         <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                            {/* Constancia: genera Carta de Amonestación (Word). Solo ícono + tooltip. */}
+                                            {/* Carta de Amonestación: la emite el servidor y queda en la ficha (plan Gestiones B2). */}
                                             <IconButton
                                                 variant="ghost"
                                                 size="sm"
                                                 aria-label="Constancia"
-                                                title="Constancia"
+                                                title={hasPermission('documentos.laborales.emitir') ? 'Constancia (Carta de Amonestación)' : 'Requiere "Emitir Documentos Laborales"'}
+                                                disabled={!hasPermission('documentos.laborales.emitir') || !worker.activo}
                                                 onClick={() => setConstanciaWorker(worker)}
                                                 className="h-7 w-7 sm:h-8 sm:w-8"
                                                 icon={<FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
@@ -1058,7 +1059,7 @@ const ConsultasPage: React.FC = () => {
                 />
             )}
 
-            <ConstanciaModal
+            <EmitirAmonestacionModal
                 isOpen={!!constanciaWorker}
                 onClose={() => setConstanciaWorker(null)}
                 worker={constanciaWorker}

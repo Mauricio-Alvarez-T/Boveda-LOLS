@@ -35,6 +35,13 @@ jest.mock('../src/middleware/logger', () => ({
     activityLogger: (req, res, next) => next(),
     resolveEntidad: jest.fn(),
 }));
+// B2 (mig 110): aprobar emite la ficha en Word post-commit (best-effort). Se mockea para que el
+// test siga siendo posicional sobre db.query; su propio comportamiento se prueba en
+// documentos_laborales.test.js.
+jest.mock('../src/services/documentosLaborales.service', () => ({
+    solicitudDoc: jest.fn().mockResolvedValue({ persistido: true, documento_id: 77, nombre_archivo: 'Solicitud_Ingreso_Soto_Ana.doc' }),
+    abrir: jest.fn(),
+}));
 
 const request = require('supertest');
 const app = require('../index');
@@ -576,6 +583,10 @@ describe('PUT /api/solicitudes-ingreso/:id/aprobar', () => {
         expect(res.status).toBe(200);
         expect(res.body.data.trabajador_id).toBe(900);
         expect(res.body.data.solicitud).toMatchObject({ id: 41, estado: 'aprobada', trabajador_id: 900 });
+        // B2: la ficha Word se emitió post-commit y su id viaja en la respuesta.
+        expect(res.body.data.solicitud_documento_id).toBe(77);
+        const laborales = require('../src/services/documentosLaborales.service');
+        expect(laborales.solicitudDoc).toHaveBeenCalledWith(41, OFICINA_ID, expect.anything());
 
         // 1) lock pesimista de la solicitud
         const [lockSql, lockParams] = conn.query.mock.calls[0];

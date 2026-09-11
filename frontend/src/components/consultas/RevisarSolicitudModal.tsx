@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2, XCircle, UserPlus, Clock, User, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, UserPlus, Clock, User, AlertTriangle, FileDown } from 'lucide-react';
 
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
@@ -19,6 +19,9 @@ import { Button } from '../ui/Button';
 import { StatusBadge } from '../ui/StatusBadge';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import { showApiError } from '../../utils/toastUtils';
+import { descargarArchivo } from '../../utils/descargarArchivo';
+import { useAuth } from '../../context/AuthContext';
+import { IconButton } from '../ui/IconButton';
 import { RechazarForm } from '../inventario/transferencia-detail/RechazarForm';
 import { DatosPersonalesFields } from '../workers/DatosPersonalesFields';
 import {
@@ -393,12 +396,33 @@ const FormRevision: React.FC<{ s: SolicitudIngreso; onResuelta: (a: SolicitudAcc
  */
 export const RevisarSolicitudModal: React.FC<Props> = ({ solicitud, onClose, puedeAprobar, onResuelta }) => {
     const editable = !!solicitud && puedeAprobar && solicitud.estado === 'pendiente';
+    const { hasPermission } = useAuth();
+    const [descargando, setDescargando] = useState(false);
+    // Ficha en Word (plan Gestiones B2): pendiente → al vuelo; aprobada → la guardada en la ficha del trabajador.
+    const puedeDescargarDoc = hasPermission('documentos.laborales.descargar');
+    const descargarDoc = async () => {
+        if (!solicitud) return;
+        setDescargando(true);
+        try { await descargarArchivo(api, `/solicitudes-ingreso/${solicitud.id}/doc`, { modo: 'download' }); }
+        finally { setDescargando(false); }
+    };
     return (
         <Modal
             isOpen={!!solicitud}
             onClose={onClose}
             title={editable ? 'Revisar solicitud de ingreso' : 'Solicitud de ingreso'}
             size="lg"
+            headerAction={puedeDescargarDoc ? (
+                <IconButton
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Descargar ficha (Word)"
+                    title="Descargar ficha (Word)"
+                    disabled={descargando}
+                    onClick={descargarDoc}
+                    icon={descargando ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                />
+            ) : undefined}
         >
             {solicitud && (editable
                 // key: un form nuevo por solicitud (defaults distintos).

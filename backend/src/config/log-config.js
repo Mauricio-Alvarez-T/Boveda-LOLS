@@ -14,7 +14,9 @@ const EXCLUDED_KEYS = new Set([
     'id', 'created_at', 'updated_at', 'password', 'password_hash',
     'user_agent', 'token', 'refresh_token',
     // Montos de remuneración (plan Gestiones B3/B5): nunca al detalle del log (lo ve sistema.logs.ver).
-    'sueldo_base', 'bono_colacion', 'bono_movilizacion'
+    'sueldo_base', 'bono_colacion', 'bono_movilizacion',
+    // Snapshot de emisión de documentos (mig 110): puede traer remuneración.
+    'metadata'
 ]);
 
 // Etiquetas humanas para keys técnicas (usadas en `buildResumen`).
@@ -47,7 +49,11 @@ const LABEL_MAP = {
     evento: 'Evento', cargo: 'Cargo', cambio_montos: 'Cambió montos',
     // Desvinculación con causal (mig 112).
     fecha_desvinculacion: 'F. Desvinculación', causal_desvinculacion: 'Causal', causal_codigo: 'Causal', causal: 'Causal',
-    no_recontratar: 'No recontratar', tenia_marca_no_recontratar: 'Tenía marca', quitar_marca_no_recontratar: 'Quitar marca'
+    no_recontratar: 'No recontratar', tenia_marca_no_recontratar: 'Tenía marca', quitar_marca_no_recontratar: 'Quitar marca',
+    // Documentos laborales generados (mig 110).
+    origen: 'Origen', estado: 'Estado doc.', plantilla_version: 'Versión plantilla', fecha_generacion: 'F. Generación',
+    fecha_descarga: 'F. Descarga', solicitud_id: 'Solicitud', documentos: 'Documentos', dias_plazo: 'Plazo (días)',
+    representante_nombre: 'Representante legal', representante_rut: 'RUT representante'
 };
 
 // Acciones consideradas "ruido" cuando el usuario sólo quiere ver cambios
@@ -121,6 +127,13 @@ const ENTIDAD_RESOLVERS = {
         tabla: 'cargos',
         labelExpr: 'nombre',
         bodyKeys: ['cargo'],
+    },
+    // /api/documentos-laborales/:id — item_id es el documento (el log manual del service lo etiqueta).
+    'documentos-laborales': {
+        tipo: 'documento',
+        tabla: 'documentos',
+        labelExpr: 'nombre_archivo',
+        bodyKeys: ['resumen', 'tipo'],
     },
     usuarios: {
         tipo: 'usuario',

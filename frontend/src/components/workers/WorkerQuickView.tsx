@@ -16,6 +16,9 @@ import { Button } from '../ui/Button';
 import { WorkerForm } from './WorkerForm';
 import { DocumentUploader } from '../documents/DocumentUploader';
 import { DocumentList } from '../documents/DocumentList';
+import { DocumentosGeneradosList } from '../documents/DocumentosGeneradosList';
+import { contarObligatorios, docsSubidos } from '../documents/documentosLaborales';
+import { descargarArchivo } from '../../utils/descargarArchivo';
 import { useAuth } from '../../context/AuthContext';
 import type { Trabajador, EstadoAsistencia } from '../../types/entities';
 
@@ -71,9 +74,16 @@ interface ResumenData {
 }
 
 interface DocInfo {
+    id?: number;
     tipo_nombre: string;
     nombre_archivo: string;
     fecha_vencimiento: string | null;
+    activo?: boolean;
+    // Mig 110 (plan Gestiones B2): los generados van en su propia lista; los restringidos se bajan por /documentos-laborales.
+    origen?: 'subido' | 'generado';
+    restringido?: boolean | number;
+    tipo_obligatorio?: boolean | number | null;
+    tipo_documento_id?: number;
 }
 
 interface WorkerQuickViewProps {
@@ -116,6 +126,13 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     const handleViewDoc = async (doc: any) => {
         if (!doc?.id) return;
         setViewingDocId(doc.id);
+        // Tipo restringido (contrato/finiquito/anexo, mig 110): solo por /documentos-laborales con su gate;
+        // el helper muestra el 403 con el nombre del permiso si falta.
+        if (doc.restringido) {
+            try { await descargarArchivo(api, `/documentos-laborales/${doc.id}/download`, { nombre: doc.nombre_archivo }); }
+            finally { setViewingDocId(null); }
+            return;
+        }
         try {
             const res = await api.get(`/documentos/download/${doc.id}`, { responseType: 'blob' });
             // Tipo MIME por extensión (los docs del trabajador se auto-convierten a PDF);
@@ -189,7 +206,9 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
 
     const isOpen = workerId !== null;
 
-    const completedDocs = docs.filter((d: any) => d.activo !== false).length;
+    // Solo tipos OBLIGATORIOS distintos: el kit generado (obligatorio=0) no infla la completitud (B2).
+    const completedDocs = contarObligatorios(docs);
+    const subidos = docsSubidos(docs);
     const docPct = totalRequired > 0 ? Math.round((completedDocs / totalRequired) * 100) : 0;
     const initials = worker ? `${(worker.apellido_paterno || '')[0]}${worker.nombres[0]}` : '';
     // Solo los datos personales que existen (el teléfono ya se muestra en Contacto).
@@ -441,13 +460,13 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                     </div>
 
                                     {/* ── Recent Documents List ── */}
-                                    {docs.length > 0 && (
+                                    {subidos.length > 0 && (
                                         <div>
                                             <h4 className="text-sm font-semibold text-brand-dark flex items-center gap-2 mb-3">
                                                 <FileText className="h-4 w-4 text-brand-primary" /> Documentos Subidos
                                             </h4>
                                             <div className="space-y-2">
-                                                {docs.slice(0, 5).map((doc: any, i: number) => (
+                                                {subidos.slice(0, 5).map((doc: any, i: number) => (
                                                     <div key={i}
                                                         onClick={() => handleViewDoc(doc)}
                                                         className="flex items-center justify-between gap-2 p-3 rounded-xl bg-background hover:bg-muted/70 transition-colors cursor-pointer"
@@ -470,6 +489,16 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                 ))}
                                             </div>
                                         </div>
+                                    )}
+
+                                    {/* ── Documentos generados por Bóveda (plan Gestiones B2) ── */}
+                                    {hasPermission('documentos.ver') && (
+                                        <DocumentosGeneradosList
+                                            trabajadorId={worker.id}
+                                            worker={worker}
+                                            refreshKey={refreshKey}
+                                            onCambio={() => setRefreshKey(prev => prev + 1)}
+                                        />
                                     )}
 
                                     {/* ── Quick Actions ── */}
@@ -614,23 +643,16 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                         size="sm"
                                         variant="glass"
                                         onClick={async () => {
-                                            try {
-                                                const nid = toast.loading('Generando ZIP...');
-                                                const response = await api.get(`/documentos/download-all/${worker.id}`, {
-                                                    responseType: 'blob',
-                                                });
-                                                const url = window.URL.createObjectURL(new Blob([response.data]));
-                                                const link = document.createElement('a');
-                                                link.href = url;
-                                                link.setAttribute('download', `Documentos_${worker.apellido_paterno}_${worker.nombres}.zip`);
-                                                document.body.appendChild(link);
-                                                link.click();
-                                                link.remove();
-                                                toast.dismiss(nid);
-                                                toast.success('Descarga iniciada');
-                                            } catch (err) {
-                                                toast.error('Error al descargar documentos');
-                                            }
+                                            // El ZIP omite los laborales restringidos (mig 110): el helper avisa
+                                            // cuántos quedaron fuera y muestra el mensaje del backend si falla.
+                                            const nid = toast.loading('Generando ZIP...');
+                                            const ok = await descargarArchivo(api, `/documentos/download-all/${worker.id}`, {
+                                                nombre: `Documentos_${worker.apellido_paterno}_${worker.nombres}.zip`,
+                                                modo: 'download',
+                                                fallbackError: 'No se pudo descargar la documentación',
+                                            });
+                                            toast.dismiss(nid);
+                                            if (ok) toast.success('Descarga iniciada');
                                         }}
                                         className="text-brand-primary hover:text-[#027A3B] flex-1 sm:flex-initial"
                                         leftIcon={<Download className="h-4 w-4" />}

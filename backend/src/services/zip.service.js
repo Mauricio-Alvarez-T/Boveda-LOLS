@@ -10,7 +10,8 @@ const zipService = {
      * @param {number[]} trabajadorIds - Array de IDs de trabajadores
      * @returns {string} Path del archivo ZIP generado
      */
-    async createZip(trabajadorIds) {
+    async createZip(trabajadorIds, stats = {}) {
+        stats.omitidos = 0;
         const timestamp = Date.now();
         const zipPath = path.join(__dirname, '../../uploads/temp', `fiscalizacion_${timestamp}.zip`);
         const tempDir = path.dirname(zipPath);
@@ -38,16 +39,30 @@ const zipService = {
                 const t = trabajadores[0];
                 const folderName = `${t.rut}_${t.nombres}_${t.apellido_paterno}`.replace(/\s+/g, '_');
 
-                // Get documents
-                const [docs] = await db.query(
-                    `SELECT d.id, d.ruta_archivo, d.nombre_archivo, td.nombre as tipo_nombre 
-                     FROM documentos d
-                     LEFT JOIN tipos_documento td ON d.tipo_documento_id = td.id
-                     WHERE d.trabajador_id = ? AND d.activo = TRUE`,
-                    [trabajadorId]
-                );
+                // Get documents. Los tipos RESTRINGIDOS (mig 110: contratos, finiquitos…) NUNCA van en
+                // este ZIP: se adjunta por correo a un destinatario arbitrario con un permiso de reportes.
+                let docs;
+                try {
+                    [docs] = await db.query(
+                        `SELECT d.id, d.ruta_archivo, d.nombre_archivo, td.nombre as tipo_nombre, COALESCE(td.restringido, 0) AS restringido
+                         FROM documentos d
+                         LEFT JOIN tipos_documento td ON d.tipo_documento_id = td.id
+                         WHERE d.trabajador_id = ? AND d.activo = TRUE`,
+                        [trabajadorId]
+                    );
+                } catch (err) {
+                    if (err.errno !== 1054) { reject(err); return; }
+                    [docs] = await db.query(
+                        `SELECT d.id, d.ruta_archivo, d.nombre_archivo, td.nombre as tipo_nombre, 0 AS restringido
+                         FROM documentos d
+                         LEFT JOIN tipos_documento td ON d.tipo_documento_id = td.id
+                         WHERE d.trabajador_id = ? AND d.activo = TRUE`,
+                        [trabajadorId]
+                    );
+                }
 
                 for (const doc of docs) {
+                    if (doc.restringido) { stats.omitidos += 1; continue; }
                     const filePath = path.join(__dirname, '../../uploads', doc.ruta_archivo);
                     if (fs.existsSync(filePath)) {
                         const safeTipoNombre = doc.tipo_nombre ? doc.tipo_nombre.replace(/[^a-zA-Z0-9\-_]/g, '_') : 'Documento';

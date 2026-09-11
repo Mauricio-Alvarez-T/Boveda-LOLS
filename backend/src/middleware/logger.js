@@ -252,6 +252,11 @@ const activityLogger = async (req, res, next) => {
             // `detalle` (antecedente interno). El log global solo duplicaría un UPDATE sin diff.
             if (/^\/api\/trabajadores\/\d+\/(desvincular|reactivar)$/.test(req.originalUrl.split('?')[0])) return;
 
+            // Documentos laborales generados (mig 110): el body puede traer datos de la carta y la
+            // respuesta ids; el service registra documento_emitido / documento_descargado sin montos.
+            if (/^\/api\/documentos-laborales(\/|$)/.test(req.originalUrl.split('?')[0])) return;
+            if (/^\/api\/solicitudes-ingreso\/\d+\/doc$/.test(req.originalUrl.split('?')[0])) return;
+
             try {
                 const usuario_id = req.user ? req.user.id : null;
                 const ip = req.ip || req.connection.remoteAddress;

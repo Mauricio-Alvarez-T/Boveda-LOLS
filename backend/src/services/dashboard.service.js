@@ -86,7 +86,8 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         const [noDocWorkers] = await pool.query(
             `SELECT COUNT(t.id) as count 
              FROM trabajadores t 
-             LEFT JOIN documentos d ON t.id = d.trabajador_id AND d.activo = 1
+             LEFT JOIN (documentos d JOIN tipos_documento td ON td.id = d.tipo_documento_id AND td.obligatorio = 1)
+                    ON t.id = d.trabajador_id AND d.activo = 1
              WHERE t.activo = 1 AND t.es_prueba = 0 AND d.id IS NULL ${obraFilter}`,
             params
         );

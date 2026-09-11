@@ -31,10 +31,11 @@
   solo puede solicitar (terreno) cae directo a la pestaña Solicitudes y la grilla de búsqueda no
   se consulta (`useConsultasData(filters, enabled=false)` — evita el 403 del endpoint avanzado).
 
-## Constancias
+## Constancias → Documentos laborales generados
 
-- Plantilla real LOLS: **Carta de Amonestación** (Word, sin IA); botón por fila en Consultas
-  (solo-icono con tooltip, fondo blanco glass). El Acta de Consentimiento fue eliminada.
+- La **Carta de Amonestación** ya no se arma en el navegador: desde el plan Gestiones B2 (mig 110) la
+  emite el servidor, queda en la ficha y exige permiso. Ver § Documentos laborales generados por Bóveda.
+  El Acta de Consentimiento fue eliminada.
 
 ## Reporte semanal RRHH por email
 
@@ -360,3 +361,73 @@ de `/:id`. Errores con el patrón del repo: `throw Object.assign(new Error(msg),
   `DesvinculacionInfo` en la ficha rápida, aviso en el check-rut de `WorkerForm`. Lógica pura en
   `desvinculacionSchema.ts` (+ test). Logs: `trabajador_desvinculado` / `trabajador_reactivado` sin `detalle`.
 - Pendiente (§10.4 del plan): qué hacer con asistencias registradas después de la fecha de baja.
+
+## Documentos laborales generados por Bóveda (plan Gestiones B2, mig 110 — 2026-09-11)
+
+Requerimientos 2, 8 y 10 de RRHH: los documentos del ingreso los **emite el sistema**, quedan en la
+ficha del trabajador y su descarga o impresión es "solo oficina".
+
+- **Formato**: Word **editable**. Un `.doc` es HTML con cabecera MS Office — no hay conversión ni
+  librería nueva. `services/docGenerador.service.js` arma el HTML (`wrapHtml`, `encabezado`,
+  `bloqueFirmas`, `fmtCLP`, `fechaLarga`, `sinPuntoFinal`) y el buffer **con BOM UTF-8** (sin BOM Word
+  rompe los acentos). El endpoint de impresión devuelve el mismo HTML **sin BOM** (con BOM el iframe
+  del navegador cae en quirks mode). Logo: `backend/assets/logo-lols-wordmark.png` (450×198, se imprime
+  a 150×66) embebido como data URI; el `logo-lols-green.png` es el isotipo cuadrado y deformaría el
+  encabezado. La generación en el navegador (`utils/downloadWord.ts`, `ConstanciaModal.tsx`) se eliminó;
+  queda `utils/printHtml.ts` solo para imprimir lo que manda el servidor.
+- **Plantillas** (`backend/src/plantillas/documentos/`, mapa blanco `codigo → plantilla`): cada una
+  expone `codigo, version, titulo, requiere(ctx), nombreBase(ctx), build(ctx), metadata(ctx)`. Los textos
+  legales son DATO: RRHH los corrige ahí sin tocar lógica. Kit de ingreso = `CONTRATO`, `ODI_D40`,
+  `DAS`, `PTS_ALTURA`, `EPP_RECEPCION`, `RI_RECEPCION`; sueltos: `AMONESTACION` y `SOLICITUD_INGRESO`
+  (B5 agrega `FINIQUITO`). `requiere()` devuelve la lista de datos faltantes → 409 `DATOS_FALTANTES`
+  **antes** de escribir nada (un kit nunca queda a medias).
+- **Contrato**: plazo fijo con días editables (default 15), jornada, gratificación 25% con tope 4,75 IMM
+  y pago el día 05 como texto fijo; el **sueldo base se imprime en cifras y en letras**
+  (`utils/numeroALetras.js`) tomado de `cargo_sueldos` (mig 111) y queda congelado en `metadata`.
+  Sin representante legal de la empresa o sin sueldo del cargo → 409 con el dato que falta.
+- **La restricción vive en el TIPO**: `tipos_documento.codigo` (clave estable) + `restringido`. Un
+  contrato **escaneado** subido a un tipo restringido queda bajo el mismo gate. Los tipos del sistema
+  se crean con nombre "(Bóveda)" y `obligatorio = 0` (no alteran la completitud); no se pueden desactivar,
+  volver obligatorios ni eliminar desde Configuración (409 `TIPO_SISTEMA`), solo renombrar.
+- **Estados** (`documentos.estado`, monótono): `subido|generado → descargado → entregado` (B6).
+  `fecha_descarga` guarda la PRIMERA descarga; **las alertas de B7 cuentan desde `fecha_generacion`**,
+  así re-descargar no silencia el aviso.
+- **Permisos** (creados por la mig 110; el dueño los asigna a mano en Configuración → Roles + re-login):
+  `documentos.laborales.emitir` y `documentos.laborales.descargar`, ambos **exclusivos** (sin patrón OR).
+  `documentos.descargar` NO alcanza para un documento restringido: `GET /documentos/download/:id`
+  responde 403 `{error, required:['documentos.laborales.descargar']}`.
+- **Los dos empaquetadores excluyen siempre los restringidos**: el ZIP de la ficha
+  (`/documentos/download-all/:tid`, con header `X-Documentos-Omitidos: N`) y el ZIP que
+  `POST /fiscalizacion/enviar-excel` adjunta **por correo** (el cuerpo del correo indica cuántos se
+  omitieron). Sin esto, un permiso de reportes sacaría contratos de la empresa por email.
+- **`metadata` (snapshot con la remuneración) nunca sale por `documentos.ver`**: `getByTrabajador` y
+  `getVencidos` usan proyección explícita de columnas (nada de `d.*`) y `metadata` está en
+  `EXCLUDED_KEYS` del historial. Los logs de emisión/descarga son manuales y no llevan montos.
+- **API** (`/api/documentos-laborales`, `safeRoute`):
+  `GET /catalogo` (auth) · `GET /trabajador/:id` [documentos.ver] · `POST /emitir/:tid` y
+  `POST /kit-ingreso/:tid` [laborales.emitir] · `GET /:id/download` y `GET /:id/html` [laborales.descargar].
+  `GET /solicitudes-ingreso/:id/doc` [laborales.descargar]: solicitud **pendiente** → `.doc` al vuelo sin
+  persistir; **aprobada** → el documento guardado en la ficha del trabajador (se emite si faltara).
+  Al aprobar una solicitud la ficha se emite sola **post-commit**: si falla, se registra un `warn` y la
+  aprobación igual se completa (`solicitud_documento_id` en la respuesta).
+- **Subida de Word**: `upload.js` acepta `.doc/.docx` y `pdf.service.processFile` los guarda sin convertir
+  (no hay Office en cPanel). Flujo real: emitir → editar en Word → firmar → subir el escaneado o el
+  `.docx` al mismo tipo restringido; la versión emitida queda como evidencia de lo que generó el sistema.
+  Todos los nombres de archivo llevan sufijo `-HHmmss`: dos subidas del mismo trabajador el mismo día
+  ya no se pisan (bug latente que existía desde la mig 002).
+- **Degradación (D-I)**: si la mig 110 no corrió, cada lectura cae a la consulta legacy por errno 1054
+  (`getByTrabajador`, `getFilePath`, `marcarDescargado`, `zip.service`, tipos del sistema, empresas sin
+  representante). Emitir responde 409 `MIGRACION_PENDIENTE` en vez de un 500.
+- **UI**: `components/documents/` — `EmitirKitModal` (casillas por documento, fecha, días de plazo,
+  implementos de EPP, duración de la charla), `EmitirAmonestacionModal` (sucesor de `ConstanciaModal`),
+  `DocumentosGeneradosList` (en la ficha rápida, con estado y Descargar/Imprimir gateados) y la lógica
+  pura de `documentosLaborales.ts` (+ test). `utils/descargarArchivo.ts` centraliza la descarga: lee el
+  403 que viene como Blob y lo muestra con el nombre del permiso que falta (antes el GET fallaba mudo).
+  La lista de "Documentos Subidos" filtra `origen === 'subido'` y la completitud cuenta **tipos
+  obligatorios distintos** (`contarObligatorios`), así el kit generado no la infla.
+
+## Empresas: representante legal (mig 110)
+
+`empresas.representante_nombre` y `representante_rut` se editan en Configuración → Empresas y se
+imprimen en el contrato y el finiquito. Sin ellos, emitir un contrato responde 409 con el dato que falta.
+En v1 solo LOLS y MAUA emiten (decisión del dueño 2026-09-11).

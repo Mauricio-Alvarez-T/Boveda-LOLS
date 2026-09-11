@@ -48,6 +48,22 @@ export function installConsultasMock(api: AxiosInstance, opts: ConsultasMockOpts
     });
     mock.onGet(/\/documentos\/trabajador\/\d+/).reply(200, documentosDemo);
     mock.onGet(/\/documentos\/tipos/).reply(200, tiposDocDemo);
+    // Documentos laborales generados (plan Gestiones B2): catálogo fijo, lista vacía y emisiones no-op.
+    mock.onGet(/\/documentos-laborales\/catalogo/).reply(200, {
+        data: {
+            kit: [
+                { codigo: 'CONTRATO', titulo: 'Contrato de Trabajo', version: '1.0' }, { codigo: 'ODI_D40', titulo: 'ODI – Obligación de Informar (DS 44)', version: '1.0' },
+                { codigo: 'DAS', titulo: 'Declaración Derecho a Saber', version: '1.0' }, { codigo: 'PTS_ALTURA', titulo: 'Procedimiento de Trabajo Seguro en Altura', version: '1.0' },
+                { codigo: 'EPP_RECEPCION', titulo: 'Recepción de Implementos de Seguridad', version: '1.0' }, { codigo: 'RI_RECEPCION', titulo: 'Recepción Reglamento Interno', version: '1.0' },
+            ],
+            emitibles: [], epp_default: ['CASCO', 'GUANTES', 'ARNÉS', 'ZAPATOS DE SEGURIDAD', 'ANTIPARRAS'], amonestacion_motivos: ['Atraso reiterado en el ingreso', 'Inasistencia injustificada'],
+        },
+    });
+    mock.onGet(/\/documentos-laborales\/trabajador\/\d+/).reply(200, { data: [] });
+    mock.onPost(/\/documentos-laborales\/emitir\/\d+/).reply(201, { data: { documento_id: 7301, nombre_archivo: 'Amonestacion_demo.doc', tipo_codigo: 'AMONESTACION', estado: 'generado' } });
+    mock.onPost(/\/documentos-laborales\/kit-ingreso\/\d+/).reply(201, { data: { trabajador_id: 5101, emitidos: [] } });
+    mock.onGet(/\/documentos-laborales\/\d+\/(download|html)/).reply(200, { data: { html: '<!DOCTYPE html><html><body>demo</body></html>', titulo: 'Demo' } });
+    mock.onGet(/\/solicitudes-ingreso\/\d+\/doc/).reply(200, 'demo-doc');
     mock.onGet(/\/asistencias\/estados/).reply(200, estadosDemo);
     mock.onGet(/\/asistencias\/(periodos|reporte)/).reply(200, { data: [] });
 

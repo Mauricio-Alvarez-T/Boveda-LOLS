@@ -109,7 +109,8 @@ try {
     searchFields: ['rut', 'razon_social'],
     useSoftDelete: true,
     orderBy: 'razon_social ASC',
-    allowedFields: ['rut', 'razon_social', 'direccion', 'telefono', 'email', 'activo']
+    // representante_* (mig 110): firma contratos y finiquitos generados por Bóveda (plan Gestiones B2).
+    allowedFields: ['rut', 'razon_social', 'direccion', 'telefono', 'email', 'activo', 'representante_nombre', 'representante_rut']
   }));
   // ── Obras: opciones extraídas para reusar el service en el PUT con cascada ──
   const createCrudService = require('./src/services/crud.service');
@@ -467,6 +468,7 @@ safeRoute('/api/logs', './src/routes/logs.routes', 'Logs');
 safeRoute('/api/reportes', './src/routes/reportes.routes', 'Reportes Suscriptores');
 safeRoute('/api/avisos', './src/routes/avisos.routes', 'Avisos (Resumen de Novedades)');
 safeRoute('/api/cargo-sueldos', './src/routes/cargo-sueldos.routes', 'Cargos — parámetros de sueldo ($, plan Gestiones B3)');
+safeRoute('/api/documentos-laborales', './src/routes/documentos-laborales.routes', 'Documentos laborales generados (Word, plan Gestiones B2)');
 safeRoute('/api/vehiculos', './src/routes/vehiculos.routes', 'Vehículos');
 safeRoute('/api/tutoriales-progreso', './src/routes/tutoriales.routes', 'Tutoriales (progreso Centro de ayuda)');
 

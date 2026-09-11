@@ -6,6 +6,9 @@ export interface Empresa {
     direccion: string | null;
     telefono: string | null;
     activo: boolean;
+    /** Representante legal que firma contratos/finiquitos generados por Bóveda (mig 110). */
+    representante_nombre?: string | null;
+    representante_rut?: string | null;
 }
 
 export interface Obra {
@@ -422,7 +425,15 @@ export interface TipoDocumento {
     dias_vigencia: number | null;
     obligatorio: boolean;
     activo: boolean;
+    /** Clave estable del sistema (plantilla Bóveda, mig 110); null = tipo manual. */
+    codigo?: string | null;
+    /** Descarga/impresión solo con documentos.laborales.descargar. */
+    restringido?: boolean | number;
 }
+
+/** Estado monótono de un documento (mig 110): subido|generado → descargado → entregado (B6). */
+export type DocumentoEstado = 'subido' | 'generado' | 'descargado' | 'entregado';
+export type DocumentoOrigen = 'subido' | 'generado';
 
 export interface Documento {
     id: number;
@@ -436,6 +447,17 @@ export interface Documento {
     fecha_vencimiento: string | null;
     subido_por: number;
     activo: boolean;
+    // Mig 110 (documentos generados por Bóveda). Ausentes si el backend aún no migró.
+    tipo_obligatorio?: boolean | number | null;
+    tipo_codigo?: string | null;
+    restringido?: boolean | number;
+    origen?: DocumentoOrigen;
+    estado?: DocumentoEstado;
+    generado_por?: number | null;
+    generado_por_nombre?: string | null;
+    fecha_generacion?: string | null;
+    fecha_descarga?: string | null;
+    plantilla_version?: string | null;
 }
 
 export interface EstadoAsistencia {

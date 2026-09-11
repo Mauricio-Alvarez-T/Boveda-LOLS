@@ -59,10 +59,11 @@ router.post('/enviar-excel', auth, checkPermission('reportes.enviar_email'), asy
         fs.writeFileSync(excelPath, buffer);
 
         let zipPath = null;
+        const zipStats = { omitidos: 0 };
         const workerIds = trabajador_ids || (filters.trabajador_id ? [filters.trabajador_id] : []);
         if (workerIds.length > 0) {
             try {
-                zipPath = await zipService.createZip(workerIds);
+                zipPath = await zipService.createZip(workerIds, zipStats);
             } catch (e) {
                 logger.error('Error generando ZIP de documentos', { err: e.message });
             }
@@ -79,7 +80,8 @@ router.post('/enviar-excel', auth, checkPermission('reportes.enviar_email'), asy
             fromPassword: credentials.password,
             to: destinatario_email,
             subject: asunto || 'Reporte de Personal y Documentación - Bóveda LOLS',
-            body: cuerpo || 'Adjunto el reporte y la documentación respaldatoria solicitada.',
+            body: (cuerpo || 'Adjunto el reporte y la documentación respaldatoria solicitada.')
+                + (zipStats.omitidos > 0 ? `\n\nNota: ${zipStats.omitidos} documento(s) laboral(es) restringido(s) (contratos, finiquitos, anexos) no se adjuntan por correo; se descargan desde Bóveda con el permiso correspondiente.` : ''),
             attachmentPaths
         });
 

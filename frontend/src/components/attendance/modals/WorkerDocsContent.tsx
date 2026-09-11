@@ -6,6 +6,7 @@ import { Button } from '../../ui/Button';
 import { DocumentUploader } from '../../documents/DocumentUploader';
 import { DocumentList } from '../../documents/DocumentList';
 import api from '../../../services/api';
+import { descargarArchivo } from '../../../utils/descargarArchivo';
 import { cn } from '../../../utils/cn';
 import type { Trabajador } from '../../../types/entities';
 
@@ -39,23 +40,16 @@ export const WorkerDocsContent: React.FC<WorkerDocsContentProps> = ({
                             size="sm"
                             variant="glass"
                             onClick={async () => {
-                                try {
-                                    const nid = toast.loading('Generando ZIP...');
-                                    const response = await api.get(`/documentos/download-all/${worker.id}`, {
-                                        responseType: 'blob',
-                                    });
-                                    const url = window.URL.createObjectURL(new Blob([response.data]));
-                                    const link = document.createElement('a');
-                                    link.href = url;
-                                    link.setAttribute('download', `Documentos_${worker.apellido_paterno}_${worker.nombres}.zip`);
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    link.remove();
-                                    toast.dismiss(nid);
-                                    toast.success('Descarga iniciada');
-                                } catch (err) {
-                                    toast.error('Error al descargar documentos');
-                                }
+                                // El ZIP omite los documentos laborales restringidos (mig 110): el helper
+                                // avisa cuántos quedaron fuera y muestra el mensaje del backend si falla.
+                                const nid = toast.loading('Generando ZIP...');
+                                const ok = await descargarArchivo(api, `/documentos/download-all/${worker.id}`, {
+                                    nombre: `Documentos_${worker.apellido_paterno}_${worker.nombres}.zip`,
+                                    modo: 'download',
+                                    fallbackError: 'No se pudo descargar la documentación',
+                                });
+                                toast.dismiss(nid);
+                                if (ok) toast.success('Descarga iniciada');
                             }}
                             className="text-green-700 dark:text-green-300 font-bold border-brand-primary/20 flex-1 sm:flex-initial"
                             leftIcon={<FileDown className="h-4 w-4" />}

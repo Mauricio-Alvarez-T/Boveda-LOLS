@@ -30,13 +30,16 @@ const fileFilter = (req, file, cb) => {
         'image/jpeg',
         'image/png',
         'image/webp',
-        'text/plain'
+        'text/plain',
+        // Word editado/firmado que vuelve a la ficha (plan Gestiones B2). Se guarda tal cual.
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ];
 
     if (allowedTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error(`Formato no permitido: ${file.mimetype}. Solo se aceptan PDF, JPG, PNG, WEBP y TXT.`), false);
+        cb(new Error(`Formato no permitido: ${file.mimetype}. Solo se aceptan PDF, JPG, PNG, WEBP, TXT y Word (DOC/DOCX).`), false);
     }
 };
 

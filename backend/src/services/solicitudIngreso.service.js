@@ -446,8 +446,18 @@ const solicitudIngresoService = {
         );
         logger.info('Solicitud de ingreso aprobada', { solicitudId: sid, trabajadorId, userId });
 
+        // Ficha de solicitud en Word → queda en la ficha del trabajador (plan Gestiones B2, mig 110).
+        // Post-commit y best-effort: la aprobación NUNCA falla por el documento.
+        let solicitudDocumentoId = null;
+        try {
+            const doc = await require('./documentosLaborales.service').solicitudDoc(sid, userId, req);
+            solicitudDocumentoId = doc.documento_id ?? null;
+        } catch (err) {
+            logger.warn('No se pudo emitir la ficha de solicitud en Word (la aprobación se completó)', { solicitudId: sid, err: err.message });
+        }
+
         const solicitud = await _getRow(sid);
-        return { solicitud, trabajador_id: trabajadorId };
+        return { solicitud, trabajador_id: trabajadorId, solicitud_documento_id: solicitudDocumentoId };
     },
 
     /**

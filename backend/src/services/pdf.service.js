@@ -14,14 +14,23 @@ const pdfService = {
      * @returns {object} { finalPath, fileName }
      */
     async processFile(filePath, mimetype, rutTrabajador, rutEmpresa) {
-        const fecha = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const ahora = new Date();
+        const fecha = ahora.toISOString().split('T')[0]; // YYYY-MM-DD
+        // Sufijo HHmmss: dos subidas del mismo trabajador el mismo día ya no se pisan (renameSync
+        // sobreescribía en silencio la primera).
+        const hora = ahora.toISOString().slice(11, 19).replace(/:/g, '');
         const cleanRutT = rutTrabajador.replace(/\./g, '');
         const cleanRutE = rutEmpresa.replace(/\./g, '');
-        const fileName = `${cleanRutT}-${cleanRutE}-${fecha}.pdf`;
+        const OFFICE = { 'application/msword': 'doc', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx' };
+        const ext = OFFICE[mimetype] || 'pdf';
+        const fileName = `${cleanRutT}-${cleanRutE}-${fecha}-${hora}.${ext}`;
         const dir = path.dirname(filePath);
         const finalPath = path.join(dir, fileName);
 
-        if (mimetype === 'application/pdf') {
+        if (OFFICE[mimetype]) {
+            // Word editado/firmado (plan Gestiones B2): se guarda sin convertir (no hay Office en cPanel).
+            fs.renameSync(filePath, finalPath);
+        } else if (mimetype === 'application/pdf') {
             // Already PDF, just rename
             fs.renameSync(filePath, finalPath);
         } else if (mimetype === 'text/plain') {

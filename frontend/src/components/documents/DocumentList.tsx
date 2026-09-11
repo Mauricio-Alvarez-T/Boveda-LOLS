@@ -6,7 +6,8 @@ import {
     Calendar,
     AlertCircle,
     CheckCircle2,
-    Loader2
+    Loader2,
+    Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -18,6 +19,7 @@ import api from '../../services/api';
 import type { Documento } from '../../types/entities';
 import type { ApiResponse } from '../../types';
 import { cn } from '../../utils/cn';
+import { descargarArchivo } from '../../utils/descargarArchivo';
 
 interface DocumentListProps {
     trabajadorId: number;
@@ -45,21 +47,11 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
         fetchDocuments();
     }, [trabajadorId]);
 
+    // Restringido (contrato/finiquito/anexo, mig 110) → /documentos-laborales con su gate exclusivo;
+    // el helper muestra el 403 con el nombre del permiso que falta (antes el GET fallaba mudo).
     const handleDownload = async (doc: Documento) => {
-        try {
-            const response = await api.get(`/documentos/download/${doc.id}`, {
-                responseType: 'blob',
-            });
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', doc.nombre_archivo);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-        } catch (err) {
-            toast.error('Error al descargar archivo');
-        }
+        const url = doc.restringido ? `/documentos-laborales/${doc.id}/download` : `/documentos/download/${doc.id}`;
+        await descargarArchivo(api, url, { nombre: doc.nombre_archivo, modo: 'download' });
     };
 
     const handleToggleActive = (doc: Documento) => {
@@ -154,6 +146,11 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                     <span className="text-label text-muted-foreground truncate mt-0.5" title={doc.nombre_archivo}>
                                                         {doc.nombre_archivo}
                                                     </span>
+                                                    {(doc.origen === 'generado' || doc.restringido) && (
+                                                        <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                                            <Lock className="h-3 w-3" /> {doc.origen === 'generado' ? 'Generado por Bóveda' : 'Solo oficina'}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>

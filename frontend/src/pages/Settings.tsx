@@ -62,7 +62,7 @@ import ChangePasswordForm from '../components/settings/ChangePasswordForm';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
 import { FeriadosPanel } from '../components/settings/FeriadosPanel';
-import { ShieldCheck, UserCog, Package, Warehouse, Wrench, Archive, Bell, Banknote } from 'lucide-react';
+import { ShieldCheck, UserCog, Package, Warehouse, Wrench, Archive, Bell, Banknote, Lock } from 'lucide-react';
 import { FinalizarObraModal } from '../components/obras/FinalizarObraModal';
 import { ParticipaToggle } from '../components/settings/ParticipaToggle';
 import { CategoriaInventarioForm } from '../components/settings/CategoriaInventarioForm';
@@ -214,6 +214,16 @@ const tipoDocCols: ColumnDef<TipoDocumento>[] = [
         render: (v) => (
             <Chip tone={v ? 'warning' : 'neutral'} label={v ? 'Sí' : 'No'} className="text-caption" />
         ),
+    },
+    {
+        // Tipos del sistema (mig 110): los usa el motor de documentos Word. Solo lectura — el backend
+        // responde 409 si se intenta desactivarlos, volverlos obligatorios o eliminarlos.
+        key: 'codigo', label: 'Sistema',
+        render: (v: string | null) => (v
+            ? <span className="inline-flex items-center gap-1 text-caption font-bold uppercase tracking-wider text-muted-foreground" title={`Documento generado por Bóveda (${v}). Solo se puede renombrar.`}>
+                <Lock className="h-3 w-3" /> {v}
+            </span>
+            : <span className="text-caption text-muted-foreground">—</span>),
     },
 ];
 

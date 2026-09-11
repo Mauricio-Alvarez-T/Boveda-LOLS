@@ -29,6 +29,11 @@
 - `cargos.sueldo.ver/.editar` (mig 111, plan Gestiones B3) son $ pero viven en el módulo **Cargos** y
   NO en `PERMISOS_FINANCIEROS` (lista exclusiva de inventario); gates exclusivos sin patrón OR; los montos
   jamás entran a `logs_actividad` (exclusión en `logger.js` + `EXCLUDED_KEYS`). Ver rrhh-trabajadores.md.
+- `documentos.laborales.descargar` (mig 110, plan Gestiones B2) **implica ver la remuneración**: el
+  contrato que descarga o imprime trae el sueldo base impreso en cifras y en letras. Tratarlo como
+  permiso sensible aunque no esté en `PERMISOS_FINANCIEROS`. El snapshot `documentos.metadata` (que
+  congela ese monto) nunca sale por rutas con `documentos.ver`: proyección explícita de columnas +
+  `EXCLUDED_KEYS`. Ver rrhh-trabajadores.md § Documentos laborales generados por Bóveda.
 - **Doble defensa**: la UI oculta columnas/cards Y el backend **sanitiza el JSON**
   (`backend/src/utils/sanitizeFinancialFields.js`) — sin permiso, los montos no llegan ni por
   DevTools. El backend es la fuente de verdad.
@@ -42,6 +47,9 @@
   a los roles que ya tenían el genérico.
 - Caso vigente: `inventario.bombas.crear` / `inventario.bombas.editar` (mig 098) para que "En
   Terreno" programe hormigón sin poder editar stock/ítems. Ver reglas/bombas.md.
+- ⚠️ **Excepción deliberada**: `documentos.laborales.emitir` / `.descargar` y `cargos.sueldo.*` usan gate
+  **EXCLUSIVO** (un solo permiso, sin OR con el genérico del módulo). Son "solo oficina": heredarlos desde
+  `documentos.descargar` o `cargos.ver` daría acceso a contratos y remuneraciones a todo terreno.
 - ⚠️ Al asignar por migración: insertar primero en `permisos_catalogo` (hay FK desde
   `permisos_rol_v2.permiso_clave`) y avisar **re-login** — el token trae la lista de permisos.
 
