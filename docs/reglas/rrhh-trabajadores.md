@@ -347,6 +347,12 @@ de `/:id`. Errores con el patrón del repo: `throw Object.assign(new Error(msg),
 - **Reporte semanal**: las bajas salen de `trabajador_desvinculaciones` (con columna Causal) con fallback a
   `trabajadores.fecha_desvinculacion` si la mig 112 no corrió → reactivar ya no borra la baja del KPI.
 - **Depurar** (`DELETE /:id/depurar`): 409 si hay finiquito emitido o documentos generados por Bóveda.
+- **El antecedente sobrevive a la depuración (mig 113, decisión del dueño tras QA 2026-09-11)**: el
+  historial guarda `rut_normalized` + `nombre_snapshot` y la FK a trabajadores es `ON DELETE SET NULL`
+  (`trabajador_id = NULL` = ficha depurada). Ambos check-rut consultan `antecedentePorRut` cuando el RUT
+  no tiene ficha → "RUT disponible, pero…" con fecha/causal/marca (`trabajador_depurado: true`). Sigue
+  siendo solo un aviso. Terreno (solicitud) ve fecha/artículo/marca; con `trabajadores.ver` también el
+  nombre de la causal (`checkRut(rut, { conCausal })`).
 - **UI**: `DesvincularModal` (fecha, causal, detalle, marca; éxito con causal y aviso de asistencias
   posteriores), `ReactivarModal` (última desvinculación + tarjeta roja si marcado + checkbox quitar marca),
   `DesvinculacionInfo` en la ficha rápida, aviso en el check-rut de `WorkerForm`. Lógica pura en

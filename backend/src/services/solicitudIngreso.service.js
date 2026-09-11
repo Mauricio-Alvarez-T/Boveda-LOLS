@@ -236,7 +236,7 @@ const solicitudIngresoService = {
      * No exige RUT válido: con un RUT incompleto responde "no existe" para que
      * el front no muestre errores mientras se tipea.
      */
-    async checkRut(rut) {
+    async checkRut(rut, { conCausal = false } = {}) {
         const cleaned = cleanRut(rut);
         const vacio = { existe_trabajador: false, trabajador: null, solicitud_pendiente: null };
         if (!cleaned) return vacio;
@@ -246,9 +246,14 @@ const solicitudIngresoService = {
         // Finiquitado: terreno recibe fecha, artículo y marca (sin nombre de causal ni detalle) para
         // el aviso ámbar/rojo. Solo advierte (decisión del dueño 2026-09-10). Va DESPUÉS de las dos
         // consultas históricas para no alterar su orden.
-        const ultima = (trabajador && !trabajador.activo)
-            ? await desvinculacionService.ultimaDesvinculacion(trabajador.id, { modo: 'terreno' })
-            : null;
+        const modo = conCausal ? 'resumen' : 'terreno';
+        let ultima = null;
+        if (trabajador && !trabajador.activo) {
+            ultima = await desvinculacionService.ultimaDesvinculacion(trabajador.id, { modo });
+        } else if (!trabajador) {
+            // Mig 113: RUT de un trabajador DEPURADO → el antecedente se conserva por RUT.
+            ultima = await desvinculacionService.antecedentePorRut(cleaned, { modo });
+        }
 
         return {
             existe_trabajador: !!trabajador,

@@ -15,6 +15,8 @@ import { Button } from '../ui/Button';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import { showApiError } from '../../utils/toastUtils';
 import { DatosPersonalesFields } from '../workers/DatosPersonalesFields';
+import { avisoDesvinculacion, type UltimaDesvinculacion } from '../workers/desvinculacionSchema';
+import { cn } from '../../utils/cn';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
 import { copyAndShare } from '../../utils/whatsappShare';
 import { buildSolicitudIngresoMessage, fechaContratacion, nombreCompletoSolicitud } from './solicitudIngresoWhatsApp';
@@ -29,6 +31,8 @@ export interface CheckRutResponse {
     existe_trabajador: boolean;
     trabajador: { id: number; nombre: string; activo: boolean } | null;
     solicitud_pendiente: { id: number } | null;
+    /** Antecedente de la última baja (mig 112/113): finiquitado o ficha depurada. Solo advierte. */
+    ultima_desvinculacion?: UltimaDesvinculacion;
 }
 
 type RutStatus = 'idle' | 'checking' | 'existe' | 'pendiente' | 'disponible';
@@ -64,13 +68,14 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onEnviada, onClose, onCa
     // ── Verificación en vivo del RUT (patrón de WorkerForm) ──
     const [rutStatus, setRutStatus] = useState<RutStatus>('idle');
     const [rutNombre, setRutNombre] = useState('');
+    const [rutUltima, setRutUltima] = useState<UltimaDesvinculacion | null>(null);
     const rutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const rutSeq = useRef(0); // descarta respuestas viejas (race) al tipear rápido
 
     const checkRut = (formatted: string) => {
         if (rutTimer.current) clearTimeout(rutTimer.current);
         const seq = ++rutSeq.current; // invalida cualquier respuesta en vuelo
-        if (!validateRut(formatted)) { setRutStatus('idle'); setRutNombre(''); return; }
+        if (!validateRut(formatted)) { setRutStatus('idle'); setRutNombre(''); setRutUltima(null); return; }
 
         setRutStatus('checking');
         rutTimer.current = setTimeout(async () => {
@@ -80,6 +85,7 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onEnviada, onClose, onCa
                 );
                 if (seq !== rutSeq.current) return; // llegó tarde, ignorar
                 const d = res.data.data;
+                setRutUltima(d.ultima_desvinculacion ?? null);
                 if (d.existe_trabajador) {
                     setRutStatus('existe');
                     setRutNombre(d.trabajador?.nombre || 'sin nombre');
@@ -272,6 +278,16 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onEnviada, onClose, onCa
                                 <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> RUT disponible
                             </p>
                         )}
+                        {/* Ficha depurada con antecedente (mig 113): el RUT está disponible pero se advierte. Rojo si marcado. */}
+                        {!errors.rut && rutStatus === 'disponible' && rutUltima && (
+                            <div role="alert" className={cn('mt-2 flex items-start gap-2 rounded-xl border p-3 text-sm',
+                                rutUltima.no_recontratar
+                                    ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-800/60 dark:bg-red-500/10 dark:text-red-300'
+                                    : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-300')}>
+                                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                                <span>Este RUT tiene antecedentes: {avisoDesvinculacion(rutUltima)}. Puedes continuar; administración verá el mismo aviso.</span>
+                            </div>
+                        )}
                         {/* Aviso ÁMBAR (precaución, no error): duplicado o solicitud ya en curso. */}
                         {bloqueado && (
                             <div
@@ -279,7 +295,14 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onEnviada, onClose, onCa
                                 className="mt-2 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-300"
                             >
                                 <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                                <span>{rutStatus === 'existe' ? avisoRutExiste(rutNombre) : AVISO_SOLICITUD_PENDIENTE}</span>
+                                <span>
+                                    {rutStatus === 'existe' ? avisoRutExiste(rutNombre) : AVISO_SOLICITUD_PENDIENTE}
+                                    {rutStatus === 'existe' && rutUltima && (
+                                        <span className={cn('block mt-1', rutUltima.no_recontratar ? 'font-semibold text-red-700 dark:text-red-300' : 'font-medium')}>
+                                            Antecedente: {avisoDesvinculacion(rutUltima)}.
+                                        </span>
+                                    )}
+                                </span>
                             </div>
                         )}
                     </div>

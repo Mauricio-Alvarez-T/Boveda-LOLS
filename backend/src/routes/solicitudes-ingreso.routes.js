@@ -26,7 +26,8 @@ const APROBAR = 'trabajadores.solicitud.aprobar';
 // `trabajadores.crear`, que es el gate del check-rut del módulo Trabajadores.
 router.get('/check-rut/:rut', auth, checkPermission(CREAR), async (req, res, next) => {
     try {
-        const result = await service.checkRut(req.params.rut);
+        // Oficina (trabajadores.ver) ve el nombre de la causal; terreno solo fecha/artículo/marca.
+        const result = await service.checkRut(req.params.rut, { conCausal: (req.user?.p || []).includes('trabajadores.ver') });
         res.json({ data: result });
     } catch (err) { next(err); }
 });

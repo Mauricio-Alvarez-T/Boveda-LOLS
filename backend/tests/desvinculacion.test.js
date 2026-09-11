@@ -61,7 +61,7 @@ const hoy = new Date();
 const p = n => String(n).padStart(2, '0');
 const HOY = `${hoy.getFullYear()}-${p(hoy.getMonth() + 1)}-${p(hoy.getDate())}`;
 
-const TRAB_ACTIVO = { id: 7, nombres: 'Juan', apellido_paterno: 'Pérez', apellido_materno: 'Soto', activo: 1, fecha_ingreso: '2026-01-15' };
+const TRAB_ACTIVO = { id: 7, nombres: 'Juan', apellido_paterno: 'Pérez', apellido_materno: 'Soto', activo: 1, fecha_ingreso: '2026-01-15', rut_normalized: '123456785' };
 const TRAB_INACTIVO = { ...TRAB_ACTIVO, activo: 0, no_recontratar: 1 };
 
 describe('GET /api/trabajadores/catalogos/causales-desvinculacion', () => {
@@ -121,7 +121,8 @@ describe('PUT /api/trabajadores/:id/desvincular', () => {
         const sql = sqlOf(conn.query);
         expect(sql[0]).toMatch(/FROM trabajadores WHERE id = \? FOR UPDATE/);
         expect(sql[1]).toMatch(/INSERT INTO trabajador_desvinculaciones/);
-        expect(conn.query.mock.calls[1][1]).toEqual([7, HOY, '2026-01-15', 'INASISTENCIA', 'Faltó 3 lunes seguidos sin aviso', 1, 3]);
+        // Mig 113: además rut_normalized + nombre_snapshot (el antecedente sobrevive a la depuración).
+        expect(conn.query.mock.calls[1][1]).toEqual([7, HOY, '2026-01-15', 'INASISTENCIA', 'Faltó 3 lunes seguidos sin aviso', 1, 3, '123456785', 'Pérez Soto Juan']);
         expect(sql[2]).toMatch(/UPDATE trabajadores[\s\S]*activo = 0[\s\S]*causal_desvinculacion = \?[\s\S]*no_recontratar = \?/);
         expect(conn.query.mock.calls[2][1]).toEqual([HOY, 'INASISTENCIA', 1, 7]);
         expect(conn.commit).toHaveBeenCalled();
@@ -272,6 +273,42 @@ describe('resumen y check-rut exponen la última desvinculación (sin detalle)',
         expect(res.body.trabajador.activo).toBe(false);
         expect(res.body.ultima_desvinculacion).toMatchObject({ fecha: '2026-06-30', no_recontratar: true });
         expect(res.body.ultima_desvinculacion.causal_nombre).toMatch(/Inasistencias/);
+    });
+});
+
+describe('antecedente por RUT tras depuración (mig 113)', () => {
+    const FILA_DEPURADA = { id: 12, trabajador_id: null, rut_normalized: '123456785', nombre_snapshot: 'Pérez Soto Juan', fecha_desvinculacion: '2026-06-30', causal_codigo: 'INASISTENCIA', detalle: 'secreto', no_recontratar: 1 };
+
+    test('GET /trabajadores/check-rut sin ficha pero con antecedente → exists:false + ultima_desvinculacion (depurado)', async () => {
+        db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[FILA_DEPURADA]]);
+        const res = await request(app).get('/api/trabajadores/check-rut/12.345.678-5').set('Authorization', `Bearer ${makeToken(['trabajadores.crear'])}`);
+        expect(res.status).toBe(200);
+        expect(res.body.exists).toBe(false);
+        expect(res.body.ultima_desvinculacion).toMatchObject({ trabajador_depurado: true, nombre: 'Pérez Soto Juan', no_recontratar: true, fecha: '2026-06-30' });
+        expect(res.body.ultima_desvinculacion.causal_nombre).toMatch(/Inasistencias/);
+        expect(db.query.mock.calls[1][0]).toMatch(/d\.rut_normalized = \?/);
+        expect(db.query.mock.calls[1][1]).toEqual(['123456785']);
+    });
+
+    test('GET /trabajadores/check-rut sin ficha ni antecedente → shape histórico intacto', async () => {
+        const res = await request(app).get('/api/trabajadores/check-rut/12.345.678-5').set('Authorization', `Bearer ${makeToken(['trabajadores.crear'])}`);
+        expect(res.body).toEqual({ exists: false, trabajador: null });
+    });
+
+    test('GET /solicitudes-ingreso/check-rut: terreno recibe el antecedente SIN nombre de causal; oficina (trabajadores.ver) CON nombre', async () => {
+        db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]).mockResolvedValueOnce([[FILA_DEPURADA]]);
+        const terreno = await request(app).get('/api/solicitudes-ingreso/check-rut/12.345.678-5').set('Authorization', `Bearer ${makeToken(['trabajadores.solicitud.crear'])}`);
+        expect(terreno.status).toBe(200);
+        expect(terreno.body.data.existe_trabajador).toBe(false);
+        expect(terreno.body.data.ultima_desvinculacion).toMatchObject({ trabajador_depurado: true, no_recontratar: true, articulo: '160' });
+        expect(terreno.body.data.ultima_desvinculacion).not.toHaveProperty('causal_nombre');
+        expect(terreno.body.data.ultima_desvinculacion).not.toHaveProperty('detalle');
+
+        db.query.mockReset().mockResolvedValue([[]]);
+        db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]).mockResolvedValueOnce([[FILA_DEPURADA]]);
+        const oficina = await request(app).get('/api/solicitudes-ingreso/check-rut/12.345.678-5').set('Authorization', `Bearer ${makeToken(['trabajadores.solicitud.crear', 'trabajadores.ver'])}`);
+        expect(oficina.body.data.ultima_desvinculacion.causal_nombre).toMatch(/Inasistencias/);
+        expect(oficina.body.data.ultima_desvinculacion).not.toHaveProperty('detalle');
     });
 });
 

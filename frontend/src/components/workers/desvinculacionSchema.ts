@@ -21,6 +21,10 @@ export interface UltimaDesvinculacion {
     fecha: string | null;
     articulo: string | null;
     no_recontratar: boolean;
+    /** true si la ficha del trabajador fue depurada: el antecedente se conserva por RUT (mig 113). */
+    trabajador_depurado?: boolean;
+    /** Nombre guardado al momento de la baja (para el aviso cuando ya no hay ficha). */
+    nombre?: string | null;
     causal_codigo?: string;
     causal_nombre?: string;
     articulo_texto?: string | null;
@@ -105,5 +109,6 @@ export function avisoDesvinculacion(u: UltimaDesvinculacion | null | undefined):
     if (u.causal_nombre) partes.push(u.causal_nombre);
     else if (u.articulo) partes.push(`Art. ${u.articulo}`);
     if (u.no_recontratar) partes.push('marcado NO recontratar');
-    return partes.join(' · ');
+    const texto = partes.join(' · ');
+    return u.trabajador_depurado ? `ficha depurada${u.nombre ? ` (${u.nombre})` : ''}: ${texto}` : texto;
 }

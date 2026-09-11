@@ -63,5 +63,7 @@ describe('buildDesvincularPayload / avisoDesvinculacion', () => {
             .toBe('desvinculado el 30-06-2026 · Inasistencias injustificadas · marcado NO recontratar');
         expect(avisoDesvinculacion({ fecha: '2026-06-30', articulo: '159', no_recontratar: false })).toBe('desvinculado el 30-06-2026 · Art. 159');
         expect(avisoDesvinculacion(null)).toBeNull();
+        expect(avisoDesvinculacion({ fecha: '2026-06-30', articulo: '160', no_recontratar: true, trabajador_depurado: true, nombre: 'Pérez Soto Juan' }))
+            .toBe('ficha depurada (Pérez Soto Juan): desvinculado el 30-06-2026 · Art. 160 · marcado NO recontratar');
     });
 });

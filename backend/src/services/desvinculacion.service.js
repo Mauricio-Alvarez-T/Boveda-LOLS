@@ -48,7 +48,7 @@ function sumarDias(ymd, dias) {
 const nombreCompleto = t => [t.apellido_paterno, t.apellido_materno, t.nombres].filter(Boolean).join(' ');
 
 const SELECT_HIST = `
-    SELECT d.id, d.trabajador_id, d.fecha_desvinculacion, d.fecha_ingreso_periodo, d.causal_codigo, d.detalle,
+    SELECT d.id, d.trabajador_id, d.rut_normalized, d.nombre_snapshot, d.fecha_desvinculacion, d.fecha_ingreso_periodo, d.causal_codigo, d.detalle,
            d.no_recontratar, d.desvinculado_por, u1.nombre AS desvinculado_por_nombre, d.desvinculado_en,
            d.finiquito_documento_id, d.reactivado_por, u2.nombre AS reactivado_por_nombre, d.reactivado_en
       FROM trabajador_desvinculaciones d
@@ -63,6 +63,9 @@ function proyectar(r, modo) {
         fecha: toYmd(r.fecha_desvinculacion),
         articulo: c?.articulo ?? null,
         no_recontratar: toBool(r.no_recontratar),
+        // Mig 113: la ficha pudo haberse depurado; el aviso muestra el nombre guardado al momento de la baja.
+        trabajador_depurado: r.trabajador_id == null,
+        nombre: r.nombre_snapshot ?? null,
     };
     if (modo === 'terreno') return base;
     const resumen = {
@@ -106,6 +109,22 @@ const desvinculacionService = {
         }
     },
 
+    /**
+     * Antecedente por RUT (mig 113): última baja registrada con ese RUT aunque la ficha ya no exista
+     * (trabajador depurado → trabajador_id NULL). Alimenta el aviso de ambos check-rut. Defensivo:
+     * cualquier error se degrada a null (es solo un aviso; nunca debe romper la creación).
+     */
+    async antecedentePorRut(rutNormalizado, { modo = 'resumen', conn = db } = {}) {
+        if (!rutNormalizado) return null;
+        try {
+            const r = await conn.query(`${SELECT_HIST} WHERE d.rut_normalized = ? ORDER BY d.desvinculado_en DESC, d.id DESC LIMIT 1`, [rutNormalizado]);
+            const rows = Array.isArray(r) ? r[0] : [];
+            return proyectar(rows && rows[0], modo);
+        } catch (err) {
+            if (!esErrorEsquema(err)) logger.warn('antecedentePorRut falló (se omite el aviso)', { err: err.message });
+            return null;
+        }
+    },
     /** Historial completo (con detalle). Gate en la ruta: trabajadores.eliminar OR .reactivar. */
     async listar(trabajadorId) {
         try {
@@ -145,7 +164,7 @@ const desvinculacionService = {
         try {
             await conn.beginTransaction();
             const [rows] = await conn.query(
-                'SELECT id, nombres, apellido_paterno, apellido_materno, activo, fecha_ingreso FROM trabajadores WHERE id = ? FOR UPDATE',
+                'SELECT id, nombres, apellido_paterno, apellido_materno, activo, fecha_ingreso, rut_normalized FROM trabajadores WHERE id = ? FOR UPDATE',
                 [id]
             );
             if (!rows.length) throw httpError('Trabajador no encontrado', 404);
@@ -156,12 +175,26 @@ const desvinculacionService = {
                 throw httpError(`La fecha de desvinculación no puede ser anterior al ingreso (${ingreso})`, 400);
             }
 
-            const [ins] = await conn.query(
-                `INSERT INTO trabajador_desvinculaciones
-                    (trabajador_id, fecha_desvinculacion, fecha_ingreso_periodo, causal_codigo, detalle, no_recontratar, desvinculado_por)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [id, fecha, ingreso, causal.codigo, detalle, noRecontratar ? 1 : 0, userId ?? null]
-            );
+            // Mig 113: rut_normalized + nombre_snapshot para que el antecedente sobreviva a la depuración.
+            // Si la 113 aún no corrió (1054), se inserta sin esas columnas.
+            const baseParams = [id, fecha, ingreso, causal.codigo, detalle, noRecontratar ? 1 : 0, userId ?? null];
+            let ins;
+            try {
+                [ins] = await conn.query(
+                    `INSERT INTO trabajador_desvinculaciones
+                        (trabajador_id, fecha_desvinculacion, fecha_ingreso_periodo, causal_codigo, detalle, no_recontratar, desvinculado_por, rut_normalized, nombre_snapshot)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [...baseParams, trabajador.rut_normalized ?? null, nombreCompleto(trabajador)]
+                );
+            } catch (err) {
+                if (!esErrorEsquema(err)) throw err;
+                [ins] = await conn.query(
+                    `INSERT INTO trabajador_desvinculaciones
+                        (trabajador_id, fecha_desvinculacion, fecha_ingreso_periodo, causal_codigo, detalle, no_recontratar, desvinculado_por)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                    baseParams
+                );
+            }
             desvinculacionId = ins.insertId;
 
             await conn.query(

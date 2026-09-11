@@ -195,7 +195,8 @@ describe('GET /api/solicitudes-ingreso/check-rut/:rut', () => {
 
         expect(res.status).toBe(200);
         expect(res.body.data).toEqual({ existe_trabajador: false, trabajador: null, solicitud_pendiente: null });
-        expect(db.query).toHaveBeenCalledTimes(2);
+        // trabajador + solicitud pendiente + antecedente por RUT (mig 113: ficha depurada con marca).
+        expect(db.query).toHaveBeenCalledTimes(3);
     });
 
     test('RUT sin dígitos (tipeo a medias): responde libre sin consultar la BD', async () => {

@@ -91,7 +91,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                 } else {
                     setRutStatus('available');
                     setRutExistName('');
-                    setRutUltimaDesv(null);
+                    setRutUltimaDesv(res.data.ultima_desvinculacion ?? null); // depurado con antecedente (mig 113)
                 }
             } catch {
                 if (seq === rutSeq.current) setRutStatus('idle'); // error de red → no bloquear
@@ -242,10 +242,10 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                                 </p>
                             )}
                             {/* Finiquitado: antecedente de la baja (mig 112). Solo advierte: para recontratar se REACTIVA en Gestiones. */}
-                            {!errors.rut && rutStatus === 'exists' && rutUltimaDesv && (
+                            {!errors.rut && (rutStatus === 'exists' || rutStatus === 'available') && rutUltimaDesv && (
                                 <p className={cn('flex items-center gap-1.5 text-xs mt-1 ml-0.5', rutUltimaDesv.no_recontratar ? 'font-semibold text-destructive' : 'text-muted-foreground')}>
                                     <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                    {avisoDesvinculacion(rutUltimaDesv)} — para recontratarlo, reactívalo desde Gestiones.
+                                    {avisoDesvinculacion(rutUltimaDesv)}{rutUltimaDesv.trabajador_depurado ? '' : ' — para recontratarlo, reactívalo desde Gestiones.'}
                                 </p>
                             )}
                             {!errors.rut && rutStatus === 'available' && (
