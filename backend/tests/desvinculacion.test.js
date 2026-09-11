@@ -310,6 +310,27 @@ describe('antecedente por RUT tras depuración (mig 113)', () => {
         expect(oficina.body.data.ultima_desvinculacion.causal_nombre).toMatch(/Inasistencias/);
         expect(oficina.body.data.ultima_desvinculacion).not.toHaveProperty('detalle');
     });
+
+    test('check-rut ×2: quien desvincula (trabajadores.eliminar) recibe también el detalle interno', async () => {
+        db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]).mockResolvedValueOnce([[FILA_DEPURADA]]);
+        const sol = await request(app).get('/api/solicitudes-ingreso/check-rut/12.345.678-5')
+            .set('Authorization', `Bearer ${makeToken(['trabajadores.solicitud.crear', 'trabajadores.eliminar'])}`);
+        expect(sol.body.data.ultima_desvinculacion).toMatchObject({ detalle: 'secreto', causal_codigo: 'INASISTENCIA' });
+
+        db.query.mockReset().mockResolvedValue([[]]);
+        db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[FILA_DEPURADA]]);
+        const trab = await request(app).get('/api/trabajadores/check-rut/12.345.678-5')
+            .set('Authorization', `Bearer ${makeToken(['trabajadores.crear', 'trabajadores.reactivar'])}`);
+        expect(trab.body.ultima_desvinculacion).toMatchObject({ detalle: 'secreto', trabajador_depurado: true });
+
+        // Solo crear (sin eliminar/reactivar): resumen, sin detalle.
+        db.query.mockReset().mockResolvedValue([[]]);
+        db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[FILA_DEPURADA]]);
+        const soloCrear = await request(app).get('/api/trabajadores/check-rut/12.345.678-5')
+            .set('Authorization', `Bearer ${makeToken(['trabajadores.crear'])}`);
+        expect(soloCrear.body.ultima_desvinculacion.causal_nombre).toMatch(/Inasistencias/);
+        expect(soloCrear.body.ultima_desvinculacion).not.toHaveProperty('detalle');
+    });
 });
 
 describe('guard del CRUD genérico de trabajadores (index.js)', () => {

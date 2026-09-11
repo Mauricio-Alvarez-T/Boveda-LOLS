@@ -31,6 +31,7 @@ export interface UltimaDesvinculacion {
     desvinculado_por_nombre?: string | null;
     desvinculado_en?: string | null;
     reactivado_en?: string | null;
+    /** Antecedente interno; el backend solo lo envía a quien tiene trabajadores.eliminar / .reactivar. */
     detalle?: string | null;
 }
 
@@ -111,4 +112,10 @@ export function avisoDesvinculacion(u: UltimaDesvinculacion | null | undefined):
     if (u.no_recontratar) partes.push('marcado NO recontratar');
     const texto = partes.join(' · ');
     return u.trabajador_depurado ? `ficha depurada${u.nombre ? ` (${u.nombre})` : ''}: ${texto}` : texto;
+}
+
+/** Detalle interno de la baja (solo llega a oficina), recortado; null si no viene o está vacío. */
+export function detalleDesvinculacion(u: UltimaDesvinculacion | null | undefined): string | null {
+    const d = (u?.detalle ?? '').trim();
+    return d === '' ? null : d;
 }

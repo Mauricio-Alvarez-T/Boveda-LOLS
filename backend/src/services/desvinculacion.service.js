@@ -55,6 +55,21 @@ const SELECT_HIST = `
       LEFT JOIN usuarios u1 ON u1.id = d.desvinculado_por
       LEFT JOIN usuarios u2 ON u2.id = d.reactivado_por`;
 
+/**
+ * Modo de proyección según los permisos del usuario (JWT `p`). Regla D-F del plan Gestiones:
+ *   · eliminar/reactivar (oficina que desvincula) → 'completa' (incluye el `detalle` interno);
+ *   · trabajadores.ver → 'resumen' (nombre de causal, sin detalle);
+ *   · resto (terreno) → 'terreno' (fecha, artículo y marca).
+ * Decisión del dueño 2026-09-11: el detalle también se muestra en los avisos de check-rut, pero solo a oficina.
+ * @param {{minimo?: 'terreno'|'resumen'}} [opts] piso: el check-rut de oficina (gate trabajadores.crear) nunca baja de 'resumen'.
+ */
+function modoSegunPermisos(perms, { minimo = 'terreno' } = {}) {
+    const p = Array.isArray(perms) ? perms : [];
+    if (p.includes('trabajadores.eliminar') || p.includes('trabajadores.reactivar')) return 'completa';
+    if (p.includes('trabajadores.ver') || minimo === 'resumen') return 'resumen';
+    return 'terreno';
+}
+
 /** Proyección según quién mira. */
 function proyectar(r, modo) {
     if (!r) return null;
@@ -86,6 +101,8 @@ function proyectar(r, modo) {
 }
 
 const desvinculacionService = {
+    modoSegunPermisos,
+
     /** Catálogo público de causales seleccionables (para el <Select> del modal). */
     catalogo() {
         return seleccionables().map(({ codigo, articulo, inciso, articulo_texto, nombre, grupo, sugiere_no_recontratar, requiere_detalle }) =>

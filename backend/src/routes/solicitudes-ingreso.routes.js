@@ -12,6 +12,7 @@
  * van ANTES de /:id para que Express no las tome como un id.
  */
 const router = require('express').Router();
+const desvinculacionService = require('../services/desvinculacion.service');
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const validateBody = require('../middleware/validateBody');
@@ -27,7 +28,7 @@ const APROBAR = 'trabajadores.solicitud.aprobar';
 router.get('/check-rut/:rut', auth, checkPermission(CREAR), async (req, res, next) => {
     try {
         // Oficina (trabajadores.ver) ve el nombre de la causal; terreno solo fecha/artículo/marca.
-        const result = await service.checkRut(req.params.rut, { conCausal: (req.user?.p || []).includes('trabajadores.ver') });
+        const result = await service.checkRut(req.params.rut, { modo: desvinculacionService.modoSegunPermisos(req.user?.p) });
         res.json({ data: result });
     } catch (err) { next(err); }
 });

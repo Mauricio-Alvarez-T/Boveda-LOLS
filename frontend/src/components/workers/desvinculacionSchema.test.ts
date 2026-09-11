@@ -1,6 +1,6 @@
 import {
     desvincularSchema, fechaMaxDesvinculacion, hoyYmd, requiereDetalle, opcionesCausales,
-    validarDesvinculacion, buildDesvincularPayload, avisoDesvinculacion,
+    validarDesvinculacion, buildDesvincularPayload, avisoDesvinculacion, detalleDesvinculacion,
     type CausalDesvinculacion,
 } from './desvinculacionSchema';
 
@@ -65,5 +65,11 @@ describe('buildDesvincularPayload / avisoDesvinculacion', () => {
         expect(avisoDesvinculacion(null)).toBeNull();
         expect(avisoDesvinculacion({ fecha: '2026-06-30', articulo: '160', no_recontratar: true, trabajador_depurado: true, nombre: 'Pérez Soto Juan' }))
             .toBe('ficha depurada (Pérez Soto Juan): desvinculado el 30-06-2026 · Art. 160 · marcado NO recontratar');
+    });
+    it('detalleDesvinculacion: solo si viene y no está vacío', () => {
+        expect(detalleDesvinculacion({ fecha: null, articulo: null, no_recontratar: false, detalle: '  Faltó 3 lunes  ' })).toBe('Faltó 3 lunes');
+        expect(detalleDesvinculacion({ fecha: null, articulo: null, no_recontratar: false, detalle: '   ' })).toBeNull();
+        expect(detalleDesvinculacion({ fecha: null, articulo: null, no_recontratar: false })).toBeNull();
+        expect(detalleDesvinculacion(null)).toBeNull();
     });
 });

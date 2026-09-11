@@ -32,15 +32,15 @@ router.get('/check-rut/:rut', auth, checkPermission('trabajadores.crear'), async
 
         if (!rows.length) {
             // Mig 113: si el RUT fue de un trabajador DEPURADO, el antecedente de la baja se conserva.
-            const antecedente = await desvinculacionService.antecedentePorRut(cleaned, { modo: 'resumen' });
+            const antecedente = await desvinculacionService.antecedentePorRut(cleaned, { modo: desvinculacionService.modoSegunPermisos(req.user?.p, { minimo: 'resumen' }) });
             return res.json({ exists: false, trabajador: null, ...(antecedente ? { ultima_desvinculacion: antecedente } : {}) });
         }
 
         const t = rows[0];
         const nombre = [t.apellido_paterno, t.apellido_materno, t.nombres].filter(Boolean).join(' ');
-        // Finiquitado: se agrega la última desvinculación (causal, fecha, marca) para que el aviso
-        // de WorkerForm muestre el antecedente. Solo advierte (decisión del dueño 2026-09-10).
-        const ultima = t.activo ? null : await desvinculacionService.ultimaDesvinculacion(t.id, { modo: 'resumen' });
+        // Finiquitado: se agrega la última desvinculación (causal, fecha, marca; detalle solo con
+        // eliminar/reactivar) para que el aviso de WorkerForm muestre el antecedente. Solo advierte.
+        const ultima = t.activo ? null : await desvinculacionService.ultimaDesvinculacion(t.id, { modo: desvinculacionService.modoSegunPermisos(req.user?.p, { minimo: 'resumen' }) });
         res.json({ exists: true, trabajador: { id: t.id, nombre, activo: !!t.activo }, ...(ultima ? { ultima_desvinculacion: ultima } : {}) });
     } catch (err) { next(err); }
 });

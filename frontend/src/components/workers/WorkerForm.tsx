@@ -13,7 +13,7 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import type { SelectOption } from '../ui/Select';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import api from '../../services/api';
-import { avisoDesvinculacion, type UltimaDesvinculacion } from './desvinculacionSchema';
+import { avisoDesvinculacion, detalleDesvinculacion, type UltimaDesvinculacion } from './desvinculacionSchema';
 import { cn } from '../../utils/cn';
 import type { Trabajador, Empresa, Obra, Cargo } from '../../types/entities';
 import type { ApiResponse } from '../../types';
@@ -247,6 +247,10 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                                     <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                                     {avisoDesvinculacion(rutUltimaDesv)}{rutUltimaDesv.trabajador_depurado ? '' : ' — para recontratarlo, reactívalo desde Gestiones.'}
                                 </p>
+                            )}
+                            {/* Detalle interno de la baja: el backend solo lo envía con trabajadores.eliminar / .reactivar. */}
+                            {!errors.rut && (rutStatus === 'exists' || rutStatus === 'available') && detalleDesvinculacion(rutUltimaDesv) && (
+                                <p className="text-xs italic text-muted-foreground mt-0.5 ml-5">Motivo registrado: {detalleDesvinculacion(rutUltimaDesv)}</p>
                             )}
                             {!errors.rut && rutStatus === 'available' && (
                                 <p className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 mt-1 ml-0.5">

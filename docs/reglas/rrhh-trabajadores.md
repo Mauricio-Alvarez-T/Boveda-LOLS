@@ -340,9 +340,11 @@ de `/:id`. Errores con el patrón del repo: `throw Object.assign(new Error(msg),
   `trabajadores.editar` desvinculaba con `PUT /:id {activo:false}`. Ahora `index.js` monta un guard ANTES
   del CRUD: `PUT /:id` descarta `activo`/`fecha_desvinculacion` (ya no están en `allowedFields`) y responde
   400 "recarga la página" si el body solo traía eso; `DELETE /:id` → 405.
-- **Visibilidad**: `detalle` es antecedente interno → solo por `/desvinculaciones`; `resumen`
-  (`GET /:id/resumen`, trabajadores.ver) y el check-rut de oficina traen causal/fecha/marca sin detalle;
-  el check-rut de solicitudes (terreno) solo fecha, artículo y marca. El quick-view para `asistencia.ver`
+- **Visibilidad** (`desvinculacionService.modoSegunPermisos`): `detalle` es antecedente interno → solo
+  con `trabajadores.eliminar` o `.reactivar` (`/desvinculaciones` y, desde 2026-09-11 por decisión del
+  dueño, también los avisos de ambos check-rut: "Motivo registrado: …"); con `trabajadores.ver` (y siempre
+  en el check-rut de oficina, gate `trabajadores.crear`) modo `resumen` = causal/fecha/marca sin detalle;
+  el check-rut de solicitudes para terreno solo fecha, artículo y marca. El quick-view para `asistencia.ver`
   no proyecta `causal_desvinculacion`/`no_recontratar` (allow-list de B1).
 - **Reporte semanal**: las bajas salen de `trabajador_desvinculaciones` (con columna Causal) con fallback a
   `trabajadores.fecha_desvinculacion` si la mig 112 no corrió → reactivar ya no borra la baja del KPI.

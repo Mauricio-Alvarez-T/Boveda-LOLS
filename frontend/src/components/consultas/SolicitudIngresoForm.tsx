@@ -15,7 +15,7 @@ import { Button } from '../ui/Button';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import { showApiError } from '../../utils/toastUtils';
 import { DatosPersonalesFields } from '../workers/DatosPersonalesFields';
-import { avisoDesvinculacion, type UltimaDesvinculacion } from '../workers/desvinculacionSchema';
+import { avisoDesvinculacion, detalleDesvinculacion, type UltimaDesvinculacion } from '../workers/desvinculacionSchema';
 import { cn } from '../../utils/cn';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
 import { copyAndShare } from '../../utils/whatsappShare';
@@ -285,7 +285,13 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onEnviada, onClose, onCa
                                     ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-800/60 dark:bg-red-500/10 dark:text-red-300'
                                     : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-300')}>
                                 <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                                <span>Este RUT tiene antecedentes: {avisoDesvinculacion(rutUltima)}. Puedes continuar; administración verá el mismo aviso.</span>
+                                <span>
+                                    Este RUT tiene antecedentes: {avisoDesvinculacion(rutUltima)}. Puedes continuar; administración verá el mismo aviso.
+                                    {/* Detalle interno: el backend solo lo envía a quien puede desvincular/reactivar. */}
+                                    {detalleDesvinculacion(rutUltima) && (
+                                        <span className="block mt-1 font-normal italic">Motivo registrado: {detalleDesvinculacion(rutUltima)}</span>
+                                    )}
+                                </span>
                             </div>
                         )}
                         {/* Aviso ÁMBAR (precaución, no error): duplicado o solicitud ya en curso. */}
@@ -300,6 +306,9 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onEnviada, onClose, onCa
                                     {rutStatus === 'existe' && rutUltima && (
                                         <span className={cn('block mt-1', rutUltima.no_recontratar ? 'font-semibold text-red-700 dark:text-red-300' : 'font-medium')}>
                                             Antecedente: {avisoDesvinculacion(rutUltima)}.
+                                            {detalleDesvinculacion(rutUltima) && (
+                                                <span className="block mt-0.5 font-normal italic">Motivo registrado: {detalleDesvinculacion(rutUltima)}</span>
+                                            )}
                                         </span>
                                     )}
                                 </span>
