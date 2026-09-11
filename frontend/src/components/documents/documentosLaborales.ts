@@ -148,6 +148,89 @@ export interface WorkerBasico {
     obra_nombre?: string | null;
     empresa_nombre?: string | null;
     activo?: boolean;
+    // Datos personales que la primera cláusula del contrato imprime (mig 108). El contrato los EXIGE
+    // desde B2b; el resto del kit no los usa.
+    nacionalidad?: string | null;
+    estado_civil?: string | null;
+    fecha_nacimiento?: string | null;
+    direccion?: string | null;
+    comuna?: string | null;
+}
+
+/** Claves de la ficha que el contrato necesita, en el orden en que salen impresas. */
+export const CAMPOS_CONTRATO = ['nacionalidad', 'estado_civil', 'fecha_nacimiento', 'direccion', 'comuna'] as const;
+export type CampoContrato = typeof CAMPOS_CONTRATO[number];
+
+export const LABEL_CAMPO_CONTRATO: Record<CampoContrato, string> = {
+    nacionalidad: 'Nacionalidad',
+    estado_civil: 'Estado civil',
+    fecha_nacimiento: 'Fecha de nacimiento',
+    direccion: 'Dirección',
+    comuna: 'Comuna',
+};
+
+const vacio = (v: unknown) => v == null || String(v).trim() === '';
+
+/**
+ * Qué datos personales le faltan al trabajador para poder emitir su contrato. Espejo de
+ * `CAMPOS_PERSONALES` en backend/src/plantillas/documentos/contrato.plantilla.js — el backend
+ * responde 409 con la misma lista, así que esto solo evita el viaje de ida y vuelta.
+ */
+export function faltanDatosContrato(w: Partial<WorkerBasico> | null | undefined): CampoContrato[] {
+    if (!w) return [];
+    return CAMPOS_CONTRATO.filter(k => vacio(w[k]));
+}
+
+/**
+ * Body para PUT /trabajadores/:id con SOLO los campos que el usuario completó.
+ * ⚠️ Nunca incluir claves vacías: el CRUD genérico descarta `undefined` pero CONSERVA `null`, así
+ * que mandar nulls borraría datos ya cargados de la ficha.
+ */
+export function buildDatosPersonalesPayload(valores: Partial<Record<CampoContrato, string>>): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const k of CAMPOS_CONTRATO) {
+        const v = valores[k];
+        if (v != null && String(v).trim() !== '') out[k] = String(v).trim();
+    }
+    return out;
+}
+
+/** Largos reales de las columnas: sin esto un texto largo llega a MySQL y vuelve como error 500. */
+export const MAXLEN_CAMPO_CONTRATO: Record<CampoContrato, number> = {
+    nacionalidad: 60,
+    estado_civil: 30,
+    fecha_nacimiento: 10,
+    direccion: 255,
+    comuna: 100,
+};
+
+/** Errores por campo antes de enviar. Objeto vacío = se puede emitir. */
+export function validarDatosContrato(
+    faltan: CampoContrato[],
+    valores: Partial<Record<CampoContrato, string>>,
+    hoy: string = hoyYmd()
+): Partial<Record<CampoContrato, string>> {
+    const errs: Partial<Record<CampoContrato, string>> = {};
+    for (const c of faltan) {
+        const v = (valores[c] ?? '').trim();
+        if (!v) { errs[c] = 'Completa este dato'; continue; }
+        if (c === 'fecha_nacimiento' && v > hoy) errs[c] = 'No puede ser una fecha futura';
+        else if (v.length > MAXLEN_CAMPO_CONTRATO[c]) errs[c] = `Máximo ${MAXLEN_CAMPO_CONTRATO[c]} caracteres`;
+    }
+    return errs;
+}
+
+/**
+ * Claves de columna que el backend reporta como faltantes en un 409 (`campos_trabajador`). El
+ * servidor es la autoridad: si la ficha cambió desde que se abrió el modal, esto reabre el
+ * formulario correcto en vez de dejar un error sin salida.
+ */
+export function camposFaltantesDesdeError(err: unknown): CampoContrato[] | null {
+    const e = err as { response?: { data?: { campos_trabajador?: unknown } } };
+    const campos = e?.response?.data?.campos_trabajador;
+    if (!Array.isArray(campos) || !campos.length) return null;
+    const validos = campos.filter((c): c is CampoContrato => (CAMPOS_CONTRATO as readonly string[]).includes(String(c)));
+    return validos.length ? validos : null;
 }
 
 /** 'Pérez Soto Juan' — el orden con que RRHH lee los nombres. */

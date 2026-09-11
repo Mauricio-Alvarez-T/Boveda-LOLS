@@ -135,6 +135,22 @@ describe('plantillas de documentos', () => {
         expect(p.requiere({ ...base, empresa: { ...empresa, representante_nombre: null } })).toEqual(expect.arrayContaining([expect.stringMatching(/representante legal/)]));
         expect(p.requiere({ ...base, remuneracion: null })).toEqual(expect.arrayContaining([expect.stringMatching(/sueldo base del cargo Jornal/)]));
         expect(p.requiere({ ...base, trabajador: { ...trabajador, cargo_nombre: null, fecha_ingreso: null } })).toHaveLength(2);
+        // B2b: los datos personales que imprime la primera cláusula son obligatorios. Van en UN ítem
+        // (cinco entradas repetirían el mismo sufijo y la lista del modal quedaría ilegible).
+        const sinPersonales = { ...trabajador, nacionalidad: null, estado_civil: '  ', fecha_nacimiento: null, direccion: null, comuna: null };
+        expect(p.requiere({ ...base, trabajador: sinPersonales }))
+            .toEqual(['nacionalidad, estado civil, fecha de nacimiento, dirección, comuna del trabajador (se completan al emitir o en la ficha → Editar)']);
+        // Dirección sin comuna imprimía un domicilio incompleto que parecía correcto.
+        expect(p.requiere({ ...base, trabajador: { ...trabajador, comuna: null } })).toEqual([expect.stringMatching(/^comuna del trabajador/)]);
+        expect(p.requiere({ ...base, trabajador: { ...trabajador, direccion: '   ' } })).toEqual([expect.stringMatching(/^dirección del trabajador/)]);
+        // El detalle por campo viaja aparte, con las claves de columna que consume el modal.
+        expect(p.camposTrabajadorFaltantes({ ...base, trabajador: sinPersonales }))
+            .toEqual(['nacionalidad', 'estado_civil', 'fecha_nacimiento', 'direccion', 'comuna']);
+        expect(p.camposTrabajadorFaltantes(base)).toEqual([]);
+        expect(p.camposTrabajadorFaltantes({ ...base, trabajador: { ...trabajador, comuna: null } })).toEqual(['comuna']);
+        // Con la ficha completa se imprimen los valores, no líneas.
+        expect(p.build(base)).toContain('de nacionalidad chilena, estado civil casado');
+        expect(p.build(base)).toContain('domiciliado(a) en Av. España 505, Santiago');
 
         const html = p.build(base);
         expect(html).toContain('CONTRATO DE TRABAJO');
@@ -167,9 +183,14 @@ describe('plantillas de documentos', () => {
     });
 
     test('DAS / PTS_ALTURA / RI_RECEPCION / EPP_RECEPCION: empleador y firma; EPP con lista default o editada', () => {
+        // Ninguna del kit hereda el requisito de datos personales del contrato (incluido el ODI, que
+        // tiene su propia cabecera): se emiten con la ficha vacía.
+        const fichaVacia = { ...trabajador, nacionalidad: null, estado_civil: null, fecha_nacimiento: null, direccion: null, comuna: null };
+        expect(getPlantilla('ODI_D40').requiere({ ...base, trabajador: fichaVacia })).toEqual([]);
         for (const c of ['DAS', 'PTS_ALTURA', 'RI_RECEPCION', 'EPP_RECEPCION']) {
             const p = getPlantilla(c);
             expect(p.requiere(base)).toEqual([]);
+            expect(p.requiere({ ...base, trabajador: fichaVacia })).toEqual([]);
             expect(p.requiere({ ...base, empresa: null })).toEqual(['empresa del trabajador']);
             const html = p.build(base);
             expect(html).toContain('NOMBRE DEL TRABAJADOR');
@@ -196,6 +217,11 @@ describe('plantillas de documentos', () => {
         expect(html).toContain('Administración de LOLS EMPRESAS DE INGENIERÍA LTDA.');
         const vacio = p.build({ ...base, datos: { fecha_carta: '2026-09-11' } });
         expect(vacio).toContain('_______________________________________________');
+        // Sin obra/cargo/RUT va una línea, no el rótulo colgando.
+        const sinDatos = p.build({ ...base, trabajador: { ...trabajador, obra_nombre: null, cargo_nombre: null, rut: null }, datos: { fecha_carta: '2026-09-11' } });
+        expect(sinDatos).toContain('<b>OBRA:</b> ______________________________');
+        expect(sinDatos).toContain('<b>RUT:</b> _______________');
+        expect(sinDatos).not.toContain('<b>CARGO:</b> </p>');
         expect(p.MOTIVOS.length).toBeGreaterThanOrEqual(8);
     });
 

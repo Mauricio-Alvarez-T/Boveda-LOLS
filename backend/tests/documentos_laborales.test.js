@@ -232,6 +232,57 @@ describe('POST /kit-ingreso/:trabajadorId', () => {
         expect(fs.writeFileSync).not.toHaveBeenCalled();
     });
 
+    // B2b: los datos personales del trabajador son obligatorios para el contrato.
+    const SIN_PERSONALES = { ...TRAB, nacionalidad: null, estado_civil: null, fecha_nacimiento: null, direccion: null, comuna: null };
+
+    test('409 DATOS_FALTANTES si el contrato va marcado y la ficha no tiene los datos personales; no escribe nada', async () => {
+        db.query.mockResolvedValueOnce([[SIN_PERSONALES]]).mockResolvedValueOnce([SUELDO]);
+        const res = await request(app).post(`${BASE}/kit-ingreso/5`).set('Authorization', `Bearer ${tokenEmitir}`)
+            .send({ documentos: ['CONTRATO', 'DAS'] });
+        expect(res.status).toBe(409);
+        expect(res.body.code).toBe('DATOS_FALTANTES');
+        expect(res.body.faltan).toEqual([expect.stringMatching(/nacionalidad, estado civil, fecha de nacimiento, dirección, comuna del trabajador/)]);
+        // El modal necesita las CLAVES de columna para abrir los inputs correctos.
+        expect(res.body.campos_trabajador).toEqual(['nacionalidad', 'estado_civil', 'fecha_nacimiento', 'direccion', 'comuna']);
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+        expect(sqlCalls().some(s => /INSERT/i.test(s))).toBe(false);
+    });
+
+    test('solo la comuna vacía → 409 con ese único campo (la cláusula imprimiría media dirección)', async () => {
+        db.query.mockResolvedValueOnce([[{ ...TRAB, comuna: null }]]).mockResolvedValueOnce([SUELDO]);
+        const res = await request(app).post(`${BASE}/emitir/5`).set('Authorization', `Bearer ${tokenEmitir}`).send({ codigo: 'CONTRATO' });
+        expect(res.status).toBe(409);
+        expect(res.body.campos_trabajador).toEqual(['comuna']);
+        expect(res.body.faltan).toEqual([expect.stringMatching(/^comuna del trabajador/)]);
+    });
+
+    test('un 409 por representante o sueldo NO trae campos_trabajador', async () => {
+        db.query.mockResolvedValueOnce([[{ ...TRAB, representante_nombre: null }]]).mockResolvedValueOnce([SUELDO]);
+        const res = await request(app).post(`${BASE}/emitir/5`).set('Authorization', `Bearer ${tokenEmitir}`).send({ codigo: 'CONTRATO' });
+        expect(res.status).toBe(409);
+        expect(res.body.campos_trabajador).toBeUndefined();
+    });
+
+    test('el MISMO trabajador incompleto emite el resto del kit si el contrato va desmarcado', async () => {
+        db.query
+            .mockResolvedValueOnce([[SIN_PERSONALES]])
+            .mockResolvedValueOnce([TIPO('DAS')]).mockResolvedValueOnce([RUTS]).mockResolvedValueOnce([{ insertId: 610 }])
+            .mockResolvedValueOnce([TIPO('RI_RECEPCION')]).mockResolvedValueOnce([RUTS]).mockResolvedValueOnce([{ insertId: 611 }]);
+        const res = await request(app).post(`${BASE}/kit-ingreso/5`).set('Authorization', `Bearer ${tokenEmitir}`)
+            .send({ documentos: ['DAS', 'RI_RECEPCION'] });
+        expect(res.status).toBe(201);
+        expect(res.body.data.emitidos.map(e => e.tipo_codigo)).toEqual(['DAS', 'RI_RECEPCION']);
+        expect(fs.writeFileSync).toHaveBeenCalledTimes(2);
+    });
+
+    test('POST /emitir con CONTRATO suelto también exige los datos personales', async () => {
+        db.query.mockResolvedValueOnce([[SIN_PERSONALES]]).mockResolvedValueOnce([SUELDO]);
+        const res = await request(app).post(`${BASE}/emitir/5`).set('Authorization', `Bearer ${tokenEmitir}`).send({ codigo: 'CONTRATO' });
+        expect(res.status).toBe(409);
+        expect(res.body.campos_trabajador).toHaveLength(5);
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+    });
+
     test('201: emite en el orden del kit (CONTRATO antes que DAS aunque el body venga al revés), un INSERT por documento', async () => {
         db.query
             .mockResolvedValueOnce([[TRAB]]).mockResolvedValueOnce([SUELDO])

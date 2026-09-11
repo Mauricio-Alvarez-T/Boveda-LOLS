@@ -418,6 +418,23 @@ describe('CRUD Trabajadores', () => {
         expect(res.status).toBe(200);
     });
 
+    test('PUT parcial: el UPDATE toca SOLO los campos enviados (el modal de emisión depende de esto)', async () => {
+        // El CRUD descarta `undefined` pero ESCRIBE `null`: un payload con nulls borraría datos de la
+        // ficha. Por eso el flujo de "completar al emitir" manda únicamente lo que el usuario llenó.
+        db.query.mockResolvedValueOnce([{ affectedRows: 1 }]).mockResolvedValueOnce([[{ id: 5 }]]);
+
+        const res = await request(app)
+            .put('/api/trabajadores/5')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({ nacionalidad: 'Chilena', comuna: 'Maipú' });
+
+        expect(res.status).toBe(200);
+        const upd = db.query.mock.calls.map(c => String(c[0])).find(s => /UPDATE trabajadores/i.test(s));
+        expect(upd).toMatch(/nacionalidad = \?/);
+        expect(upd).toMatch(/comuna = \?/);
+        expect(upd).not.toMatch(/estado_civil|fecha_nacimiento|direccion/);
+    });
+
     test('POST /api/trabajadores → 403 sin permiso de crear', async () => {
         const viewOnlyToken = makeToken(['trabajadores.ver']);
 

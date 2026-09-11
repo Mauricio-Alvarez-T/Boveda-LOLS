@@ -119,7 +119,8 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
                 </ul>
             )}
 
-            <EmitirKitModal isOpen={modal === 'kit'} onClose={() => setModal(null)} worker={worker} onEmitido={emitido} />
+            {/* onFichaActualizada: el modal pudo completar datos personales del trabajador (B2b). */}
+            <EmitirKitModal isOpen={modal === 'kit'} onClose={() => setModal(null)} worker={worker} onEmitido={emitido} onFichaActualizada={onCambio} />
             <EmitirAmonestacionModal isOpen={modal === 'amonestacion'} onClose={() => setModal(null)} worker={worker} onEmitido={emitido} />
         </div>
     );

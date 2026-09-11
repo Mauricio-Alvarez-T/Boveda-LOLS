@@ -17,7 +17,8 @@ import { WorkerForm } from './WorkerForm';
 import { DocumentUploader } from '../documents/DocumentUploader';
 import { DocumentList } from '../documents/DocumentList';
 import { DocumentosGeneradosList } from '../documents/DocumentosGeneradosList';
-import { contarObligatorios, docsSubidos } from '../documents/documentosLaborales';
+import { contarObligatorios, docsSubidos, faltanDatosContrato } from '../documents/documentosLaborales';
+import { DATOS_PERSONALES_LABELS } from '../consultas/solicitudIngresoSchema';
 import { descargarArchivo } from '../../utils/descargarArchivo';
 import { useAuth } from '../../context/AuthContext';
 import type { Trabajador, EstadoAsistencia } from '../../types/entities';
@@ -195,6 +196,10 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     // Solo tipos OBLIGATORIOS distintos: el kit generado (obligatorio=0) no infla la completitud (B2).
     const completedDocs = contarObligatorios(docs);
     const subidos = docsSubidos(docs);
+    // Datos que el contrato imprime y la ficha no tiene: hoy los campos vacíos simplemente no se
+    // muestran, así que nada distingue una ficha completa de una vacía (plan Gestiones B2b).
+    const faltanContrato = worker && worker.activo !== false && hasPermission('trabajadores.editar')
+        ? faltanDatosContrato(worker) : [];
     const docPct = totalRequired > 0 ? Math.round((completedDocs / totalRequired) * 100) : 0;
     const initials = worker ? `${(worker.apellido_paterno || '')[0]}${worker.nombres[0]}` : '';
     // Solo los datos personales que existen (el teléfono ya se muestra en Contacto).
@@ -328,11 +333,20 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                     )}
 
                                     {/* ── Datos personales (ficha de ingreso digital) — solo lectura; se editan en WorkerForm ── */}
-                                    {datosPersonales.length > 0 && (
+                                    {(datosPersonales.length > 0 || faltanContrato.length > 0) && (
                                         <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
                                             <p className="text-caption font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
                                                 <IdCard className="h-3.5 w-3.5" /> Datos personales
                                             </p>
+                                            {faltanContrato.length > 0 && (
+                                                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-300">
+                                                    <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                                    <span>
+                                                        <span className="font-bold">Faltan datos que el contrato necesita:</span>{' '}
+                                                        {faltanContrato.map(c => DATOS_PERSONALES_LABELS[c]).join(', ')}. Complétalos en Editar, o al emitir el kit de ingreso.
+                                                    </span>
+                                                </div>
+                                            )}
                                             <dl className="grid grid-cols-2 gap-2">
                                                 {datosPersonales.map(d => (
                                                     <div

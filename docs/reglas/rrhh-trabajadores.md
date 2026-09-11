@@ -70,6 +70,10 @@
   todas `NULL` (opcionales): `fecha_nacimiento DATE`, `estado_civil VARCHAR(30)`,
   `direccion VARCHAR(255)`, `comuna VARCHAR(100)`, `afp VARCHAR(60)`, `salud VARCHAR(60)`,
   `nacionalidad VARCHAR(60)`, `cargas_familiares TINYINT UNSIGNED` (`telefono` ya existía).
+  ⚠️ **Opcionales para EXISTIR como trabajador, obligatorios para EMITIR UN CONTRATO** (plan Gestiones
+  B2b, 2026-09-11): la primera cláusula imprime `nacionalidad`, `estado_civil`, `fecha_nacimiento`,
+  `direccion` y `comuna`, así que el contrato los exige. No es contradicción con la decisión del
+  2026-09-07 de dejarlos opcionales en la ficha de ingreso: terreno sigue sin estar obligado a llenarlos.
   Están en `allowedFields` del CRUD (`index.js`) → se **editan en `WorkerForm`** (sección "Datos
   personales", controles compartidos `workers/DatosPersonalesFields.tsx`) y se **ven en
   `WorkerQuickView`** (bloque "Datos personales", solo los que tienen valor; el teléfono sigue en
@@ -385,6 +389,21 @@ ficha del trabajador y su descarga o impresión es "solo oficina".
   y pago el día 05 como texto fijo; el **sueldo base se imprime en cifras y en letras**
   (`utils/numeroALetras.js`) tomado de `cargo_sueldos` (mig 111) y queda congelado en `metadata`.
   Sin representante legal de la empresa o sin sueldo del cargo → 409 con el dato que falta.
+- **Datos personales del trabajador: obligatorios para el contrato (B2b, tras QA del dueño 2026-09-11)**.
+  Antes, un trabajador con la ficha incompleta producía un contrato con **líneas de guiones** en
+  nacionalidad, estado civil, fecha de nacimiento y domicilio, y el hueco aparecía recién en el papel
+  firmado. Ahora `contrato.plantilla.requiere()` los exige (dirección y comuna **por separado**: con una
+  sola de las dos la cláusula imprimía medio domicilio) y el 409 `DATOS_FALTANTES` trae, además de la
+  lista legible, `campos_trabajador` con las claves de columna.
+  **El modal los pide ahí mismo**: `EmitirKitModal` muestra una caja ámbar con solo los campos que
+  faltan, hace `PUT /trabajadores/:id` con **únicamente lo completado** y recién entonces emite —
+  guardar primero, emitir después, para que nunca salga un contrato con datos que no quedaron en la
+  ficha. ⚠️ El payload **jamás** lleva `null`: el CRUD genérico descarta `undefined` pero conserva
+  `null`, así que un null borraría datos existentes (por eso este flujo NO usa `normalizarDatosPersonales`,
+  que sí los emite porque `WorkerForm` precarga la ficha completa). Sin `trabajadores.editar` la caja
+  sale en solo lectura y el contrato queda bloqueado; el resto del kit se emite igual.
+  El resto de las plantillas del kit (ODI, DAS, PTS altura, EPP, Reglamento Interno) **no** heredan el
+  requisito: no imprimen esos datos. La ficha rápida avisa los que faltan antes de llegar a emitir.
 - **La restricción vive en el TIPO**: `tipos_documento.codigo` (clave estable) + `restringido`. Un
   contrato **escaneado** subido a un tipo restringido queda bajo el mismo gate. Los tipos del sistema
   se crean con nombre "(Bóveda)" y `obligatorio = 0` (no alteran la completitud); no se pueden desactivar,

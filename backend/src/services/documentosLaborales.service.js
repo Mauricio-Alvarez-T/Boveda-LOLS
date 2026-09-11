@@ -88,9 +88,13 @@ async function _armarCtx(codigo, cargado, datos) {
 
 function _validar(plantilla, ctx) {
     const faltan = plantilla.requiere(ctx);
-    if (faltan.length) {
-        throw httpError(`No se puede emitir ${plantilla.titulo}: falta ${faltan.join('; ')}.`, 409, { code: 'DATOS_FALTANTES', details: { faltan, codigo: plantilla.codigo } });
-    }
+    if (!faltan.length) return;
+    const details = { faltan, codigo: plantilla.codigo };
+    // Hook opcional: qué columnas de `trabajadores` faltan. El modal de emisión las pide ahí mismo
+    // en vez de mandar al usuario a editar la ficha (plan Gestiones B2b).
+    const campos = typeof plantilla.camposTrabajadorFaltantes === 'function' ? plantilla.camposTrabajadorFaltantes(ctx) : [];
+    if (campos.length) details.campos_trabajador = campos;
+    throw httpError(`No se puede emitir ${plantilla.titulo}: falta ${faltan.join('; ')}.`, 409, { code: 'DATOS_FALTANTES', details });
 }
 
 async function _persistir(plantilla, ctx, trabajadorId, userId, req) {

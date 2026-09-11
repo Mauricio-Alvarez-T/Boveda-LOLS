@@ -38,9 +38,10 @@ function build(ctx) {
     return (
         g.encabezado('CARTA DE AMONESTACIÓN', { fecha: d.fecha_carta }) +
         `<p style="margin:14pt 0 0;text-align:left"><b>NOMBRE:</b> ${esc(t.nombre)}</p>` +
-        `<p style="margin:0;text-align:left"><b>OBRA:</b> ${esc(t.obra_nombre || '')}</p>` +
-        `<p style="margin:0;text-align:left"><b>CARGO:</b> ${esc(t.cargo_nombre || '')}</p>` +
-        `<p style="margin:0;text-align:left"><b>RUT:</b> ${esc(t.rut || '')}</p>` +
+        // Sin dato va una línea, no el rótulo colgando: la carta se completa a mano y se firma en papel.
+        `<p style="margin:0;text-align:left"><b>OBRA:</b> ${g.oLinea(t.obra_nombre, 30)}</p>` +
+        `<p style="margin:0;text-align:left"><b>CARGO:</b> ${g.oLinea(t.cargo_nombre, 30)}</p>` +
+        `<p style="margin:0;text-align:left"><b>RUT:</b> ${g.oLinea(t.rut, 15)}</p>` +
         '<p style="margin:14pt 0 0">De nuestra consideración:</p>' +
         `<p>Ponemos en su conocimiento que la Administración de ${esc(String(e.razon_social).toUpperCase())} ha determinado sancionarlo con una amonestación escrita.</p>` +
         `<p style="text-align:left">La infracción fue cometida por usted el día ${esc(fInfra)}.</p>` +

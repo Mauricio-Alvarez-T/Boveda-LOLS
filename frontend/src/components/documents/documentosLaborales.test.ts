@@ -1,6 +1,7 @@
 import {
     KIT_INGRESO, contarObligatorios, docsSubidos, eppItemsDesdeTexto, buildKitPayload,
     buildAmonestacionPayload, validarAmonestacion, faltanDesdeError, AMONESTACION_OTRO, hoyYmd,
+    faltanDatosContrato, buildDatosPersonalesPayload, CAMPOS_CONTRATO, validarDatosContrato, camposFaltantesDesdeError,
 } from './documentosLaborales';
 
 describe('documentosLaborales (plan Gestiones B2)', () => {
@@ -56,5 +57,43 @@ describe('documentosLaborales (plan Gestiones B2)', () => {
 
     it('hoyYmd', () => {
         expect(hoyYmd(new Date(2026, 8, 1))).toBe('2026-09-01');
+    });
+
+    it('faltanDatosContrato: detecta los campos que la primera cláusula imprime', () => {
+        const completo = { nacionalidad: 'Chilena', estado_civil: 'Casado/a', fecha_nacimiento: '1995-12-03', direccion: 'Av. España 505', comuna: 'Santiago' };
+        expect(faltanDatosContrato(completo)).toEqual([]);
+        expect(faltanDatosContrato({})).toEqual([...CAMPOS_CONTRATO]);
+        // Dirección sin comuna imprimiría media dirección.
+        expect(faltanDatosContrato({ ...completo, comuna: null })).toEqual(['comuna']);
+        // Un valor en blanco no cuenta como dato.
+        expect(faltanDatosContrato({ ...completo, nacionalidad: '   ' })).toEqual(['nacionalidad']);
+        expect(faltanDatosContrato(null)).toEqual([]);
+    });
+
+    it('buildDatosPersonalesPayload: solo campos completados, nunca nulls ni vacíos', () => {
+        const out = buildDatosPersonalesPayload({ nacionalidad: 'Chilena', comuna: '  Maipú  ', estado_civil: '', fecha_nacimiento: undefined });
+        expect(out).toEqual({ nacionalidad: 'Chilena', comuna: 'Maipú' });
+        // Clave: un PUT con nulls borraría datos ya cargados (el CRUD conserva null).
+        expect(Object.values(out).every(v => typeof v === 'string' && v !== '')).toBe(true);
+        expect(buildDatosPersonalesPayload({})).toEqual({});
+        expect(Object.values(buildDatosPersonalesPayload({ direccion: '   ' }))).toHaveLength(0);
+    });
+
+    it('validarDatosContrato: exige lo que falta, rechaza fecha futura y textos largos', () => {
+        expect(validarDatosContrato(['nacionalidad', 'fecha_nacimiento'], { nacionalidad: '', fecha_nacimiento: '2099-01-01' }, '2026-09-11'))
+            .toEqual({ nacionalidad: 'Completa este dato', fecha_nacimiento: 'No puede ser una fecha futura' });
+        expect(validarDatosContrato(['nacionalidad'], { nacionalidad: 'Chilena' })).toEqual({});
+        // Un campo que no falta no se valida aunque venga vacío.
+        expect(validarDatosContrato(['nacionalidad'], { nacionalidad: 'Chilena', comuna: '' })).toEqual({});
+        expect(validarDatosContrato(['nacionalidad'], { nacionalidad: 'x'.repeat(61) }).nacionalidad).toMatch(/Máximo 60/);
+    });
+
+    it('camposFaltantesDesdeError: el servidor manda las claves de columna', () => {
+        expect(camposFaltantesDesdeError({ response: { data: { code: 'DATOS_FALTANTES', campos_trabajador: ['nacionalidad', 'comuna'] } } }))
+            .toEqual(['nacionalidad', 'comuna']);
+        // 409 por representante o sueldo: no viene la lista.
+        expect(camposFaltantesDesdeError({ response: { data: { code: 'DATOS_FALTANTES', faltan: ['sueldo'] } } })).toBeNull();
+        expect(camposFaltantesDesdeError({ response: { data: { campos_trabajador: ['inventado'] } } })).toBeNull();
+        expect(camposFaltantesDesdeError(new Error('net'))).toBeNull();
     });
 });

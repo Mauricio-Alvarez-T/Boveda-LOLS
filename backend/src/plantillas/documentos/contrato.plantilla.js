@@ -9,6 +9,30 @@ const { montoEnLetras, capitalizar } = require('../../utils/numeroALetras');
 
 const DIAS_DEFAULT = 15;
 
+/**
+ * Datos personales que la primera cláusula imprime del trabajador (orden de aparición). Son
+ * OBLIGATORIOS para emitir (decisión del dueño 2026-09-11, tras recibir un contrato con líneas en
+ * blanco): antes se rellenaban con guiones y el hueco aparecía recién en el papel firmado.
+ *
+ * `direccion` y `comuna` se evalúan POR SEPARADO a propósito: `build` las une con `join(', ')`, así
+ * que un trabajador con dirección y sin comuna imprimía un domicilio incompleto que parecía correcto.
+ */
+const DATOS_TRABAJADOR = [
+    { campo: 'nacionalidad', etiqueta: 'nacionalidad' },
+    { campo: 'estado_civil', etiqueta: 'estado civil' },
+    { campo: 'fecha_nacimiento', etiqueta: 'fecha de nacimiento' },
+    { campo: 'direccion', etiqueta: 'dirección' },
+    { campo: 'comuna', etiqueta: 'comuna' },
+];
+
+const vacio = (v) => String(v ?? '').trim() === '';
+
+/** Columnas de `trabajadores` que faltan (claves, no rótulos). Las consume el modal de emisión. */
+function camposTrabajadorFaltantes(ctx) {
+    const t = ctx.trabajador || {};
+    return DATOS_TRABAJADOR.filter(d => vacio(t[d.campo])).map(d => d.campo);
+}
+
 function requiere(ctx) {
     const f = [];
     const e = ctx.empresa, t = ctx.trabajador;
@@ -19,6 +43,12 @@ function requiere(ctx) {
     }
     if (!t.cargo_nombre) f.push('cargo del trabajador');
     if (!t.fecha_ingreso) f.push('fecha de ingreso');
+    // Los personales van en UN solo ítem: cinco entradas repetirían el mismo sufijo y la lista que
+    // muestra el modal quedaría ilegible. El detalle por campo viaja en `campos_trabajador`.
+    const personales = DATOS_TRABAJADOR.filter(d => vacio(t[d.campo]));
+    if (personales.length) {
+        f.push(`${personales.map(d => d.etiqueta).join(', ')} del trabajador (se completan al emitir o en la ficha → Editar)`);
+    }
     if (!ctx.remuneracion || !(Number(ctx.remuneracion.sueldo_base) > 0)) f.push(`sueldo base del cargo ${t.cargo_nombre || ''} (Configuración → Cargos → $)`);
     return f;
 }
@@ -123,6 +153,9 @@ module.exports = {
     version: '1.0',
     titulo: 'Contrato de Trabajo',
     requiere,
+    /** Hook opcional del contrato de plantillas: el service lo agrega al 409 como `campos_trabajador`. */
+    camposTrabajadorFaltantes,
+    DATOS_TRABAJADOR,
     nombreBase: (ctx) => `Contrato_${g.slug(ctx.trabajador.apellido_paterno)}_${g.slug(ctx.trabajador.nombres)}`,
     build,
     metadata,
