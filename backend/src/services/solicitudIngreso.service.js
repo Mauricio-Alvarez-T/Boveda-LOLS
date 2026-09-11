@@ -2,7 +2,7 @@
  * Ficha de ingreso digital — solicitudes de nuevo trabajador con aprobación.
  *
  * Flujo: terreno (`trabajadores.solicitud.crear`) crea una SOLICITUD desde
- * Consultas → oficina (`trabajadores.solicitud.aprobar`) la revisa, corrige,
+ * Gestiones → oficina (`trabajadores.solicitud.aprobar`) la revisa, corrige,
  * asigna la EMPRESA y la aprueba (crea el trabajador) o la rechaza con motivo
  * visible al solicitante. Sin SoD solicitante≠aprobador: un administrativo
  * puede crear y aprobar (decisión del dueño 2026-09-07).
@@ -15,7 +15,7 @@
  *
  * Aislamiento de datos de prueba (docs/reglas/obras-bodegas.md): los listados
  * y el contador excluyen solicitudes de obras `es_prueba=1` salvo
- * `?incluir_prueba=true`, igual que el CRUD de trabajadores en Consultas.
+ * `?incluir_prueba=true`, igual que el CRUD de trabajadores en Gestiones.
  * check-rut NO filtra: un duplicado es duplicado aunque sea de prueba.
  *
  * Errores: throw Object.assign(new Error(msg), { statusCode }) como el resto

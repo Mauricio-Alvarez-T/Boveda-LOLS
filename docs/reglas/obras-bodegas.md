@@ -5,8 +5,8 @@
 | Flag | Default | Efecto | Cascada a trabajadores |
 |---|---|---|---|
 | `activa` | TRUE | FALSE = soft-delete: fuera de todos los listados por defecto | No |
-| `es_prueba` (mig 066) | FALSE | TRUE = AISLADA de reportes, inventario, dashboard, KPIs, asistencia y selectores; visible solo en Settings (y Consultas con flag) para revertir | **SÍ** — `PUT /obras/:id` con es_prueba cascadea `trabajadores.es_prueba`; trabajador nuevo hereda de la obra |
-| `finalizada` (mig 074) | FALSE | TRUE = obra CONCLUIDA: fuera de selectores/asistencia/consultas/inventario/dashboard; visible solo en sección "Obras Finalizadas"; reactivable | **NO** — el trabajador sigue real (normalmente ya trasladado) |
+| `es_prueba` (mig 066) | FALSE | TRUE = AISLADA de reportes, inventario, dashboard, KPIs, asistencia y selectores; visible solo en Settings (y Gestiones con flag) para revertir | **SÍ** — `PUT /obras/:id` con es_prueba cascadea `trabajadores.es_prueba`; trabajador nuevo hereda de la obra |
+| `finalizada` (mig 074) | FALSE | TRUE = obra CONCLUIDA: fuera de selectores/asistencia/gestiones/inventario/dashboard; visible solo en sección "Obras Finalizadas"; reactivable | **NO** — el trabajador sigue real (normalmente ya trasladado) |
 | `participa_inventario` (mig 026) | TRUE | FALSE = fuera de listados/selectores de inventario (stock, resumen, facturación) | No |
 | `participa_asistencia` (mig 075) | TRUE | FALSE = fuera del selector de obra en Asistencia (selector global filtrado en /asistencia + guard) | No |
 | `participa_transferencias` (mig 075) | TRUE | FALSE = no seleccionable como origen/destino de transferencias | No |

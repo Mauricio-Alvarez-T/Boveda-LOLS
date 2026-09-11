@@ -117,7 +117,7 @@ export const ConsultasJourneyRunner: React.FC<{
             {/* Aviso sandbox */}
             <div className="flex items-center gap-2 rounded-xl border border-info/30 bg-info/5 px-3 py-2 text-caption text-brand-dark">
                 <Sparkles className="h-4 w-4 shrink-0 text-info" />
-                <span><span className="font-bold">Demostración interactiva.</span> Es la pantalla real de Consultas con datos de ejemplo — no afecta nada.</span>
+                <span><span className="font-bold">Demostración interactiva.</span> Es la pantalla real de Gestiones con datos de ejemplo — no afecta nada.</span>
             </div>
 
             {/* Instrucción */}

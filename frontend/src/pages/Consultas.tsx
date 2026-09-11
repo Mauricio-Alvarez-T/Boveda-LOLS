@@ -1,3 +1,11 @@
+/**
+ * Página "Gestiones" (etiqueta visible desde 2026-09-11; antes "Consultas", antes "Nómina & Reportes").
+ * Mapa de nombres — NO renombrar sin leer docs/DEUDA_TECNICA.md § Drift de nombres:
+ *   UI "Gestiones" = URL /consultas = pages/Consultas.tsx + components/consultas/ + hooks/consultas/
+ *   = backend fiscalizacion.routes/service = permisos reportes.* / documentos.*
+ * Rename solo de etiqueta (precedentes 33a9fcb, 59fd108): los deep-links /consultas?… del Dashboard
+ * y el test por path tutorialLabels.test.ts dependen de estos identificadores.
+ */
 import React, { useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -64,7 +72,7 @@ const formatFechaIngreso = (f?: string | null): string | null => {
 
 const ConsultasPage: React.FC = () => {
     const { hasPermission } = useAuth();
-    // Ficha de ingreso digital: terreno solicita, oficina aprueba. Consultas es visible
+    // Ficha de ingreso digital: terreno solicita, oficina aprueba. Gestiones es visible
     // con cualquiera de los tres permisos (ver Sidebar), así que puede no haber grilla.
     const puedeVerTrabajadores = hasPermission('trabajadores.ver');
     const verSolicitudes = hasPermission('trabajadores.solicitud.crear') || hasPermission('trabajadores.solicitud.aprobar');
@@ -174,7 +182,7 @@ const ConsultasPage: React.FC = () => {
         <div className="flex items-center gap-4 flex-1 min-w-0">
             <div className="flex items-center gap-2 md:gap-3 shrink-0">
                 <SearchCheck className="h-5 w-5 md:h-6 md:w-6 text-brand-primary shrink-0" />
-                <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">Consultas</h1>
+                <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">Gestiones</h1>
             </div>
 
             {/* Desktop Search Bar - integrated into title area */}

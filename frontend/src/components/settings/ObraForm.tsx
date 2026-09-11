@@ -187,7 +187,7 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _o
                         </span>
                         <span className="text-xs text-amber-800/80 dark:text-amber-400/80 mt-0.5">
                             Si está marcado, esta obra <strong>y todos sus trabajadores</strong> quedan EXCLUIDOS de reportes,
-                            inventario, dashboard, KPIs, asistencia y selectores. Solo serán visibles aquí (y en Consultas) para
+                            inventario, dashboard, KPIs, asistencia y selectores. Solo serán visibles aquí (y en Gestiones) para
                             poder revertir el aislamiento. Úsalo para datos de prueba.
                         </span>
                     </div>

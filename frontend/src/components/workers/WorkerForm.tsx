@@ -389,7 +389,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                         </span>
                         <span className="text-xs text-amber-800/80 dark:text-amber-400/80 mt-0.5">
                             Si está marcado, este trabajador queda EXCLUIDO de reportes, dashboard, KPIs, asistencia y
-                            consultas operativas. Solo visible en administración para revertirlo. Úsalo para datos de prueba.
+                            Gestiones. Solo visible en administración para revertirlo. Úsalo para datos de prueba.
                         </span>
                     </div>
                 </label>

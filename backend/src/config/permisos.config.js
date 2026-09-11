@@ -35,8 +35,8 @@ const MAESTRO_PERMISOS = [
     ['trabajadores.financiero.ver', 'Trabajadores', '$ Ver Datos Financieros',   'Trabajadores → Ficha del Trabajador: si está denegado, oculta la sección de sueldo base, anticipos y descuentos. (Campos en desarrollo — aún no implementados en la UI.)', 7],
     ['trabajadores.financiero.editar','Trabajadores','$ Editar Datos Financieros','Trabajadores → Ficha del Trabajador: si está denegado, los campos de sueldo, anticipos y descuentos aparecen como solo lectura. Requiere también "Ver Datos Financieros". (Campos en desarrollo.)', 8],
     // Ficha de ingreso digital (mig 108): terreno solicita, oficina aprueba.
-    ['trabajadores.solicitud.crear',  'Trabajadores', 'Solicitar Ingreso de Trabajador',          'Consultas → botón "Nuevo ingreso": permite llenar la ficha de ingreso digital (solicitud) de un trabajador nuevo SIN necesidad de "Crear Trabajador". La solicitud queda pendiente hasta que oficina la apruebe. Pensado para supervisores / prevencionistas en terreno.', 9],
-    ['trabajadores.solicitud.aprobar','Trabajadores', 'Aprobar / Rechazar Solicitudes de Ingreso', 'Consultas → Solicitudes: permite revisar las fichas de ingreso pendientes, corregirlas, asignar la empresa y aprobarlas (crea el trabajador) o rechazarlas con motivo. Habilita el contador de pendientes en el menú.', 10],
+    ['trabajadores.solicitud.crear',  'Trabajadores', 'Solicitar Ingreso de Trabajador',          'Gestiones → botón "Nuevo ingreso": permite llenar la ficha de ingreso digital (solicitud) de un trabajador nuevo SIN necesidad de "Crear Trabajador". La solicitud queda pendiente hasta que oficina la apruebe. Pensado para supervisores / prevencionistas en terreno.', 9],
+    ['trabajadores.solicitud.aprobar','Trabajadores', 'Aprobar / Rechazar Solicitudes de Ingreso', 'Gestiones → Solicitudes: permite revisar las fichas de ingreso pendientes, corregirlas, asignar la empresa y aprobarlas (crea el trabajador) o rechazarlas con motivo. Habilita el contador de pendientes en el menú.', 10],
 
     // DOCUMENTOS
     ['documentos.ver',              'Documentos', 'Ver Documentos',              'Ver la documentación de los trabajadores', 1],
@@ -44,8 +44,8 @@ const MAESTRO_PERMISOS = [
     ['documentos.descargar',        'Documentos', 'Descargar Documentos',        'Descargar archivos individuales o en ZIP', 3],
     ['documentos.eliminar',         'Documentos', 'Eliminar Documentos',         'Eliminar archivos de documentación', 4],
 
-    // REPORTES (Consultas)
-    ['reportes.ver',                'Reportes', 'Ver Consultas',                 'Acceder a la sección de Consultas', 1],
+    // REPORTES (Gestiones — antes Consultas)
+    ['reportes.ver',                'Reportes', 'Ver Gestiones',                 'Acceder a la sección de Gestiones (antes Consultas)', 1],
     ['reportes.exportar',           'Reportes', 'Exportar Reporte',              'Descargar reportes en Excel', 2],
     ['reportes.enviar_email',       'Reportes', 'Enviar por Email',              'Enviar reportes por correo electrónico', 3],
 
@@ -60,7 +60,7 @@ const MAESTRO_PERMISOS = [
     ['obras.crear',                 'Obras', 'Crear Obra',                       'Registrar nuevas obras', 2],
     ['obras.editar',                'Obras', 'Editar Obra',                      'Modificar datos de obras', 3],
     ['obras.eliminar',              'Obras', 'Eliminar Obra',                    'Eliminar obras', 4],
-    ['obras.finalizar',             'Obras', 'Finalizar/Reactivar Obra',         'Marcar una obra como concluida (la saca de asistencia/consultas/inventario/selectores) o reactivarla. Acción de alto impacto.', 5],
+    ['obras.finalizar',             'Obras', 'Finalizar/Reactivar Obra',         'Marcar una obra como concluida (la saca de asistencia/gestiones/inventario/selectores) o reactivarla. Acción de alto impacto.', 5],
 
     // CONFIGURACIÓN: CARGOS
     ['cargos.ver',                  'Cargos', 'Ver Cargos',                      'Ver el catálogo de cargos', 1],

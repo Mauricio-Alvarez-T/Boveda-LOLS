@@ -15,7 +15,7 @@
 - `empresas.razon_social`; badges UI por empresa: LOLS / MAUA / PROV / DED
   (`utils/empresaTag.ts`, badge en asistencia diaria y consultas).
 
-## Fiscalización / Consultas
+## Fiscalización / Gestiones (UI; antes "Consultas" — URL y archivos conservan el nombre viejo)
 
 - Búsqueda avanzada (`fiscalizacion.service.js`): por obra, empresa, cargo, categoría de reporte,
   completitud (100% / con faltantes), ausentes, **aniversarios de 10 meses**

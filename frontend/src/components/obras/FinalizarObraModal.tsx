@@ -74,7 +74,7 @@ export const FinalizarObraModal: React.FC<Props> = ({ obra, onClose, onSuccess }
                     <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                     <p className="text-xs text-amber-800 dark:text-amber-300">
                         <strong>{obra?.nombre}</strong> desaparecerá del selector de obras, asistencia,
-                        consultas, inventario y dashboard. Quedará visible solo en la sección
+                        Gestiones, inventario y dashboard. Quedará visible solo en la sección
                         <strong> Obras Finalizadas</strong>, desde donde puedes reactivarla.
                     </p>
                 </div>

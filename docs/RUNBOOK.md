@@ -1125,14 +1125,14 @@ permanece visible en superficies de **administración** para poder revertir el a
 - **Obras:** Configuración → Organización → Obras → editar → checkbox "🧪 Obra de prueba".
   Aislar una obra **arrastra en cascada** a todos sus trabajadores (`es_prueba=1`);
   des-aislarla los revierte.
-- **Trabajadores:** formulario de trabajador (módulo Asistencia / Consultas) → checkbox
+- **Trabajadores:** formulario de trabajador (módulo Asistencia / Gestiones) → checkbox
   "🧪 Trabajador de prueba". También se pueden aislar individualmente.
 
 ### 18.2 Arquitectura del filtro
 - **Default-exclude + opt-in:** el CRUD genérico (`crud.service.js`) recibe la opción
   `testFlagColumn: 'es_prueba'` (solo en rutas obras y trabajadores). `getAll` excluye
   por defecto; las superficies de gestión pasan `?incluir_prueba=true` para verlos
-  (tabla Obras en Settings, búsqueda de Consultas, selector de obra en WorkerForm).
+  (tabla Obras en Settings, búsqueda de Gestiones, selector de obra en WorkerForm).
 - **Queries raw:** ~60 sitios en services llevan el filtro **co-locado junto al
   `activa=1`/`activo=1` existente**. Regla: INNER JOIN/FROM → `AND alias.es_prueba = 0`;
   LEFT JOIN con FK nullable (obra puede ser bodega) → forma **NULL-safe**

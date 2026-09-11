@@ -62,7 +62,7 @@ export const SECCIONES_META: Record<Seccion, SeccionMeta> = {
         ],
     },
     consultas: {
-        label: 'Consultas',
+        label: 'Gestiones',
         icon: '🔍',
         orden: 3,
         subseccionesOrden: ['Documentos', 'Reportes'],

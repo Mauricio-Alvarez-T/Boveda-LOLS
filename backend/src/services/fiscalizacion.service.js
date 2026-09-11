@@ -52,12 +52,12 @@ class FiscalizacionService {
         const params = [totalObligatorios];
 
         // Aislamiento de prueba: por defecto se excluyen los trabajadores marcados.
-        // Consultas (gestión) pasa incluir_prueba=true para verlos (con badge).
+        // Gestiones pasa incluir_prueba=true para verlos (con badge).
         if (filters.incluir_prueba !== 'true' && filters.incluir_prueba !== true) {
             query += ` AND t.es_prueba = 0`;
         }
 
-        // Obras finalizadas: SIEMPRE fuera de Consultas (no es concepto de prueba;
+        // Obras finalizadas: SIEMPRE fuera de Gestiones (no es concepto de prueba;
         // las obras concluidas viven solo en la sección "Obras Finalizadas").
         query += ` AND (t.obra_id IS NULL OR t.obra_id NOT IN (SELECT id FROM obras WHERE finalizada = 1))`;
 
@@ -123,7 +123,7 @@ class FiscalizacionService {
         // Filtro "cumplen 10 meses de contrato" en un mes objetivo (formato YYYY-MM).
         // Mismo cálculo que la alerta del dashboard (dashboard.service § 5 "ALERTA 10
         // MESES DE CONTRATO"): fecha_ingreso + 10 meses cae en ese mes/año. Lo usa el
-        // botón "Ver detalle" de esa alerta para abrir Consultas ya filtrado.
+        // botón "Ver detalle" de esa alerta para abrir Gestiones ya filtrado.
         if (filters.aniversario10m) {
             const m = /^(\d{4})-(\d{1,2})$/.exec(String(filters.aniversario10m));
             if (m) {
@@ -145,7 +145,7 @@ class FiscalizacionService {
             }
         }
 
-        // Filtro por rango de FECHA DE INGRESO (Consultas: "ingresos del período",
+        // Filtro por rango de FECHA DE INGRESO (Gestiones: "ingresos del período",
         // p.ej. contrataciones del último mes). Ambos extremos opcionales e
         // inclusivos; rango directo sobre la columna (sargable, como aniversario10m).
         // Formato inválido se ignora (el filtro simplemente no aplica).

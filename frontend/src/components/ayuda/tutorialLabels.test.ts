@@ -27,8 +27,11 @@ const CASOS: Array<{ archivo: string; etiquetas: string[] }> = [
     // Vehículos — página (lista/modal) y panel de documentos.
     { archivo: '../pages/Vehiculos.tsx', etiquetas: ['Nuevo vehículo', 'Editar vehículo', 'Guardar'] },
     { archivo: 'vehiculos/VehiculoDocumentos.tsx', etiquetas: ['Agregar', 'Subir documento', 'Guardar registro'] },
-    // Consultas — página (crear/editar/guardar) + CreatePanel + ficha del trabajador.
-    { archivo: '../pages/Consultas.tsx', etiquetas: ['CREAR', 'Guardar', 'Editar trabajador'] },
+    // Gestiones (archivo pages/Consultas.tsx; rename solo de etiqueta 2026-09-11) — página + CreatePanel + ficha.
+
+    { archivo: '../pages/Consultas.tsx', etiquetas: ['Gestiones', 'CREAR', 'Guardar', 'Editar trabajador'] },
+
+    { archivo: 'layout/Sidebar.tsx', etiquetas: ["label: 'Gestiones'"] },
     { archivo: 'consultas/CreatePanel.tsx', etiquetas: ['Trabajador'] },
     { archivo: 'workers/WorkerQuickView.tsx', etiquetas: ['Ver documento'] },
 ];

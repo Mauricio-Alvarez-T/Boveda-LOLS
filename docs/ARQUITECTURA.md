@@ -81,10 +81,10 @@ hooks, helpers de formato locales.
   MasterDetailPage / TabbedPage / CrudSettingsPage; `<RequirePermission>`; Vitest+RTL (ui/ +
   asistencia diaria + aprobación transferencia + gating permisos).
 - [ ] **F4 — Monolitos** (requiere F1-F3): FE: TransferenciaDetail → `transferencias/`,
-  Consultas, Settings, AttendanceDailyTab, ResumenMensualTable. BE: asistencia.service →
+  Consultas (UI: Gestiones), Settings, AttendanceDailyTab, ResumenMensualTable. BE: asistencia.service →
   +excel+alertas; transferencia.service → +sod+stock; rutas inline → `src/routes/`. Regla: mover
   sin cambiar comportamiento, tests antes/después, un monolito por iteración.
-- [ ] **F5 — Pasada visual por apartado**: Dashboard → Asistencia → Consultas → Inventario (tab a
+- [ ] **F5 — Pasada visual por apartado**: Dashboard → Asistencia → Gestiones → Inventario (tab a
   tab) → Vehículos → Obras Finalizadas → Configuración. Incluye QA dark mode por tab y
   accesibilidad (≥44px, focus visible).
 - [ ] **F6 — Endurecimiento**: índices (logs_actividad.created_at), collation logs, evaluar

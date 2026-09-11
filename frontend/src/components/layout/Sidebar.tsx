@@ -42,7 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
     // hacer clic. Reemplaza al aviso por correo de los documentos.
     const vencimientos = useVencimientosVehiculos();
     const [showVencimientos, setShowVencimientos] = React.useState(false);
-    // Solicitudes de ingreso pendientes (ficha digital): número en Consultas; el clic
+    // Solicitudes de ingreso pendientes (ficha digital): número en Gestiones; el clic
     // lleva a la pestaña de solicitudes. Solo cuenta para quien puede aprobar.
     const solicitudes = useSolicitudesIngreso();
 
@@ -53,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
 
     const menuItems: {
         icon: React.ElementType; label: string; path: string; visible: boolean;
-        /** Contador opcional (Vehículos: vencimientos; Consultas: solicitudes de ingreso). 0 o undefined = no se muestra. */
+        /** Contador opcional (Vehículos: vencimientos; Gestiones: solicitudes de ingreso). 0 o undefined = no se muestra. */
         badge?: number;
         /** true = hay algo vencido → rojo; false = pendiente/por vencer → ámbar. */
         badgeUrgente?: boolean;
@@ -73,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
         },
         {
             icon: SearchCheck,
-            label: 'Consultas',
+            label: 'Gestiones',
             path: '/consultas',
             // También para quien solo participa de la ficha de ingreso digital (terreno u oficina).
             visible: hasPermission('trabajadores.ver')
@@ -172,7 +172,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                             </motion.span>
                         )}
                         {/* Contador: se hace clic en el NÚMERO (no en el item) y ejecuta
-                            `onBadgeClick` si el item lo define (Consultas → pestaña de
+                            `onBadgeClick` si el item lo define (Gestiones → pestaña de
                             solicitudes); si no, abre el panel de vencimientos (Vehículos).
                             Menú colapsado: solo el número sobre el ícono, y el clic navega
                             como cualquier otro item. */}
