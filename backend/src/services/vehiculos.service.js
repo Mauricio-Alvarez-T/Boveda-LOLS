@@ -15,17 +15,8 @@ const sinRuta = fila => { if (!fila) return fila; const { ruta_archivo, ...resto
 // importaciones viejas ('0000-00-00' llega como 1899-11-30), no un vencimiento real.
 const FECHA_MINIMA = '2000-01-01';
 
-// Cache de columnas por tabla — evita consultar INFORMATION_SCHEMA en cada request.
-const _colCache = {};
-async function existingCols(table) {
-    if (_colCache[table]) return _colCache[table];
-    const [rows] = await db.query(
-        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
-        [table]
-    );
-    _colCache[table] = new Set(rows.map(r => r.COLUMN_NAME));
-    return _colCache[table];
-}
+// Introspección de columnas con cache: compartida en utils/schema.js (plan Gestiones B1).
+const { existingCols } = require('../utils/schema');
 
 // Construye {fields, params} para un UPDATE filtrando solo columnas que existen.
 async function buildUpdate(table, data, allowed) {

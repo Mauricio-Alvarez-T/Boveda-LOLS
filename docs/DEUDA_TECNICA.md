@@ -57,4 +57,11 @@ Se resolvieron los siguientes puntos críticos:
 
 ---
 
+## 🧹 Lint del frontend fuera de CI (2026-09-11)
+*   **Estado**: `cd frontend && npm run lint` reporta **318 errores + 36 warnings** preexistentes (`no-explicit-any`, `no-unused-vars`, `react-hooks/exhaustive-deps`, "Compilation Skipped" del compilador React). Las reglas del design system (`docs/reglas/diseno.md`) sí están en 0.
+*   **Consecuencia**: el job `frontend-tests` de `.github/workflows/backend-tests.yml` (agregado en B1 del plan Gestiones) corre solo `npm test`; `npm run lint` es gate MANUAL sobre los archivos tocados (comparar con `git stash`/rama base para no heredar rojos).
+*   **Meta**: barrido por módulo hasta 0 errores y luego `npm run lint` en el job.
+
+---
+
 *Última actualización: Septiembre 2026*

@@ -6,6 +6,7 @@ const { cleanRut } = require('../utils/rut');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger-structured');
+const { sanitizeTrabajadorPersonal, sanitizeTrabajadorFinanciero } = require('../utils/sanitizeFinancialFields');
 
 // Verificar si un RUT ya existe — usado por el formulario de creación para
 // avisar en vivo "este trabajador ya existe" sin tener que enviar el form.
@@ -35,9 +36,14 @@ router.get('/check-rut/:rut', auth, checkPermission('trabajadores.crear'), async
 });
 
 // Worker Quick-View (combines worker info + doc completion + recent attendance)
-router.get('/:id/quick-view', auth, async (req, res, next) => {
+// Gate: `trabajadores.ver` OR `asistencia.ver` (la ficha rápida también se abre desde la
+// pantalla diaria de Asistencia). Los datos personales/bancarios de la ficha (migs 108/109)
+// solo viajan con `trabajadores.ver`: `sanitizeTrabajadorPersonal` aplica una allow-list de
+// columnas operativas (deny-by-default, una columna nueva no se filtra sola). B1 plan Gestiones.
+router.get('/:id/quick-view', auth, checkPermission('trabajadores.ver', 'asistencia.ver'), async (req, res, next) => {
     try {
         const { id } = req.params;
+        const perms = req.user?.p || [];
 
         // 1. Worker basic info
         const [workers] = await db.query(
@@ -76,7 +82,7 @@ router.get('/:id/quick-view', auth, async (req, res, next) => {
         );
 
         res.json({
-            worker: workers[0],
+            worker: sanitizeTrabajadorFinanciero(sanitizeTrabajadorPersonal(workers[0], perms), perms),
             docs: {
                 total: totalDocs[0].total,
                 completed: completedDocs[0].completed

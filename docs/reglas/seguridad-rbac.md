@@ -57,10 +57,25 @@
 - `checkPermission(...claves)` (`src/middleware/rbac.js`): OR lógico sobre `req.user.p`.
 - Rate limiting (`src/middleware/rateLimiter.js`): general 1000 req/15min por usuario; login 10
   intentos/15min por IP. Helmet activo; CORS restringible por env.
-- `validateBody` actual NO stripea keys desconocidas — los servicios se defienden con
-  `allowedFields` whitelist (crud.service). **Fase 1 del plan v2 lo reemplaza por zod con strip.**
+- `validateBody(schema, { strip: true })` (`middleware/validateBody.js`, mini-DSL propio SIN zod — decisión
+  F1.3) descarta las claves no declaradas; los CRUD genéricos se defienden además con `allowedFields`
+  (crud.service). Schemas en `backend/src/schemas/`.
 - Gating en UI: `hasPermission()` del AuthContext (~250 usos inline; Fase 3 introduce
   `<RequirePermission>`).
+- **Errores enriquecidos (2026-09-11, plan Gestiones B1)**: `errorHandler` responde `{ error, code?, ...details }`
+  para 4xx cuando el service lanza `Object.assign(new Error(msg), { statusCode, code, details })`
+  (`code` = string propio, nunca `ER_*`; `details` nunca pisa `error`). Los 5xx solo exponen `{ error }`.
+  `ER_ROW_IS_REFERENCED_2` (FK RESTRICT) → 409 legible con `code`.
+- **Quick-view del trabajador** (`GET /trabajadores/:id/quick-view`): gate `trabajadores.ver` OR
+  `asistencia.ver`; sin `trabajadores.ver` la respuesta se recorta a la allow-list
+  `CAMPOS_TRABAJADOR_OPERATIVOS` (`utils/sanitizeFinancialFields.js`): nada de dirección, AFP, salud,
+  teléfono ni datos bancarios. Deny-by-default: una columna nueva de `trabajadores` no se filtra sola.
+- **Pre-registro de permisos (B1)**: las 6 claves de los bloques B2-B7 del plan Gestiones
+  (`documentos.laborales.emitir/.descargar`, `documentos.entrega.registrar`, `cargos.sueldo.ver/.editar`,
+  `sistema.alertas_documentos.gestionar`) ya están en `permisos.config.js` + `permisosHierarchy.ts` con
+  descripción "(Disponible próximamente)"; el catálogo las sincroniza al arrancar pero NINGÚN endpoint las
+  exige aún. Cada bloque quita el rótulo y asigna a roles por migración (catálogo → rol 1 → por nombre).
+  Guard: `backend/tests/permisos_hierarchy_sync.test.js` (toda clave del catálogo mapeada en la jerarquía).
 
 ## Reglas duras de seguridad (de sesiones)
 

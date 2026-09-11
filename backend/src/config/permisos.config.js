@@ -43,6 +43,11 @@ const MAESTRO_PERMISOS = [
     ['documentos.subir',            'Documentos', 'Subir Documentos',            'Cargar archivos de documentación', 2],
     ['documentos.descargar',        'Documentos', 'Descargar Documentos',        'Descargar archivos individuales o en ZIP', 3],
     ['documentos.eliminar',         'Documentos', 'Eliminar Documentos',         'Eliminar archivos de documentación', 4],
+    // Documentos laborales generados por Bóveda (plan Gestiones B2/B6, migs 110/113). Pre-registrados
+    // en B1 para que el catálogo/hierarchy no se editen en paralelo; se asignan a roles en su bloque.
+    ['documentos.laborales.emitir',    'Documentos', 'Emitir Documentos Laborales',                 '(Disponible próximamente) Gestiones → ficha del trabajador: emitir contrato, kit de ingreso, finiquito y carta de amonestación generados por Bóveda.', 5],
+    ['documentos.laborales.descargar', 'Documentos', '⚠️ Descargar / Imprimir Documentos Laborales', '(Disponible próximamente) Descargar o imprimir contratos, finiquitos y anexos laborales — solo oficina (RRHH, TI, administración). Incluye ver la remuneración impresa en el contrato.', 6],
+    ['documentos.entrega.registrar',   'Documentos', 'Registrar Entrega Física',                    '(Disponible próximamente) Registrar a quién, cuándo y cuántas copias de un documento se entregaron en papel; habilita el grupo "Documentos por entregar" del Inicio.', 7],
 
     // REPORTES (Gestiones — antes Consultas)
     ['reportes.ver',                'Reportes', 'Ver Gestiones',                 'Acceder a la sección de Gestiones (antes Consultas)', 1],
@@ -67,6 +72,10 @@ const MAESTRO_PERMISOS = [
     ['cargos.crear',                'Cargos', 'Crear Cargo',                     'Registrar nuevos cargos', 2],
     ['cargos.editar',               'Cargos', 'Editar Cargo',                    'Modificar cargos', 3],
     ['cargos.eliminar',             'Cargos', 'Eliminar Cargo',                  'Eliminar cargos', 4],
+    // Parámetros de sueldo por cargo (plan Gestiones B3, mig 111). $ pero NO en PERMISOS_FINANCIEROS
+    // (esa lista es solo inventario); la marca visual vive en permisosHierarchy.ts.
+    ['cargos.sueldo.ver',           'Cargos', '$ Ver Parámetros de Sueldo',      '(Disponible próximamente) Configuración → Cargos: ver sueldo base, colación y movilización por cargo.', 5],
+    ['cargos.sueldo.editar',        'Cargos', '$ Editar Parámetros de Sueldo',   '(Disponible próximamente) Configuración → Cargos: modificar los parámetros de sueldo del cargo (queda historial). Requiere también "Ver Parámetros de Sueldo".', 6],
 
     // CONFIGURACIÓN: CONDUCTORES
     ['conductores.ver',             'Conductores', 'Ver Conductores',           'Ver el catálogo de conductores', 1],
@@ -146,6 +155,7 @@ const MAESTRO_PERMISOS = [
     ['sistema.tipos_ausencia.gestionar', 'Sistema', 'Gestionar Tipos Ausencia',   'Crear y editar tipos de ausencia', 6],
     ['sistema.reportes.gestionar',   'Sistema', 'Gestionar Reportes Automáticos', 'Gestionar destinatarios y enviar prueba del reporte semanal RRHH', 7],
     ['sistema.avisos.gestionar',     'Sistema', 'Gestionar Avisos',                'Configurar el resumen diario de novedades (categorías, umbrales, destinatarios) y enviar prueba', 8],
+    ['sistema.alertas_documentos.gestionar', 'Sistema', 'Configurar Alertas de Documentos', '(Disponible próximamente) Configuración → Alertas de Documentos: días de aviso y crítico por tipo de documento laboral pendiente de entrega física (plan Gestiones B7, mig 114).', 9],
 
     // VEHÍCULOS
     ['vehiculos.ver',      'Vehículos', 'Ver Vehículos',       'Acceso al módulo de vehículos: listado, detalle, seguros, revisiones y mantenciones', 1],

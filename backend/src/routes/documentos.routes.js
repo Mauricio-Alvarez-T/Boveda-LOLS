@@ -6,6 +6,7 @@ const documentoService = require('../services/documento.service');
 const createCrudService = require('../services/crud.service');
 const createCrudController = require('../controllers/crud.controller');
 const path = require('path');
+const fs = require('fs');
 
 // Basic CRUD for tipos_documento
 const tipoDocService = createCrudService('tipos_documento', { searchFields: ['nombre'], orderBy: 'nombre ASC', allowedFields: ['nombre', 'dias_vigencia', 'obligatorio', 'activo'] });
@@ -14,21 +15,25 @@ const tipoDocController = createCrudController(tipoDocService);
 // KPIs
 router.get('/kpi/vencidos', auth, checkPermission('documentos.ver'), async (req, res, next) => {
     try {
-        const data = await documentoService.getKPIVencidos();
+        // ?dias=N (default 30): documentos vencidos o por vencer dentro de N días.
+        const dias = Number(req.query.dias) || 30;
+        const data = await documentoService.getVencidos(dias);
         res.json(data);
     } catch (err) { next(err); }
 });
 
 router.get('/kpi/faltantes', auth, checkPermission('documentos.ver'), async (req, res, next) => {
     try {
-        const data = await documentoService.getKPIFaltantes(req.query);
+        const data = await documentoService.getFaltantes();
         res.json(data);
     } catch (err) { next(err); }
 });
 
 router.post('/kpi/completitud', auth, checkPermission('documentos.ver'), async (req, res, next) => {
     try {
-        const data = await documentoService.getKPICompletitud(req.body);
+        const ids = (req.body && (req.body.trabajador_ids || req.body.ids)) || null;
+        if (!Array.isArray(ids)) return res.status(400).json({ error: 'Se requiere un arreglo trabajador_ids' });
+        const data = await documentoService.getCompletionByTrabajadores(ids.map(Number).filter(Number.isInteger));
         res.json(data);
     } catch (err) { next(err); }
 });
@@ -38,12 +43,15 @@ router.post('/upload/:trabajadorId', auth, checkPermission('documentos.subir'), 
     try {
         if (!req.file) return res.status(400).json({ error: 'No se subió ningún archivo' });
         
-        const data = await documentoService.upload(
-            req.params.trabajadorId, 
-            req.body.tipo_id, 
-            req.file, 
-            req.user.id
-        );
+        // El front manda `tipo_documento_id` (DocumentUploader); `tipo_id` se acepta por compatibilidad.
+        const tipoId = Number(req.body?.tipo_documento_id ?? req.body?.tipo_id);
+        if (!Number.isInteger(tipoId) || tipoId <= 0) {
+            fs.unlink(req.file.path, () => {}); // no dejar huérfano el temporal de multer
+            return res.status(400).json({ error: 'Falta el tipo de documento' });
+        }
+        // Firma del service: upload(trabajadorId, file, tipoDocumentoId, userId). Hasta 2026-09-11 la
+        // ruta pasaba (tid, tipo_id, file, user): `file` llegaba undefined → TypeError 500 en toda subida.
+        const data = await documentoService.upload(req.params.trabajadorId, req.file, tipoId, req.user.id);
         res.status(201).json(data);
     } catch (err) { next(err); }
 });

@@ -10,7 +10,7 @@ Catálogo de TODAS las reglas de negocio de Bóveda LOLS, separadas por categor�
 | Inventario y Transferencias | [inventario-transferencias.md](inventario-transferencias.md) | State machine, 6 flujos, SoD, stock/régimen, recepción parcial, discrepancias, descuentos, facturación |
 | Obras y Bodegas | [obras-bodegas.md](obras-bodegas.md) | Flags (activa, es_prueba, finalizada, participa_*), cascadas, obras finalizadas |
 | RRHH y Trabajadores | [rrhh-trabajadores.md](rrhh-trabajadores.md) | Documentos obligatorios, vencimientos, empresas, fiscalización, constancias, reporte semanal |
-| Seguridad y RBAC | [seguridad-rbac.md](seguridad-rbac.md) | Catálogo de permisos, JWT/re-login, permisos financieros, overrides, sanitización backend |
+| Seguridad y RBAC | [seguridad-rbac.md](seguridad-rbac.md) | Catálogo de permisos (+ pre-registro plan Gestiones), JWT/re-login, permisos financieros, overrides, sanitización backend (quick-view), errores enriquecidos `{error, code, details}` |
 | Vehículos | [vehiculos.md](vehiculos.md) | Seguros, revisiones, mantenciones, permisos de circulación, alertas email |
 | Bombas de Hormigón | [bombas.md](bombas.md) | Registro por obra, costos gateados |
 | Infraestructura | [infraestructura.md](infraestructura.md) | Migraciones, deploy, cron, env, logs, worktrees, pre-deploy checks |

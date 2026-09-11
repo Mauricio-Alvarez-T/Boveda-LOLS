@@ -220,6 +220,30 @@ function sanitizeTrabajadorFinanciero(t, perms) {
     return rest;
 }
 
+/**
+ * Trabajador — datos PERSONALES/BANCARIOS de la ficha (migs 108/109 y siguientes).
+ * Allow-list deny-by-default: sin `trabajadores.ver` solo pasan las columnas operativas
+ * (identidad, empresa/obra/cargo, fechas de contrato, estado, tallas EPP). Una columna
+ * nueva en `trabajadores` (p. ej. causal de desvinculación, B4) NO se filtra sola: hay que
+ * agregarla acá si es operativa. Usado por GET /trabajadores/:id/quick-view, que también
+ * abre Asistencia (`asistencia.ver`).
+ */
+const CAMPOS_TRABAJADOR_OPERATIVOS = [
+    'id', 'rut', 'nombres', 'apellido_paterno', 'apellido_materno',
+    'empresa_id', 'obra_id', 'cargo_id', 'empresa_nombre', 'obra_nombre', 'cargo_nombre',
+    'fecha_ingreso', 'fecha_desvinculacion', 'categoria_reporte', 'activo', 'es_prueba',
+    'talla_calzado', 'talla_pantalon', 'talla_polera',
+    'created_at', 'updated_at',
+];
+
+function sanitizeTrabajadorPersonal(t, perms) {
+    if (t == null) return t;
+    if (has(perms, 'trabajadores.ver')) return t;
+    const out = {};
+    for (const k of CAMPOS_TRABAJADOR_OPERATIVOS) if (k in t) out[k] = t[k];
+    return out;
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Wrappers para colecciones (arrays) — atajo común
 // ─────────────────────────────────────────────────────────────────────────
@@ -305,6 +329,8 @@ module.exports = {
     sanitizeRegistrosBomba,
     sanitizeTrabajadorFinanciero,
     sanitizeTrabajadoresFinanciero,
+    sanitizeTrabajadorPersonal,
+    CAMPOS_TRABAJADOR_OPERATIVOS,
     sanitizeItemsMaestroMiddleware,
     guardEditCostos,
 };
