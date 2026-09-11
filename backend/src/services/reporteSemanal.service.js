@@ -20,6 +20,19 @@
  */
 
 const fs = require('fs');
+// Bajas desde la tabla histórica (mig 112): una reactivación ya no borra la baja del KPI. Si la
+// migración aún no corrió (errno 1146), se cae a la consulta histórica sobre trabajadores.
+const { labelCausal } = require('../config/causalesDesvinculacion');
+async function queryConFallback(db, sqlNuevo, sqlViejo, params) {
+    try {
+        const [rows] = await db.query(sqlNuevo, params);
+        return rows;
+    } catch (err) {
+        if (err.errno !== 1146) throw err;
+        const [rows] = await db.query(sqlViejo, params);
+        return rows;
+    }
+}
 const path = require('path');
 const emailService = require('./email.service');
 const logger = require('../utils/logger-structured');
@@ -154,8 +167,17 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
         [desde, hasta]
     );
 
-    const [desvinculacionesRows] = await db.query(
-        `SELECT t.rut, t.nombres, t.apellido_paterno, t.apellido_materno, t.fecha_desvinculacion,
+    const desvinculacionesRows = await queryConFallback(db,
+        `SELECT t.rut, t.nombres, t.apellido_paterno, t.apellido_materno, d.fecha_desvinculacion, d.causal_codigo,
+                e.razon_social AS empresa, o.nombre AS obra, c.nombre AS cargo
+           FROM trabajador_desvinculaciones d
+           JOIN trabajadores t ON t.id = d.trabajador_id
+           LEFT JOIN empresas e ON e.id = t.empresa_id
+           LEFT JOIN obras    o ON o.id = t.obra_id
+           LEFT JOIN cargos   c ON c.id = t.cargo_id
+          WHERE t.es_prueba = 0 AND d.fecha_desvinculacion BETWEEN ? AND ?
+          ORDER BY d.fecha_desvinculacion ASC, t.apellido_paterno ASC, t.nombres ASC`,
+        `SELECT t.rut, t.nombres, t.apellido_paterno, t.apellido_materno, t.fecha_desvinculacion, NULL AS causal_codigo,
                 e.razon_social AS empresa, o.nombre AS obra, c.nombre AS cargo
            FROM trabajadores t
            LEFT JOIN empresas e ON e.id = t.empresa_id
@@ -226,7 +248,12 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
           GROUP BY ym`,
         [mesInicio, mesFin]
     );
-    const [desvinculacionesMesRows] = await db.query(
+    const desvinculacionesMesRows = await queryConFallback(db,
+        `SELECT DATE_FORMAT(d.fecha_desvinculacion, '%Y-%m') AS ym, COUNT(*) AS total
+           FROM trabajador_desvinculaciones d
+           JOIN trabajadores t ON t.id = d.trabajador_id
+          WHERE t.es_prueba = 0 AND d.fecha_desvinculacion >= ? AND d.fecha_desvinculacion < ?
+          GROUP BY ym`,
         `SELECT DATE_FORMAT(fecha_desvinculacion, '%Y-%m') AS ym, COUNT(*) AS total
            FROM trabajadores
           WHERE es_prueba = 0 AND fecha_desvinculacion >= ? AND fecha_desvinculacion < ?
@@ -251,6 +278,7 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
         obra: r.obra || '—',
         cargo: r.cargo || '—',
         fecha_desvinculacion: toYmd(r.fecha_desvinculacion),
+        causal: r.causal_codigo ? labelCausal(r.causal_codigo) : '—',
     }));
 
     // Agrupar faltas por trabajador.
@@ -610,9 +638,9 @@ function renderHtml(data, opts = {}) {
     const desvinculacionesInner = data.desvinculaciones.length === 0
         ? emptyState('Sin desvinculaciones en la semana.')
         : dataTable(
-            ['Trabajador', 'RUT', 'Empresa', 'Obra', 'Cargo', 'Egreso'],
+            ['Trabajador', 'RUT', 'Empresa', 'Obra', 'Cargo', 'Egreso', 'Causal'],
             data.desvinculaciones.map(d => [
-                `<strong>${esc(d.nombre)}</strong>`, esc(d.rut), esc(d.empresa), esc(d.obra), esc(d.cargo), fmtFecha(d.fecha_desvinculacion),
+                `<strong>${esc(d.nombre)}</strong>`, esc(d.rut), esc(d.empresa), esc(d.obra), esc(d.cargo), fmtFecha(d.fecha_desvinculacion), esc(d.causal || '—'),
             ])
         );
 
@@ -740,7 +768,7 @@ function renderText(data) {
     if (!data.contrataciones.length) lines.push('  (ninguna)');
     lines.push('');
     lines.push(`Desvinculaciones (${totales.desvinculaciones}):`);
-    data.desvinculaciones.forEach(d => lines.push(`  - ${d.nombre} (${d.rut}) · ${d.empresa} · ${d.obra} · egreso ${fmtFecha(d.fecha_desvinculacion)}`));
+    data.desvinculaciones.forEach(d => lines.push(`  - ${d.nombre} (${d.rut}) · ${d.empresa} · ${d.obra} · egreso ${fmtFecha(d.fecha_desvinculacion)} · ${d.causal || '—'}`));
     if (!data.desvinculaciones.length) lines.push('  (ninguna)');
     lines.push('');
     lines.push(`Faltas injustificadas (${totales.faltas} trabajadores, ${totales.faltas_dias} días):`);

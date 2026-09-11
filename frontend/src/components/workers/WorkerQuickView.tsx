@@ -4,6 +4,8 @@ import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loa
 import { toast } from 'sonner';
 import api from '../../services/api';
 import { fmtFecha } from '../../utils/format';
+import { DesvinculacionInfo } from './DesvinculacionInfo';
+import type { UltimaDesvinculacion } from './desvinculacionSchema';
 import { listarDatosPersonales } from '../consultas/solicitudIngresoSchema';
 import { IconButton } from '../ui/IconButton';
 import { cn } from '../../utils/cn';
@@ -64,6 +66,8 @@ interface ResumenData {
     dias_vacaciones: number;
     dias_licencia: number;
     dias_registrados: number;
+    /** Última desvinculación (resumida, sin detalle) — solo viene si el trabajador está inactivo (mig 112). */
+    ultima_desvinculacion?: UltimaDesvinculacion | null;
 }
 
 interface DocInfo {
@@ -362,6 +366,11 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                 <p className="text-sm font-bold text-brand-dark mt-0.5">{worker.fecha_desvinculacion ? fmtFecha(worker.fecha_desvinculacion) : (worker.activo ? 'Vigente' : '—')}</p>
                                             </div>
                                         </div>
+
+                                        {/* Desvinculación (mig 112): causal, fecha, marca — solo con trabajadores.ver */}
+                                        {!worker.activo && resumen?.ultima_desvinculacion && hasPermission('trabajadores.ver') && (
+                                            <DesvinculacionInfo ultima={resumen.ultima_desvinculacion} />
+                                        )}
 
                                         {/* Stats de asistencia */}
                                         {resumen && (

@@ -9,7 +9,7 @@ Catálogo de TODAS las reglas de negocio de Bóveda LOLS, separadas por categor�
 | Asistencia | [asistencia.md](asistencia.md) | Estados (A/F/JI/TO/V/LM/NAC/DF/MT/PSG), períodos, feriados, sábados extra, horas extra, Art. 160, traslados |
 | Inventario y Transferencias | [inventario-transferencias.md](inventario-transferencias.md) | State machine, 6 flujos, SoD, stock/régimen, recepción parcial, discrepancias, descuentos, facturación |
 | Obras y Bodegas | [obras-bodegas.md](obras-bodegas.md) | Flags (activa, es_prueba, finalizada, participa_*), cascadas, obras finalizadas |
-| RRHH y Trabajadores | [rrhh-trabajadores.md](rrhh-trabajadores.md) | Documentos obligatorios, vencimientos, empresas, fiscalización, constancias, reporte semanal |
+| RRHH y Trabajadores | [rrhh-trabajadores.md](rrhh-trabajadores.md) | Documentos obligatorios, vencimientos, empresas, fiscalización, constancias, reporte semanal, ficha de ingreso digital, sueldo por cargo, desvinculación con causal |
 | Seguridad y RBAC | [seguridad-rbac.md](seguridad-rbac.md) | Catálogo de permisos (+ pre-registro plan Gestiones), JWT/re-login, permisos financieros, overrides, sanitización backend (quick-view), errores enriquecidos `{error, code, details}` |
 | Vehículos | [vehiculos.md](vehiculos.md) | Seguros, revisiones, mantenciones, permisos de circulación, alertas email |
 | Bombas de Hormigón | [bombas.md](bombas.md) | Registro por obra, costos gateados |

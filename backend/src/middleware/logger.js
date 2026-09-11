@@ -248,6 +248,10 @@ const activityLogger = async (req, res, next) => {
             // (se volcaría el body completo al detalle). El service registra un log manual sin cifras.
             if (/^\/api\/cargo-sueldos(\/|$)/.test(req.originalUrl.split('?')[0])) return;
 
+            // Desvincular / reactivar (mig 112): el service registra un log manual con causal y sin
+            // `detalle` (antecedente interno). El log global solo duplicaría un UPDATE sin diff.
+            if (/^\/api\/trabajadores\/\d+\/(desvincular|reactivar)$/.test(req.originalUrl.split('?')[0])) return;
+
             try {
                 const usuario_id = req.user ? req.user.id : null;
                 const ip = req.ip || req.connection.remoteAddress;

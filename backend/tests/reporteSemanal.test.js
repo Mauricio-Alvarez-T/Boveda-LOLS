@@ -159,7 +159,9 @@ describe('buildReportData — queries + transformación', () => {
         expect(faltasMesSql).toMatch(/DATE_FORMAT\(a\.fecha, '%Y-%m'\)/);
         expect(faltasMesSql).toMatch(/es\.codigo\s*=\s*'F'/);
         expect(db.query.mock.calls[5][0]).toMatch(/fecha_ingreso >= \? AND fecha_ingreso < \?/);
-        expect(db.query.mock.calls[6][0]).toMatch(/fecha_desvinculacion >= \? AND fecha_desvinculacion < \?/);
+        // Desde la mig 112 las bajas salen de la tabla histórica (una reactivación ya no borra la baja).
+        expect(db.query.mock.calls[6][0]).toMatch(/trabajador_desvinculaciones/);
+        expect(db.query.mock.calls[6][0]).toMatch(/d\.fecha_desvinculacion >= \? AND d\.fecha_desvinculacion < \?/);
     });
 
     test('tendencias: 6 meses con zero-fill, terminando en el mes de ref', async () => {

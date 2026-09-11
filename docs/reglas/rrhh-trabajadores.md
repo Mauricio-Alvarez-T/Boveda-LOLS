@@ -84,7 +84,7 @@
   degeneraba en `DELETE FROM trabajadores WHERE activo = 0` (hard-delete de finiquitados). Ahora
   el reciclaje solo corre cuando hay campo de búsqueda (`nombre`/`razon_social` — catálogos como
   cargos o empresas); sin él el error sigue al `errorHandler` → **409 "El registro ya existe
-  (dato duplicado)"**. Para recontratar a un finiquitado se **reactiva** el existente, no se crea
+  (dato duplicado)"**. Para recontratar a un finiquitado se **reactiva** el existente (desde 2026-09-11 con `PUT /:id/reactivar`, ver § Desvinculación con causal), no se crea
   otro. Detalle y diagnóstico en `docs/RUNBOOK.md § 6`.
 
 ## Solicitudes de ingreso (ficha digital) — 2026-09-07
@@ -317,3 +317,38 @@ de `/:id`. Errores con el patrón del repo: `throw Object.assign(new Error(msg),
   Lógica pura en `cargoSueldoSchema.ts` (+ test).
 - Tests: `backend/tests/cargo_sueldos.test.js` (403 exclusivos, 400 de forma, 404, historial condicional,
   rollback, log sin montos, fallback 1146, `/api/cargos` sin sueldo).
+
+## Desvinculación con causal e historial (plan Gestiones B4, mig 112 — 2026-09-11)
+
+- **Req. 7 del dueño**: la desvinculación exige **causal obligatoria** (catálogo cerrado en
+  `backend/src/config/causalesDesvinculacion.js`: art. 159/160/161 del Código del Trabajo + operativas
+  LOLS; `LEGADO` = bajas anteriores, no seleccionable), `detalle` obligatorio para art. 160,
+  NO_PRESENTACION, RENDIMIENTO y OTRO, y una marca **`no_recontratar`** (precargada según la causal).
+  Decisión del dueño 2026-09-10: la marca **solo advierte** (reactivar y la solicitud de ingreso muestran
+  causal/fecha; nadie queda bloqueado).
+- **Endpoints dedicados** (`routes/trabajadores.routes.js`, `services/desvinculacion.service.js`):
+  `PUT /:id/desvincular` [`trabajadores.eliminar`] `{fecha_desvinculacion, causal_codigo, detalle?, no_recontratar?}`
+  → transacción `FOR UPDATE` (404 / 409 `YA_DESVINCULADO` / 400 fecha < ingreso o > hoy+30 / 400 causal
+  sin detalle) → INSERT en `trabajador_desvinculaciones` (con `fecha_ingreso_periodo`) → UPDATE
+  `trabajadores` (`activo=0`, `fecha_desvinculacion`, `causal_desvinculacion`, `no_recontratar`) → cuenta
+  asistencias posteriores (se informan, no se tocan). `PUT /:id/reactivar` [`trabajadores.reactivar`]
+  `{quitar_marca_no_recontratar?}` → 409 `YA_ACTIVO`; `activo=1`, limpia fecha/causal, **conserva
+  `fecha_ingreso`** (7 validaciones dependen de ella) y la marca salvo pedido; cierra la fila del historial
+  (`reactivado_por/en`). `GET /:id/desvinculaciones` [eliminar OR reactivar] = historial con `detalle`.
+  `GET /catalogos/causales-desvinculacion` [auth] = catálogo (2 segmentos: el CRUD captura `/:id`).
+- **Gates reales**: hasta hoy `trabajadores.eliminar`/`.reactivar` solo se exigían en la UI y cualquiera con
+  `trabajadores.editar` desvinculaba con `PUT /:id {activo:false}`. Ahora `index.js` monta un guard ANTES
+  del CRUD: `PUT /:id` descarta `activo`/`fecha_desvinculacion` (ya no están en `allowedFields`) y responde
+  400 "recarga la página" si el body solo traía eso; `DELETE /:id` → 405.
+- **Visibilidad**: `detalle` es antecedente interno → solo por `/desvinculaciones`; `resumen`
+  (`GET /:id/resumen`, trabajadores.ver) y el check-rut de oficina traen causal/fecha/marca sin detalle;
+  el check-rut de solicitudes (terreno) solo fecha, artículo y marca. El quick-view para `asistencia.ver`
+  no proyecta `causal_desvinculacion`/`no_recontratar` (allow-list de B1).
+- **Reporte semanal**: las bajas salen de `trabajador_desvinculaciones` (con columna Causal) con fallback a
+  `trabajadores.fecha_desvinculacion` si la mig 112 no corrió → reactivar ya no borra la baja del KPI.
+- **Depurar** (`DELETE /:id/depurar`): 409 si hay finiquito emitido o documentos generados por Bóveda.
+- **UI**: `DesvincularModal` (fecha, causal, detalle, marca; éxito con causal y aviso de asistencias
+  posteriores), `ReactivarModal` (última desvinculación + tarjeta roja si marcado + checkbox quitar marca),
+  `DesvinculacionInfo` en la ficha rápida, aviso en el check-rut de `WorkerForm`. Lógica pura en
+  `desvinculacionSchema.ts` (+ test). Logs: `trabajador_desvinculado` / `trabajador_reactivado` sin `detalle`.
+- Pendiente (§10.4 del plan): qué hacer con asistencias registradas después de la fecha de baja.

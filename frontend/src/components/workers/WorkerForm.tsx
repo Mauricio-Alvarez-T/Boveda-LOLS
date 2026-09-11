@@ -3,7 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Loader2, XCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, XCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 import { formatRut, validateRut } from '../../utils/rut';
 
@@ -13,6 +13,8 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import type { SelectOption } from '../ui/Select';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import api from '../../services/api';
+import { avisoDesvinculacion, type UltimaDesvinculacion } from './desvinculacionSchema';
+import { cn } from '../../utils/cn';
 import type { Trabajador, Empresa, Obra, Cargo } from '../../types/entities';
 import type { ApiResponse } from '../../types';
 import { DatosPersonalesFields } from './DatosPersonalesFields';
@@ -64,6 +66,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
     // Avisa con una X + texto si el trabajador ya existe en la base de datos.
     const [rutStatus, setRutStatus] = useState<'idle' | 'checking' | 'exists' | 'available'>('idle');
     const [rutExistName, setRutExistName] = useState('');
+    const [rutUltimaDesv, setRutUltimaDesv] = useState<UltimaDesvinculacion | null>(null);
     const rutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const rutSeq = useRef(0); // descarta respuestas viejas (race) al tipear rápido
 
@@ -77,16 +80,18 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
         const seq = ++rutSeq.current;
         rutTimer.current = setTimeout(async () => {
             try {
-                const res = await api.get<{ exists: boolean; trabajador: { nombre: string } | null }>(
+                const res = await api.get<{ exists: boolean; trabajador: { nombre: string; activo?: boolean } | null; ultima_desvinculacion?: UltimaDesvinculacion }>(
                     `/trabajadores/check-rut/${encodeURIComponent(formatted)}`
                 );
                 if (seq !== rutSeq.current) return; // llegó tarde, ignorar
                 if (res.data.exists) {
                     setRutStatus('exists');
                     setRutExistName(res.data.trabajador?.nombre || '');
+                    setRutUltimaDesv(res.data.ultima_desvinculacion ?? null);
                 } else {
                     setRutStatus('available');
                     setRutExistName('');
+                    setRutUltimaDesv(null);
                 }
             } catch {
                 if (seq === rutSeq.current) setRutStatus('idle'); // error de red → no bloquear
@@ -234,6 +239,13 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                                     <XCircle className="h-3.5 w-3.5 shrink-0" />
                                     Este trabajador ya existe en la base de datos
                                     {rutExistName ? ` (${rutExistName})` : ''}
+                                </p>
+                            )}
+                            {/* Finiquitado: antecedente de la baja (mig 112). Solo advierte: para recontratar se REACTIVA en Gestiones. */}
+                            {!errors.rut && rutStatus === 'exists' && rutUltimaDesv && (
+                                <p className={cn('flex items-center gap-1.5 text-xs mt-1 ml-0.5', rutUltimaDesv.no_recontratar ? 'font-semibold text-destructive' : 'text-muted-foreground')}>
+                                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                    {avisoDesvinculacion(rutUltimaDesv)} — para recontratarlo, reactívalo desde Gestiones.
                                 </p>
                             )}
                             {!errors.rut && rutStatus === 'available' && (

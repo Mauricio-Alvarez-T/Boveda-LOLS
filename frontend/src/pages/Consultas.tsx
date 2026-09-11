@@ -28,7 +28,6 @@ import {
     CalendarPlus,
     Save
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { Button } from '../components/ui/Button';
@@ -46,6 +45,8 @@ import type { Trabajador } from '../types/entities';
 import { cn } from '../utils/cn';
 import EnvioEmailModal from '../components/workers/EnvioEmailModal';
 import WorkerQuickView from '../components/workers/WorkerQuickView';
+import { DesvincularModal } from '../components/workers/DesvincularModal';
+import { ReactivarModal } from '../components/workers/ReactivarModal';
 import { ConstanciaModal } from '../components/workers/ConstanciaModal';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useAuth } from '../context/AuthContext';
@@ -149,7 +150,7 @@ const ConsultasPage: React.FC = () => {
     const {
         modalType, setModalType,
         selectedWorkerForAction, setSelectedWorkerForAction,
-        handleDelete, confirmFiniquito, handleReactivate,
+        handleDelete, handleReactivate, handleAccionCompletada,
         handleDepurar, confirmDepurar,
         depurarConfirmationRut, setDepurarConfirmationRut
     } = useConsultasActions(() => performSearch(true));
@@ -710,7 +711,7 @@ const ConsultasPage: React.FC = () => {
                                                         aria-label="Reactivar trabajador"
                                                         disabled={!hasPermission('trabajadores.reactivar')}
                                                         className="h-7 w-7 sm:h-8 sm:w-8"
-                                                        onClick={(e) => { e.stopPropagation(); handleReactivate(worker.id); }}
+                                                        onClick={(e) => { e.stopPropagation(); handleReactivate(worker); }}
                                                         icon={<UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                                                     />
                                                     {hasPermission('trabajadores.depurar') && (
@@ -812,40 +813,19 @@ const ConsultasPage: React.FC = () => {
                 )}
             </Modal>
 
-            {/* Finiquito Modal */}
-            {modalType === 'finiquito' && selectedWorkerForAction && (
-                <Modal isOpen={true} onClose={() => setModalType(null)} title="Desvincular Trabajador">
-                    <div className="p-5">
-                        <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 mb-5">
-                            <p className="text-sm font-semibold text-red-700 dark:text-red-300">
-                                Al desvincular a <strong>{selectedWorkerForAction.apellido_paterno} {selectedWorkerForAction.nombres}</strong>, no podrás ingresarle más asistencia a partir de la fecha seleccionada.
-                            </p>
-                        </div>
-                        <div className="mb-6">
-                            <label className="block text-xs font-bold text-muted-foreground mb-2 uppercase tracking-wider">Fecha Efectiva de Finiquito</label>
-                            <Input
-                                type="date"
-                                id="fecha_finiquito_input_consultas"
-                                defaultValue={new Date().toISOString().split('T')[0]}
-                                className="w-full bg-muted border-transparent hover:bg-muted focus:bg-card focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all font-semibold"
-                            />
-                        </div>
-                        <div className="flex justify-end gap-3 mt-8">
-                            <Button variant="outline" onClick={() => setModalType(null)} className="flex-1">Cancelar</Button>
-                            <Button variant="destructive" className="flex-1" onClick={() => {
-                                const dateInput = document.getElementById('fecha_finiquito_input_consultas') as HTMLInputElement;
-                                if (!dateInput?.value) {
-                                    toast.error("Debe especificar una fecha.");
-                                    return;
-                                }
-                                confirmFiniquito(dateInput.value);
-                            }}>
-                                Confirmar Finiquito
-                            </Button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
+            {/* Desvincular / Reactivar (plan Gestiones B4): causal obligatoria + historial; la marca solo advierte */}
+            <DesvincularModal
+                isOpen={modalType === 'finiquito'}
+                worker={selectedWorkerForAction}
+                onClose={() => setModalType(null)}
+                onDone={handleAccionCompletada}
+            />
+            <ReactivarModal
+                isOpen={modalType === 'reactivar'}
+                worker={selectedWorkerForAction}
+                onClose={() => setModalType(null)}
+                onDone={handleAccionCompletada}
+            />
 
             {/* Depurar Modal */}
             {modalType === 'depurar' && selectedWorkerForAction && (

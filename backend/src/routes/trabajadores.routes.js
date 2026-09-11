@@ -6,6 +6,9 @@ const { cleanRut } = require('../utils/rut');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger-structured');
+const validateBody = require('../middleware/validateBody');
+const desvinculacionService = require('../services/desvinculacion.service');
+const trabajadoresSchema = require('../schemas/trabajadores.schema');
 const { sanitizeTrabajadorPersonal, sanitizeTrabajadorFinanciero } = require('../utils/sanitizeFinancialFields');
 
 // Verificar si un RUT ya existe — usado por el formulario de creación para
@@ -31,7 +34,39 @@ router.get('/check-rut/:rut', auth, checkPermission('trabajadores.crear'), async
 
         const t = rows[0];
         const nombre = [t.apellido_paterno, t.apellido_materno, t.nombres].filter(Boolean).join(' ');
-        res.json({ exists: true, trabajador: { id: t.id, nombre, activo: !!t.activo } });
+        // Finiquitado: se agrega la última desvinculación (causal, fecha, marca) para que el aviso
+        // de WorkerForm muestre el antecedente. Solo advierte (decisión del dueño 2026-09-10).
+        const ultima = t.activo ? null : await desvinculacionService.ultimaDesvinculacion(t.id, { modo: 'resumen' });
+        res.json({ exists: true, trabajador: { id: t.id, nombre, activo: !!t.activo }, ...(ultima ? { ultima_desvinculacion: ultima } : {}) });
+    } catch (err) { next(err); }
+});
+
+// ─── Desvinculación con causal + historial (plan Gestiones B4, mig 112) ───────────────────────
+// Catálogo: ruta de 2 segmentos (`/catalogos/...`) para que no la capture el GET /:id del CRUD
+// genérico montado antes en index.js. Solo auth: no expone datos de personas.
+router.get('/catalogos/causales-desvinculacion', auth, (req, res) => {
+    res.json({ data: desvinculacionService.catalogo() });
+});
+
+// Desvincular = trabajadores.eliminar ("Finiquitar Trabajador"). Antes el backend aceptaba
+// PUT /:id {activo:false} con trabajadores.editar; index.js ahora lo bloquea (guard + allowedFields).
+router.put('/:id/desvincular', auth, checkPermission('trabajadores.eliminar'), validateBody(trabajadoresSchema.desvincular, { strip: true }), async (req, res, next) => {
+    try {
+        res.json({ data: await desvinculacionService.desvincular(req.params.id, req.body, req.user.id, req) });
+    } catch (err) { next(err); }
+});
+
+// Reactivar = trabajadores.reactivar. La marca "no recontratar" SOLO advierte: nunca 409 por ella.
+router.put('/:id/reactivar', auth, checkPermission('trabajadores.reactivar'), validateBody(trabajadoresSchema.reactivar, { strip: true }), async (req, res, next) => {
+    try {
+        res.json({ data: await desvinculacionService.reactivar(req.params.id, req.body, req.user.id, req) });
+    } catch (err) { next(err); }
+});
+
+// Historial completo (incluye `detalle`): solo quien puede desvincular o reactivar.
+router.get('/:id/desvinculaciones', auth, checkPermission('trabajadores.eliminar', 'trabajadores.reactivar'), async (req, res, next) => {
+    try {
+        res.json({ data: await desvinculacionService.listar(Number(req.params.id)) });
     } catch (err) { next(err); }
 });
 
@@ -120,6 +155,7 @@ router.get('/:id/resumen', auth, checkPermission('trabajadores.ver'), async (req
             [id]
         );
         const s = stats[0] || {};
+        const ultimaDesv = contrato[0].activo ? null : await desvinculacionService.ultimaDesvinculacion(id, { modo: 'resumen' });
 
         res.json({
             data: {
@@ -132,6 +168,7 @@ router.get('/:id/resumen', auth, checkPermission('trabajadores.ver'), async (req
                 dias_vacaciones: Number(s.dias_vacaciones || 0),
                 dias_licencia: Number(s.dias_licencia || 0),
                 dias_registrados: Number(s.dias_registrados || 0),
+                ultima_desvinculacion: ultimaDesv,
             }
         });
     } catch (err) { next(err); }
@@ -156,6 +193,9 @@ router.delete('/:id/depurar', auth, checkPermission('trabajadores.depurar'), asy
             await connection.rollback();
             return res.status(400).json({ error: 'Solo se pueden eliminar permanentemente trabajadores inactivos (finiquitados)' });
         }
+
+        // 1b. Evidencia laboral: con finiquito emitido o documentos generados por Bóveda no se depura (409).
+        await desvinculacionService.guardDepurar(connection, id);
 
         // 2. Opcional: Borrar archivos físicos
         const [docs] = await connection.query('SELECT ruta_archivo FROM documentos WHERE trabajador_id = ?', [id]);

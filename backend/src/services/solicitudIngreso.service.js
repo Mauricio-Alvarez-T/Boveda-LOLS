@@ -24,6 +24,7 @@
 const db = require('../config/db');
 const { cleanRut, formatRut, validateRut } = require('../utils/rut');
 const { logManualActivity } = require('../middleware/logger');
+const desvinculacionService = require('./desvinculacion.service');
 const logger = require('../utils/logger-structured');
 
 const PERMISO_APROBAR = 'trabajadores.solicitud.aprobar';
@@ -242,6 +243,12 @@ const solicitudIngresoService = {
 
         const trabajador = await _buscarTrabajadorPorRut(db, cleaned);
         const pendiente = await _buscarPendientePorRut(db, cleaned);
+        // Finiquitado: terreno recibe fecha, artículo y marca (sin nombre de causal ni detalle) para
+        // el aviso ámbar/rojo. Solo advierte (decisión del dueño 2026-09-10). Va DESPUÉS de las dos
+        // consultas históricas para no alterar su orden.
+        const ultima = (trabajador && !trabajador.activo)
+            ? await desvinculacionService.ultimaDesvinculacion(trabajador.id, { modo: 'terreno' })
+            : null;
 
         return {
             existe_trabajador: !!trabajador,
@@ -249,6 +256,7 @@ const solicitudIngresoService = {
                 ? { id: trabajador.id, nombre: nombreCompleto(trabajador), activo: !!trabajador.activo }
                 : null,
             solicitud_pendiente: pendiente ? { id: pendiente.id } : null,
+            ...(ultima ? { ultima_desvinculacion: ultima } : {}),
         };
     },
 

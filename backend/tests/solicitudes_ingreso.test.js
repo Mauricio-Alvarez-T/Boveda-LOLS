@@ -817,6 +817,9 @@ describe('PUT /api/solicitudes-ingreso/:id/aprobar', () => {
         const bloque = src.slice(src.indexOf("createCrudRoutes('trabajadores'"));
         const lista = bloque.match(/allowedFields:\s*\[([\s\S]*?)\]/)[1];
         const allowed = new Set([...lista.matchAll(/'([a-z_]+)'/g)].map(m => m[1]));
+        // `activo` salió de allowedFields en B4 (plan Gestiones, mig 112): el estado del contrato solo
+        // cambia por PUT /:id/desvincular y /:id/reactivar; el INSERT de aprobar lo fija en 1 a propósito.
+        allowed.add('activo');
         expect(allowed.size).toBeGreaterThan(10);
 
         const fuera = cols.filter(c => !allowed.has(c));

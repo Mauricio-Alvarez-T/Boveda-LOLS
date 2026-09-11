@@ -68,6 +68,15 @@ export function installConsultasMock(api: AxiosInstance, opts: ConsultasMockOpts
 
     // ── No-op (evita passthrough si el usuario toca otras acciones) ──
     mock.onDelete(/\/trabajadores\/\d+\/depurar/).reply(200, { data: {} });
+    // Desvinculación con causal (plan Gestiones B4): catálogo de ejemplo + no-ops (la demo no desvincula a nadie).
+    mock.onGet(/\/trabajadores\/catalogos\/causales-desvinculacion/).reply(200, {
+        data: [
+            { codigo: 'RENUNCIA', articulo: '159', inciso: '2', articulo_texto: 'Artículo 159, N° 2 del Código del Trabajo', nombre: 'Renuncia voluntaria del trabajador', grupo: 'Artículo 159', sugiere_no_recontratar: false, requiere_detalle: false },
+            { codigo: 'VENCIMIENTO_PLAZO', articulo: '159', inciso: '4', articulo_texto: 'Artículo 159, N° 4 del Código del Trabajo', nombre: 'Vencimiento del plazo convenido en el contrato', grupo: 'Artículo 159', sugiere_no_recontratar: false, requiere_detalle: false },
+        ],
+    });
+    mock.onGet(/\/trabajadores\/\d+\/desvinculaciones/).reply(200, { data: [] });
+    mock.onPut(/\/trabajadores\/\d+\/(desvincular|reactivar)$/).reply(200, { data: { trabajador_id: 5199 } });
     mock.onGet(/\/asistencias\/exportar\/excel/).reply(200, 'demo-excel');
     mock.onGet(/\/usuarios\/me\/(plantillas|email-config)/).reply(200, { data: [] });
     mock.onPost(/\/fiscalizacion\/enviar-excel/).reply(200, { data: {} });

@@ -103,6 +103,10 @@ export interface Trabajador {
     carnet_dorso_url: string | null;
     fecha_ingreso: string | null;
     fecha_desvinculacion: string | null;
+    /** Causal de la baja vigente (código del catálogo, mig 112); null si activo. */
+    causal_desvinculacion?: string | null;
+    /** Marca de aviso al recontratar (solo advierte). */
+    no_recontratar?: boolean;
     categoria_reporte: 'obra' | 'operaciones' | 'rotativo';
     activo: boolean;
     /** Si TRUE, trabajador de prueba: aislado de reportes/dashboard/asistencia/consultas operativas. */

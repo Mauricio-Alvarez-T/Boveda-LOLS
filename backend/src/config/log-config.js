@@ -44,7 +44,10 @@ const LABEL_MAP = {
     afp: 'AFP', salud: 'Salud', nacionalidad: 'Nacionalidad', cargas_familiares: 'Cargas familiares',
     observaciones: 'Observaciones', motivo_rechazo: 'Motivo rechazo',
     // Sueldo por cargo (mig 111).
-    evento: 'Evento', cargo: 'Cargo', cambio_montos: 'Cambió montos'
+    evento: 'Evento', cargo: 'Cargo', cambio_montos: 'Cambió montos',
+    // Desvinculación con causal (mig 112).
+    fecha_desvinculacion: 'F. Desvinculación', causal_desvinculacion: 'Causal', causal_codigo: 'Causal', causal: 'Causal',
+    no_recontratar: 'No recontratar', tenia_marca_no_recontratar: 'Tenía marca', quitar_marca_no_recontratar: 'Quitar marca'
 };
 
 // Acciones consideradas "ruido" cuando el usuario sólo quiere ver cambios
