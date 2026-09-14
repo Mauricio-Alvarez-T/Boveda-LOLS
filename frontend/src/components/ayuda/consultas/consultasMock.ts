@@ -64,6 +64,15 @@ export function installConsultasMock(api: AxiosInstance, opts: ConsultasMockOpts
     mock.onPost(/\/documentos-laborales\/kit-ingreso\/\d+/).reply(201, { data: { trabajador_id: 5101, emitidos: [] } });
     mock.onGet(/\/documentos-laborales\/\d+\/(download|html)/).reply(200, { data: { html: '<!DOCTYPE html><html><body>demo</body></html>', titulo: 'Demo' } });
     mock.onGet(/\/solicitudes-ingreso\/\d+\/doc/).reply(200, 'demo-doc');
+    // Documentos físicos (plan Gestiones B6): sin lotes en la demo y acciones no-op (el tutorial no crea custodia real).
+    // Los específicos van ANTES del genérico /documentos-lotes/\d+.
+    mock.onGet(/\/documentos-lotes\/pendientes\/count/).reply(200, { data: { por_confirmar: 0, en_terreno: 0, alcance: 'todos' } });
+    mock.onGet(/\/documentos-lotes\/(portadores|disponibles)/).reply(200, { data: [] });
+    mock.onGet(/\/documentos-lotes\/\d+$/).reply(200, { data: { id: 1, portador_id: 1, portador_nombre: 'Demo', creado_por: 1, creado_por_nombre: 'Demo', estado: 'cerrado', observacion: null, creado_en: '2026-01-01 09:00:00', retirado_en: null, cerrado_en: null, total: 0, pendientes: 0, en_terreno: 0, firmados: 0, sin_firma: 0, no_entregados: 0, items: [] } });
+    mock.onGet(/\/documentos-lotes(\?|$)/).reply(200, { data: [] });
+    mock.onPost(/\/documentos-lotes$/).reply(201, { data: { lote_id: 1, portador_id: 1, portador_nombre: 'Demo', n: 0 } });
+    mock.onPut(/\/documentos-lotes\/\d+\/(confirmar-retiro|recepcion)/).reply(200, { data: { lote_id: 1, estado: 'cerrado' } });
+    mock.onDelete(/\/documentos-lotes\/\d+$/).reply(200, { data: { lote_id: 1, liberados: 0 } });
     mock.onGet(/\/asistencias\/estados/).reply(200, estadosDemo);
     mock.onGet(/\/asistencias\/(periodos|reporte)/).reply(200, { data: [] });
 

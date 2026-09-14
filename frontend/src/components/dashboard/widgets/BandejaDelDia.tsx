@@ -38,6 +38,8 @@ interface Props {
     vehiculoItems?: BandejaItem[];
     /** Solicitudes de ingreso pendientes (ficha digital; gated por trabajadores.solicitud.aprobar). */
     solicitudItems?: BandejaItem[];
+    /** Lotes de documentos físicos por confirmar / en terreno (B6; gated por documentos.entrega.*). */
+    documentosFisicosItems?: BandejaItem[];
     onNavigate: (route: string) => void;
 }
 
@@ -92,7 +94,7 @@ const GroupHeader: React.FC<{ collapsed: boolean; icon: React.ElementType; label
         );
     };
 
-const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, inventoryItems = [], vehiculoItems = [], solicitudItems = [], onNavigate }) => {
+const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, inventoryItems = [], vehiculoItems = [], solicitudItems = [], documentosFisicosItems = [], onNavigate }) => {
     // Solo Vehículos arranca abierto (pedido de obra 2026-08-24): es el aviso que
     // se mira primero. El resto se abre al hacer clic. La clave ausente significa
     // "usar el default", así que un grupo nuevo nace cerrado sin tocar nada más.
@@ -204,6 +206,8 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
             {renderGrupoExterno('vehiculos', 'Vehículos', Truck, vehiculoItems)}
             {/* Solicitudes de ingreso (ficha digital): fichas de terreno esperando a la oficina. */}
             {renderGrupoExterno('solicitudes', 'Solicitudes de ingreso', UserPlus, solicitudItems)}
+            {/* Documentos físicos (B6): al portador, sus lotes por confirmar; a RRHH, lo que está en terreno. */}
+            {renderGrupoExterno('documentos_fisicos', 'Documentos físicos', Truck, documentosFisicosItems)}
             {GROUPS.filter(g => g.key === 'asistencia').map(renderGrupoTareas)}
             {GROUPS.filter(g => g.key !== 'asistencia').map(renderGrupoTareas)}
 

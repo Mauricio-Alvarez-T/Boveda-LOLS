@@ -17,6 +17,8 @@ import VehicleExpiries from '../components/dashboard/widgets/VehicleExpiries';
 import BandejaDelDia, { type PendingTask, type BandejaItem } from '../components/dashboard/widgets/BandejaDelDia';
 import { useVencimientosVehiculos } from '../hooks/useVencimientosVehiculos';
 import { useSolicitudesIngreso } from '../hooks/useSolicitudesIngreso';
+import { useLotesPendientes } from '../hooks/useLotesPendientes';
+import { filasBandejaLotes } from '../components/documentos-fisicos/documentosFisicos';
 import { textoVencimiento, etiquetaVencimiento } from '../utils/vencimientos';
 import type { DashboardAlerta } from '../hooks/inventario/useDashboardEjecutivo';
 import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
@@ -122,6 +124,11 @@ const Dashboard: React.FC = () => {
             ruta: '/consultas?tab=solicitudes',
         }];
     }, [canAprobarSolicitudes, solicitudes.pendientes]);
+    // Documentos físicos (B6): mismo store que el botón de Gestiones. El backend ya recorta el alcance
+    // (portador: sus lotes; RRHH: todos); sin permiso el hook devuelve null y no hay filas.
+    const lotes = useLotesPendientes();
+    const documentosFisicosItems = useMemo((): BandejaItem[] =>
+        filasBandejaLotes(lotes.pendientes).map(f => ({ ...f, ruta: '/consultas?tab=fisicos' })), [lotes.pendientes]);
     const { visibleWidgets } = useDashboardLayout(user?.id ?? 0, permisos);
 
     // Widgets que el usuario puede ver (gating por permiso granular). El layout es
@@ -262,6 +269,7 @@ const Dashboard: React.FC = () => {
                             inventoryItems={invItems}
                             vehiculoItems={vehiculoItems}
                             solicitudItems={solicitudItems}
+                            documentosFisicosItems={documentosFisicosItems}
                             onNavigate={(route) => navigate(route)}
                         />
                         : <SkeletonText lines={6} />}

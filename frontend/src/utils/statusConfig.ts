@@ -46,6 +46,9 @@ export const documentoEstadoConfig: StatusMap<DocumentoEstado> = {
     generado:   { label: 'Generado',   classes: AMBER,   icon: Clock,        borderLeft: 'border-l-amber-400' },
     descargado: { label: 'Descargado', classes: BLUE,    icon: Download,     borderLeft: 'border-l-blue-400' },
     entregado:  { label: 'Entregado',  classes: GREEN,   icon: CheckCircle2, borderLeft: 'border-l-green-500' },
+    // B6 (mig 114): en papel con el portador → volvió firmado.
+    en_terreno: { label: 'En terreno', classes: AMBER,   icon: Truck,        borderLeft: 'border-l-amber-400' },
+    firmado:    { label: 'Firmado',    classes: GREEN,   icon: CheckCircle2, borderLeft: 'border-l-green-500' },
 };
 
 /* ── Transferencias: estado ─────────────────────────────────────────── */

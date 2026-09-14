@@ -117,6 +117,10 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
                                 <p className="text-caption text-muted-foreground truncate">
                                     {d.fecha_generacion ? fmtFechaHora(d.fecha_generacion) : ''}
                                     {d.generado_por_nombre ? ` · por ${d.generado_por_nombre}` : ''}
+                                    {/* Custodia (B6): con quién está el papel / cuándo volvió firmado. */}
+                                    {d.estado === 'en_terreno' && d.portador_nombre ? ` · con ${d.portador_nombre}${d.lote_retirado_en ? ` desde ${fmtFechaHora(d.lote_retirado_en)}` : ''}` : ''}
+                                    {d.estado === 'descargado' && d.lote_id ? ' · en lote por confirmar' : ''}
+                                    {d.estado === 'firmado' && d.fecha_firmado ? ` · firmado ${fmtFechaHora(d.fecha_firmado)}` : ''}
                                 </p>
                             </div>
                             <StatusBadge domain="documentoEstado" status={d.estado || 'generado'} showIcon />

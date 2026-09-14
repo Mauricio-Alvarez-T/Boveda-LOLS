@@ -26,7 +26,8 @@ import {
     Eraser,
     CalendarClock,
     CalendarPlus,
-    Save
+    Save,
+    Truck,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -55,6 +56,8 @@ import { CreatePanel } from '../components/consultas/CreatePanel';
 import { SolicitudIngresoForm } from '../components/consultas/SolicitudIngresoForm';
 import { SolicitudesIngresoPanel } from '../components/consultas/SolicitudesIngresoPanel';
 import { useSolicitudesIngreso } from '../hooks/useSolicitudesIngreso';
+import { DocumentosFisicosPanel } from '../components/documentos-fisicos/DocumentosFisicosPanel';
+import { useLotesPendientes } from '../hooks/useLotesPendientes';
 
 import {
     useConsultasFilters,
@@ -77,6 +80,8 @@ const ConsultasPage: React.FC = () => {
     // con cualquiera de los tres permisos (ver Sidebar), así que puede no haber grilla.
     const puedeVerTrabajadores = hasPermission('trabajadores.ver');
     const verSolicitudes = hasPermission('trabajadores.solicitud.crear') || hasPermission('trabajadores.solicitud.aprobar');
+    // Documentos físicos (plan Gestiones B6): RRHH arma lotes; el portador (encargado de obra) confirma los suyos.
+    const verFisicos = hasPermission('documentos.entrega.registrar') || hasPermission('documentos.entrega.portar');
 
     // --- Custom Hooks ---
     // 1. Filtros
@@ -166,17 +171,23 @@ const ConsultasPage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const solicitudes = useSolicitudesIngreso();
     const [solicitudesVersion, setSolicitudesVersion] = useState(0);
+    const lotes = useLotesPendientes();
+    const tabActual = searchParams.get('tab');
+    // Quien solo porta documentos (sin grilla ni solicitudes) cae directo a sus lotes.
+    const showFisicos = verFisicos && (tabActual === 'fisicos' || (!puedeVerTrabajadores && !verSolicitudes));
     // Quien solo puede solicitar (terreno) no tiene grilla que ver: cae directo a sus solicitudes.
-    const showSolicitudes = verSolicitudes && (searchParams.get('tab') === 'solicitudes' || !puedeVerTrabajadores);
-    const toggleSolicitudes = useCallback(() => {
+    const showSolicitudes = !showFisicos && verSolicitudes && (tabActual === 'solicitudes' || !puedeVerTrabajadores);
+    const toggleTab = useCallback((tab: 'solicitudes' | 'fisicos') => {
         setShowMobileFilters(false);
         setSearchParams(prev => {
             const next = new URLSearchParams(prev);
-            if (next.get('tab') === 'solicitudes') next.delete('tab');
-            else next.set('tab', 'solicitudes');
+            if (next.get('tab') === tab) next.delete('tab');
+            else next.set('tab', tab);
             return next;
         });
     }, [setSearchParams]);
+    const toggleSolicitudes = useCallback(() => toggleTab('solicitudes'), [toggleTab]);
+    const toggleFisicos = useCallback(() => toggleTab('fisicos'), [toggleTab]);
 
     // Modificando Header Global
     const headerTitle = useMemo(() => (
@@ -229,6 +240,32 @@ const ConsultasPage: React.FC = () => {
                         )}
                     </Button>
                 )}
+                {/* Documentos físicos (B6): lotes en custodia. Contador ÁMBAR = lo que exige acción de quien mira. */}
+                {verFisicos && (puedeVerTrabajadores || verSolicitudes) && (
+                    <Button
+                        size="sm"
+                        variant={showFisicos ? 'primary' : 'outline'}
+                        onClick={toggleFisicos}
+                        title={showFisicos ? 'Volver a la búsqueda de trabajadores' : 'Documentos físicos (lotes en custodia)'}
+                        leftIcon={<Truck className="h-3.5 w-3.5" />}
+                        className={cn(
+                            "h-9 px-4 rounded-xl font-semibold gap-2 border-border shadow-sm transition-all duration-300",
+                            showFisicos
+                                ? "bg-brand-primary text-white border-transparent"
+                                : "bg-card text-brand-dark hover:bg-background"
+                        )}
+                    >
+                        <span>Documentos físicos</span>
+                        {lotes.badge > 0 && (
+                            <span className={cn(
+                                "flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-micro font-bold tabular-nums transition-colors duration-300",
+                                showFisicos ? "bg-card text-amber-700 dark:text-amber-300" : "bg-amber-500 text-white"
+                            )}>
+                                {lotes.badge}
+                            </span>
+                        )}
+                    </Button>
+                )}
                 <Button
                     variant={showCreatePanel ? 'primary' : 'outline'}
                     size="sm" 
@@ -247,7 +284,7 @@ const ConsultasPage: React.FC = () => {
                     {showCreatePanel ? 'CERRAR' : 'CREAR'}
                 </Button>
                 {/* Filtros / Exportar / Limpiar son de la grilla: en la pestaña de solicitudes no aplican. */}
-                {!showSolicitudes && (<>
+                {!showSolicitudes && !showFisicos && (<>
                 <Button
                     size="sm"
                     onClick={() => {
@@ -310,6 +347,25 @@ const ConsultasPage: React.FC = () => {
                 relleno activo. El estado se indica por el icono (Plus rota, Filter↔X,
                 ClipboardList↔SearchCheck) y el badge, no por el color de fondo. */}
             <div className="lg:hidden flex items-center gap-2">
+                {verFisicos && (puedeVerTrabajadores || verSolicitudes) && (
+                    <IconButton
+                        variant="ghost"
+                        aria-label={showFisicos ? 'Volver a la búsqueda de trabajadores' : 'Documentos físicos'}
+                        aria-pressed={showFisicos}
+                        onClick={toggleFisicos}
+                        className="relative rounded-xl border border-border shadow-sm"
+                        icon={<>
+                            {showFisicos
+                                ? <SearchCheck className="h-4 w-4 animate-in fade-in zoom-in duration-300" />
+                                : <Truck className="h-4 w-4 animate-in fade-in zoom-in duration-300" />}
+                            {lotes.badge > 0 && (
+                                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-0.5 items-center justify-center rounded-full text-micro font-bold tabular-nums bg-amber-500 text-white shadow-sm">
+                                    {lotes.badge}
+                                </span>
+                            )}
+                        </>}
+                    />
+                )}
                 {verSolicitudes && puedeVerTrabajadores && (
                     <IconButton
                         variant="ghost"
@@ -336,7 +392,7 @@ const ConsultasPage: React.FC = () => {
                     className="rounded-xl border border-border shadow-sm"
                     icon={<Plus className={cn("h-4 w-4 transition-transform duration-300 ease-out", showCreatePanel ? "rotate-45 scale-110" : "")} />}
                 />
-                {!showSolicitudes && (<>
+                {!showSolicitudes && !showFisicos && (<>
                 {/* Export Excel — paridad con desktop. Mismo gating de permiso/data. */}
                 <IconButton
                     variant="ghost"
@@ -366,7 +422,8 @@ const ConsultasPage: React.FC = () => {
             </div>
         </div>
     ), [workers.length, exporting, activeFilterCount, showMobileFilters, showCreatePanel, exportIds,
-        showSolicitudes, solicitudes.pendientes, verSolicitudes, puedeVerTrabajadores, toggleSolicitudes]);
+        showSolicitudes, solicitudes.pendientes, verSolicitudes, puedeVerTrabajadores, toggleSolicitudes,
+        showFisicos, lotes.badge, verFisicos, toggleFisicos]);
 
     useSetPageHeader(headerTitle, headerActions);
 
@@ -467,7 +524,9 @@ const ConsultasPage: React.FC = () => {
 
             {/* Solicitudes de ingreso (ficha digital): reemplaza la grilla con ?tab=solicitudes.
                 Al aprobar una, el trabajador ya existe → recargar la grilla para que aparezca. */}
-            {showSolicitudes ? (
+            {showFisicos ? (
+                <DocumentosFisicosPanel />
+            ) : showSolicitudes ? (
                 <SolicitudesIngresoPanel
                     refreshKey={solicitudesVersion}
                     onAprobada={() => performSearch(true)}

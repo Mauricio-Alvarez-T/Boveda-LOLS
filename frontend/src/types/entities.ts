@@ -432,7 +432,8 @@ export interface TipoDocumento {
 }
 
 /** Estado monótono de un documento (mig 110): subido|generado → descargado → entregado (B6). */
-export type DocumentoEstado = 'subido' | 'generado' | 'descargado' | 'entregado';
+/** `entregado` (mig 110) quedó sin uso: B6 lo reemplazó por en_terreno → firmado (mig 114). */
+export type DocumentoEstado = 'subido' | 'generado' | 'descargado' | 'entregado' | 'en_terreno' | 'firmado';
 export type DocumentoOrigen = 'subido' | 'generado';
 
 export interface Documento {
@@ -458,6 +459,12 @@ export interface Documento {
     fecha_generacion?: string | null;
     fecha_descarga?: string | null;
     plantilla_version?: string | null;
+    // Mig 114 (custodia de documentos físicos, B6). Solo en GET /documentos-laborales/trabajador/:id.
+    lote_id?: number | null;
+    lote_estado?: 'pendiente_retiro' | 'en_terreno' | 'cerrado' | null;
+    lote_retirado_en?: string | null;
+    portador_nombre?: string | null;
+    fecha_firmado?: string | null;
 }
 
 export interface EstadoAsistencia {

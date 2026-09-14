@@ -53,7 +53,10 @@ const LABEL_MAP = {
     // Documentos laborales generados (mig 110).
     origen: 'Origen', estado: 'Estado doc.', plantilla_version: 'Versión plantilla', fecha_generacion: 'F. Generación',
     fecha_descarga: 'F. Descarga', solicitud_id: 'Solicitud', documentos: 'Documentos', dias_plazo: 'Plazo (días)',
-    representante_nombre: 'Representante legal', representante_rut: 'RUT representante'
+    representante_nombre: 'Representante legal', representante_rut: 'RUT representante',
+    // Custodia de documentos físicos (mig 114).
+    portador_id: 'Portador', lote_id: 'Lote', recibidos: 'Recibidos', no_entregados: 'No entregados',
+    firmados: 'Firmados', sin_firma: 'Sin firma', en_terreno: 'En terreno', liberados: 'Liberados'
 };
 
 // Acciones consideradas "ruido" cuando el usuario sólo quiere ver cambios
@@ -134,6 +137,13 @@ const ENTIDAD_RESOLVERS = {
         tabla: 'documentos',
         labelExpr: 'nombre_archivo',
         bodyKeys: ['resumen', 'tipo'],
+    },
+    // /api/documentos-lotes/:id — item_id es el lote de custodia (mig 114); el log manual trae `resumen`.
+    'documentos-lotes': {
+        tipo: 'lote_documentos',
+        tabla: 'documentos_lotes',
+        labelExpr: "CONCAT('Lote #', id)",
+        bodyKeys: ['resumen'],
     },
     usuarios: {
         tipo: 'usuario',

@@ -256,6 +256,9 @@ const activityLogger = async (req, res, next) => {
             // respuesta ids; el service registra documento_emitido / documento_descargado sin montos.
             if (/^\/api\/documentos-laborales(\/|$)/.test(req.originalUrl.split('?')[0])) return;
             if (/^\/api\/solicitudes-ingreso\/\d+\/doc$/.test(req.originalUrl.split('?')[0])) return;
+            // Custodia de documentos físicos (mig 114): el service loguea lote_creado / lote_retirado /
+            // lote_recepcion / lote_anulado con conteos; el log global solo duplicaría listas de ids.
+            if (/^\/api\/documentos-lotes(\/|$)/.test(req.originalUrl.split('?')[0])) return;
 
             try {
                 const usuario_id = req.user ? req.user.id : null;

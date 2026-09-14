@@ -47,7 +47,10 @@ const MAESTRO_PERMISOS = [
     // en B1 para que el catálogo/hierarchy no se editen en paralelo; se asignan a roles en su bloque.
     ['documentos.laborales.emitir',    'Documentos', 'Emitir Documentos Laborales',                 'Gestiones → ficha del trabajador: emitir contrato, kit de ingreso, finiquito y carta de amonestación generados por Bóveda.', 5],
     ['documentos.laborales.descargar', 'Documentos', '⚠️ Descargar / Imprimir Documentos Laborales', 'Descargar o imprimir contratos, finiquitos y anexos laborales — solo oficina (RRHH, TI, administración). Incluye ver la remuneración impresa en el contrato.', 6],
-    ['documentos.entrega.registrar',   'Documentos', 'Registrar Entrega Física',                    '(Disponible próximamente) Registrar a quién, cuándo y cuántas copias de un documento se entregaron en papel; habilita el grupo "Documentos por entregar" del Inicio.', 7],
+    // Custodia de documentos físicos por lotes (plan Gestiones B6, mig 114): RRHH arma lotes y recibe firmados;
+    // el portador (encargado de obra) confirma el retiro de SUS lotes. Mismo texto que la mig 114.
+    ['documentos.entrega.registrar',   'Documentos', 'Registrar Entrega Física (RRHH)',             'Gestiones → Documentos físicos: armar lotes de documentos impresos para un portador, recibir los firmados que vuelven y anular lotes sin retirar. Habilita el grupo "Documentos físicos" del Inicio.', 7],
+    ['documentos.entrega.portar',      'Documentos', 'Portar Documentos Físicos',                   'Confirmar en Bóveda el retiro de MIS lotes de documentos impresos (encargado de obra que los lleva a firmar). Solo ve sus propios lotes.', 8],
 
     // REPORTES (Gestiones — antes Consultas)
     ['reportes.ver',                'Reportes', 'Ver Gestiones',                 'Acceder a la sección de Gestiones (antes Consultas)', 1],

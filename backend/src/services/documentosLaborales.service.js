@@ -12,6 +12,7 @@ const db = require('../config/db');
 const documentoService = require('./documento.service');
 const cargoSueldoService = require('./cargoSueldo.service');
 const desvinculacionService = require('./desvinculacion.service');
+const documentosLotesService = require('./documentosLotes.service');
 const g = require('./docGenerador.service');
 const { getPlantilla, KIT_INGRESO, EMITIBLES } = require('../plantillas/documentos');
 const { logManualActivity } = require('../middleware/logger');
@@ -241,9 +242,10 @@ const documentosLaboralesService = {
         return { persistido: false, nombre_archivo: `${nombreBase}_${g.stamp()}.doc`, html };
     },
 
-    /** Documentos generados de un trabajador (sin metadata). */
+    /** Documentos generados de un trabajador (sin metadata), con su custodia vigente (lote/portador, B6). */
     async listar(trabajadorId) {
-        return documentoService.getByTrabajador(trabajadorId, { origen: 'generado' });
+        const rows = await documentoService.getByTrabajador(trabajadorId, { origen: 'generado' });
+        return documentosLotesService.decorarCustodia(rows);
     },
 
     /**

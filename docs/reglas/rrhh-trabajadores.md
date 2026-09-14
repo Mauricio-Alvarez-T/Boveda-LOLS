@@ -426,9 +426,10 @@ ficha del trabajador y su descarga o impresión es "solo oficina".
   contrato **escaneado** subido a un tipo restringido queda bajo el mismo gate. Los tipos del sistema
   se crean con nombre "(Bóveda)" y `obligatorio = 0` (no alteran la completitud); no se pueden desactivar,
   volver obligatorios ni eliminar desde Configuración (409 `TIPO_SISTEMA`), solo renombrar.
-- **Estados** (`documentos.estado`, monótono): `subido|generado → descargado → entregado` (B6).
-  `fecha_descarga` guarda la PRIMERA descarga; **las alertas de B7 cuentan desde `fecha_generacion`**,
-  así re-descargar no silencia el aviso.
+- **Estados** (`documentos.estado`): `subido|generado → descargado → en_terreno → firmado` (B6, mig 114;
+  `entregado` de la mig 110 quedó sin uso). Excepción a "monótono": un documento devuelto sin firma o que el
+  portador no recibió vuelve a `descargado`. `fecha_descarga` guarda la PRIMERA descarga; **las alertas de B7
+  cuentan desde `fecha_generacion`**, así re-descargar no silencia el aviso.
 - **Permisos** (creados por la mig 110; el dueño los asigna a mano en Configuración → Roles + re-login):
   `documentos.laborales.emitir` y `documentos.laborales.descargar`, ambos **exclusivos** (sin patrón OR).
   `documentos.descargar` NO alcanza para un documento restringido: `GET /documentos/download/:id`
@@ -526,6 +527,58 @@ ingreso (B2); B5 agrega el CTA tras aprobar (ver § Solicitudes → Después de 
   `keydown` y una sola tecla cerraba los dos (y desmontaba la pantalla de éxito del padre).
 - **Pendiente (§10.3 del plan)**: si RRHH quiere que el sistema calcule vacaciones proporcionales e
   indemnizaciones, es un bloque aparte con vigencia histórica de sueldos.
+
+## Cadena de custodia de documentos físicos (plan Gestiones B6, mig 114 — 2026-09-14)
+
+Requerimiento 9 de RRHH, **rediseñado con el dueño tras el QA de B5**. El flujo real no es "entregar un
+documento al trabajador" sino una cadena de custodia con dos traspasos, ambos en la oficina central:
+RRHH (Matías) imprime → el **portador** autorizado (Jhoan Vásquez / Héctor Gómez) retira → el trabajador
+firma en la obra (papel) → el portador devuelve los firmados → RRHH recibe.
+
+- **Decisiones del dueño (2026-09-14)**: (1) RRHH declara en Bóveda qué entrega → el portador **confirma en
+  Bóveda** que lo recibió → al volver firmados RRHH **confirma la recepción**; (2) "listo para retirar" =
+  documento ya **descargado/impreso** (`estado = descargado`), sin paso "impreso" aparte; (3) entran **todos
+  los generados** por Bóveda; (4) constancia = **solo el registro** (sin firma digital ni acta); (5) la copia
+  firmada se **marca** recibida, no se sube; (6) **doble llave estricta**: RRHH no puede confirmar el retiro
+  por el portador (si se le olvida, el lote queda pendiente y B7 lo persigue); (7) sin guía de retiro en Word.
+- **El LOTE es la unidad** (`documentos_lotes` + `documentos_lotes_items`): RRHH no registra documento por
+  documento. Un lote = lo que imprimió hoy para un portador. Estados del lote: `pendiente_retiro` →
+  `en_terreno` (el portador confirmó) → `cerrado` (nada queda en terreno). Ítem: `pendiente` → `retirado` →
+  `firmado` | `devuelto_sin_firma`; `no_entregado` si el portador lo desmarcó al confirmar. Los dos últimos
+  liberan el documento (`lote_id = NULL`, vuelve a `descargado`) para llevarlo de nuevo. Un documento está
+  en **un solo lote abierto** a la vez (`documentos.lote_id`; FOR UPDATE al crear → 409
+  `DOCUMENTO_NO_DISPONIBLE` con la lista si otro RRHH se adelantó).
+- **Permisos**: `documentos.entrega.registrar` (RRHH: `GET /portadores`, `GET /disponibles`, `POST /`,
+  `PUT /:id/recepcion`, `DELETE /:id` anular solo `pendiente_retiro`) y **`documentos.entrega.portar`**
+  (portador: `GET /` y `GET /:id` **solo sus lotes**, `PUT /:id/confirmar-retiro` solo si el lote es suyo →
+  403 `LOTE_AJENO`). Ambos se CREAN en la mig 114 (catálogo + rol 1 + bump); el dueño asigna: registrar a
+  RRHH en Roles; portar por **override de usuario** a Jhoan y Héctor (Config → Usuarios), como Héctor con
+  aprobar. `GET /portadores` calcula el permiso efectivo en SQL (rol o grant, sin deny; rol 1 siempre).
+- **API** `/api/documentos-lotes` (`safeRoute`; segmentos literales antes de `/:id`). `POST /`
+  `{portador_id, documento_ids[], observacion?}` → 201 `{lote_id, portador_id, portador_nombre, n}`; 400
+  `PORTADOR_INVALIDO` (inactivo o sin portar). `PUT /:id/confirmar-retiro {documento_ids}` = los que SÍ
+  recibió (vacío = ninguno → lote cerrado). `PUT /:id/recepcion {firmados[], sin_firma[]}` parcial: el lote se
+  cierra cuando no queda ningún ítem `retirado`; 409 `LOTE_NO_EN_TERRENO` si el portador aún no confirmó.
+  `GET /pendientes/count` → `{por_confirmar, en_terreno, alcance: 'todos'|'propios'}` (badge + Bandeja).
+  `GET /documentos-laborales/trabajador/:id` agrega `lote_id, lote_estado, lote_retirado_en, portador_nombre,
+  fecha_firmado` (consulta aparte condicionada a `hasCols('documentos','lote_id')` para no tocar el fallback
+  de la mig 110).
+- **Degradación (D-I)**: sin la mig 114 las lecturas devuelven vacío/ceros y las escrituras 409
+  `MIGRACION_PENDIENTE`. Logs manuales `lote_creado` / `lote_retirado` / `lote_recepcion` / `lote_anulado`
+  con **conteos** (nunca nombres ni RUT de trabajadores); el logger global excluye `/api/documentos-lotes`.
+  Depurar un trabajador borra sus ítems (CASCADE); el lote queda como histórico.
+- **UI**: Gestiones → pestaña **Documentos físicos** (`?tab=fisicos`; el portador sin `trabajadores.ver` cae
+  ahí directo; Gestiones es visible para él en el menú). `DocumentosFisicosPanel` (lista de lotes con estado,
+  portador, resumen y días en terreno) · `NuevoLoteModal` (documentos impresos agrupados **obra → trabajador**
+  con casilla por trabajador —un kit de 6 = 1 clic—, buscador, filtro por obra, portador recordado en
+  `localStorage`) · `LoteDetalleModal` (portador + por confirmar: casillas pre-marcadas y **"Recibí estos
+  documentos"**, pensado para el celular; RRHH + en terreno: por documento Firmado / Sin firma / Sigue en
+  terreno con todo pre-marcado como firmado; RRHH + por confirmar: anular). Badge ámbar en el botón y grupo
+  "Documentos físicos" en la Bandeja del Día (`useLotesPendientes`, store de módulo). La ficha del trabajador
+  muestra "En terreno · con Jhoan desde …" y "Firmado …" en la lista de generados (`statusConfig` gana
+  `en_terreno` y `firmado`). Lógica pura en `documentos-fisicos/documentosFisicos.ts` (+ test).
+- **Velocidad neta**: RRHH 2 acciones por viaje (crear lote / registrar recepción), portador 1 tap, el
+  trabajador no toca nada. B7 agrega umbrales: lote sin confirmar > 1 día, documentos en terreno > N días.
 
 ## Empresas: representante legal (mig 110)
 

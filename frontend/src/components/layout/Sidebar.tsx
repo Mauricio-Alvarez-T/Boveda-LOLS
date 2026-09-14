@@ -75,10 +75,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             icon: SearchCheck,
             label: 'Gestiones',
             path: '/consultas',
-            // También para quien solo participa de la ficha de ingreso digital (terreno u oficina).
+            // También para quien solo participa de la ficha de ingreso digital (terreno u oficina) y para
+            // quien porta documentos físicos (B6: el encargado de obra confirma sus lotes desde acá).
             visible: hasPermission('trabajadores.ver')
                 || hasPermission('trabajadores.solicitud.crear')
-                || hasPermission('trabajadores.solicitud.aprobar'),
+                || hasPermission('trabajadores.solicitud.aprobar')
+                || hasPermission('documentos.entrega.registrar')
+                || hasPermission('documentos.entrega.portar'),
             // Pendiente = ÁMBAR (por hacer, no es error). El store ya devuelve 0 sin permiso de aprobar.
             badge: solicitudes.pendientes,
             badgeUrgente: false,
