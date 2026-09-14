@@ -21,6 +21,7 @@ const epp = require('./eppRecepcion.plantilla');
 const ri = require('./riRecepcion.plantilla');
 const amonestacion = require('./amonestacion.plantilla');
 const solicitud = require('./solicitudIngreso.plantilla');
+const finiquito = require('./finiquito.plantilla');
 
 const PLANTILLAS = Object.freeze({
     [contrato.codigo]: contrato,
@@ -31,13 +32,17 @@ const PLANTILLAS = Object.freeze({
     [ri.codigo]: ri,
     [amonestacion.codigo]: amonestacion,
     [solicitud.codigo]: solicitud,
+    [finiquito.codigo]: finiquito,
 });
 
 /** Kit de ingreso: los 6 documentos que se emiten juntos al contratar (orden de impresión). */
 const KIT_INGRESO = Object.freeze(['CONTRATO', 'ODI_D40', 'DAS', 'PTS_ALTURA', 'EPP_RECEPCION', 'RI_RECEPCION']);
 
-/** Códigos que puede pedir el cliente por POST /emitir (la solicitud se emite sola al aprobar). */
-const EMITIBLES = Object.freeze([...KIT_INGRESO, 'AMONESTACION']);
+/**
+ * Códigos que puede pedir el cliente por POST /emitir (la solicitud se emite sola al aprobar).
+ * FINIQUITO (B5) es el único que exige trabajador DESVINCULADO; el service ramifica ese guard.
+ */
+const EMITIBLES = Object.freeze([...KIT_INGRESO, 'AMONESTACION', 'FINIQUITO']);
 
 function getPlantilla(codigo) {
     return PLANTILLAS[codigo] || null;

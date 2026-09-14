@@ -1,6 +1,6 @@
 import {
     desvincularSchema, fechaMaxDesvinculacion, hoyYmd, requiereDetalle, opcionesCausales,
-    validarDesvinculacion, buildDesvincularPayload, avisoDesvinculacion, detalleDesvinculacion,
+    validarDesvinculacion, buildDesvincularPayload, avisoDesvinculacion, detalleDesvinculacion, bajaDesdeResultado,
     type CausalDesvinculacion,
 } from './desvinculacionSchema';
 
@@ -71,5 +71,27 @@ describe('buildDesvincularPayload / avisoDesvinculacion', () => {
         expect(detalleDesvinculacion({ fecha: null, articulo: null, no_recontratar: false, detalle: '   ' })).toBeNull();
         expect(detalleDesvinculacion({ fecha: null, articulo: null, no_recontratar: false })).toBeNull();
         expect(detalleDesvinculacion(null)).toBeNull();
+    });
+});
+
+describe('bajaDesdeResultado (puente Desvincular → Finiquito, B5)', () => {
+    const r = {
+        trabajador_id: 5, desvinculacion_id: 77, fecha_desvinculacion: '2026-09-10',
+        causal: { codigo: 'VENCIMIENTO_PLAZO', nombre: 'Vencimiento del plazo convenido en el contrato', articulo_texto: 'Artículo 159, N° 4 del Código del Trabajo' },
+        no_recontratar: false, asistencias_posteriores: 0,
+    };
+    it('arma la UltimaDesvinculacion con artículo extraído, fecha de ingreso recortada y sin finiquito', () => {
+        expect(bajaDesdeResultado(r, '2026-08-31T03:00:00.000Z')).toEqual({
+            id: 77, fecha: '2026-09-10', articulo: '159', no_recontratar: false,
+            causal_codigo: 'VENCIMIENTO_PLAZO', causal_nombre: r.causal.nombre, articulo_texto: r.causal.articulo_texto,
+            fecha_ingreso_periodo: '2026-08-31', finiquito_documento_id: null,
+        });
+    });
+    it('causal operativa (sin artículo) y sin fecha de ingreso', () => {
+        const b = bajaDesdeResultado({ ...r, causal: { codigo: 'OTRO', nombre: 'Otro motivo (detallar)', articulo_texto: null }, no_recontratar: true }, undefined);
+        expect(b.articulo).toBeNull();
+        expect(b.articulo_texto).toBeNull();
+        expect(b.fecha_ingreso_periodo).toBeNull();
+        expect(b.no_recontratar).toBe(true);
     });
 });

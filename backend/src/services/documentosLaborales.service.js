@@ -11,6 +11,7 @@ const fs = require('fs');
 const db = require('../config/db');
 const documentoService = require('./documento.service');
 const cargoSueldoService = require('./cargoSueldo.service');
+const desvinculacionService = require('./desvinculacion.service');
 const g = require('./docGenerador.service');
 const { getPlantilla, KIT_INGRESO, EMITIBLES } = require('../plantillas/documentos');
 const { logManualActivity } = require('../middleware/logger');
@@ -43,7 +44,9 @@ const SELECT_SOLICITUD = `
       LEFT JOIN usuarios ur ON ur.id = s.resuelto_por
      WHERE s.id = ?`;
 
-const toYmd = (v) => (v == null ? null : (v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10)));
+// Un Date de mysql2 (DATE → medianoche LOCAL) se formatea en hora local: toISOString() lo pasaría a UTC
+// y en un servidor con offset ≥ 0 retrocedería un día (mismo criterio que docGenerador._parse).
+const toYmd = (v) => (v == null ? null : (v instanceof Date ? g.hoyYmd(v) : String(v).slice(0, 10)));
 const nombreCompleto = (t) => [t.nombres, t.apellido_paterno, t.apellido_materno].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 
 /** Trabajador + empresa (con representante si la mig 110 ya corrió; si no, degrada sin las columnas). */
@@ -76,12 +79,25 @@ async function _cargarTrabajador(trabajadorId, conn = db) {
     };
 }
 
-/** ctx completo para una plantilla (agrega remuneración solo cuando la plantilla la imprime). */
+/**
+ * ctx completo para una plantilla. Cada consulta extra se hace SOLO para la plantilla que la imprime
+ * (remuneración → contrato; baja vigente → finiquito): así el resto del kit no paga queries de más.
+ */
 async function _armarCtx(codigo, cargado, datos) {
     const ctx = { hoy: g.hoyYmd(), empresa: cargado.empresa, trabajador: cargado.trabajador, datos: datos || {}, remuneracion: null };
     if (codigo === 'CONTRATO' && cargado.trabajador.cargo_id) {
         const s = await cargoSueldoService.getPorCargo(cargado.trabajador.cargo_id);
         if (s && Number(s.sueldo_base) > 0) ctx.remuneracion = { sueldo_base: Number(s.sueldo_base), fuente: 'cargo_sueldos' };
+    }
+    if (codigo === 'FINIQUITO') {
+        // Fila ABIERTA (no la última): una baja ya cerrada por reactivación no admite finiquito.
+        try {
+            ctx.desvinculacion = await desvinculacionService.desvinculacionAbierta(cargado.trabajador.id, { estricta: true });
+        } catch (err) {
+            // Sin la mig 112 el 409 debe decir "migración", no "desvincula primero" (que respondería YA_DESVINCULADO).
+            if (!desvinculacionService.esErrorEsquema(err)) throw err;
+            throw httpError('El finiquito requiere la migración 112 (trabajador_desvinculaciones). Avisa a TI.', 409, { code: 'MIGRACION_PENDIENTE' });
+        }
     }
     return ctx;
 }
@@ -133,16 +149,36 @@ const documentosLaboralesService = {
 
     /**
      * Emite UN documento para el trabajador. 400 código desconocido; 404 sin trabajador;
-     * 409 desvinculado, datos faltantes o tipo del sistema no configurado (mig 110).
+     * 409 desvinculado (o activo, si es finiquito), datos faltantes o tipo del sistema no configurado (mig 110).
      */
     async emitir(trabajadorId, codigo, datos, userId, req) {
         const plantilla = getPlantilla(codigo);
         if (!plantilla || !EMITIBLES.includes(codigo)) throw httpError(`Documento desconocido: ${codigo}`, 400);
         const cargado = await _cargarTrabajador(trabajadorId);
-        if (!cargado.trabajador.activo) throw httpError('El trabajador está desvinculado: no se emiten documentos de ingreso ni amonestaciones.', 409);
+        // El finiquito es el ÚNICO documento de un trabajador desvinculado; el resto exige que esté activo.
+        if (codigo === 'FINIQUITO') {
+            if (cargado.trabajador.activo) {
+                throw httpError('El trabajador está activo: el finiquito se emite después de desvincularlo (Gestiones → Desvincular).', 409, { code: 'TRABAJADOR_ACTIVO' });
+            }
+        } else if (!cargado.trabajador.activo) {
+            throw httpError('El trabajador está desvinculado: no se emiten documentos de ingreso ni amonestaciones.', 409);
+        }
         const ctx = await _armarCtx(codigo, cargado, datos);
         _validar(plantilla, ctx);
-        return _persistir(plantilla, ctx, cargado.trabajador.id, userId, req);
+        const doc = await _persistir(plantilla, ctx, cargado.trabajador.id, userId, req);
+        if (codigo === 'FINIQUITO') {
+            // El documento YA existe: si el enlace falla (mig 112 pendiente, fila borrada) se avisa y no se
+            // responde error — un 500 acá haría reemitir un finiquito que sí quedó en la ficha.
+            let enlazado = false;
+            try {
+                enlazado = await desvinculacionService.vincularFiniquito(ctx.desvinculacion.id, doc.documento_id);
+            } catch (err) {
+                logger.warn('vincularFiniquito falló', { err: err.message, documento_id: doc.documento_id });
+            }
+            if (!enlazado) logger.warn('Finiquito emitido sin enlazar a trabajador_desvinculaciones', { documento_id: doc.documento_id, desvinculacion_id: ctx.desvinculacion.id });
+            return { ...doc, desvinculacion_id: ctx.desvinculacion.id, enlazado };
+        }
+        return doc;
     },
 
     /**

@@ -5,35 +5,34 @@
  * Flujo: fecha (default hoy, máx. hoy+30) → causal del catálogo cerrado → detalle (obligatorio
  * para art. 160 / NO_PRESENTACION / RENDIMIENTO / OTRO) → marca "No recontratar" (precargada
  * según la causal; SOLO advierte al recontratar) → PUT /trabajadores/:id/desvincular.
- * Éxito: pantalla de confirmación con causal y aviso si ya había asistencia posterior.
+ * Éxito: pantalla de confirmación con causal y aviso si ya había asistencia posterior, y el botón
+ * "Emitir finiquito" (plan Gestiones B5; gate documentos.laborales.emitir) que abre EmitirFiniquitoModal
+ * con la baja recién registrada en mano — también se puede emitir después desde la ficha.
  * Gate: trabajadores.eliminar (el backend lo exige; el botón de la fila ya venía gateado).
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, CheckCircle2, UserX } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileCheck2, FileSignature, UserX } from 'lucide-react';
 
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { fmtFecha } from '../../utils/format';
 import { showApiError } from '../../utils/toastUtils';
 import type { Trabajador } from '../../types/entities';
 import {
     desvincularSchema, hoyYmd, fechaMaxDesvinculacion, opcionesCausales, requiereDetalle, getCausal,
-    validarDesvinculacion, buildDesvincularPayload, type CausalDesvinculacion, type DesvincularFormData,
+    validarDesvinculacion, buildDesvincularPayload, bajaDesdeResultado,
+    type CausalDesvinculacion, type DesvincularFormData, type DesvincularResultado,
 } from './desvinculacionSchema';
+import { EmitirFiniquitoModal } from '../documents/EmitirFiniquitoModal';
+import { avisoEnlaceFiniquito, type DocumentoEmitido, type WorkerBasico } from '../documents/documentosLaborales';
 
-export interface DesvincularResultado {
-    trabajador_id: number;
-    desvinculacion_id: number;
-    fecha_desvinculacion: string;
-    causal: { codigo: string; nombre: string; articulo_texto: string | null };
-    no_recontratar: boolean;
-    asistencias_posteriores: number;
-}
+export type { DesvincularResultado } from './desvinculacionSchema';
 
 interface Props {
     isOpen: boolean;
@@ -44,10 +43,14 @@ interface Props {
 }
 
 export const DesvincularModal: React.FC<Props> = ({ isOpen, worker, onClose, onDone }) => {
+    const { hasPermission } = useAuth();
+    const puedeEmitirDocs = hasPermission('documentos.laborales.emitir');
     const [catalogo, setCatalogo] = useState<CausalDesvinculacion[]>([]);
     const [cargando, setCargando] = useState(false);
     const [errorNegocio, setErrorNegocio] = useState<string | null>(null);
     const [resultado, setResultado] = useState<DesvincularResultado | null>(null);
+    const [finiquitoAbierto, setFiniquitoAbierto] = useState(false);
+    const [finiquitoEmitido, setFiniquitoEmitido] = useState<DocumentoEmitido | null>(null);
 
     const { control, register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<DesvincularFormData>({
         resolver: zodResolver(desvincularSchema),
@@ -60,6 +63,8 @@ export const DesvincularModal: React.FC<Props> = ({ isOpen, worker, onClose, onD
         if (!isOpen) return;
         setResultado(null);
         setErrorNegocio(null);
+        setFiniquitoAbierto(false);
+        setFiniquitoEmitido(null);
         reset({ fecha_desvinculacion: hoyYmd(), causal_codigo: '', detalle: '', no_recontratar: false });
         let cancelado = false;
         setCargando(true);
@@ -91,6 +96,18 @@ export const DesvincularModal: React.FC<Props> = ({ isOpen, worker, onClose, onD
     };
 
     const nombre = worker ? `${worker.apellido_paterno} ${worker.apellido_materno || ''} ${worker.nombres}`.replace(/\s+/g, ' ').trim() : '';
+    // Identidad estable: si se construyera inline en el JSX, cada render (p. ej. al recibir onEmitido) le
+    // pasaría un objeto nuevo al modal de finiquito.
+    const bajaParaFiniquito = useMemo(
+        () => (resultado ? bajaDesdeResultado(resultado, worker?.fecha_ingreso) : null),
+        [resultado, worker?.fecha_ingreso]
+    );
+    // Lo mínimo que necesita el modal de finiquito; `activo: false` porque la baja ya se confirmó.
+    const workerBasico: WorkerBasico | null = worker ? {
+        id: worker.id, nombres: worker.nombres, apellido_paterno: worker.apellido_paterno, apellido_materno: worker.apellido_materno,
+        rut: worker.rut, cargo_nombre: worker.cargo_nombre ?? null, obra_nombre: worker.obra_nombre ?? null, empresa_nombre: worker.empresa_nombre ?? null,
+        activo: false,
+    } : null;
 
     return (
         <Modal isOpen={isOpen} onClose={resultado ? () => onDone(resultado) : onClose} title="Desvincular trabajador" size="md">
@@ -115,10 +132,34 @@ export const DesvincularModal: React.FC<Props> = ({ isOpen, worker, onClose, onD
                             <span>Hay {resultado.asistencias_posteriores} registro(s) de asistencia posteriores a la fecha de desvinculación. Revísalos en Asistencia.</span>
                         </div>
                     )}
-                    <p className="text-caption text-muted-foreground">El finiquito se emitirá desde la ficha del trabajador cuando esté disponible el módulo de documentos laborales.</p>
-                    <div className="flex justify-end">
-                        <Button type="button" onClick={() => onDone(resultado)}>Cerrar</Button>
+                    {finiquitoEmitido ? (
+                        <div className="rounded-xl border border-border bg-background px-3 py-2 text-sm">
+                            <p className="flex items-center gap-1.5 font-semibold text-brand-dark"><FileCheck2 className="h-4 w-4 text-success" /> Finiquito emitido</p>
+                            <p className="text-xs text-muted-foreground">{finiquitoEmitido.nombre_archivo} · queda en "Documentos laborales (Bóveda)" de la ficha del trabajador.</p>
+                            {avisoEnlaceFiniquito(finiquitoEmitido) && (
+                                <p className="mt-1 flex items-start gap-1 text-xs font-medium text-warning"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {avisoEnlaceFiniquito(finiquitoEmitido)}</p>
+                            )}
+                        </div>
+                    ) : (
+                        <p className="text-caption text-muted-foreground">
+                            {puedeEmitirDocs
+                                ? 'El finiquito se puede emitir ahora, con la causal y las fechas de esta baja, o después desde la ficha del trabajador.'
+                                : 'El finiquito lo emite RRHH desde la ficha del trabajador (requiere "Emitir Documentos Laborales").'}
+                        </p>
+                    )}
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <Button type="button" variant={finiquitoEmitido || !puedeEmitirDocs ? 'primary' : 'outline'} onClick={() => onDone(resultado)}>Cerrar</Button>
+                        {puedeEmitirDocs && !finiquitoEmitido && (
+                            <Button type="button" leftIcon={<FileSignature className="h-4 w-4" />} onClick={() => setFiniquitoAbierto(true)}>Emitir finiquito</Button>
+                        )}
                     </div>
+                    <EmitirFiniquitoModal
+                        isOpen={finiquitoAbierto}
+                        onClose={() => setFiniquitoAbierto(false)}
+                        worker={workerBasico}
+                        desvinculacion={bajaParaFiniquito}
+                        onEmitido={setFiniquitoEmitido}
+                    />
                 </div>
             ) : (
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

@@ -1,4 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+
+/**
+ * Pila de modales abiertos (a nivel de módulo). Con modales ANIDADOS — kit de ingreso dentro de la revisión
+ * de una solicitud, finiquito dentro de desvincular — Escape debe cerrar SOLO el de más arriba: antes cada
+ * Modal escuchaba keydown por su cuenta y una sola tecla cerraba los dos (y desmontaba la pantalla de éxito).
+ */
+const modalesAbiertos: symbol[] = [];
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -79,14 +86,22 @@ export const Modal: React.FC<ModalProps> = ({
     };
 
     // Cierre con tecla Escape (accesibilidad). Reusa handleClose para respetar
-    // el confirm de cambios sin guardar.
+    // el confirm de cambios sin guardar. Solo responde el modal más alto de la pila.
+    const idModal = useRef<symbol | null>(null);
     useEffect(() => {
         if (!isOpen) return;
+        const id = Symbol('modal');
+        idModal.current = id;
+        modalesAbiertos.push(id);
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') handleClose();
+            if (e.key === 'Escape' && modalesAbiertos[modalesAbiertos.length - 1] === id) handleClose();
         };
         window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
+        return () => {
+            window.removeEventListener('keydown', onKey);
+            const i = modalesAbiertos.indexOf(id);
+            if (i >= 0) modalesAbiertos.splice(i, 1);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 

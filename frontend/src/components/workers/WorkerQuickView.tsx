@@ -498,6 +498,8 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             worker={worker}
                                             refreshKey={refreshKey}
                                             onCambio={() => setRefreshKey(prev => prev + 1)}
+                                            // undefined mientras el resumen carga: el modal de finiquito lo pide él mismo si hace falta.
+                                            ultimaDesvinculacion={resumen ? (resumen.ultima_desvinculacion ?? null) : undefined}
                                         />
                                     )}
 

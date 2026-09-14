@@ -232,6 +232,20 @@ Listado: pendientes primero, luego `fecha_solicitud DESC`.
   `SOLICITUD_INGRESO_RESOLVER` de `log-config.js` está registrado bajo las dos claves; label
   "nombres apellido (rut)"). Campos nuevos con rótulo en `LABEL_MAP`.
 
+### Después de aprobar (plan Gestiones B5 — 2026-09-14)
+
+- El modal **no se cierra** al aprobar: `RevisarSolicitudModal` desmonta el formulario (suelta el aviso de
+  "cambios sin guardar") y muestra **Trabajador creado** con dos botones, cada uno con SU permiso —
+  aprobar no implica ninguno de los dos: **Descargar ficha (Word)** [`documentos.laborales.descargar`]
+  (`GET /solicitudes-ingreso/:id/doc`, que emite la ficha si la emisión post-commit falló) y **Emitir kit
+  de ingreso** [`documentos.laborales.emitir`], que abre `EmitirKitModal` con el trabajador armado desde
+  la solicitud **aprobada** (`workerDesdeSolicitud`: las claves personales van presentes aunque sean null,
+  así el modal no vuelve a pedir la ficha —que exigiría `trabajadores.ver`— y detecta solo lo que falta
+  para el contrato). El padre (`SolicitudesIngresoPanel.onAprobado`) refresca lista, badge y grilla al
+  instante; "Cerrar" solo cierra. El kit también se puede emitir después desde la ficha.
+- La respuesta del PUT (`{ solicitud, trabajador_id, solicitud_documento_id }`) ahora sí se usa en el
+  front (`AprobacionResultado` en `solicitudIngresoSchema.ts`); antes se descartaba.
+
 ### Aislamiento de datos de prueba
 
 `GET /` y `GET /pendientes/count` **excluyen** las solicitudes cuya obra tiene `es_prueba = 1`
@@ -354,6 +368,10 @@ de `/:id`. Errores con el patrón del repo: `throw Object.assign(new Error(msg),
 - **Reporte semanal**: las bajas salen de `trabajador_desvinculaciones` (con columna Causal) con fallback a
   `trabajadores.fecha_desvinculacion` si la mig 112 no corrió → reactivar ya no borra la baja del KPI.
 - **Depurar** (`DELETE /:id/depurar`): 409 si hay finiquito emitido o documentos generados por Bóveda.
+- **Finiquito (B5)**: la pantalla de éxito de `DesvincularModal` ofrece **Emitir finiquito** (gate
+  `documentos.laborales.emitir`) con la baja recién registrada en mano; también desde la ficha del
+  trabajador desvinculado. La fila del historial guarda `finiquito_documento_id` (el último emitido es el
+  vigente) y `DesvinculacionInfo` muestra "Finiquito emitido". Ver § Finiquito y contrato al aprobar.
 - **El antecedente sobrevive a la depuración (mig 113, decisión del dueño tras QA 2026-09-11)**: el
   historial guarda `rut_normalized` + `nombre_snapshot` y la FK a trabajadores es `ON DELETE SET NULL`
   (`trabajador_id = NULL` = ficha depurada). Ambos check-rut consultan `antecedentePorRut` cuando el RUT
@@ -382,8 +400,8 @@ ficha del trabajador y su descarga o impresión es "solo oficina".
 - **Plantillas** (`backend/src/plantillas/documentos/`, mapa blanco `codigo → plantilla`): cada una
   expone `codigo, version, titulo, requiere(ctx), nombreBase(ctx), build(ctx), metadata(ctx)`. Los textos
   legales son DATO: RRHH los corrige ahí sin tocar lógica. Kit de ingreso = `CONTRATO`, `ODI_D40`,
-  `DAS`, `PTS_ALTURA`, `EPP_RECEPCION`, `RI_RECEPCION`; sueltos: `AMONESTACION` y `SOLICITUD_INGRESO`
-  (B5 agrega `FINIQUITO`). `requiere()` devuelve la lista de datos faltantes → 409 `DATOS_FALTANTES`
+  `DAS`, `PTS_ALTURA`, `EPP_RECEPCION`, `RI_RECEPCION`; sueltos: `AMONESTACION`, `SOLICITUD_INGRESO` y
+  `FINIQUITO` (B5, ver sección propia). `requiere()` devuelve la lista de datos faltantes → 409 `DATOS_FALTANTES`
   **antes** de escribir nada (un kit nunca queda a medias).
 - **Contrato**: plazo fijo con días editables (default 15), jornada, gratificación 25% con tope 4,75 IMM
   y pago el día 05 como texto fijo; el **sueldo base se imprime en cifras y en letras**
@@ -445,8 +463,73 @@ ficha del trabajador y su descarga o impresión es "solo oficina".
   La lista de "Documentos Subidos" filtra `origen === 'subido'` y la completitud cuenta **tipos
   obligatorios distintos** (`contarObligatorios`), así el kit generado no la infla.
 
+## Finiquito y contrato al aprobar (plan Gestiones B5 — 2026-09-14, sin migración)
+
+Requerimientos 3 y 6 de RRHH. Reusa las migraciones 110 (tipo `FINIQUITO`, restringido), 111 y 112
+(`trabajador_desvinculaciones.finiquito_documento_id`). El **contrato** ya se emite dentro del kit de
+ingreso (B2); B5 agrega el CTA tras aprobar (ver § Solicitudes → Después de aprobar) y el **finiquito**.
+
+- **Plantilla** `backend/src/plantillas/documentos/finiquito.plantilla.js` (`FINIQUITO` v1.0, "Finiquito de
+  Trabajador"), portada del molde en papel de LOLS/MAUA: comparecencia, cláusulas PRIMERO a CUARTO, cuadro
+  de haberes con **total en cifras y en letras**, cierre en **dos** ejemplares, declaración jurada **Ley
+  21.389** (retención judicial) y firmas empleador / trabajador (sin huella ni "recibí copia"). Texto legal =
+  DATO reemplazable. Registrada en `EMITIBLES` (nunca en `KIT_INGRESO`).
+- **Solo a desvinculados con baja vigente**: es el ÚNICO documento que exige `activo = 0`
+  (`emitir()` ramifica el guard: activo → 409 `TRABAJADOR_ACTIVO`; el kit y la amonestación siguen
+  rechazando al desvinculado). `ctx.desvinculacion` sale de `desvinculacionService.desvinculacionAbierta`
+  = la fila con `reactivado_en IS NULL` (**no** `ultimaDesvinculacion`, que devuelve también bajas ya
+  cerradas por una reactivación). Sin fila abierta → 409 `DATOS_FALTANTES` "baja vigente registrada en el
+  historial" (no manda a Desvincular: respondería `YA_DESVINCULADO`). Mig 112 pendiente (1146/1054) → 409
+  `MIGRACION_PENDIENTE` "Avisa a TI", distinguido a propósito del caso anterior (`estricta: true`).
+- **RRHH digita los montos; el sistema NO calcula** (v1, decisión §2b del plan): `haberes[]` (1..10 líneas
+  `{concepto, monto}`, CLP entero ≥ 0), `descuentos[]` opcional (≤ 10), total = haberes − descuentos
+  (409 si negativo **o si la suma de haberes es 0**: el estado inicial del modal no es un finiquito); el
+  total se imprime con `fmtCLP` y `montoEnLetras` **una sola vez** (el molde traía "Son:( pesos)" y habría
+  impreso "pesos pesos"). Los montos se aceptan solo como número o string de dígitos (`Number(true)` y
+  `Number('')` colarían 1 y 0). Ni indemnizaciones ni feriado proporcional: se agregan como líneas a mano.
+  `fecha_finiquito` (default hoy) debe ser ≥ fecha de la baja — se valida el valor **efectivo** que imprime
+  `build()`, default incluido, y el calendario real (no basta la forma AAAA-MM-DD); `lugar_firma` default
+  "Santiago".
+- **La causal impresa siempre tiene artículo**: se imprime `articulo_texto` del catálogo ("Artículo 159, N°
+  4 del Código del Trabajo"). Si la baja se registró con una causal **operativa LOLS o LEGADO** (sin
+  artículo), quien emite elige la causal legal en el modal (`causal_codigo`, solo del catálogo y con
+  artículo). Si la baja **ya tiene** causal legal, manda ella: un `causal_codigo` distinto responde 409
+  ("causal coherente con la baja") — el backend lo exige, no solo la UI. La registrada **no se pisa** nunca:
+  `metadata.desvinculacion` guarda `causal_registrada` y `causal_impresa`. El `detalle` interno de la
+  baja no se imprime ni entra en metadata.
+- **Enlace con la baja**: tras persistir, `vincularFiniquito(desvinculacion_id, documento_id)` estampa
+  `finiquito_documento_id` con `WHERE id = ? AND reactivado_en IS NULL` (si otro usuario reactivó al
+  trabajador entre la lectura y el UPDATE, la fila ya cerrada no recibe el enlace). El **último** emitido es
+  el vigente; una reemisión reemplaza el enlace y el documento anterior sigue en la ficha. Si el enlace falla
+  (fila cerrada/borrada, 1146, error de BD) el documento **ya existe**: se registra un `warn` y la respuesta
+  trae `enlazado: false` — un 500 acá haría reemitir un finiquito que sí quedó guardado. **La UI lo muestra**
+  (`avisoEnlaceFiniquito`: caja ámbar + toast de advertencia en el modal y en el éxito de Desvincular) porque
+  sin enlace la ficha seguiría ofreciendo "Finiquito" en vez de "Reemitir" y RRHH emitiría otro. Con el
+  enlace, `DELETE /:id/depurar` responde 409 `TIENE_FINIQUITO`.
+- **API**: el mismo `POST /documentos-laborales/emitir/:tid` [`documentos.laborales.emitir`] con
+  `{ codigo: 'FINIQUITO', fecha_finiquito?, lugar_firma?, haberes, descuentos?, causal_codigo? }`
+  (`validateBody` con `itemRules` por línea). Respuesta 201 `{ documento_id, nombre_archivo, tipo_codigo,
+  estado, desvinculacion_id, enlazado }`. Descarga/impresión por las rutas gateadas de B2; `metadata` lleva
+  montos → nunca sale por `documentos.ver`. Log manual `documento_emitido` **sin montos**.
+- **UI**: `components/documents/EmitirFiniquitoModal.tsx` (baja de la ficha o del resultado de desvincular;
+  si no la tiene la pide a `GET /trabajadores/:id/resumen`; líneas con `CurrencyInput`; total en vivo;
+  selector de causal legal solo cuando la registrada no tiene artículo; aviso si ya había finiquito
+  emitido; bloqueado si el trabajador está activo o no tiene baja). Se abre desde el éxito de
+  `DesvincularModal` y desde `DocumentosGeneradosList` (botón **Finiquito** / **Reemitir finiquito**,
+  visible solo con el trabajador desvinculado — condición inversa a Emitir kit / Amonestación). Cuando el
+  modal debe leer la baja del resumen (`trabajadores.ver`) y recibe 403, lo dice (no "sin baja"). Lógica
+  pura en `documentosLaborales.ts` (`conceptoDiasTrabajados`, `lineasValidas`, `totalFiniquito`,
+  `validarFiniquito`, `buildFiniquitoPayload`, `workerDesdeSolicitud`, `avisoEnlaceFiniquito`) y
+  `desvinculacionSchema.ts` (`bajaDesdeResultado`) + tests.
+- **Modales anidados** (kit dentro de la revisión de solicitud; finiquito dentro de desvincular): `ui/Modal`
+  lleva una pila de modales abiertos y **Escape cierra solo el de más arriba** — antes cada modal escuchaba
+  `keydown` y una sola tecla cerraba los dos (y desmontaba la pantalla de éxito del padre).
+- **Pendiente (§10.3 del plan)**: si RRHH quiere que el sistema calcule vacaciones proporcionales e
+  indemnizaciones, es un bloque aparte con vigencia histórica de sueldos.
+
 ## Empresas: representante legal (mig 110)
 
 `empresas.representante_nombre` y `representante_rut` se editan en Configuración → Empresas y se
-imprimen en el contrato y el finiquito. Sin ellos, emitir un contrato responde 409 con el dato que falta.
+imprimen en el contrato y el finiquito (en el finiquito, en la declaración jurada de la Ley 21.389). Sin
+ellos, emitir un contrato o un finiquito responde 409 con el dato que falta.
 En v1 solo LOLS y MAUA emiten (decisión del dueño 2026-09-11).

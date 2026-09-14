@@ -34,8 +34,11 @@ interface Props {
     onClose: () => void;
     worker: WorkerBasico | null;
     onEmitido?: (docs: DocumentoEmitido[]) => void;
-    /** Se avisa apenas la ficha del trabajador cambia, aunque la emisión falle después. */
-    onFichaActualizada?: () => void;
+    /**
+     * Se avisa apenas la ficha del trabajador cambia (con lo guardado), aunque la emisión falle después:
+     * el caller que no puede releer la ficha (aprobación de solicitud) la actualiza con `cambios`.
+     */
+    onFichaActualizada?: (cambios?: Record<string, string>) => void;
 }
 
 const textareaCls = 'w-full min-h-[96px] rounded-xl border border-border bg-card px-3 py-2 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/40';
@@ -134,7 +137,7 @@ export const EmitirKitModal: React.FC<Props> = ({ isOpen, onClose, worker, onEmi
                 await api.put(`/trabajadores/${worker.id}`, payload);
                 setFicha(prev => ({ ...(prev ?? worker), ...payload }));
                 setFaltantesServidor(null);
-                onFichaActualizada?.();   // la ficha ya cambió, aunque la emisión falle después
+                onFichaActualizada?.(payload);   // la ficha ya cambió, aunque la emisión falle después
             }
             etapa = 'emision';
             const res = await api.post<{ data: { emitidos: DocumentoEmitido[] } }>(

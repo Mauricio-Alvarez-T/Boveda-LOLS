@@ -18,6 +18,8 @@ export interface CausalDesvinculacion {
 
 /** Última desvinculación resumida (GET /:id/resumen, check-rut de oficina). */
 export interface UltimaDesvinculacion {
+    /** id de la fila del historial (solo en modo resumen/completa). */
+    id?: number;
     fecha: string | null;
     articulo: string | null;
     no_recontratar: boolean;
@@ -28,9 +30,12 @@ export interface UltimaDesvinculacion {
     causal_codigo?: string;
     causal_nombre?: string;
     articulo_texto?: string | null;
+    fecha_ingreso_periodo?: string | null;
     desvinculado_por_nombre?: string | null;
     desvinculado_en?: string | null;
     reactivado_en?: string | null;
+    /** documentos.id del finiquito emitido para esta baja (B5); null si aún no se emitió. */
+    finiquito_documento_id?: number | null;
     /** Antecedente interno; el backend solo lo envía a quien tiene trabajadores.eliminar / .reactivar. */
     detalle?: string | null;
 }
@@ -118,4 +123,34 @@ export function avisoDesvinculacion(u: UltimaDesvinculacion | null | undefined):
 export function detalleDesvinculacion(u: UltimaDesvinculacion | null | undefined): string | null {
     const d = (u?.detalle ?? '').trim();
     return d === '' ? null : d;
+}
+
+/** Lo que devuelve PUT /trabajadores/:id/desvincular (data). */
+export interface DesvincularResultado {
+    trabajador_id: number;
+    desvinculacion_id: number;
+    fecha_desvinculacion: string;
+    causal: { codigo: string; nombre: string; articulo_texto: string | null };
+    no_recontratar: boolean;
+    asistencias_posteriores: number;
+}
+
+/**
+ * Baja recién registrada → forma de `UltimaDesvinculacion`, para abrir el finiquito (B5) desde el éxito
+ * del modal sin volver a consultar el resumen. `fecha_ingreso_periodo` = fecha de ingreso vigente del
+ * trabajador (es lo que el backend guardó en la fila).
+ */
+export function bajaDesdeResultado(r: DesvincularResultado, fechaIngreso?: string | null): UltimaDesvinculacion {
+    const art = (r.causal.articulo_texto || '').match(/Artículo (\d+)/);
+    return {
+        id: r.desvinculacion_id,
+        fecha: r.fecha_desvinculacion,
+        articulo: art ? art[1] : null,
+        no_recontratar: r.no_recontratar,
+        causal_codigo: r.causal.codigo,
+        causal_nombre: r.causal.nombre,
+        articulo_texto: r.causal.articulo_texto,
+        fecha_ingreso_periodo: fechaIngreso ? String(fechaIngreso).slice(0, 10) : null,
+        finiquito_documento_id: null,
+    };
 }

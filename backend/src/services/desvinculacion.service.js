@@ -102,6 +102,7 @@ function proyectar(r, modo) {
 
 const desvinculacionService = {
     modoSegunPermisos,
+    esErrorEsquema,
 
     /** Catálogo público de causales seleccionables (para el <Select> del modal). */
     catalogo() {
@@ -122,6 +123,58 @@ const desvinculacionService = {
             return proyectar(rows[0], modo);
         } catch (err) {
             if (esErrorEsquema(err)) return null;
+            throw err;
+        }
+    },
+
+    /**
+     * Baja VIGENTE del trabajador (fila con reactivado_en IS NULL), o null. A diferencia de
+     * ultimaDesvinculacion, NUNCA devuelve una baja ya cerrada por una reactivación: el finiquito (B5)
+     * se cuelga de esta fila. Trae la causal del catálogo completa (con artículo) para la plantilla.
+     * Sin la mig 112 (errno 1146/1054) → null; con `estricta` el error de esquema se propaga para que el
+     * caller lo distinga de "sin baja" (el finiquito responde 409 MIGRACION_PENDIENTE, no "desvincula primero").
+     */
+    async desvinculacionAbierta(trabajadorId, { conn = db, estricta = false } = {}) {
+        try {
+            const [rows] = await conn.query(
+                `${SELECT_HIST} WHERE d.trabajador_id = ? AND d.reactivado_en IS NULL ORDER BY d.desvinculado_en DESC, d.id DESC LIMIT 1`,
+                [trabajadorId]
+            );
+            const r = rows[0];
+            if (!r) return null;
+            const c = getCausal(r.causal_codigo);
+            return {
+                id: r.id,
+                trabajador_id: r.trabajador_id,
+                fecha_desvinculacion: toYmd(r.fecha_desvinculacion),
+                fecha_ingreso_periodo: toYmd(r.fecha_ingreso_periodo),
+                causal_codigo: r.causal_codigo,
+                causal: c ? { codigo: c.codigo, nombre: c.nombre, articulo: c.articulo, inciso: c.inciso, articulo_texto: c.articulo_texto } : null,
+                no_recontratar: toBool(r.no_recontratar),
+                finiquito_documento_id: r.finiquito_documento_id ?? null,
+            };
+        } catch (err) {
+            if (esErrorEsquema(err) && !estricta) return null;
+            throw err;
+        }
+    },
+
+    /**
+     * Estampa el finiquito emitido en su fila del historial (B5). El ÚLTIMO emitido es el vigente: una
+     * reemisión reemplaza el enlace (el documento anterior sigue en la ficha). false = fila inexistente
+     * o mig 112 pendiente; el caller decide (el documento ya está escrito: se avisa, no se falla).
+     */
+    async vincularFiniquito(desvinculacionId, documentoId, { conn = db } = {}) {
+        try {
+            // `reactivado_en IS NULL`: si otro usuario reactivó al trabajador entre la lectura y este UPDATE, la
+            // fila ya está cerrada y el finiquito NO se cuelga de ella (affectedRows 0 → enlazado:false).
+            const [upd] = await conn.query(
+                'UPDATE trabajador_desvinculaciones SET finiquito_documento_id = ? WHERE id = ? AND reactivado_en IS NULL',
+                [documentoId, desvinculacionId]
+            );
+            return (upd.affectedRows || 0) > 0;
+        } catch (err) {
+            if (esErrorEsquema(err)) return false;
             throw err;
         }
     },

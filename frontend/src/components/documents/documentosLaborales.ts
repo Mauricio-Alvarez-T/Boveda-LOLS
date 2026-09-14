@@ -3,11 +3,11 @@
  * EmitirKitModal, EmitirAmonestacionModal, DocumentosGeneradosList y WorkerQuickView. Sin DOM.
  * Espejo de backend/src/plantillas/documentos (códigos) y schemas/documentosLaborales.schema.js.
  */
-import type { Documento } from '../../types/entities';
+import type { Documento, SolicitudIngreso } from '../../types/entities';
 
 export const KIT_INGRESO = ['CONTRATO', 'ODI_D40', 'DAS', 'PTS_ALTURA', 'EPP_RECEPCION', 'RI_RECEPCION'] as const;
 export type CodigoKit = typeof KIT_INGRESO[number];
-export type CodigoEmitible = CodigoKit | 'AMONESTACION';
+export type CodigoEmitible = CodigoKit | 'AMONESTACION' | 'FINIQUITO';
 
 /** Etiquetas de respaldo (el backend manda las suyas en GET /documentos-laborales/catalogo). */
 export const TITULOS: Record<CodigoEmitible | 'SOLICITUD_INGRESO' | 'FINIQUITO', string> = {
@@ -19,7 +19,7 @@ export const TITULOS: Record<CodigoEmitible | 'SOLICITUD_INGRESO' | 'FINIQUITO',
     RI_RECEPCION: 'Recepción Reglamento Interno',
     AMONESTACION: 'Carta de Amonestación',
     SOLICITUD_INGRESO: 'Ficha de Solicitud de Ingreso',
-    FINIQUITO: 'Finiquito',
+    FINIQUITO: 'Finiquito de Trabajador',
 };
 
 export const DIAS_PLAZO_DEFAULT = 15;
@@ -51,6 +51,10 @@ export interface DocumentoEmitido {
     tipo_codigo: string;
     tipo_nombre?: string;
     estado: string;
+    /** Solo FINIQUITO (B5): fila del historial de bajas a la que se enlazó. */
+    desvinculacion_id?: number;
+    /** Solo FINIQUITO: false = el documento quedó en la ficha pero NO se pudo colgar de la baja (mig 112 / fila cerrada). */
+    enlazado?: boolean;
 }
 
 /** Lo mínimo que necesitan estos helpers; `activo` puede faltar en respuestas parciales (quick-view). */
@@ -241,4 +245,120 @@ export function nombreDe(w: Pick<WorkerBasico, 'nombres' | 'apellido_paterno' | 
 /** Hoy en YYYY-MM-DD (hora local). */
 export function hoyYmd(d: Date = new Date()): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ── Finiquito (plan Gestiones B5) ───────────────────────────────────────────────
+// Espejo de backend/src/plantillas/documentos/finiquito.plantilla.js: RRHH digita las líneas, el
+// servidor suma y escribe el total en letras; el 409 DATOS_FALTANTES sigue siendo la autoridad.
+
+export interface LineaMonto {
+    concepto: string;
+    monto: number;
+}
+
+export interface FiniquitoForm {
+    fechaFiniquito: string;
+    lugarFirma: string;
+    haberes: LineaMonto[];
+    descuentos: LineaMonto[];
+    /** Solo cuando la baja se registró sin artículo (causal operativa LOLS o LEGADO). */
+    causalCodigo?: string;
+}
+
+export const MAX_LINEAS_FINIQUITO = 10;
+export const LUGAR_FIRMA_DEFAULT = 'Santiago';
+
+const MESES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+/** 'Días trabajados septiembre 2026' a partir de la fecha de la baja (sin fecha válida → 'Días trabajados'). */
+export function conceptoDiasTrabajados(fechaYmd?: string | null): string {
+    const m = String(fechaYmd || '').match(/^(\d{4})-(\d{2})/);
+    const mes = m ? MESES_LARGO[Number(m[2]) - 1] : undefined;
+    return mes ? `Días trabajados ${mes} ${m![1]}` : 'Días trabajados';
+}
+
+/** Líneas con concepto y monto entero ≥ 0 (lo demás se ignora, igual que en el backend). */
+export function lineasValidas(ls: LineaMonto[] | undefined | null): LineaMonto[] {
+    return (ls || [])
+        .map(l => ({ concepto: String(l?.concepto ?? '').trim(), monto: Number(l?.monto) }))
+        .filter(l => l.concepto !== '' && Number.isInteger(l.monto) && l.monto >= 0);
+}
+
+const sumar = (ls: LineaMonto[]) => ls.reduce((acc, l) => acc + l.monto, 0);
+
+/** Total que imprimirá el finiquito: haberes − descuentos (solo líneas válidas). */
+export function totalFiniquito(f: Pick<FiniquitoForm, 'haberes' | 'descuentos'>): number {
+    return sumar(lineasValidas(f.haberes)) - sumar(lineasValidas(f.descuentos));
+}
+
+export interface ContextoFiniquito {
+    /** Fecha de la baja vigente (YYYY-MM-DD): el finiquito no puede ser anterior. */
+    fechaDesvinculacion?: string | null;
+    /** true si la causal registrada no tiene artículo → hay que elegir la legal que se imprime. */
+    causalSinArticulo: boolean;
+}
+
+/** Validación previa del finiquito (el backend la repite). Mensaje o null. */
+export function validarFiniquito(f: FiniquitoForm, ctx: ContextoFiniquito): string | null {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(f.fechaFiniquito || '')) return 'Indica la fecha del finiquito';
+    const baja = (ctx.fechaDesvinculacion || '').slice(0, 10);
+    if (baja && f.fechaFiniquito < baja) return `El finiquito no puede ser anterior a la desvinculación (${baja})`;
+    if ((f.lugarFirma || '').trim().length > 100) return 'El lugar de firma no puede superar 100 caracteres';
+    const h = lineasValidas(f.haberes), d = lineasValidas(f.descuentos);
+    if (!h.length) return 'Agrega al menos una línea de haberes con concepto y monto';
+    if (sumar(h) <= 0) return 'Ingresa el monto de al menos un haber (mayor a cero)';
+    if (h.length > MAX_LINEAS_FINIQUITO || d.length > MAX_LINEAS_FINIQUITO) return `Máximo ${MAX_LINEAS_FINIQUITO} líneas de haberes y ${MAX_LINEAS_FINIQUITO} de descuentos`;
+    // Una línea escrita a medias (concepto sin monto o al revés) no se manda en silencio.
+    const aMedias = [...(f.haberes || []), ...(f.descuentos || [])].some(l => (l.concepto || '').trim() === '' && Number(l.monto) > 0);
+    if (aMedias) return 'Hay una línea con monto pero sin concepto';
+    if (sumar(d) > sumar(h)) return 'Los descuentos no pueden superar los haberes';
+    if (ctx.causalSinArticulo && !(f.causalCodigo || '').trim()) return 'Elige la causal del Código del Trabajo que se imprime en el finiquito';
+    return null;
+}
+
+/**
+ * Aviso cuando el finiquito se guardó pero no quedó enlazado a la baja (`enlazado: false`). Sin él la UI
+ * diría "guardado" igual, la ficha seguiría ofreciendo "Finiquito" (no "Reemitir") y RRHH emitiría otro.
+ */
+export function avisoEnlaceFiniquito(doc: Pick<DocumentoEmitido, 'tipo_codigo' | 'enlazado'> | null | undefined): string | null {
+    if (!doc || doc.tipo_codigo !== 'FINIQUITO' || doc.enlazado !== false) return null;
+    return 'El documento quedó en la ficha, pero no se pudo enlazar a la baja registrada (historial de desvinculaciones no disponible o baja ya cerrada). Avisa a TI antes de emitir otro.';
+}
+
+/** Body de POST /documentos-laborales/emitir/:tid para el finiquito. Sin claves vacías. */
+export function buildFiniquitoPayload(f: FiniquitoForm): Record<string, unknown> {
+    const payload: Record<string, unknown> = { codigo: 'FINIQUITO', fecha_finiquito: f.fechaFiniquito, haberes: lineasValidas(f.haberes) };
+    const lugar = (f.lugarFirma || '').trim();
+    if (lugar && lugar !== LUGAR_FIRMA_DEFAULT) payload.lugar_firma = lugar;
+    const d = lineasValidas(f.descuentos);
+    if (d.length) payload.descuentos = d;
+    const causal = (f.causalCodigo || '').trim();
+    if (causal) payload.causal_codigo = causal;
+    return payload;
+}
+
+// ── Aprobación de solicitud → kit de ingreso (plan Gestiones B5) ─────────────────
+
+/**
+ * Trabajador recién creado, armado desde la solicitud APROBADA (la fila que devuelve el PUT, con las
+ * correcciones de la oficina). Las claves personales van presentes aunque sean null: así
+ * EmitirKitModal no vuelve a pedir la ficha (que exigiría trabajadores.ver) y detecta solo qué falta.
+ */
+export function workerDesdeSolicitud(s: SolicitudIngreso, trabajadorId: number): WorkerBasico {
+    return {
+        id: trabajadorId,
+        nombres: s.nombres,
+        apellido_paterno: s.apellido_paterno,
+        apellido_materno: s.apellido_materno ?? null,
+        rut: s.rut,
+        cargo_nombre: s.cargo_nombre ?? null,
+        obra_nombre: s.obra_nombre ?? null,
+        empresa_nombre: s.empresa_nombre ?? null,
+        activo: true,
+        nacionalidad: s.nacionalidad ?? null,
+        estado_civil: s.estado_civil ?? null,
+        fecha_nacimiento: s.fecha_nacimiento ? String(s.fecha_nacimiento).slice(0, 10) : null,
+        direccion: s.direccion ?? null,
+        comuna: s.comuna ?? null,
+    };
 }

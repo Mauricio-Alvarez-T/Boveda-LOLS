@@ -4,7 +4,13 @@
  */
 const { EMITIBLES, KIT_INGRESO } = require('../plantillas/documentos');
 
-// POST /emitir/:trabajadorId — un documento suelto (amonestación o cualquiera del kit).
+/** Línea concepto/monto del finiquito (haberes y descuentos). CLP entero, sin negativos. */
+const LINEA_MONTO = {
+    concepto: { required: true, type: 'string', maxLength: 120 },
+    monto: { required: true, type: 'integer', min: 0, max: 999999999 },
+};
+
+// POST /emitir/:trabajadorId — un documento suelto (amonestación, finiquito o cualquiera del kit).
 const emitir = {
     codigo: { required: true, type: 'string', in: [...EMITIBLES] },
     fecha_documento: { type: 'string', format: 'date' },
@@ -21,6 +27,13 @@ const emitir = {
     fecha_infraccion: { type: 'string', format: 'date' },
     motivo: { type: 'string', maxLength: 200 },
     detalle: { type: 'string', maxLength: 2000 },
+    // Finiquito (B5). Las líneas se validan una a una (itemRules); el tope de 10 y el total ≥ 0 son
+    // negocio (finiquito.plantilla.requiere). `causal_codigo` solo aplica si la baja no tiene artículo.
+    fecha_finiquito: { type: 'string', format: 'date' },
+    lugar_firma: { type: 'string', maxLength: 100 },
+    haberes: { type: 'array', itemRules: LINEA_MONTO },
+    descuentos: { type: 'array', itemRules: LINEA_MONTO },
+    causal_codigo: { type: 'string', maxLength: 30 },
 };
 
 // POST /kit-ingreso/:trabajadorId — varios documentos del kit de una vez (casillas del modal).

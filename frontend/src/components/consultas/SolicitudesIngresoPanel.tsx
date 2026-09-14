@@ -77,6 +77,12 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
         cargar(true);
         if (accion === 'aprobada') onAprobada?.();
     };
+    // Aprobar NO cierra el modal (B5: muestra "Descargar ficha" / "Emitir kit"); igual se refresca todo ya.
+    const handleAprobado = () => {
+        refetchPendientes();
+        cargar(true);
+        onAprobada?.();
+    };
 
     const vacioTitulo = filtro === 'pendiente' ? 'Sin solicitudes pendientes'
         : filtro === 'todas' ? 'Sin solicitudes de ingreso'
@@ -205,6 +211,7 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                 onClose={() => setSeleccionada(null)}
                 puedeAprobar={puedeAprobar}
                 onResuelta={handleResuelta}
+                onAprobado={handleAprobado}
             />
         </div>
     );

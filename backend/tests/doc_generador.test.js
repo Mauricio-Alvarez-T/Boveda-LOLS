@@ -118,9 +118,9 @@ describe('plantillas de documentos', () => {
     };
     const base = { hoy: '2026-09-11', empresa, trabajador, datos: {}, remuneracion: { sueldo_base: 553553, fuente: 'cargo_sueldos' } };
 
-    test('catálogo: kit de 6 + amonestación; cada plantilla cumple el contrato', () => {
+    test('catálogo: kit de 6 + amonestación + finiquito (B5); cada plantilla cumple el contrato', () => {
         expect(KIT_INGRESO).toEqual(['CONTRATO', 'ODI_D40', 'DAS', 'PTS_ALTURA', 'EPP_RECEPCION', 'RI_RECEPCION']);
-        expect(EMITIBLES).toEqual([...KIT_INGRESO, 'AMONESTACION']);
+        expect(EMITIBLES).toEqual([...KIT_INGRESO, 'AMONESTACION', 'FINIQUITO']);
         for (const [codigo, p] of Object.entries(PLANTILLAS)) {
             expect(p.codigo).toBe(codigo);
             expect(p.version).toMatch(/^\d+\.\d+$/);
@@ -260,5 +260,114 @@ describe('plantillas de documentos', () => {
     test('docGenerador: fechaCorta/fechaLarga leen un Date en hora local', () => {
         expect(g.fechaCorta(new Date(2026, 8, 8, 22, 30))).toBe('08/09/2026');
         expect(g.fechaLarga(new Date(2026, 8, 8, 23, 59))).toBe('08 de septiembre de 2026');
+    });
+});
+
+describe('FINIQUITO (plan Gestiones B5) — plantilla pura', () => {
+    const p = getPlantilla('FINIQUITO');
+    const empresa = { id: 1, rut: '77.085.560-8', razon_social: 'LOLS Empresas de Ingeniería Ltda.', direccion: 'El Mirador 150, Cerrillos', representante_nombre: 'Luis Lazcano Silva', representante_rut: '7.907.220-6' };
+    const trabajador = {
+        id: 5, rut: '12.345.678-5', nombres: 'Juan Andrés', apellido_paterno: 'Pérez', apellido_materno: '<Soto>', nombre: 'Juan Andrés Pérez <Soto>',
+        activo: false, fecha_ingreso: '2026-01-15', cargo_id: 2, cargo_nombre: 'Jornal', obra_nombre: 'Edificio Central',
+    };
+    const causal = (codigo) => { const c = require('../src/config/causalesDesvinculacion').getCausal(codigo); return { codigo: c.codigo, nombre: c.nombre, articulo: c.articulo, inciso: c.inciso, articulo_texto: c.articulo_texto }; };
+    const desvinculacion = { id: 77, trabajador_id: 5, fecha_desvinculacion: '2026-09-10', fecha_ingreso_periodo: '2026-08-31', causal_codigo: 'VENCIMIENTO_PLAZO', causal: causal('VENCIMIENTO_PLAZO'), no_recontratar: false, finiquito_documento_id: null };
+    const haberes = [{ concepto: 'Días trabajados septiembre 2026', monto: 450000 }];
+    const base = { hoy: '2026-09-14', empresa, trabajador, desvinculacion, datos: { haberes }, remuneracion: null };
+
+    test('contrato de plantilla y registro: FINIQUITO está en EMITIBLES, no en el kit', () => {
+        expect(p.codigo).toBe('FINIQUITO');
+        expect(EMITIBLES).toContain('FINIQUITO');
+        expect(KIT_INGRESO).not.toContain('FINIQUITO');
+        expect(p.nombreBase(base)).toBe('Finiquito_Perez_Juan_Andres');
+    });
+
+    test('requiere(): completo → []; sin baja vigente, sin haberes, fecha anterior a la baja, total negativo, más de 10 líneas', () => {
+        expect(p.requiere(base)).toEqual([]);
+        expect(p.requiere({ ...base, desvinculacion: null })).toEqual([expect.stringMatching(/baja vigente registrada/)]);
+        expect(p.requiere({ ...base, datos: {} })).toEqual([expect.stringMatching(/al menos una línea de haberes/)]);
+        // Líneas basura no cuentan como haberes.
+        expect(p.requiere({ ...base, datos: { haberes: [{ concepto: '', monto: 5 }, { concepto: 'x', monto: -1 }] } })).toEqual([expect.stringMatching(/al menos una línea/)]);
+        expect(p.requiere({ ...base, datos: { haberes, fecha_finiquito: '2026-09-09' } })).toEqual([expect.stringMatching(/igual o posterior a la desvinculación \(10\/09\/2026\)/)]);
+        expect(p.requiere({ ...base, datos: { haberes, fecha_finiquito: '2026-09-10' } })).toEqual([]);
+        // Sin fecha explícita se valida el default (hoy): baja futura → falta.
+        expect(p.requiere({ ...base, hoy: '2026-09-01', datos: { haberes } })).toEqual([expect.stringMatching(/igual o posterior/)]);
+        expect(p.requiere({ ...base, datos: { haberes, fecha_finiquito: '2026-13-45' } })).toEqual([expect.stringMatching(/fecha del finiquito válida/)]);
+        expect(p.requiere({ ...base, datos: { haberes: [{ concepto: 'Días', monto: 0 }] } })).toEqual([expect.stringMatching(/monto mayor a cero/)]);
+        expect(p.requiere({ ...base, datos: { haberes: [{ concepto: 'x', monto: 999999999 }, { concepto: 'y', monto: 1 }] } })).toEqual([expect.stringMatching(/rango imprimible/)]);
+        expect(p.requiere({ ...base, datos: { haberes, descuentos: [{ concepto: 'Anticipo', monto: 450001 }] } })).toEqual([expect.stringMatching(/descuentos que no superen/)]);
+        const once = Array.from({ length: 11 }, (_, i) => ({ concepto: `L${i}`, monto: 1 }));
+        expect(p.requiere({ ...base, datos: { haberes: once } })).toEqual([expect.stringMatching(/máximo 10 líneas/)]);
+        expect(p.requiere({ ...base, empresa: { ...empresa, representante_nombre: null } })).toEqual([expect.stringMatching(/representante legal/)]);
+        expect(p.requiere({ ...base, empresa: null })).toEqual([expect.stringMatching(/empresa del trabajador/)]);
+    });
+
+    test('requiere(): causal sin artículo (operativa LOLS) exige elegir una legal; la elegida debe ser válida', () => {
+        const otro = { ...base, desvinculacion: { ...desvinculacion, causal_codigo: 'OTRO', causal: causal('OTRO') } };
+        expect(p.requiere(otro)).toEqual([expect.stringMatching(/causal legal a imprimir.*"Otro motivo \(detallar\)"/)]);
+        expect(p.requiere({ ...otro, datos: { haberes, causal_codigo: 'RENUNCIA' } })).toEqual([]);
+        expect(p.requiere({ ...otro, datos: { haberes, causal_codigo: 'TERMINO_FAENA' } })).toEqual([expect.stringMatching(/causal a imprimir válida/)]);
+        expect(p.requiere({ ...otro, datos: { haberes, causal_codigo: 'NO_EXISTE' } })).toEqual([expect.stringMatching(/causal a imprimir válida/)]);
+        // La baja YA tiene causal legal: no se puede pisar al emitir (misma causal sí se acepta).
+        expect(p.requiere({ ...base, datos: { haberes, causal_codigo: 'NECESIDADES_EMPRESA' } })).toEqual([expect.stringMatching(/causal coherente con la baja.*Vencimiento del plazo/)]);
+        expect(p.requiere({ ...base, datos: { haberes, causal_codigo: 'VENCIMIENTO_PLAZO' } })).toEqual([]);
+        expect(p._interno.causalImpresa({ ...base, datos: { haberes, causal_codigo: 'NECESIDADES_EMPRESA' } }).codigo).toBe('VENCIMIENTO_PLAZO');
+        // LEGADO (backfill de la mig 112) tampoco tiene artículo.
+        const legado = { ...base, desvinculacion: { ...desvinculacion, causal_codigo: 'LEGADO', causal: causal('LEGADO') } };
+        expect(p.requiere(legado)).toEqual([expect.stringMatching(/causal legal a imprimir/)]);
+    });
+
+    test('build(): texto del molde con datos, total en cifras y letras UNA vez, descuentos con signo, escape, sin huella ni "recibí copia"', () => {
+        const html = p.build({ ...base, datos: { haberes, descuentos: [{ concepto: 'Anticipo <quincena>', monto: 50000 }], fecha_finiquito: '2026-09-14' } });
+        expect(html).toContain('FINIQUITO DE TRABAJADOR');
+        expect(html).toContain('En Santiago, a 14 de septiembre de 2026');
+        // Sin el punto final de la razón social: las frases que siguen ponen el suyo (antes salía "LTDA..").
+        expect(html).toContain('<b>LOLS EMPRESAS DE INGENIERÍA LTDA</b>, RUT 77.085.560-8');
+        expect(html).not.toContain('LTDA..');
+        expect(html).toContain('don(ña) <b>Juan Andrés Pérez &lt;Soto&gt;</b>, RUT 12.345.678-5');
+        expect(html).toContain('en calidad de <b>Jornal</b>');
+        expect(html).toContain('desde el 31 de agosto de 2026 y hasta el 10 de septiembre de 2026');
+        expect(html).toContain('<b>Vencimiento del plazo convenido en el contrato</b>, en conformidad con el Artículo 159, N° 4 del Código del Trabajo.');
+        expect(html).toContain('la suma de <b>$400.000</b> (Cuatrocientos mil pesos)');
+        expect(html).toContain('<td width="70%">Anticipo &lt;quincena&gt;</td><td width="30%" style="text-align:right">&minus; $50.000</td>');
+        expect(html).toContain('<b>Son:</b> Cuatrocientos mil pesos.');
+        expect(html).not.toContain('pesos pesos');
+        expect(html).toContain('dos ejemplares');
+        expect(html).toContain('Ley N° 21.389');
+        expect(html).toContain('representada legalmente por don(ña) Luis Lazcano Silva, RUT 7.907.220-6');
+        expect(html).toContain('<b>EMPLEADOR</b>');
+        expect(html).toContain('<b>TRABAJADOR</b>');
+        expect(html).toContain('JUAN ANDRÉS PÉREZ &lt;SOTO&gt;');
+        expect(html).not.toMatch(/Huella|RECIBÍ COPIA/);
+        // Sin descuentos no aparece la fila "Descuentos"; lugar de firma editable; fecha por defecto = hoy.
+        const simple = p.build({ ...base, datos: { haberes, lugar_firma: 'Cerrillos' } });
+        expect(simple).not.toContain('>Descuentos<');
+        expect(simple).toContain('En Cerrillos, a 14 de septiembre de 2026');
+        expect(simple).toContain('<b>$450.000</b> (Cuatrocientos cincuenta mil pesos)');
+    });
+
+    test('metadata(): congela empresa, trabajador, baja (causal registrada e impresa), líneas saneadas y total; jamás el detalle', () => {
+        const otro = { ...base, desvinculacion: { ...desvinculacion, causal_codigo: 'OTRO', causal: causal('OTRO'), detalle: 'SECRETO' },
+            datos: { haberes: [{ concepto: '  Días trabajados  ', monto: '450000' }], descuentos: [{ concepto: 'Anticipo', monto: 50000 }], causal_codigo: 'CONCLUSION_OBRA' } };
+        const m = p.metadata(otro);
+        expect(m.empresa).toMatchObject({ id: 1, rut: '77.085.560-8', representante_nombre: 'Luis Lazcano Silva' });
+        expect(m.trabajador).toMatchObject({ id: 5, cargo: 'Jornal' });
+        expect(m.desvinculacion).toEqual({
+            id: 77, fecha_inicio: '2026-08-31', fecha_desvinculacion: '2026-09-10',
+            causal_registrada: { codigo: 'OTRO', nombre: 'Otro motivo (detallar)' },
+            causal_impresa: { codigo: 'CONCLUSION_OBRA', nombre: 'Conclusión del trabajo o servicio que dio origen al contrato', articulo_texto: 'Artículo 159, N° 5 del Código del Trabajo' },
+        });
+        expect(m.finiquito).toEqual({ fecha: '2026-09-14', lugar_firma: 'Santiago', haberes: [{ concepto: 'Días trabajados', monto: 450000 }], descuentos: [{ concepto: 'Anticipo', monto: 50000 }], total: 400000 });
+        expect(JSON.stringify(m)).not.toContain('SECRETO');
+    });
+
+    test('_interno.lineas sanea: recorta conceptos, acepta montos numéricos en string, descarta vacíos, negativos y decimales', () => {
+        expect(p._interno.lineas([{ concepto: ' x ', monto: '100' }, { concepto: '', monto: 5 }, { concepto: 'y', monto: -1 }, { concepto: 'z', monto: 1.5 }, null, { concepto: 'w' }]))
+            .toEqual([{ concepto: 'x', monto: 100 }]);
+        // Coerciones de Number() que NO son montos: true → 1, '' → 0, [] → 0, '1e5' → 100000.
+        expect(p._interno.lineas([{ concepto: 'a', monto: true }, { concepto: 'b', monto: '' }, { concepto: 'c', monto: [] }, { concepto: 'd', monto: '1e5' }, { concepto: 'e', monto: ' 7 ' }]))
+            .toEqual([{ concepto: 'e', monto: 7 }]);
+        expect(p._interno.lineas('no-array')).toEqual([]);
+        expect(p._interno.total({ datos: { haberes: [{ concepto: 'a', monto: 10 }, { concepto: 'b', monto: 5 }], descuentos: [{ concepto: 'c', monto: 3 }] } })).toBe(12);
     });
 });

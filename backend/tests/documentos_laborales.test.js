@@ -101,7 +101,7 @@ describe('gates exclusivos (403 sin tocar la BD)', () => {
         const res = await request(app).get(`${BASE}/catalogo`).set('Authorization', `Bearer ${tokenTerreno}`);
         expect(res.status).toBe(200);
         expect(res.body.data.kit.map(k => k.codigo)).toEqual(['CONTRATO', 'ODI_D40', 'DAS', 'PTS_ALTURA', 'EPP_RECEPCION', 'RI_RECEPCION']);
-        expect(res.body.data.emitibles).toHaveLength(7);
+        expect(res.body.data.emitibles).toHaveLength(8);   // kit 6 + AMONESTACION + FINIQUITO (B5)
         expect(res.body.data.epp_default).toContain('CASCO');
         expect(res.body.data.amonestacion_motivos.length).toBeGreaterThanOrEqual(8);
     });
@@ -110,7 +110,7 @@ describe('gates exclusivos (403 sin tocar la BD)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('POST /emitir/:trabajadorId', () => {
     test('400 código desconocido (validateBody) sin tocar la BD', async () => {
-        const res = await request(app).post(`${BASE}/emitir/5`).set('Authorization', `Bearer ${tokenEmitir}`).send({ codigo: 'FINIQUITO' });
+        const res = await request(app).post(`${BASE}/emitir/5`).set('Authorization', `Bearer ${tokenEmitir}`).send({ codigo: 'INVENTADO' });
         expect(res.status).toBe(400);
         expect(db.query).not.toHaveBeenCalled();
     });
@@ -575,5 +575,220 @@ describe('empresas: representante legal (mig 110) con degradación', () => {
             .send({ representante_nombre: 'Luis Lazcano Silva' });
         expect(res.status).toBe(400);
         expect(sqlCalls().some(x => /UPDATE empresas/i.test(x))).toBe(false);
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('FINIQUITO (plan Gestiones B5)', () => {
+    const TRAB_BAJA = { ...TRAB, activo: 0 };
+    // Fila ABIERTA de trabajador_desvinculaciones (SELECT_HIST). `detalle` es antecedente interno: jamás se imprime.
+    const DESV = {
+        id: 77, trabajador_id: 5, rut_normalized: '123456785', nombre_snapshot: 'Pérez Soto Juan Andrés',
+        fecha_desvinculacion: '2026-09-10', fecha_ingreso_periodo: '2026-08-31', causal_codigo: 'VENCIMIENTO_PLAZO', detalle: 'ANTECEDENTE-SECRETO',
+        no_recontratar: 0, desvinculado_por: 3, desvinculado_por_nombre: 'RRHH', desvinculado_en: '2026-09-10 10:00:00',
+        finiquito_documento_id: null, reactivado_por: null, reactivado_por_nombre: null, reactivado_en: null,
+    };
+    const HABERES = [{ concepto: 'Días trabajados septiembre 2026', monto: 450000 }];
+    const post = (body) => request(app).post(`${BASE}/emitir/5`).set('Authorization', `Bearer ${tokenEmitir}`).send({ codigo: 'FINIQUITO', ...body });
+    const err1146 = () => Object.assign(new Error("Table 'trabajador_desvinculaciones' doesn't exist"), { errno: 1146, code: 'ER_NO_SUCH_TABLE' });
+
+    test('409 TRABAJADOR_ACTIVO: el finiquito exige trabajador desvinculado (guard invertido respecto del kit)', async () => {
+        db.query.mockResolvedValueOnce([[TRAB]]);
+        const res = await post({ haberes: HABERES });
+        expect(res.status).toBe(409);
+        expect(res.body.code).toBe('TRABAJADOR_ACTIVO');
+        expect(db.query).toHaveBeenCalledTimes(1);
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    test('409 DATOS_FALTANTES sin fila abierta; 409 MIGRACION_PENDIENTE (no "desvincula primero") si la mig 112 no corrió', async () => {
+        db.query.mockResolvedValueOnce([[TRAB_BAJA]]).mockResolvedValueOnce([[]]);
+        let res = await post({ haberes: HABERES });
+        expect(res.status).toBe(409);
+        expect(res.body.code).toBe('DATOS_FALTANTES');
+        expect(res.body.faltan).toEqual([expect.stringMatching(/baja vigente registrada/)]);
+        expect(res.body.faltan[0]).not.toMatch(/Desvincular/);
+        expect(db.query.mock.calls[1][0]).toMatch(/reactivado_en IS NULL/);
+
+        for (const err of [err1146(), err1054()]) {
+            db.query.mockReset().mockResolvedValue([[]]);
+            db.query.mockResolvedValueOnce([[TRAB_BAJA]]).mockRejectedValueOnce(err);
+            res = await post({ haberes: HABERES });
+            expect(res.status).toBe(409);
+            expect(res.body.code).toBe('MIGRACION_PENDIENTE');
+            expect(res.body.error).toMatch(/migración 112/);
+        }
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    test('409 sin fecha_finiquito y baja FUTURA: el default (hoy) que imprime build() también se valida', async () => {
+        const futura = new Date(); futura.setDate(futura.getDate() + 10);
+        const ymd = `${futura.getFullYear()}-${String(futura.getMonth() + 1).padStart(2, '0')}-${String(futura.getDate()).padStart(2, '0')}`;
+        db.query.mockResolvedValueOnce([[TRAB_BAJA]]).mockResolvedValueOnce([[{ ...DESV, fecha_desvinculacion: ymd }]]);
+        const res = await post({ haberes: HABERES });
+        expect(res.status).toBe(409);
+        expect(res.body.faltan).toEqual([expect.stringMatching(/igual o posterior a la desvinculación/)]);
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    test('409 si la baja ya tiene causal legal y se intenta imprimir otra (causal_codigo distinta)', async () => {
+        db.query.mockResolvedValueOnce([[TRAB_BAJA]]).mockResolvedValueOnce([[DESV]]);   // VENCIMIENTO_PLAZO, art. 159
+        const res = await post({ haberes: HABERES, causal_codigo: 'NECESIDADES_EMPRESA' });
+        expect(res.status).toBe(409);
+        expect(res.body.faltan).toEqual([expect.stringMatching(/causal coherente con la baja/)]);
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    test('409 finiquito de $0 (monto 0 en el único haber) y 409 con montos que no son números (true, "")', async () => {
+        db.query.mockResolvedValueOnce([[TRAB_BAJA]]).mockResolvedValueOnce([[DESV]]);
+        let res = await post({ haberes: [{ concepto: 'Días trabajados', monto: 0 }] });
+        expect(res.status).toBe(409);
+        expect(res.body.faltan).toEqual([expect.stringMatching(/monto mayor a cero/)]);
+
+        db.query.mockReset().mockResolvedValue([[]]);
+        db.query.mockResolvedValueOnce([[TRAB_BAJA]]).mockResolvedValueOnce([[DESV]]);
+        res = await post({ haberes: [{ concepto: 'Bono', monto: true }, { concepto: 'Días', monto: '' }] });
+        expect(res.status).toBe(409);
+        expect(res.body.faltan).toEqual([expect.stringMatching(/al menos una línea de haberes/)]);
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    test('409 fecha con forma válida pero calendario inválido (2026-13-45): no se imprime "45 de undefined"', async () => {
+        db.query.mockResolvedValueOnce([[TRAB_BAJA]]).mockResolvedValueOnce([[DESV]]);
+        const res = await post({ haberes: HABERES, fecha_finiquito: '2026-13-45' });
+        expect(res.status).toBe(409);
+        expect(res.body.faltan).toEqual([expect.stringMatching(/fecha del finiquito válida/)]);
+    });
+
+    test('409 causal operativa LOLS (sin artículo) exige elegir la causal legal a imprimir', async () => {
+        db.query.mockResolvedValueOnce([[TRAB_BAJA]]).mockResolvedValueOnce([[{ ...DESV, causal_codigo: 'OTRO' }]]);
+        const res = await post({ haberes: HABERES });
+        expect(res.status).toBe(409);
+        expect(res.body.faltan).toEqual([expect.stringMatching(/causal legal a imprimir.*Otro motivo/)]);
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    test('409 descuentos mayores que los haberes (total negativo), sin escribir', async () => {
+        db.query.mockResolvedValueOnce([[TRAB_BAJA]]).mockResolvedValueOnce([[DESV]]);
+        const res = await post({ haberes: HABERES, descuentos: [{ concepto: 'Anticipo', monto: 999999 }] });
+        expect(res.status).toBe(409);
+        expect(res.body.faltan).toEqual([expect.stringMatching(/descuentos que no superen/)]);
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        ['monto negativo', { haberes: [{ concepto: 'x', monto: -1 }] }],
+        ['línea sin concepto', { haberes: [{ monto: 100 }] }],
+        ['monto no entero', { haberes: [{ concepto: 'x', monto: 10.5 }] }],
+        ['fecha inválida', { haberes: HABERES, fecha_finiquito: '14-09-2026' }],
+        ['causal_codigo largo', { haberes: HABERES, causal_codigo: 'X'.repeat(31) }],
+    ])('400 validateBody (%s) sin tocar la BD', async (_n, body) => {
+        const res = await post(body);
+        expect(res.status).toBe(400);
+        expect(db.query).not.toHaveBeenCalled();
+    });
+
+    test('201: .doc con el finiquito completo, metadata con montos, enlace finiquito_documento_id, log SIN montos ni detalle', async () => {
+        db.query
+            .mockResolvedValueOnce([[TRAB_BAJA]])                 // trabajador + empresa
+            .mockResolvedValueOnce([[DESV]])                      // baja vigente
+            .mockResolvedValueOnce([TIPO('FINIQUITO')])           // tipo del sistema
+            .mockResolvedValueOnce([RUTS])                        // rut empresa (crearGenerado)
+            .mockResolvedValueOnce([{ insertId: 601, affectedRows: 1 }])
+            .mockResolvedValueOnce([{ affectedRows: 1 }]);        // UPDATE trabajador_desvinculaciones
+        const res = await post({ fecha_finiquito: '2026-09-14', haberes: HABERES, descuentos: [{ concepto: 'Anticipo quincena', monto: 50000 }] });
+        expect(res.status).toBe(201);
+        expect(res.body.data).toMatchObject({ documento_id: 601, tipo_codigo: 'FINIQUITO', estado: 'generado', desvinculacion_id: 77, enlazado: true });
+        expect(res.body.data.nombre_archivo).toMatch(/^Finiquito_Perez_Juan_Andres_\d{8}-\d{6}\.doc$/);
+
+        const html = fs.writeFileSync.mock.calls[0][1].toString('utf8');
+        expect(html).toContain('FINIQUITO DE TRABAJADOR');
+        expect(html).toContain('En Santiago, a 14 de septiembre de 2026');
+        expect(html).toContain('desde el 31 de agosto de 2026 y hasta el 10 de septiembre de 2026');
+        expect(html).toContain('Vencimiento del plazo convenido en el contrato');
+        expect(html).toContain('Artículo 159, N° 4 del Código del Trabajo');
+        expect(html).toContain('<b>$400.000</b>');
+        expect(html).toContain('<b>Son:</b> Cuatrocientos mil pesos.');
+        expect(html).not.toContain('pesos pesos');
+        expect(html).toContain('&minus; $50.000');
+        expect(html).toContain('dos ejemplares');
+        expect(html).toContain('Ley N° 21.389');
+        expect(html).toContain('Luis Lazcano Silva');
+        expect(html).not.toContain('ANTECEDENTE-SECRETO');
+
+        const [insSql, insVals] = db.query.mock.calls[4];
+        expect(insSql).toMatch(/INSERT INTO documentos/);
+        const meta = JSON.parse(insVals[insVals.length - 1]);
+        expect(meta.finiquito).toMatchObject({ fecha: '2026-09-14', lugar_firma: 'Santiago', total: 400000 });
+        expect(meta.desvinculacion).toMatchObject({ id: 77, causal_registrada: { codigo: 'VENCIMIENTO_PLAZO' }, causal_impresa: { codigo: 'VENCIMIENTO_PLAZO' } });
+        expect(JSON.stringify(meta)).not.toContain('ANTECEDENTE-SECRETO');
+
+        const [updSql, updVals] = db.query.mock.calls[5];
+        expect(updSql).toMatch(/UPDATE trabajador_desvinculaciones SET finiquito_documento_id = \? WHERE id = \? AND reactivado_en IS NULL/);
+        expect(updVals).toEqual([601, 77]);
+
+        expect(logManualActivity).toHaveBeenCalledTimes(1);
+        const detalle = logManualActivity.mock.calls[0][4];
+        expect(JSON.parse(detalle)).toMatchObject({ evento: 'documento_emitido', tipo: 'FINIQUITO', trabajador_id: 5 });
+        expect(detalle).not.toMatch(/450000|400000|50000|ANTECEDENTE/);
+    });
+
+    test('201 con causal_codigo elegida cuando la baja se registró como OTRO: imprime la legal, metadata guarda ambas', async () => {
+        db.query
+            .mockResolvedValueOnce([[TRAB_BAJA]]).mockResolvedValueOnce([[{ ...DESV, causal_codigo: 'OTRO' }]])
+            .mockResolvedValueOnce([TIPO('FINIQUITO')]).mockResolvedValueOnce([RUTS])
+            .mockResolvedValueOnce([{ insertId: 602 }]).mockResolvedValueOnce([{ affectedRows: 1 }]);
+        const res = await post({ haberes: HABERES, causal_codigo: 'CONCLUSION_OBRA', lugar_firma: 'Cerrillos' });
+        expect(res.status).toBe(201);
+        const html = fs.writeFileSync.mock.calls[0][1].toString('utf8');
+        expect(html).toContain('Conclusión del trabajo o servicio que dio origen al contrato');
+        expect(html).toContain('Artículo 159, N° 5 del Código del Trabajo');
+        expect(html).toContain('En Cerrillos, a ');
+        const meta = JSON.parse(db.query.mock.calls[4][1].slice(-1)[0]);
+        expect(meta.desvinculacion.causal_registrada.codigo).toBe('OTRO');
+        expect(meta.desvinculacion.causal_impresa.codigo).toBe('CONCLUSION_OBRA');
+    });
+
+    test('201 aunque el enlace a la baja falle (fila desaparecida o 1146): el documento ya existe, se avisa y no se responde error', async () => {
+        db.query
+            .mockResolvedValueOnce([[TRAB_BAJA]]).mockResolvedValueOnce([[DESV]])
+            .mockResolvedValueOnce([TIPO('FINIQUITO')]).mockResolvedValueOnce([RUTS])
+            .mockResolvedValueOnce([{ insertId: 603 }]).mockResolvedValueOnce([{ affectedRows: 0 }]);
+        let res = await post({ haberes: HABERES });
+        expect(res.status).toBe(201);
+        expect(res.body.data).toMatchObject({ documento_id: 603, enlazado: false });
+
+        db.query.mockReset().mockResolvedValue([[]]);
+        db.query
+            .mockResolvedValueOnce([[TRAB_BAJA]]).mockResolvedValueOnce([[DESV]])
+            .mockResolvedValueOnce([TIPO('FINIQUITO')]).mockResolvedValueOnce([RUTS])
+            .mockResolvedValueOnce([{ insertId: 604 }]).mockRejectedValueOnce(err1146());
+        res = await post({ haberes: HABERES });
+        expect(res.status).toBe(201);
+        expect(res.body.data).toMatchObject({ documento_id: 604, enlazado: false });
+
+        // Error que NO es de esquema (deadlock, conexión): el try/catch de emitir() lo absorbe igual.
+        db.query.mockReset().mockResolvedValue([[]]);
+        db.query
+            .mockResolvedValueOnce([[TRAB_BAJA]]).mockResolvedValueOnce([[DESV]])
+            .mockResolvedValueOnce([TIPO('FINIQUITO')]).mockResolvedValueOnce([RUTS])
+            .mockResolvedValueOnce([{ insertId: 605 }]).mockRejectedValueOnce(new Error('Deadlock found'));
+        res = await post({ haberes: HABERES });
+        expect(res.status).toBe(201);
+        expect(res.body.data).toMatchObject({ documento_id: 605, enlazado: false });
+        expect(db.query.mock.calls[5][0]).toMatch(/UPDATE trabajador_desvinculaciones/);
+    });
+
+    test('el kit y la amonestación siguen rechazando al desvinculado (409) y el catálogo publica FINIQUITO', async () => {
+        db.query.mockResolvedValueOnce([[TRAB_BAJA]]);
+        let res = await request(app).post(`${BASE}/emitir/5`).set('Authorization', `Bearer ${tokenEmitir}`).send({ codigo: 'AMONESTACION', fecha_carta: '2026-09-14' });
+        expect(res.status).toBe(409);
+        db.query.mockReset().mockResolvedValue([[]]);
+        db.query.mockResolvedValueOnce([[TRAB_BAJA]]);
+        res = await request(app).post(`${BASE}/kit-ingreso/5`).set('Authorization', `Bearer ${tokenEmitir}`).send({ documentos: ['DAS'] });
+        expect(res.status).toBe(409);
+        res = await request(app).get(`${BASE}/catalogo`).set('Authorization', `Bearer ${tokenTerreno}`);
+        expect(res.body.data.emitibles.map(e => e.codigo)).toContain('FINIQUITO');
+        expect(res.body.data.kit.map(k => k.codigo)).not.toContain('FINIQUITO');
     });
 });
