@@ -26,10 +26,26 @@
 - Excluye `es_prueba=1` por defecto (`?incluir_prueba=true` lo anula) y obras finalizadas.
 - Exportación Excel con fichas y documentos por trabajador. Con el filtro de ingreso
   activo, el export manda los ids visibles (el Excel de asistencia no entiende ese filtro).
-- La página Consultas es visible con `trabajadores.ver` **o** con cualquiera de los dos permisos
-  de la ficha de ingreso digital (`trabajadores.solicitud.crear` / `.aprobar`, 2026-09-07). Quien
-  solo puede solicitar (terreno) cae directo a la pestaña Solicitudes y la grilla de búsqueda no
-  se consulta (`useConsultasData(filters, enabled=false)` — evita el 403 del endpoint avanzado).
+- La página Gestiones es visible con `trabajadores.ver`, con cualquiera de los permisos de la ficha de
+  ingreso digital (`trabajadores.solicitud.crear` / `.aprobar`) o de documentos físicos
+  (`documentos.entrega.registrar` / `.portar`). La grilla solo consulta el endpoint avanzado cuando se
+  muestra (`useConsultasData(filters, enabled)` — evita el 403 y el costo desde las otras secciones).
+- **Portada y secciones (plan Gestiones B8, 2026-09-15)**: Gestiones tiene cuatro vistas —
+  `?tab=inicio` (portada con tarjetas: Trabajadores con atajos a filtros, Solicitudes con pendientes,
+  Documentos físicos con lotes y alertas fuera de plazo, y la fila Crear), `trabajadores` (grilla),
+  `solicitudes`, `fisicos`. La URL es la fuente de verdad; la sección se resuelve en
+  `components/consultas/gestionesNav.ts` (`resolverSeccion`, con test): **tab explícito** válido y
+  permitido → **deep-link con filtros de la grilla** (`q`, `obra_id`, `completitud`, `aniversario10m`…) →
+  **lo último que usó esa persona** (`localStorage` `boveda.gestiones.ultimaSeccion.<userId>`, nunca
+  `inicio`) → **portada** si tiene ≥ 2 secciones → la única sección. Sin `tab` en la URL se hace un
+  `replace` con la sección resuelta (recarga y botón atrás deterministas). Con una sola sección
+  (portador puro, terreno puro) no hay portada, switcher ni título clickeable: se entra directo, como
+  antes. El título «Gestiones» del header es la "casa" (vuelve a la portada); el switcher del header
+  cambia de sección sin pasar por la grilla y el botón activo no hace nada. "Limpiar filtros" conserva
+  `tab`. Los tutoriales de Ayuda montan `<ConsultasPage seccionFija="trabajadores" />` (ignora URL y
+  memoria: el sandbox tiene permisos all-true y no controla la URL de /ayuda). Deep-links vigentes:
+  Bandeja `?completitud=faltantes`, Dashboard `?tab=solicitudes` / `?tab=fisicos`, QuickActions
+  `?tab=trabajadores`, badge del menú `?tab=solicitudes`.
 
 ## Constancias → Documentos laborales generados
 

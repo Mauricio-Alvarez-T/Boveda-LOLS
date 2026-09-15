@@ -41,7 +41,8 @@ export const useConsultasFilters = () => {
         setFilterAniversario10m('');
         setFilterIngresoDesde('');
         setFilterIngresoHasta('');
-        setSearchParams({}); // Clear URL params too
+        // Limpia los filtros de la URL pero conserva la sección (B8): sin esto "Limpiar" saltaría a la portada.
+        setSearchParams(prev => { const tab = new URLSearchParams(prev).get('tab'); const next = new URLSearchParams(); if (tab) next.set('tab', tab); return next; });
     }, [selectedObra, setSearchParams]);
 
     // Quita solo el filtro de aniversario (chip removible), limpiando también la URL.

@@ -7,7 +7,6 @@
  * y el test por path tutorialLabels.test.ts dependen de estos identificadores.
  */
 import React, { useState, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
     Search,
     Filter,
@@ -58,6 +57,10 @@ import { SolicitudesIngresoPanel } from '../components/consultas/SolicitudesIngr
 import { useSolicitudesIngreso } from '../hooks/useSolicitudesIngreso';
 import { DocumentosFisicosPanel } from '../components/documentos-fisicos/DocumentosFisicosPanel';
 import { useLotesPendientes } from '../hooks/useLotesPendientes';
+import { useDocumentosAlertas } from '../hooks/useDocumentosAlertas';
+import { useSeccionGestiones } from '../hooks/consultas/useSeccionGestiones';
+import { GestionesInicio } from '../components/consultas/GestionesInicio';
+import { SECCION_LABEL, type SeccionGestiones } from '../components/consultas/gestionesNav';
 
 import {
     useConsultasFilters,
@@ -74,14 +77,25 @@ const formatFechaIngreso = (f?: string | null): string | null => {
     return y && m && d ? `${d}/${m}/${y}` : null;
 };
 
-const ConsultasPage: React.FC = () => {
-    const { hasPermission } = useAuth();
-    // Ficha de ingreso digital: terreno solicita, oficina aprueba. Gestiones es visible
-    // con cualquiera de los tres permisos (ver Sidebar), así que puede no haber grilla.
+/**
+ * @param seccionFija Solo para los tutoriales de Ayuda: fija la sección e ignora URL y memoria (plan Gestiones B8).
+ */
+const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFija }) => {
+    const { hasPermission, user } = useAuth();
+    // Ficha de ingreso digital: terreno solicita, oficina aprueba. Gestiones es visible con cualquiera de
+    // estos permisos (ver Sidebar), así que puede no haber grilla: la sección la decide useSeccionGestiones.
     const puedeVerTrabajadores = hasPermission('trabajadores.ver');
     const verSolicitudes = hasPermission('trabajadores.solicitud.crear') || hasPermission('trabajadores.solicitud.aprobar');
     // Documentos físicos (plan Gestiones B6): RRHH arma lotes; el portador (encargado de obra) confirma los suyos.
     const verFisicos = hasPermission('documentos.entrega.registrar') || hasPermission('documentos.entrega.portar');
+    // Sección actual (plan Gestiones B8): portada con tarjetas, o trabajadores | solicitudes | fisicos.
+    // La URL (?tab=) es la fuente de verdad; sin tab se abre lo último que usó esta persona (o la portada).
+    const permisosGestiones = useMemo(() => ({ trabajadores: puedeVerTrabajadores, solicitudes: verSolicitudes, fisicos: verFisicos }),
+        [puedeVerTrabajadores, verSolicitudes, verFisicos]);
+    const { seccion, irA, disponibles } = useSeccionGestiones({ permisos: permisosGestiones, userId: user?.id, seccionFija });
+    const esGrilla = seccion === 'trabajadores';
+    // Con una sola sección no hay portada ni switcher (se entra directo, como antes).
+    const conSwitcher = disponibles.length >= 2 && !seccionFija;
 
     // --- Custom Hooks ---
     // 1. Filtros
@@ -107,7 +121,7 @@ const ConsultasPage: React.FC = () => {
         workers, loading, performSearch
     } = useConsultasData({
         search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, filterIngresoDesde, filterIngresoHasta
-    }, puedeVerTrabajadores);
+    }, puedeVerTrabajadores && esGrilla);
 
     // Etiqueta legible (MM/AAAA) del filtro de aniversario, si está activo.
     const aniversario10mLabel = useMemo(() => {
@@ -167,37 +181,47 @@ const ConsultasPage: React.FC = () => {
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [showCreatePanel, setShowCreatePanel] = useState(false);
     
-    // ── Solicitudes de ingreso (ficha digital): la pestaña alterna con la grilla ──
-    const [searchParams, setSearchParams] = useSearchParams();
+    // ── Contadores de las secciones (stores de módulo compartidos con el Sidebar y la Bandeja) ──
     const solicitudes = useSolicitudesIngreso();
     const [solicitudesVersion, setSolicitudesVersion] = useState(0);
     const lotes = useLotesPendientes();
-    const tabActual = searchParams.get('tab');
-    // Quien solo porta documentos (sin grilla ni solicitudes) cae directo a sus lotes.
-    const showFisicos = verFisicos && (tabActual === 'fisicos' || (!puedeVerTrabajadores && !verSolicitudes));
-    // Quien solo puede solicitar (terreno) no tiene grilla que ver: cae directo a sus solicitudes.
-    const showSolicitudes = !showFisicos && verSolicitudes && (tabActual === 'solicitudes' || !puedeVerTrabajadores);
-    const toggleTab = useCallback((tab: 'solicitudes' | 'fisicos') => {
+    const alertasDocs = useDocumentosAlertas();
+    const irASeccion = useCallback((s: SeccionGestiones, extra?: Record<string, string>) => {
         setShowMobileFilters(false);
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            if (next.get('tab') === tab) next.delete('tab');
-            else next.set('tab', tab);
-            return next;
-        });
-    }, [setSearchParams]);
-    const toggleSolicitudes = useCallback(() => toggleTab('solicitudes'), [toggleTab]);
-    const toggleFisicos = useCallback(() => toggleTab('fisicos'), [toggleTab]);
+        setShowCreatePanel(false);
+        irA(s, extra);
+    }, [irA]);
+    /** Switcher de sección del header (desktop y móvil): solo las secciones disponibles, con sus contadores. */
+    const secciones = useMemo(() => ([
+        { s: 'trabajadores' as const, label: 'Trabajadores', icon: SearchCheck, badge: 0 },
+        { s: 'solicitudes' as const, label: 'Solicitudes', icon: ClipboardList, badge: solicitudes.pendientes },
+        { s: 'fisicos' as const, label: 'Documentos físicos', icon: Truck, badge: lotes.badge },
+    ].filter(x => disponibles.includes(x.s))), [disponibles, solicitudes.pendientes, lotes.badge]);
 
     // Modificando Header Global
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-4 flex-1 min-w-0">
-            <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                <SearchCheck className="h-5 w-5 md:h-6 md:w-6 text-brand-primary shrink-0" />
-                <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">Gestiones</h1>
+            {/* Título = "casa" (B8): con ≥2 secciones lleva a la portada; miga con la sección actual. */}
+            <div className="flex items-center gap-2 md:gap-3 shrink-0 min-w-0">
+                {conSwitcher ? (
+                    <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">
+                        <Button variant="ghost" size="sm" onClick={() => irASeccion('inicio')} title="Portada de Gestiones"
+                            className="h-9 px-1.5 gap-2 md:gap-3 rounded-xl text-sm md:text-lg font-bold text-brand-dark"
+                            leftIcon={<SearchCheck className="h-5 w-5 md:h-6 md:w-6 text-brand-primary shrink-0" />}>
+                            Gestiones
+                        </Button>
+                    </h1>
+                ) : (<>
+                    <SearchCheck className="h-5 w-5 md:h-6 md:w-6 text-brand-primary shrink-0" />
+                    <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">Gestiones</h1>
+                </>)}
+                {conSwitcher && seccion && seccion !== 'inicio' && (
+                    <span className="hidden sm:inline text-sm md:text-base text-muted-foreground truncate" aria-current="page">› {SECCION_LABEL[seccion]}</span>
+                )}
             </div>
 
-            {/* Desktop Search Bar - integrated into title area */}
+            {/* Desktop Search Bar - integrated into title area (solo en la grilla) */}
+            {esGrilla && (
             <div className="hidden md:block relative max-w-md w-full ml-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -207,65 +231,45 @@ const ConsultasPage: React.FC = () => {
                     className="pl-9 h-10 bg-muted/50 border-border focus:bg-card transition-all rounded-xl text-sm"
                 />
             </div>
+            )}
         </div>
-    ), [search]);
+    ), [search, seccion, conSwitcher, esGrilla, irASeccion]);
 
     const headerActions = useMemo(() => (
         <div className="flex items-center gap-1.5 md:gap-2">
             {/* Desktop Desktop Actions */}
             <div className="hidden md:flex items-center gap-2">
-                {/* Solicitudes de ingreso: alterna grilla ↔ lista. Contador ÁMBAR = pendientes (solo con aprobar). */}
-                {verSolicitudes && puedeVerTrabajadores && (
-                    <Button
-                        size="sm"
-                        variant={showSolicitudes ? 'primary' : 'outline'}
-                        onClick={toggleSolicitudes}
-                        title={showSolicitudes ? 'Volver a la búsqueda de trabajadores' : 'Solicitudes de ingreso (ficha digital)'}
-                        leftIcon={<ClipboardList className="h-3.5 w-3.5" />}
-                        className={cn(
-                            "h-9 px-4 rounded-xl font-semibold gap-2 border-border shadow-sm transition-all duration-300",
-                            showSolicitudes
-                                ? "bg-brand-primary text-white border-transparent"
-                                : "bg-card text-brand-dark hover:bg-background"
-                        )}
-                    >
-                        <span>Solicitudes</span>
-                        {solicitudes.pendientes > 0 && (
-                            <span className={cn(
-                                "flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-micro font-bold tabular-nums transition-colors duration-300",
-                                showSolicitudes ? "bg-card text-amber-700 dark:text-amber-300" : "bg-amber-500 text-white"
-                            )}>
-                                {solicitudes.pendientes}
-                            </span>
-                        )}
-                    </Button>
-                )}
-                {/* Documentos físicos (B6): lotes en custodia. Contador ÁMBAR = lo que exige acción de quien mira. */}
-                {verFisicos && (puedeVerTrabajadores || verSolicitudes) && (
-                    <Button
-                        size="sm"
-                        variant={showFisicos ? 'primary' : 'outline'}
-                        onClick={toggleFisicos}
-                        title={showFisicos ? 'Volver a la búsqueda de trabajadores' : 'Documentos físicos (lotes en custodia)'}
-                        leftIcon={<Truck className="h-3.5 w-3.5" />}
-                        className={cn(
-                            "h-9 px-4 rounded-xl font-semibold gap-2 border-border shadow-sm transition-all duration-300",
-                            showFisicos
-                                ? "bg-brand-primary text-white border-transparent"
-                                : "bg-card text-brand-dark hover:bg-background"
-                        )}
-                    >
-                        <span>Documentos físicos</span>
-                        {lotes.badge > 0 && (
-                            <span className={cn(
-                                "flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-micro font-bold tabular-nums transition-colors duration-300",
-                                showFisicos ? "bg-card text-amber-700 dark:text-amber-300" : "bg-amber-500 text-white"
-                            )}>
-                                {lotes.badge}
-                            </span>
-                        )}
-                    </Button>
-                )}
+                {/* Switcher de sección (B8): el activo no hace nada (antes el toggle volvía a la grilla). Contador ÁMBAR = pendientes. */}
+                {conSwitcher && secciones.map(({ s, label, icon: Icon, badge }) => {
+                    const activo = seccion === s;
+                    return (
+                        <Button
+                            key={s}
+                            size="sm"
+                            variant={activo ? 'primary' : 'outline'}
+                            aria-current={activo ? 'page' : undefined}
+                            onClick={() => irASeccion(s)}
+                            title={label}
+                            leftIcon={<Icon className="h-3.5 w-3.5" />}
+                            className={cn(
+                                "h-9 px-4 rounded-xl font-semibold gap-2 border-border shadow-sm transition-all duration-300",
+                                activo ? "bg-brand-primary text-white border-transparent" : "bg-card text-brand-dark hover:bg-background"
+                            )}
+                        >
+                            <span>{label}</span>
+                            {badge > 0 && (
+                                <span className={cn(
+                                    "flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-micro font-bold tabular-nums transition-colors duration-300",
+                                    activo ? "bg-card text-amber-700 dark:text-amber-300" : "bg-amber-500 text-white"
+                                )}>
+                                    {badge}
+                                </span>
+                            )}
+                        </Button>
+                    );
+                })}
+                {/* CREAR: en la portada ya está la fila Crear. */}
+                {seccion !== 'inicio' && (
                 <Button
                     variant={showCreatePanel ? 'primary' : 'outline'}
                     size="sm" 
@@ -283,8 +287,9 @@ const ConsultasPage: React.FC = () => {
                 >
                     {showCreatePanel ? 'CERRAR' : 'CREAR'}
                 </Button>
-                {/* Filtros / Exportar / Limpiar son de la grilla: en la pestaña de solicitudes no aplican. */}
-                {!showSolicitudes && !showFisicos && (<>
+                )}
+                {/* Filtros / Exportar / Limpiar son de la grilla: en las otras secciones no aplican. */}
+                {esGrilla && (<>
                 <Button
                     size="sm"
                     onClick={() => {
@@ -347,44 +352,28 @@ const ConsultasPage: React.FC = () => {
                 relleno activo. El estado se indica por el icono (Plus rota, Filter↔X,
                 ClipboardList↔SearchCheck) y el badge, no por el color de fondo. */}
             <div className="lg:hidden flex items-center gap-2">
-                {verFisicos && (puedeVerTrabajadores || verSolicitudes) && (
-                    <IconButton
-                        variant="ghost"
-                        aria-label={showFisicos ? 'Volver a la búsqueda de trabajadores' : 'Documentos físicos'}
-                        aria-pressed={showFisicos}
-                        onClick={toggleFisicos}
-                        className="relative rounded-xl border border-border shadow-sm"
-                        icon={<>
-                            {showFisicos
-                                ? <SearchCheck className="h-4 w-4 animate-in fade-in zoom-in duration-300" />
-                                : <Truck className="h-4 w-4 animate-in fade-in zoom-in duration-300" />}
-                            {lotes.badge > 0 && (
-                                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-0.5 items-center justify-center rounded-full text-micro font-bold tabular-nums bg-amber-500 text-white shadow-sm">
-                                    {lotes.badge}
-                                </span>
-                            )}
-                        </>}
-                    />
-                )}
-                {verSolicitudes && puedeVerTrabajadores && (
-                    <IconButton
-                        variant="ghost"
-                        aria-label={showSolicitudes ? 'Volver a la búsqueda de trabajadores' : 'Solicitudes de ingreso'}
-                        aria-pressed={showSolicitudes}
-                        onClick={toggleSolicitudes}
-                        className="relative rounded-xl border border-border shadow-sm"
-                        icon={<>
-                            {showSolicitudes
-                                ? <SearchCheck className="h-4 w-4 animate-in fade-in zoom-in duration-300" />
-                                : <ClipboardList className="h-4 w-4 animate-in fade-in zoom-in duration-300" />}
-                            {solicitudes.pendientes > 0 && (
-                                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-0.5 items-center justify-center rounded-full text-micro font-bold tabular-nums bg-amber-500 text-white shadow-sm">
-                                    {solicitudes.pendientes}
-                                </span>
-                            )}
-                        </>}
-                    />
-                )}
+                {conSwitcher && secciones.map(({ s, label, icon: Icon, badge }) => {
+                    const activo = seccion === s;
+                    return (
+                        <IconButton
+                            key={s}
+                            variant="ghost"
+                            aria-label={label}
+                            aria-pressed={activo}
+                            onClick={() => irASeccion(s)}
+                            className={cn("relative rounded-xl border shadow-sm", activo ? "border-brand-primary text-brand-primary" : "border-border")}
+                            icon={<>
+                                <Icon className="h-4 w-4" />
+                                {badge > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-0.5 items-center justify-center rounded-full text-micro font-bold tabular-nums bg-amber-500 text-white shadow-sm">
+                                        {badge}
+                                    </span>
+                                )}
+                            </>}
+                        />
+                    );
+                })}
+                {seccion !== 'inicio' && (
                 <IconButton
                     variant="ghost"
                     aria-label="Crear"
@@ -392,7 +381,8 @@ const ConsultasPage: React.FC = () => {
                     className="rounded-xl border border-border shadow-sm"
                     icon={<Plus className={cn("h-4 w-4 transition-transform duration-300 ease-out", showCreatePanel ? "rotate-45 scale-110" : "")} />}
                 />
-                {!showSolicitudes && !showFisicos && (<>
+                )}
+                {esGrilla && (<>
                 {/* Export Excel — paridad con desktop. Mismo gating de permiso/data. */}
                 <IconButton
                     variant="ghost"
@@ -422,8 +412,7 @@ const ConsultasPage: React.FC = () => {
             </div>
         </div>
     ), [workers.length, exporting, activeFilterCount, showMobileFilters, showCreatePanel, exportIds,
-        showSolicitudes, solicitudes.pendientes, verSolicitudes, puedeVerTrabajadores, toggleSolicitudes,
-        showFisicos, lotes.badge, verFisicos, toggleFisicos]);
+        seccion, esGrilla, conSwitcher, secciones, irASeccion]);
 
     useSetPageHeader(headerTitle, headerActions);
 
@@ -431,7 +420,8 @@ const ConsultasPage: React.FC = () => {
 
     return (
         <div className="h-[calc(100dvh-116px)] md:h-[calc(100dvh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full">
-            {/* Mobile Search - Only visible on small screens */}
+            {/* Mobile Search - Only visible on small screens (solo en la grilla) */}
+            {esGrilla && (
             <div className="md:hidden relative shrink-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
@@ -441,6 +431,7 @@ const ConsultasPage: React.FC = () => {
                     className="pl-10 h-11 bg-card rounded-2xl border-border shadow-sm"
                 />
             </div>
+            )}
 
             <div className="flex flex-col gap-4 shrink-0">
                 <AnimatePresence mode="wait">
@@ -499,7 +490,7 @@ const ConsultasPage: React.FC = () => {
 
             {/* Chip de filtro activo "10 meses de contrato" (viene de la alerta del dashboard).
                 No tiene control en el FilterPanel, así que se expone acá como banner removible. */}
-            {filterAniversario10m && (
+            {esGrilla && filterAniversario10m && (
                 <div className="shrink-0 flex items-center justify-between gap-3 px-3 sm:px-4 py-2.5 rounded-2xl border border-brand-primary/20 bg-brand-primary/5">
                     <div className="flex items-center gap-2.5 min-w-0">
                         <div className="h-8 w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center shrink-0">
@@ -522,11 +513,22 @@ const ConsultasPage: React.FC = () => {
                 </div>
             )}
 
-            {/* Solicitudes de ingreso (ficha digital): reemplaza la grilla con ?tab=solicitudes.
-                Al aprobar una, el trabajador ya existe → recargar la grilla para que aparezca. */}
-            {showFisicos ? (
+            {/* Vista por sección (B8). Al aprobar una solicitud el trabajador ya existe → recargar la grilla. */}
+            {seccion === 'inicio' ? (
+                <GestionesInicio
+                    permisos={permisosGestiones}
+                    hasPermission={hasPermission}
+                    solicitudesPendientes={solicitudes.pendientes}
+                    lotes={lotes.pendientes}
+                    lotesBadge={lotes.badge}
+                    alertas={alertasDocs.alertas}
+                    onIr={irASeccion}
+                    setModalType={setModalType}
+                    setSelectedWorkerForAction={setSelectedWorkerForAction}
+                />
+            ) : seccion === 'fisicos' ? (
                 <DocumentosFisicosPanel />
-            ) : showSolicitudes ? (
+            ) : seccion === 'solicitudes' ? (
                 <SolicitudesIngresoPanel
                     refreshKey={solicitudesVersion}
                     onAprobada={() => performSearch(true)}

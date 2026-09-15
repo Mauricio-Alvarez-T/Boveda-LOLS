@@ -136,7 +136,8 @@ export const useConsultasData = (filters: FetchWorkersParams, enabled: boolean =
             performSearch(true);
         }, 300);
         return () => clearTimeout(timeoutId);
-    }, [filters.search, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes, filters.filterAniversario10m, filters.filterIngresoDesde, filters.filterIngresoHasta]);
+    // `enabled` en deps: la grilla se monta al entrar a la sección (B8) y debe consultar recién ahí.
+    }, [enabled, filters.search, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes, filters.filterAniversario10m, filters.filterIngresoDesde, filters.filterIngresoHasta]);
 
     // Abortar cualquier búsqueda en vuelo al desmontar.
     useEffect(() => () => abortRef.current?.abort(), []);

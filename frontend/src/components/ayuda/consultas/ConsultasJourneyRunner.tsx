@@ -136,7 +136,8 @@ export const ConsultasJourneyRunner: React.FC<{
             <div ref={screenRef} className="rounded-2xl border border-border bg-card p-3 sm:p-4 min-h-[60vh] flex flex-col">
                 <SandboxBoundary key={nonce}>
                     <ConsultasSandbox onAccion={onAccion}>
-                        <ConsultasPage />
+                        {/* seccionFija: los tutoriales esperan la grilla + CREAR; sin esto (permisos all-true) caería en la portada. */}
+                        <ConsultasPage seccionFija="trabajadores" />
                     </ConsultasSandbox>
                 </SandboxBoundary>
             </div>
