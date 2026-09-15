@@ -237,6 +237,28 @@ export function accionesLote(lote: Pick<LoteResumen, 'estado' | 'portador_id'>, 
     };
 }
 
+/** Tablero de custodia: un carril por estado, en el orden del flujo (el backend ya ordena recientes primero). */
+export function agruparLotesPorEstado(lotes: readonly LoteResumen[]): Record<LoteEstado, LoteResumen[]> {
+    const out: Record<LoteEstado, LoteResumen[]> = { pendiente_retiro: [], en_terreno: [], cerrado: [] };
+    for (const l of lotes) if (l.estado in out) out[l.estado].push(l);
+    return out;
+}
+
+export const LOTE_ESTADOS: readonly LoteEstado[] = ['pendiente_retiro', 'en_terreno', 'cerrado'];
+
+/** Iniciales de un nombre "Apellido Nombre" o "Nombre Apellido" (máx. 2 letras). */
+export function inicialesNombre(nombre: string | null | undefined): string {
+    const partes = (nombre || '').trim().split(/\s+/).filter(Boolean);
+    return partes.slice(0, 2).map(x => x[0]).join('').toUpperCase();
+}
+
+/** Línea de tiempo del lote según su etapa: qué pasó y hace cuánto. */
+export function lineaTiempoLote(l: Pick<LoteResumen, 'estado' | 'creado_en' | 'retirado_en' | 'cerrado_en' | 'creado_por_nombre'>, hoy: Date = new Date()): string {
+    const d = (f: string | null | undefined) => { const n = diasDesde(f, hoy); return n === 0 ? 'hoy' : n === 1 ? 'ayer' : `hace ${n} días`; };
+    if (l.estado === 'pendiente_retiro') return `Armado ${d(l.creado_en)}${l.creado_por_nombre ? ` por ${l.creado_por_nombre}` : ''}`;
+    if (l.estado === 'en_terreno') return `Retirado ${d(l.retirado_en ?? l.creado_en)}`;
+    return `Cerrado ${d(l.cerrado_en ?? l.retirado_en ?? l.creado_en)}`;
+}
 /** Texto para la Bandeja / badge según el alcance del contador. */
 export function filasBandejaLotes(p: PendientesLotes | null | undefined): { severity: 'warning' | 'info'; title: string; description: string }[] {
     if (!p) return [];

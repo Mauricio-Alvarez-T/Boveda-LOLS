@@ -2,7 +2,7 @@ import {
     agruparPorTrabajador, agruparPorObra, filtrarDisponibles, toggleIds, estadoSeleccion,
     buildCrearLotePayload, validarNuevoLote, buildConfirmarRetiroPayload, buildRecepcionPayload,
     diasDesde, resumenLote, accionesLote, filasBandejaLotes,
-    type DocumentoDisponible, type LoteResumen,
+    type DocumentoDisponible, type LoteResumen, agruparLotesPorEstado, inicialesNombre, lineaTiempoLote,
 } from './documentosFisicos';
 
 const doc = (id: number, extra: Partial<DocumentoDisponible> = {}): DocumentoDisponible => ({
@@ -111,5 +111,29 @@ describe('documentosFisicos (plan Gestiones B6)', () => {
         expect(rrhh.map(f => f.title)).toEqual(['2 lotes esperando confirmación del portador', '3 lotes de documentos en terreno']);
         expect(filasBandejaLotes({ por_confirmar: 0, en_terreno: 0, alcance: 'todos' })).toEqual([]);
         expect(filasBandejaLotes(null)).toEqual([]);
+    });
+});
+
+describe('tablero de custodia', () => {
+    const base = { portador_id: 1, portador_nombre: 'Jhoan Vásquez', creado_por: 2, creado_por_nombre: 'Matías', observacion: null, total: 3, pendientes: 0, en_terreno: 0, firmados: 0, sin_firma: 0, no_entregados: 0, retirado_en: null, cerrado_en: null };
+    it('agruparLotesPorEstado reparte en los tres carriles conservando el orden', () => {
+        const g = agruparLotesPorEstado([
+            { ...base, id: 1, estado: 'en_terreno', creado_en: '2026-09-10 10:00:00' },
+            { ...base, id: 2, estado: 'pendiente_retiro', creado_en: '2026-09-15 10:00:00' },
+            { ...base, id: 3, estado: 'pendiente_retiro', creado_en: '2026-09-14 10:00:00' },
+            { ...base, id: 4, estado: 'cerrado', creado_en: '2026-09-01 10:00:00' },
+        ]);
+        expect(g.pendiente_retiro.map(l => l.id)).toEqual([2, 3]);
+        expect(g.en_terreno.map(l => l.id)).toEqual([1]);
+        expect(g.cerrado.map(l => l.id)).toEqual([4]);
+    });
+    it('inicialesNombre y lineaTiempoLote', () => {
+        expect(inicialesNombre('Jhoan Vásquez')).toBe('JV');
+        expect(inicialesNombre('  Héctor  ')).toBe('H');
+        expect(inicialesNombre(null)).toBe('');
+        const hoy = new Date(2026, 8, 15, 12);
+        expect(lineaTiempoLote({ ...base, estado: 'pendiente_retiro', creado_en: '2026-09-15 08:00:00' }, hoy)).toBe('Armado hoy por Matías');
+        expect(lineaTiempoLote({ ...base, estado: 'en_terreno', creado_en: '2026-09-10 08:00:00', retirado_en: '2026-09-14 08:00:00' }, hoy)).toBe('Retirado ayer');
+        expect(lineaTiempoLote({ ...base, estado: 'cerrado', creado_en: '2026-09-01 08:00:00', retirado_en: '2026-09-02 08:00:00', cerrado_en: '2026-09-10 08:00:00' }, hoy)).toBe('Cerrado hace 5 días');
     });
 });

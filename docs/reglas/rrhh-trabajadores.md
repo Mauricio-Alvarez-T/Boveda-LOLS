@@ -588,8 +588,11 @@ firma en la obra (papel) → el portador devuelve los firmados → RRHH recibe.
   con **conteos** (nunca nombres ni RUT de trabajadores); el logger global excluye `/api/documentos-lotes`.
   Depurar un trabajador borra sus ítems (CASCADE); el lote queda como histórico.
 - **UI**: Gestiones → pestaña **Documentos físicos** (`?tab=fisicos`; el portador sin `trabajadores.ver` cae
-  ahí directo; Gestiones es visible para él en el menú). `DocumentosFisicosPanel` (lista de lotes con estado,
-  portador, resumen y días en terreno) · `NuevoLoteModal` (documentos impresos agrupados **obra → trabajador**
+  ahí directo; Gestiones es visible para él en el menú). `DocumentosFisicosPanel` (rediseño 2026-09-15:
+  **tablero de custodia** con tres carriles en el orden del flujo —Por confirmar → En terreno → Cerrados—;
+  tarjeta = portador, N docs, resumen, qué pasó y hace cuánto, y la acción que le toca a quien mira
+  («Confirmar retiro» portador / «Registrar recepción» RRHH); RRHH ve arriba cuántos documentos impresos
+  esperan lote; móvil = un carril a la vez; `agruparLotesPorEstado`/`lineaTiempoLote` con test) · `NuevoLoteModal` (documentos impresos agrupados **obra → trabajador**
   con casilla por trabajador —un kit de 6 = 1 clic—, buscador, filtro por obra, portador recordado en
   `localStorage`) · `LoteDetalleModal` (portador + por confirmar: casillas pre-marcadas y **"Recibí estos
   documentos"**, pensado para el celular; RRHH + en terreno: por documento Firmado / Sin firma / Sigue en
