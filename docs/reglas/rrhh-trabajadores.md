@@ -41,9 +41,14 @@
   `inicio`) → **portada** si tiene ≥ 2 secciones → la única sección. Sin `tab` en la URL se hace un
   `replace` con la sección resuelta (recarga y botón atrás deterministas). Con una sola sección
   (portador puro, terreno puro) no hay portada, switcher ni título clickeable: se entra directo, como
-  antes. El título «Gestiones» del header es la "casa" (vuelve a la portada); el switcher del header
-  cambia de sección sin pasar por la grilla y el botón activo no hace nada. "Limpiar filtros" conserva
-  `tab`. Los tutoriales de Ayuda montan `<ConsultasPage seccionFija="trabajadores" />` (ignora URL y
+  antes. El título «Gestiones» del header es la "casa" (vuelve a la portada); dentro de una sección el
+  header NO muestra las otras secciones (se cambia desde la portada; decisión del dueño 2026-09-15) y
+  CREAR aparece solo en la grilla (Solicitudes y Documentos físicos traen su propio botón). "Limpiar
+  filtros" conserva `tab`. **Grilla** (`components/consultas/TrabajadoresGrilla.tsx`, rediseño 2026-09-15):
+  tabla con encabezados en desktop (Trabajador · Empresa/Obra · Cargo · Ingreso · Documentación · Acciones)
+  y tarjetas en móvil; clic en la fila abre la ficha, la casilla selecciona; con selección la cabecera se
+  vuelve barra de acciones masivas (Enviar por correo / Exportar); acciones por fila = Constancia, Editar,
+  Desvincular (activos) o Reactivar/Depurar (desvinculados); sin numeración ni barra de estado. Los tutoriales de Ayuda montan `<ConsultasPage seccionFija="trabajadores" />` (ignora URL y
   memoria: el sandbox tiene permisos all-true y no controla la URL de /ayuda). Deep-links vigentes:
   Bandeja `?completitud=faltantes`, Dashboard `?tab=solicitudes` / `?tab=fisicos`, QuickActions
   `?tab=trabajadores`, badge del menú `?tab=solicitudes`.

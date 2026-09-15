@@ -11,27 +11,18 @@ import {
     Search,
     Filter,
     FileDown,
-    Mail,
     SearchCheck,
     X,
-    Building2,
-    CheckSquare,
-    UserCheck,
-    FileText,
     Trash2,
-    UserPen,
     Plus,
     Eraser,
     CalendarClock,
-    CalendarPlus,
     Save,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { Button } from '../components/ui/Button';
 import { IconButton } from '../components/ui/IconButton';
-import { Chip } from '../components/ui/Chip';
-import { EmptyState } from '../components/ui/EmptyState';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { WorkerForm } from '../components/workers/WorkerForm';
@@ -59,6 +50,7 @@ import { useDocumentosAlertas } from '../hooks/useDocumentosAlertas';
 import { useSeccionGestiones } from '../hooks/consultas/useSeccionGestiones';
 import { GestionesInicio } from '../components/consultas/GestionesInicio';
 import { SECCION_LABEL, type SeccionGestiones } from '../components/consultas/gestionesNav';
+import { TrabajadoresGrilla } from '../components/consultas/TrabajadoresGrilla';
 
 import {
     useConsultasFilters,
@@ -149,7 +141,8 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     const {
         selectedWorkers,
         handleSelectAll,
-        handleSelectWorker
+        handleSelectWorker,
+        clearSelection
     } = useConsultasSelection(workers.length, workerIds);
 
     // 4. Exportación
@@ -478,277 +471,27 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     onNuevoIngreso={() => setModalType('solicitud')}
                 />
             ) : (
-            /* Main Content Area */
-            <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
-
-                {/* Header Acciones Múltiples */}
-                <div className="h-[60px] border-b border-border bg-card/50 px-3 flex items-center justify-between shrink-0 gap-3">
-                    {/* Botón RESULTADOS — estilo igual que pestaña activa de Inventario */}
-                    <div className="hidden sm:flex items-center gap-2 bg-muted text-muted-foreground px-3 py-1.5 rounded-xl">
-                        <SearchCheck className="h-4 w-4" />
-                        <span className="text-xs font-semibold uppercase tracking-widest">Resultados</span>
-                    </div>
-
-                    <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                        {/* Botón TODOS — mismo estilo verde */}
-                        <label className="flex items-center gap-2 cursor-pointer bg-brand-primary text-white px-4 py-2 rounded-xl shadow-lg shadow-brand-primary/25 select-none">
-                            <div className="relative flex items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={workers.length > 0 && selectedWorkers.size === workers.length}
-                                    onChange={handleSelectAll}
-                                    className="peer h-[16px] w-[16px] appearance-none rounded border-2 border-white/60 bg-white/20 checked:border-white checked:bg-white transition-all cursor-pointer"
-                                />
-                                <CheckSquare className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-3 w-3 text-brand-primary pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" />
-                            </div>
-                            <span className="text-xs font-black uppercase tracking-widest">
-                                {selectedWorkers.size > 0 ? `${selectedWorkers.size} sel.` : 'Todos'}
-                            </span>
-                        </label>
-
-                        <AnimatePresence>
-                            {selectedWorkers.size > 0 && (
-                                <motion.div
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
-                                    className="flex items-center gap-2"
-                                >
-                                    <Button
-                                        variant="glass"
-                                        size="sm"
-                                        onClick={() => setEmailModalOpen(true)}
-                                        leftIcon={<Mail className="h-4 w-4" />}
-                                        className="h-9 px-3 text-xs md:text-sm bg-card"
-                                    >
-                                        <span className="hidden sm:inline">Enviar</span>
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handleExportExcel(Array.from(selectedWorkers))}
-                                        leftIcon={<FileDown className="h-4 w-4" />}
-                                        className="h-9 px-3 text-xs md:text-sm bg-card"
-                                    >
-                                        <span className="hidden sm:inline">Exportar</span>
-                                    </Button>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                </div>
-
-                {/* Grilla / Resultados */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-muted/80 p-2 md:p-4">
-                    {loading ? (
-                        <div className="flex flex-col gap-3">
-                            {[1, 2, 3, 4, 5, 6].map((i) => (
-                                <div key={i} className="h-24 w-full bg-card rounded-2xl border border-border flex items-center p-4 gap-4 animate-pulse">
-                                    <div className="h-10 w-10 rounded-xl bg-muted shrink-0" />
-                                    <div className="flex-1 space-y-2">
-                                        <div className="h-4 w-1/3 bg-muted rounded" />
-                                        <div className="h-3 w-1/4 bg-muted rounded" />
-                                    </div>
-                                    <div className="hidden sm:flex h-10 w-1/4 bg-muted rounded ml-auto" />
-                                </div>
-                            ))}
-                        </div>
-                    ) : workers.length === 0 ? (
-                        <EmptyState
-                            icon={Search}
-                            title="Sin resultados"
-                            description="No se encontraron trabajadores que coincidan con los filtros aplicados."
-                            className="h-full justify-center"
-                            action={activeFilterCount > 0 ? (
-                                <Button variant="outline" size="sm" onClick={handleClearFilters}>
-                                    Limpiar Búsqueda
-                                </Button>
-                            ) : undefined}
-                        />
-                    ) : (
-                        <motion.div
-                            className="flex flex-col gap-2.5 pb-10 sm:pb-5"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 0.15 }}
-                        >
-                            {/* Filas como <div> normal: animar cada una (hasta 192) causaba jank.
-                                La aparición de la lista se anima una sola vez en el contenedor. */}
-                            {workers.map((worker, idx) => (
-                                <div
-                                    key={worker.id}
-                                    className={cn(
-                                        "bg-card rounded-2xl border transition-all duration-200 p-3 relative cursor-pointer group",
-                                        selectedWorkers.has(worker.id) 
-                                            ? "bg-brand-primary/[0.03] border-brand-primary ring-1 ring-brand-primary/20 shadow-md" 
-                                            : "border-border hover:border-brand-primary/30 shadow-[var(--shadow-sm)] hover:shadow-lg",
-                                        !worker.activo && "bg-muted/50 border-dashed opacity-80"
-                                    )}
-                                    onClick={() => handleSelectWorker(worker.id)}
-                                >
-                                    <div className="flex gap-2.5 sm:gap-4 items-start sm:items-center">
-                                        {/* 1. Número / Avatar */}
-                                        <div className="flex flex-col items-center justify-center shrink-0">
-                                            <div
-                                                className={cn(
-                                                    "w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-caption sm:text-xs transition-all border shrink-0",
-                                                    selectedWorkers.has(worker.id)
-                                                        ? "bg-brand-dark text-white border-brand-dark shadow-md"
-                                                        : "bg-muted text-muted-foreground opacity-70 border-border group-hover:border-brand-primary/30"
-                                                )}
-                                            >
-                                                {(idx + 1).toString().padStart(2, '0')}
-                                            </div>
-                                            <div className="mt-2.5 sm:hidden">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedWorkers.has(worker.id)}
-                                                    onChange={(e) => { e.stopPropagation(); handleSelectWorker(worker.id); }}
-                                                    className="h-4 w-4 rounded border-input text-brand-primary focus:ring-brand-primary cursor-pointer"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* 2. Información Central */}
-                                        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                                            {/* Nombres y RUT */}
-                                            <div className="flex-1 min-w-0 flex flex-col" onClick={(e) => { e.stopPropagation(); setQuickViewId(worker.id); }}>
-                                                <span className="text-section sm:text-sm font-bold text-brand-dark hover:text-brand-primary transition-colors truncate">
-                                                    {worker.apellido_paterno} {worker.apellido_materno} {worker.nombres}
-                                                </span>
-                                                <div className="flex items-center gap-2 mt-0.5">
-                                                    <span className="text-caption sm:text-label font-medium text-muted-foreground">{worker.rut}</span>
-                                                    {!worker.activo && (
-                                                        <Chip tone="danger" label="Finiquitado" className="text-micro px-1" />
-                                                    )}
-                                                    {!!worker.es_prueba && (
-                                                        <Chip tone="warning" label="Prueba" className="text-micro px-1" />
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Detalles (Empresa, Obra, Docs) */}
-                                            <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 items-center" onClick={(e) => { e.stopPropagation(); setQuickViewId(worker.id); }}>
-                                                {/* Empresa & Obra */}
-                                                <div className="flex flex-col gap-0.5 min-w-0">
-                                                    <div className="flex items-center gap-1.5 text-caption sm:text-label text-muted-foreground">
-                                                        <Building2 className="h-3 w-3 shrink-0" />
-                                                        <span className="truncate">{worker.empresa_nombre || '—'}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5 text-label sm:text-xs font-semibold text-brand-dark">
-                                                        <div className="h-1.5 w-1.5 rounded-full bg-brand-primary shrink-0" />
-                                                        <span className="truncate">{worker.obra_nombre || 'Sin Obra'}</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Fecha de ingreso (oculta en xs: la muestra el quick view) */}
-                                                <div className="hidden sm:flex flex-col gap-0.5 min-w-0">
-                                                    <span className="text-micro sm:text-caption font-bold text-muted-foreground uppercase tracking-widest">Ingreso</span>
-                                                    <span className="text-label sm:text-xs font-semibold text-brand-dark flex items-center gap-1.5">
-                                                        <CalendarPlus className="h-3 w-3 text-muted-foreground shrink-0" />
-                                                        {formatFechaIngreso(worker.fecha_ingreso) || '—'}
-                                                    </span>
-                                                </div>
-
-                                                {/* Documentación */}
-                                                <div className="flex flex-col gap-1 min-w-[80px]">
-                                                    <div className="flex items-center justify-between text-micro sm:text-caption font-bold">
-                                                        <span className="text-muted-foreground uppercase tracking-widest hidden sm:inline">Docs</span>
-                                                        <span className={worker.docs_porcentaje === 100 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}>
-                                                            {worker.docs_porcentaje}%
-                                                        </span>
-                                                    </div>
-                                                    <div className="h-1.5 sm:h-2 w-full bg-muted rounded-full overflow-hidden">
-                                                        <div 
-                                                            className={cn(
-                                                                "h-full rounded-full transition-all duration-500",
-                                                                worker.docs_porcentaje === 100
-                                                                    ? "bg-gradient-to-r from-brand-primary to-brand-accent"
-                                                                    : "bg-gradient-to-r from-destructive to-red-400"
-                                                            )}
-                                                            style={{ width: `${Math.max(0, Math.min(100, worker.docs_porcentaje))}%` }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* 3. Acciones (Derecha) */}
-                                        <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                            {/* Carta de Amonestación: la emite el servidor y queda en la ficha (plan Gestiones B2). */}
-                                            <IconButton
-                                                variant="ghost"
-                                                size="sm"
-                                                aria-label="Constancia"
-                                                title={hasPermission('documentos.laborales.emitir') ? 'Constancia (Carta de Amonestación)' : 'Requiere "Emitir Documentos Laborales"'}
-                                                disabled={!hasPermission('documentos.laborales.emitir') || !worker.activo}
-                                                onClick={() => setConstanciaWorker(worker)}
-                                                className="h-7 w-7 sm:h-8 sm:w-8"
-                                                icon={<FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                                            />
-                                            <IconButton
-                                                variant="ghost"
-                                                size="sm"
-                                                aria-label="Editar trabajador"
-                                                disabled={!hasPermission('trabajadores.editar')}
-                                                className="h-7 w-7 sm:h-8 sm:w-8"
-                                                onClick={() => {
-                                                    setSelectedWorkerForAction(worker);
-                                                    setModalType('form');
-                                                }}
-                                                icon={<UserPen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                                            />
-                                            
-                                            {worker.activo ? (
-                                                <IconButton
-                                                    variant="danger"
-                                                    size="sm"
-                                                    aria-label="Eliminar trabajador"
-                                                    disabled={!hasPermission('trabajadores.eliminar')}
-                                                    className="h-7 w-7 sm:h-8 sm:w-8"
-                                                    onClick={() => handleDelete(worker)}
-                                                    icon={<Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                                                />
-                                            ) : (
-                                                <div className="flex flex-col sm:flex-row gap-1">
-                                                    <IconButton
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        aria-label="Reactivar trabajador"
-                                                        disabled={!hasPermission('trabajadores.reactivar')}
-                                                        className="h-7 w-7 sm:h-8 sm:w-8"
-                                                        onClick={(e) => { e.stopPropagation(); handleReactivate(worker); }}
-                                                        icon={<UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                                                    />
-                                                    {hasPermission('trabajadores.depurar') && (
-                                                        <IconButton
-                                                            variant="danger"
-                                                            size="sm"
-                                                            aria-label="Depurar trabajador"
-                                                            className="h-7 w-7 sm:h-8 sm:w-8"
-                                                            onClick={(e) => { e.stopPropagation(); handleDepurar(worker); }}
-                                                            icon={<Eraser className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                                                        />
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </motion.div>
-                    )}
-                </div>
-
-                {/* Status Bar */}
-                <div className="h-9 bg-muted border-t border-border flex items-center justify-between px-5 text-label font-bold text-muted-foreground shrink-0 uppercase tracking-widest rounded-b-3xl">
-                    <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-1.5 rounded-full bg-brand-primary/40" />
-                        <span>{workers.length} {workers.length === 1 ? 'coincidencia' : 'coincidencias'}</span>
-                    </div>
-                    <span>Actualizado en tiempo real</span>
-                </div>
-            </div>
+            <TrabajadoresGrilla
+                workers={workers}
+                loading={loading}
+                activeFilterCount={activeFilterCount}
+                hasPermission={hasPermission}
+                selected={selectedWorkers}
+                onToggle={handleSelectWorker}
+                onToggleAll={handleSelectAll}
+                onClearSelection={clearSelection}
+                onOpen={setQuickViewId}
+                onEditar={(w) => { setSelectedWorkerForAction(w); setModalType('form'); }}
+                onConstancia={setConstanciaWorker}
+                onDesvincular={handleDelete}
+                onReactivar={handleReactivate}
+                onDepurar={handleDepurar}
+                onEnviar={() => setEmailModalOpen(true)}
+                onExportar={handleExportExcel}
+                exporting={exporting}
+                onClearFilters={handleClearFilters}
+                formatFecha={formatFechaIngreso}
+            />
             )}
 
             {/* Modals */}
