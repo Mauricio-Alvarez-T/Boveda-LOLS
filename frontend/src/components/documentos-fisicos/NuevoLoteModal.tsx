@@ -5,7 +5,7 @@
  * Un 409 DOCUMENTO_NO_DISPONIBLE (otro RRHH ya lo metió en un lote) recarga la lista y desmarca esos ids.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { PackageCheck, Search, AlertTriangle } from 'lucide-react';
+import { PackageCheck, PackageOpen, Search, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import api from '../../services/api';
@@ -33,7 +33,7 @@ interface Props {
 const leerPortador = (): string => { try { return localStorage.getItem(PORTADOR_STORAGE_KEY) || ''; } catch { return ''; } };
 const guardarPortador = (v: string) => { try { localStorage.setItem(PORTADOR_STORAGE_KEY, v); } catch { /* sin storage */ } };
 
-const checkCls = 'h-4 w-4 rounded border-input text-brand-primary focus:ring-brand-primary';
+const checkCls = 'h-4 w-4 rounded border-input accent-brand-primary focus:ring-brand-primary';
 
 export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) => {
     const [portadores, setPortadores] = useState<Portador[]>([]);
@@ -111,7 +111,7 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
     };
 
     const footer = (
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex w-full flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
             <p className="text-sm text-brand-dark">
                 <b>{seleccion.length}</b> documento{seleccion.length === 1 ? '' : 's'} · <b>{nTrabajadores}</b> trabajador{nTrabajadores === 1 ? '' : 'es'}
             </p>
@@ -123,12 +123,9 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
     );
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Nuevo lote de documentos" size="lg" footer={footer}>
+        <Modal isOpen={isOpen} onClose={onClose} title="Nuevo lote de documentos" icon={PackageOpen} size="lg" footer={footer}
+            description="Marca los documentos impresos que entregas y a quién. El lote queda por confirmar hasta que el portador lo acepte en Bóveda.">
             <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                    Marca los documentos <b>impresos</b> que le entregas al portador. El lote queda <b>por confirmar</b> hasta que él lo acepte en Bóveda;
-                    después registras acá lo que vuelve firmado.
-                </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Select label="Quién retira" value={portadorId} onChange={e => setPortadorId(e.target.value)} disabled={cargando}
@@ -167,7 +164,7 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
                         </div>
                         {porObra.map(o => (
                             <div key={o.obra_nombre} className="rounded-2xl border border-border overflow-hidden">
-                                <div className="bg-brand-primary text-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider">{o.obra_nombre}</div>
+                                <div className="bg-muted px-3 py-1.5 text-caption font-semibold uppercase tracking-wider text-muted-foreground">{o.obra_nombre}</div>
                                 <ul className="divide-y divide-border">
                                     {o.grupos.map(g => {
                                         const ids = g.docs.map(d => d.id);

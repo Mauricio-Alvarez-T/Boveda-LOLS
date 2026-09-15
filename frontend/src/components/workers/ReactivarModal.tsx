@@ -63,7 +63,14 @@ export const ReactivarModal: React.FC<Props> = ({ isOpen, worker, onClose, onDon
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Reactivar trabajador" size="md">
+        <Modal isOpen={isOpen} onClose={onClose} title="Reactivar trabajador" icon={UserCheck} size="md"
+            description={worker ? [nombre, worker.rut].filter(Boolean).join(' · ') : undefined}
+            footer={(
+                <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+                    <Button type="button" onClick={confirmar} isLoading={enviando} leftIcon={<UserCheck className="h-4 w-4" />}>Reactivar</Button>
+                </div>
+            )}>
             <div className="space-y-4">
                 <p className="text-sm text-brand-dark">
                     Vas a reactivar a <strong>{nombre}</strong>. Se conserva su fecha de ingreso original y su historial de desvinculaciones.
@@ -103,7 +110,7 @@ export const ReactivarModal: React.FC<Props> = ({ isOpen, worker, onClose, onDon
                 {marcado && (
                     <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-card px-3 py-2.5">
                         <input type="checkbox" checked={quitarMarca} onChange={e => setQuitarMarca(e.target.checked)}
-                            className="mt-0.5 h-4 w-4 rounded border-input text-brand-primary focus:ring-brand-primary" />
+                            className="mt-0.5 h-4 w-4 rounded border-input accent-brand-primary focus:ring-brand-primary" />
                         <span className="text-sm">
                             <span className="font-medium text-brand-dark">Quitar la marca "No recontratar"</span>
                             <span className="block text-muted-foreground">Si no la quitas, seguirá visible en futuras contrataciones.</span>
@@ -111,10 +118,6 @@ export const ReactivarModal: React.FC<Props> = ({ isOpen, worker, onClose, onDon
                     </label>
                 )}
 
-                <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-                    <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-                    <Button type="button" onClick={confirmar} isLoading={enviando} leftIcon={<UserCheck className="h-4 w-4" />}>Reactivar</Button>
-                </div>
             </div>
         </Modal>
     );

@@ -235,7 +235,7 @@ const FormRevision: React.FC<{ s: SolicitudIngreso; onResuelta: (a: SolicitudAcc
                         <p>{errorCatalogos}</p>
                     </div>
                     <div className="flex justify-end">
-                        <Button type="button" variant="outline" onClick={onClose}>Cerrar</Button>
+                        <Button type="button" variant="ghost" onClick={onClose}>Cerrar</Button>
                     </div>
                 </div>
             );
@@ -501,6 +501,8 @@ export const RevisarSolicitudModal: React.FC<Props> = ({ solicitud, onClose, pue
             isOpen={!!solicitud}
             onClose={onClose}
             title={aprobada ? 'Solicitud aprobada' : editable ? 'Revisar solicitud de ingreso' : 'Solicitud de ingreso'}
+            icon={aprobada ? CheckCircle2 : UserPlus}
+            description={solicitud ? [`${solicitud.apellido_paterno} ${solicitud.apellido_materno || ''} ${solicitud.nombres}`.replace(/\s+/g, ' ').trim(), solicitud.rut, solicitud.obra_nombre].filter(Boolean).join(' · ') : undefined}
             size="lg"
             headerAction={puedeDescargarDoc ? (
                 <IconButton

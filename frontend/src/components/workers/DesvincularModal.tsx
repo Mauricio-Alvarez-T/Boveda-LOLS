@@ -110,7 +110,21 @@ export const DesvincularModal: React.FC<Props> = ({ isOpen, worker, onClose, onD
     } : null;
 
     return (
-        <Modal isOpen={isOpen} onClose={resultado ? () => onDone(resultado) : onClose} title="Desvincular trabajador" size="md">
+        <Modal isOpen={isOpen} onClose={resultado ? () => onDone(resultado) : onClose} title="Desvincular trabajador" icon={UserX} size="md"
+            description={worker ? [nombre, worker.rut].filter(Boolean).join(' · ') : undefined}
+            footer={resultado ? (
+                <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <Button type="button" variant={finiquitoEmitido || !puedeEmitirDocs ? 'primary' : 'ghost'} onClick={() => onDone(resultado)}>Cerrar</Button>
+                    {puedeEmitirDocs && !finiquitoEmitido && (
+                        <Button type="button" leftIcon={<FileSignature className="h-4 w-4" />} onClick={() => setFiniquitoAbierto(true)}>Emitir finiquito</Button>
+                    )}
+                </div>
+            ) : (
+                <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+                    <Button type="submit" form="desvincular-form" variant="destructive" isLoading={isSubmitting} disabled={cargando}>Confirmar desvinculación</Button>
+                </div>
+            )}>
             {resultado ? (
                 <div className="space-y-4">
                     <div className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4">
@@ -147,12 +161,6 @@ export const DesvincularModal: React.FC<Props> = ({ isOpen, worker, onClose, onD
                                 : 'El finiquito lo emite RRHH desde la ficha del trabajador (requiere "Emitir Documentos Laborales").'}
                         </p>
                     )}
-                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                        <Button type="button" variant={finiquitoEmitido || !puedeEmitirDocs ? 'primary' : 'outline'} onClick={() => onDone(resultado)}>Cerrar</Button>
-                        {puedeEmitirDocs && !finiquitoEmitido && (
-                            <Button type="button" leftIcon={<FileSignature className="h-4 w-4" />} onClick={() => setFiniquitoAbierto(true)}>Emitir finiquito</Button>
-                        )}
-                    </div>
                     <EmitirFiniquitoModal
                         isOpen={finiquitoAbierto}
                         onClose={() => setFiniquitoAbierto(false)}
@@ -162,7 +170,7 @@ export const DesvincularModal: React.FC<Props> = ({ isOpen, worker, onClose, onD
                     />
                 </div>
             ) : (
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <form id="desvincular-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                     <div className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/10 p-4">
                         <UserX className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
                         <p className="text-sm text-brand-dark">
@@ -228,10 +236,6 @@ export const DesvincularModal: React.FC<Props> = ({ isOpen, worker, onClose, onD
                         <p className="flex items-center gap-1.5 text-sm font-medium text-destructive"><AlertTriangle className="h-4 w-4" /> {errorNegocio}</p>
                     )}
 
-                    <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-                        <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-                        <Button type="submit" variant="destructive" isLoading={isSubmitting} disabled={cargando}>Confirmar desvinculación</Button>
-                    </div>
                 </form>
             )}
         </Modal>

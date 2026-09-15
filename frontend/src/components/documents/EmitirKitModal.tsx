@@ -191,7 +191,8 @@ export const EmitirKitModal: React.FC<Props> = ({ isOpen, onClose, worker, onEmi
     );
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Kit de ingreso" size="md" footer={footer}>
+        <Modal isOpen={isOpen} onClose={onClose} title="Kit de ingreso" icon={PackageOpen} size="md" footer={footer}
+            description={worker ? [nombreDe(worker), worker.rut].filter(Boolean).join(' · ') : undefined}>
             <div className="space-y-4">
                 <div className="bg-background rounded-2xl p-4 border border-border text-sm">
                     <p className="font-bold text-brand-dark">{nombreDe(worker)}</p>

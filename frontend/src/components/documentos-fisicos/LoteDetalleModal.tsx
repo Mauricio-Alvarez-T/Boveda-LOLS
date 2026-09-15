@@ -33,7 +33,7 @@ interface Props {
     onCambio?: () => void;
 }
 
-const checkCls = 'h-5 w-5 rounded border-input text-brand-primary focus:ring-brand-primary';
+const checkCls = 'h-5 w-5 rounded border-input accent-brand-primary focus:ring-brand-primary';
 
 const toneItem: Record<LoteItem['estado'], 'neutral' | 'warning' | 'success' | 'danger' | 'info'> = {
     pendiente: 'warning', retirado: 'info', firmado: 'success', devuelto_sin_firma: 'danger', no_entregado: 'neutral',
@@ -111,7 +111,7 @@ export const LoteDetalleModal: React.FC<Props> = ({ loteId, onClose, onCambio })
     };
 
     const footer = lote && (acciones.confirmarRetiro || acciones.recepcion || acciones.anular) ? (
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex w-full flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="text-sm text-brand-dark">
                 {acciones.confirmarRetiro && <><b>{recibidos.length}</b> de {lote.pendientes} documento{lote.pendientes === 1 ? '' : 's'} recibido{recibidos.length === 1 ? '' : 's'}</>}
                 {acciones.recepcion && <><b>{nFirmados}</b> firmado{nFirmados === 1 ? '' : 's'} · <b>{nSinFirma}</b> sin firma · {lote.en_terreno - nFirmados - nSinFirma} siguen en terreno</>}
@@ -137,9 +137,10 @@ export const LoteDetalleModal: React.FC<Props> = ({ loteId, onClose, onCambio })
     ) : <div className="flex justify-end"><Button variant="ghost" onClick={onClose}>Cerrar</Button></div>;
 
     const titulo = lote ? `Lote #${lote.id} · ${LOTE_ESTADO_LABEL[lote.estado]}` : 'Lote de documentos';
+    const descripcion = lote ? `${lote.portador_nombre || '(usuario eliminado)'} · ${lote.total} documento${lote.total === 1 ? '' : 's'} · ${resumenLote(lote)}` : undefined;
 
     return (
-        <Modal isOpen={loteId != null} onClose={onClose} title={titulo} size="lg" footer={footer}>
+        <Modal isOpen={loteId != null} onClose={onClose} title={titulo} description={descripcion} icon={Truck} size="lg" footer={footer}>
             {cargando || !lote ? (
                 <p className="text-sm text-muted-foreground py-6 text-center">Cargando lote…</p>
             ) : (
@@ -178,7 +179,7 @@ export const LoteDetalleModal: React.FC<Props> = ({ loteId, onClose, onCambio })
                         <EmptyState title="Lote sin documentos" />
                     ) : porObra.map(o => (
                         <div key={o.obra_nombre} className="rounded-2xl border border-border overflow-hidden">
-                            <div className="bg-brand-primary text-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider">{o.obra_nombre}</div>
+                            <div className="bg-muted px-3 py-1.5 text-caption font-semibold uppercase tracking-wider text-muted-foreground">{o.obra_nombre}</div>
                             <ul className="divide-y divide-border">
                                 {o.grupos.map(g => {
                                     const idsPend = g.docs.filter(d => d.estado === 'pendiente').map(d => d.documento_id);

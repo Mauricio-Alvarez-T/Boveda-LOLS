@@ -198,7 +198,7 @@ export const EmitirFiniquitoModal: React.FC<Props> = ({ isOpen, onClose, worker,
             </Button>
         </div>
     ) : (
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex w-full flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
             <p className="text-sm text-brand-dark">Total: <b>{formatCLP(total)}</b></p>
             <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
                 <Button variant="ghost" onClick={onClose} disabled={emitiendo}>Cancelar</Button>
@@ -208,7 +208,8 @@ export const EmitirFiniquitoModal: React.FC<Props> = ({ isOpen, onClose, worker,
     );
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Finiquito de Trabajador" size="lg" footer={footer}>
+        <Modal isOpen={isOpen} onClose={onClose} title="Finiquito de trabajador" icon={FileSignature} size="lg" footer={footer}
+            description={worker ? [nombreDe(worker), worker.rut].filter(Boolean).join(' · ') : undefined}>
             <div className="space-y-4">
                 <div className="bg-background rounded-2xl p-4 border border-border text-sm">
                     <p className="font-bold text-brand-dark">{nombreDe(worker)}</p>
