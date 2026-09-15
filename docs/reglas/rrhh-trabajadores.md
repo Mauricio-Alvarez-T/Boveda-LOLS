@@ -38,11 +38,15 @@
   `components/consultas/gestionesNav.ts` (`resolverSeccion`, con test): **tab explícito** válido y
   permitido → **deep-link con filtros de la grilla** (`q`, `obra_id`, `completitud`, `aniversario10m`…) →
   **lo último que usó esa persona** (`localStorage` `boveda.gestiones.ultimaSeccion.<userId>`, nunca
-  `inicio`) → **portada** si tiene ≥ 2 secciones → la única sección. Sin `tab` en la URL se hace un
+  `inicio`; solo aplica a enlaces sin `tab`, p. ej. QuickActions o un favorito a `/consultas`) →
+  **portada** si tiene ≥ 2 secciones → la única sección. **El menú lateral «Gestiones» lleva SIEMPRE a la
+  portada** (`/consultas?tab=inicio`; ajuste 2026-09-15 tras probar con tres usuarios: con «lo último
+  usado» nadie encontraba cómo volver). Sin `tab` en la URL se hace un
   `replace` con la sección resuelta (recarga y botón atrás deterministas). Con una sola sección
   (portador puro, terreno puro) no hay portada, switcher ni título clickeable: se entra directo, como
-  antes. El título «Gestiones» del header es la "casa" (vuelve a la portada); dentro de una sección el
-  header NO muestra las otras secciones (se cambia desde la portada; decisión del dueño 2026-09-15) y
+  antes. Dentro de una sección el header muestra un botón explícito **«← Gestiones»** (outline) que
+  vuelve a la portada y el nombre de la sección como título (el título clickeable anterior no se
+  reconocía como botón); el header NO muestra las otras secciones (se cambia desde la portada; decisión del dueño 2026-09-15) y
   CREAR aparece solo en la grilla (Solicitudes y Documentos físicos traen su propio botón). "Limpiar
   filtros" conserva `tab`. **Grilla** (`components/consultas/TrabajadoresGrilla.tsx`, rediseño 2026-09-15):
   tabla con encabezados en desktop (Trabajador · Empresa/Obra · Cargo · Ingreso · Documentación · Acciones)

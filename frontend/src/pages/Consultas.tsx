@@ -9,6 +9,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
     Search,
+    ArrowLeft,
     Filter,
     FileDown,
     SearchCheck,
@@ -187,23 +188,21 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     // Modificando Header Global
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-4 flex-1 min-w-0">
-            {/* Título = "casa" (B8): con ≥2 secciones lleva a la portada; miga con la sección actual. */}
+            {/* Volver (B8, ajuste 2026-09-15 tras prueba con usuarios): dentro de una sección hay un botón
+                explícito «← Gestiones» que vuelve a la portada; el nombre de la sección es el título. El título
+                clickeable anterior no se reconocía como botón. Con una sola sección no hay portada: título fijo. */}
             <div className="flex items-center gap-2 md:gap-3 shrink-0 min-w-0">
-                {conSwitcher ? (
-                    <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">
-                        <Button variant="ghost" size="sm" onClick={() => irASeccion('inicio')} title="Portada de Gestiones"
-                            className="h-9 px-1.5 gap-2 md:gap-3 rounded-xl text-sm md:text-lg font-bold text-brand-dark"
-                            leftIcon={<SearchCheck className="h-5 w-5 md:h-6 md:w-6 text-brand-primary shrink-0" />}>
-                            Gestiones
-                        </Button>
-                    </h1>
-                ) : (<>
+                {conSwitcher && seccion && seccion !== 'inicio' ? (<>
+                    <Button variant="outline" size="sm" onClick={() => irASeccion('inicio')} title="Volver a la portada de Gestiones"
+                        leftIcon={<ArrowLeft className="h-4 w-4" />}
+                        className="h-9 px-3 rounded-xl font-semibold gap-1.5 bg-card shadow-sm">
+                        Gestiones
+                    </Button>
+                    <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate" aria-current="page">{SECCION_LABEL[seccion]}</h1>
+                </>) : (<>
                     <SearchCheck className="h-5 w-5 md:h-6 md:w-6 text-brand-primary shrink-0" />
                     <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">Gestiones</h1>
                 </>)}
-                {conSwitcher && seccion && seccion !== 'inicio' && (
-                    <span className="hidden sm:inline text-sm md:text-base text-muted-foreground truncate" aria-current="page">› {SECCION_LABEL[seccion]}</span>
-                )}
             </div>
 
             {/* Desktop Search Bar - integrated into title area (solo en la grilla) */}
