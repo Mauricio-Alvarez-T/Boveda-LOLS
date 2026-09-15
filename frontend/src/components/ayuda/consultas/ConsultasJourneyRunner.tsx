@@ -34,12 +34,12 @@ const CONFIG: Record<Flujo, FlujoConfig> = {
     },
     'ver-doc': {
         labels: ['Ver documento'],
-        instruccion: 'Abre la ficha de un trabajador (clic en su nombre). En la sección de documentos, pulsa el ojo "Ver documento" de uno de ellos para abrirlo.',
+        instruccion: 'Abre la ficha de un trabajador (clic en su nombre). En la ficha, entra a la pestaña "Documentos" y pulsa el ojo "Ver documento" de uno de ellos.',
         accion: 'ver-doc',
         finTitulo: '¡Documento abierto!',
         recap: [
             'Abriste la ficha de un trabajador.',
-            'Pulsaste "Ver documento" en uno de sus documentos.',
+            'Entraste a la pestaña "Documentos" y pulsaste el ojo "Ver documento".',
             'El documento se abrió en una pestaña nueva.',
         ],
     },

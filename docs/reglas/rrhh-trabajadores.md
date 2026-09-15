@@ -84,7 +84,13 @@
 - `es_prueba` heredado de la obra (ver obras-bodegas.md).
 - `categoria_reporte` ∈ {obra, operaciones, rotativo} (mig 008).
 - Datos financieros del trabajador gateados por `trabajadores.financiero.ver/editar`.
-- WorkerQuickView (ficha rápida): panel lateral desktop / bottom-sheet móvil.
+- WorkerQuickView (ficha rápida): panel lateral desktop / bottom-sheet móvil. **Rediseño 2026-09-15**:
+  cabecera fija con identidad (avatar, nombre, RUT, chip de desvinculado) + línea cargo · obra · empresa,
+  acciones arriba (**Editar** / **Asistencia**) y tres pestañas — **Resumen** (contrato, antigüedad con aviso
+  al llegar a 10 meses, asistencia registrada, contacto), **Documentos** (completitud, subidos, generados por
+  Bóveda y «Abrir bóveda») y **Datos** (ficha personal + lo que le falta al contrato, con contador ámbar).
+  Antigüedad y % de documentos salen de  (puro, con test). El tutorial
+  «ver documento» de Ayuda indica entrar a la pestaña Documentos.
 - **Creación de trabajador — dos caminos** (desde 2026-09-07):
   1. **Directa**: Consultas → CREAR → "Trabajador" (`trabajadores.crear`) → `WorkerForm` →
      `POST /api/trabajadores` (CRUD genérico de `index.js`; `beforeCreate` hereda `es_prueba` de la

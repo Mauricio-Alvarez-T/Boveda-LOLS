@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail, Download, ArrowLeft, FilePlus, Save, Eye, CalendarCheck, CalendarOff, CalendarClock, AlertTriangle, IdCard } from 'lucide-react';
+import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail, Download, ArrowLeft, FilePlus, Save, Eye, CalendarCheck, CalendarOff, AlertTriangle, IdCard, FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import { fmtFecha } from '../../utils/format';
@@ -8,9 +8,9 @@ import { DesvinculacionInfo } from './DesvinculacionInfo';
 import type { UltimaDesvinculacion } from './desvinculacionSchema';
 import { listarDatosPersonales } from '../consultas/solicitudIngresoSchema';
 import { IconButton } from '../ui/IconButton';
+import { Chip } from '../ui/Chip';
 import { cn } from '../../utils/cn';
 import { WorkerCalendarModal } from '../attendance/WorkerCalendarModal';
-import { PeriodAssignModal } from '../attendance/PeriodAssignModal';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { WorkerForm } from './WorkerForm';
@@ -20,6 +20,7 @@ import { DocumentosGeneradosList } from '../documents/DocumentosGeneradosList';
 import { contarObligatorios, docsSubidos, faltanDatosContrato } from '../documents/documentosLaborales';
 import { DATOS_PERSONALES_LABELS } from '../consultas/solicitudIngresoSchema';
 import { descargarArchivo } from '../../utils/descargarArchivo';
+import { antiguedad, porcentajeDocs } from './fichaTrabajador';
 import { useAuth } from '../../context/AuthContext';
 import type { Trabajador, EstadoAsistencia } from '../../types/entities';
 
@@ -96,6 +97,15 @@ interface WorkerQuickViewProps {
     onUpdate?: () => void;
 }
 
+/**
+ * Ficha rápida del trabajador (rediseño 2026-09-15). Antes era un scroll único de ~8 bloques con las
+ * acciones al final: había que bajar toda la ficha para llegar a "Editar". Ahora:
+ *  - Cabecera fija con la identidad (avatar, nombre, RUT, estado) y la línea cargo · empresa · obra.
+ *  - Acciones arriba y siempre visibles (Editar / Asistencia).
+ *  - Tres pestañas: Resumen (contrato, antigüedad, asistencia, contacto), Documentos (completitud,
+ *    subidos y los generados por Bóveda) y Datos (ficha personal + lo que le falta al contrato).
+ * La lógica de carga, permisos y modales no cambia.
+ */
 const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     workerId, onClose, onEditWorker, onViewDocuments, onViewAttendance, onUpdate
 }) => {
@@ -108,10 +118,10 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     const [estados, setEstados] = useState<EstadoAsistencia[]>([]);
     const [modalType, setModalType] = useState<'form' | 'docs' | null>(null);
     const [isUploading, setIsUploading] = useState(false);
-    const [periodSelection, setPeriodSelection] = useState<{ start: string; end: string } | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
     const [viewingDocId, setViewingDocId] = useState<number | null>(null);
-    const [isMobile, setIsMobile] = useState(() => 
+    const [tab, setTab] = useState<'resumen' | 'documentos' | 'datos'>('resumen');
+    const [isMobile, setIsMobile] = useState(() =>
         typeof window !== 'undefined' ? window.innerWidth < 1024 : false
     );
     const { hasPermission } = useAuth();
@@ -148,6 +158,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
         setWorker(null);
         setDocs([]);
         setResumen(null);
+        setTab('resumen');   // cada trabajador abre en su resumen
 
         const p1 = api.get(`/trabajadores/${workerId}`)
             .then(res => {
@@ -200,14 +211,25 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     // muestran, así que nada distingue una ficha completa de una vacía (plan Gestiones B2b).
     const faltanContrato = worker && worker.activo !== false && hasPermission('trabajadores.editar')
         ? faltanDatosContrato(worker) : [];
-    const docPct = totalRequired > 0 ? Math.round((completedDocs / totalRequired) * 100) : 0;
+    const docPct = porcentajeDocs(completedDocs, totalRequired);
     const initials = worker ? `${(worker.apellido_paterno || '')[0]}${worker.nombres[0]}` : '';
     // Solo los datos personales que existen (el teléfono ya se muestra en Contacto).
     const datosPersonales = listarDatosPersonales(worker).filter(d => d.key !== 'telefono');
+    const anios = worker ? antiguedad(worker.fecha_ingreso, worker.activo ? null : worker.fecha_desvinculacion) : null;
 
-    const handleCalendarSelectRange = (start: string, end: string) => {
-        setPeriodSelection({ start, end });
-    };
+    const TABS = [
+        { id: 'resumen' as const, label: 'Resumen' },
+        { id: 'documentos' as const, label: 'Documentos', badge: totalRequired > 0 && docPct < 100 ? totalRequired - completedDocs : 0 },
+        { id: 'datos' as const, label: 'Datos', badge: faltanContrato.length },
+    ];
+
+    /** Dato con rótulo pequeño arriba y valor abajo (sin caja: la caja es la sección). */
+    const dato = (label: string, valor: React.ReactNode, icon?: React.ReactNode) => (
+        <div className="min-w-0">
+            <p className="flex items-center gap-1 text-micro font-bold uppercase tracking-wide text-muted-foreground">{icon}{label}</p>
+            <p className="mt-0.5 text-sm font-semibold text-brand-dark break-words">{valor}</p>
+        </div>
+    );
 
     return (
         <>
@@ -239,9 +261,9 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                             className={cn(
                                 "fixed z-[61] bg-card shadow-2xl flex flex-col",
-                                isMobile 
+                                isMobile
                                     ? "bottom-0 left-0 right-0 w-full max-h-[92dvh] rounded-t-[32px]"
-                                    : "inset-y-0 right-0 w-[420px] rounded-l-3xl"
+                                    : "inset-y-0 right-0 w-[440px] xl:w-[500px] rounded-l-3xl"
                             )}
                         >
                             {/* Mobile Drag Handle */}
@@ -251,302 +273,243 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                 </div>
                             )}
 
-                            {/* Header */}
-                            <div className={cn(
-                                "sticky top-0 bg-card/80 backdrop-blur-xl z-10 px-5 py-4 border-b border-border flex items-center justify-between shrink-0",
-                                isMobile && "rounded-t-[32px] border-none pt-2"
-                            )}>
-                                <h2 className="text-lg font-bold text-brand-dark">Ficha Rápida</h2>
-                                <IconButton
-                                    variant="ghost"
-                                    aria-label="Cerrar ficha"
-                                    onClick={onClose}
-                                    icon={<X className="h-5 w-5" />}
-                                />
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto custom-scrollbar">
-
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center py-20">
                                     <Loader2 className="h-8 w-8 animate-spin text-brand-primary mb-3" />
                                     <p className="text-sm text-muted-foreground">Cargando información...</p>
                                 </div>
-                            ) : worker ? (
-                                <div className="p-5 space-y-5">
-                                    {/* ── Worker Identity Card ── */}
-                                    <div className="bg-gradient-to-br from-brand-primary/5 to-[#5AC8FA]/5 rounded-2xl p-5 border border-brand-primary/10">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-16 w-16 rounded-2xl bg-brand-primary text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-brand-primary/20">
-                                                {initials}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h3 className="text-lg font-bold text-brand-dark">
-                                                    {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
-                                                </h3>
-                                                <p className="text-sm text-muted-foreground">{worker.rut}</p>
-                                                {!worker.activo && (
-                                                    <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded bg-destructive/10 text-destructive text-caption font-bold uppercase">
-                                                        <CalendarOff className="h-3 w-3" />
-                                                        Finiquitado{worker.fecha_desvinculacion ? ` · ${fmtFecha(worker.fecha_desvinculacion)}` : ''}
-                                                    </span>
-                                                )}
-                                            </div>
+                            ) : worker ? (<>
+                                {/* ── Cabecera fija: identidad + acciones + pestañas ── */}
+                                <div className={cn('shrink-0 border-b border-border px-5 pt-4', isMobile && 'rounded-t-[32px] pt-2')}>
+                                    <div className="flex items-start gap-3">
+                                        <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-bold',
+                                            worker.activo ? 'bg-brand-primary text-white' : 'bg-muted text-muted-foreground')}>
+                                            {initials}
                                         </div>
-
-                                        {/* Info chips */}
-                                        <div className="mt-4 flex flex-wrap gap-2">
-                                            {worker.cargo_nombre && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card rounded-xl text-xs font-medium text-brand-dark border border-border">
-                                                    <Briefcase className="h-3.5 w-3.5 text-brand-primary" /> {worker.cargo_nombre}
-                                                </span>
-                                            )}
-                                            {worker.empresa_nombre && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card rounded-xl text-xs font-medium text-brand-dark border border-border">
-                                                    <Building2 className="h-3.5 w-3.5 text-brand-primary" /> {worker.empresa_nombre}
-                                                </span>
-                                            )}
-                                            {worker.obra_nombre && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card rounded-xl text-xs font-medium text-brand-dark border border-border">
-                                                    <MapPin className="h-3.5 w-3.5 text-brand-accent" /> {worker.obra_nombre}
-                                                </span>
-                                            )}
+                                        <div className="min-w-0 flex-1">
+                                            <h2 className="text-title-sm font-bold text-brand-dark leading-tight">
+                                                {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
+                                            </h2>
+                                            <p className="text-caption text-muted-foreground tabular-nums">{worker.rut}</p>
                                         </div>
+                                        <IconButton
+                                            variant="ghost"
+                                            aria-label="Cerrar ficha"
+                                            onClick={onClose}
+                                            className="-mr-1 -mt-1 shrink-0"
+                                            icon={<X className="h-5 w-5" />}
+                                        />
                                     </div>
 
-                                    {/* ── Contact Info ── */}
-                                    {(worker.telefono || worker.email) && (
-                                        <div className="space-y-2">
-                                            {worker.telefono && (
-                                                <a href={`tel:${worker.telefono}`} className="flex items-center gap-3 p-3 rounded-xl bg-background hover:bg-muted transition-colors">
-                                                    <Phone className="h-4 w-4 text-brand-accent" />
-                                                    <span className="text-sm text-brand-dark">{worker.telefono}</span>
-                                                </a>
-                                            )}
-                                            {worker.email && (
-                                                <a href={`mailto:${worker.email}`} className="flex items-center gap-3 p-3 rounded-xl bg-background hover:bg-muted transition-colors">
-                                                    <Mail className="h-4 w-4 text-brand-primary" />
-                                                    <span className="text-sm text-brand-dark truncate">{worker.email}</span>
-                                                </a>
-                                            )}
+                                    {!worker.activo && (
+                                        <div className="mt-2">
+                                            <Chip tone="danger" icon={<CalendarOff className="h-3 w-3" />}
+                                                label={`Desvinculado${worker.fecha_desvinculacion ? ` · ${fmtFecha(worker.fecha_desvinculacion)}` : ''}`} />
                                         </div>
                                     )}
 
-                                    {/* ── Datos personales (ficha de ingreso digital) — solo lectura; se editan en WorkerForm ── */}
-                                    {(datosPersonales.length > 0 || faltanContrato.length > 0) && (
-                                        <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                                            <p className="text-caption font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
-                                                <IdCard className="h-3.5 w-3.5" /> Datos personales
-                                            </p>
-                                            {faltanContrato.length > 0 && (
-                                                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-300">
-                                                    <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                                                    <span>
-                                                        <span className="font-bold">Faltan datos que el contrato necesita:</span>{' '}
-                                                        {faltanContrato.map(c => DATOS_PERSONALES_LABELS[c]).join(', ')}. Complétalos en Editar, o al emitir el kit de ingreso.
+                                    <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground">
+                                        <span className="flex items-center gap-1.5 min-w-0"><Briefcase className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{worker.cargo_nombre || 'Sin cargo'}</span></span>
+                                        <span className="flex items-center gap-1.5 min-w-0"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{worker.obra_nombre || 'Sin obra'}</span></span>
+                                        <span className="flex items-center gap-1.5 min-w-0"><Building2 className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{worker.empresa_nombre || 'Sin empresa'}</span></span>
+                                    </p>
+
+                                    {/* Acciones arriba: antes estaban al final de todo el scroll. */}
+                                    <div className="mt-3 flex gap-2">
+                                        <Button size="sm" variant="glass" className="flex-1" leftIcon={<Pencil className="h-4 w-4" />}
+                                            disabled={!hasPermission('trabajadores.editar')}
+                                            onClick={() => { if (onEditWorker) onEditWorker(worker.id); else setModalType('form'); }}>
+                                            Editar
+                                        </Button>
+                                        <Button size="sm" variant="glass" className="flex-1" leftIcon={<Calendar className="h-4 w-4" />}
+                                            onClick={() => setShowCalendar(true)}>
+                                            Asistencia
+                                        </Button>
+                                    </div>
+
+                                    <div role="tablist" aria-label="Secciones de la ficha" className="mt-3 flex gap-1">
+                                        {TABS.map(t => (
+                                            <Button key={t.id} role="tab" size="sm" variant="ghost" aria-selected={tab === t.id}
+                                                onClick={() => setTab(t.id)}
+                                                className={cn('h-10 flex-1 rounded-none rounded-t-lg border-b-2 gap-1.5 text-section font-semibold',
+                                                    tab === t.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-muted-foreground hover:text-brand-dark')}>
+                                                {t.label}
+                                                {!!t.badge && t.badge > 0 && (
+                                                    <span className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-amber-500 text-micro font-bold tabular-nums text-white">{t.badge}</span>
+                                                )}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* ── Contenido ── */}
+                                <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-4">
+                                    {tab === 'resumen' && (<>
+                                        <section className="rounded-2xl border border-border bg-background p-4">
+                                            <p className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Contrato</p>
+                                            <div className="mt-2.5 grid grid-cols-2 gap-3">
+                                                {dato('Inicio', worker.fecha_ingreso ? fmtFecha(worker.fecha_ingreso) : '—', <CalendarCheck className="h-3 w-3 text-brand-primary" />)}
+                                                {dato('Término', worker.fecha_desvinculacion ? fmtFecha(worker.fecha_desvinculacion) : (worker.activo ? 'Vigente' : '—'), <CalendarOff className="h-3 w-3 text-muted-foreground" />)}
+                                                {anios && dato('Antigüedad', (
+                                                    <span className={cn(anios.porCumplir10Meses && worker.activo && 'text-amber-600 dark:text-amber-400')}>
+                                                        {anios.texto}{anios.porCumplir10Meses && worker.activo ? ' · renovación cerca' : ''}
                                                     </span>
-                                                </div>
-                                            )}
-                                            <dl className="grid grid-cols-2 gap-2">
-                                                {datosPersonales.map(d => (
-                                                    <div
-                                                        key={d.key}
-                                                        className={cn(
-                                                            'rounded-xl bg-background border border-border px-3 py-2 min-w-0',
-                                                            d.key === 'direccion' && 'col-span-2'
-                                                        )}
-                                                    >
-                                                        <dt className="text-micro text-muted-foreground uppercase font-bold tracking-wide">{d.label}</dt>
-                                                        <dd className="text-sm font-bold text-brand-dark mt-0.5 break-words">{d.value}</dd>
-                                                    </div>
-                                                ))}
-                                            </dl>
-                                        </div>
-                                    )}
-
-                                    {/* ── Ficha resumen: contrato + asistencia ── */}
-                                    <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                                        <p className="text-caption font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
-                                            <CalendarClock className="h-3.5 w-3.5" /> Ficha del trabajador
-                                        </p>
-
-                                        {/* Contrato: inicio + término */}
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <div className="rounded-xl bg-background border border-border px-3 py-2">
-                                                <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide flex items-center gap-1">
-                                                    <CalendarCheck className="h-3 w-3 text-brand-primary" /> Inicio contrato
-                                                </p>
-                                                <p className="text-sm font-bold text-brand-dark mt-0.5">{worker.fecha_ingreso ? fmtFecha(worker.fecha_ingreso) : '—'}</p>
+                                                ), <Clock className="h-3 w-3 text-muted-foreground" />)}
                                             </div>
-                                            <div className="rounded-xl bg-background border border-border px-3 py-2">
-                                                <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide flex items-center gap-1">
-                                                    <CalendarOff className="h-3 w-3 text-destructive" /> Término
-                                                </p>
-                                                <p className="text-sm font-bold text-brand-dark mt-0.5">{worker.fecha_desvinculacion ? fmtFecha(worker.fecha_desvinculacion) : (worker.activo ? 'Vigente' : '—')}</p>
-                                            </div>
-                                        </div>
+                                        </section>
 
                                         {/* Desvinculación (mig 112): causal, fecha, marca — solo con trabajadores.ver */}
                                         {!worker.activo && resumen?.ultima_desvinculacion && hasPermission('trabajadores.ver') && (
                                             <DesvinculacionInfo ultima={resumen.ultima_desvinculacion} />
                                         )}
 
-                                        {/* Stats de asistencia */}
                                         {resumen && (
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div className="rounded-xl bg-success/5 border border-success/20 px-3 py-2">
-                                                    <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide">Días trabajados</p>
-                                                    <p className="text-lg font-black text-success leading-tight mt-0.5">{resumen.dias_trabajados}</p>
-                                                </div>
-                                                <div className="rounded-xl bg-destructive/5 border border-destructive/20 px-3 py-2">
-                                                    <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide flex items-center gap-1">
-                                                        <AlertTriangle className="h-3 w-3 text-destructive" /> Faltas
-                                                    </p>
-                                                    <p className="text-lg font-black text-destructive leading-tight mt-0.5">{resumen.faltas}</p>
-                                                </div>
-                                                {resumen.dias_vacaciones > 0 && (
-                                                    <div className="rounded-xl bg-background border border-border px-3 py-2">
-                                                        <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide">Vacaciones</p>
-                                                        <p className="text-sm font-bold text-brand-dark mt-0.5">{resumen.dias_vacaciones} días</p>
+                                            <section className="rounded-2xl border border-border bg-background p-4">
+                                                <p className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Asistencia registrada</p>
+                                                <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-3">
+                                                    <div>
+                                                        <p className="text-title-sm font-bold tabular-nums leading-none text-brand-dark">{resumen.dias_trabajados}</p>
+                                                        <p className="mt-1 text-micro font-bold uppercase tracking-wide text-muted-foreground">Días trabajados</p>
                                                     </div>
-                                                )}
-                                                {resumen.dias_licencia > 0 && (
-                                                    <div className="rounded-xl bg-background border border-border px-3 py-2">
-                                                        <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide">Licencia médica</p>
-                                                        <p className="text-sm font-bold text-brand-dark mt-0.5">{resumen.dias_licencia} días</p>
+                                                    <div>
+                                                        <p className={cn('text-title-sm font-bold tabular-nums leading-none', resumen.faltas > 0 ? 'text-red-600 dark:text-red-400' : 'text-brand-dark')}>{resumen.faltas}</p>
+                                                        <p className="mt-1 text-micro font-bold uppercase tracking-wide text-muted-foreground">Faltas</p>
                                                     </div>
-                                                )}
+                                                    {resumen.dias_vacaciones > 0 && dato('Vacaciones', `${resumen.dias_vacaciones} días`)}
+                                                    {resumen.dias_licencia > 0 && dato('Licencia médica', `${resumen.dias_licencia} días`)}
+                                                </div>
+                                            </section>
+                                        )}
+
+                                        {(worker.telefono || worker.email) && (
+                                            <section className="rounded-2xl border border-border bg-background p-4">
+                                                <p className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Contacto</p>
+                                                <div className="mt-2 flex flex-col gap-1">
+                                                    {worker.telefono && (
+                                                        <a href={`tel:${worker.telefono}`} className="flex items-center gap-2.5 rounded-xl px-2 py-2 text-sm text-brand-dark hover:bg-muted transition-colors">
+                                                            <Phone className="h-4 w-4 shrink-0 text-brand-primary" />{worker.telefono}
+                                                        </a>
+                                                    )}
+                                                    {worker.email && (
+                                                        <a href={`mailto:${worker.email}`} className="flex items-center gap-2.5 rounded-xl px-2 py-2 text-sm text-brand-dark hover:bg-muted transition-colors">
+                                                            <Mail className="h-4 w-4 shrink-0 text-brand-primary" /><span className="truncate">{worker.email}</span>
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </section>
+                                        )}
+                                    </>)}
+
+                                    {tab === 'documentos' && (<>
+                                        <section className="rounded-2xl border border-border bg-background p-4">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <p className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Documentación obligatoria</p>
+                                                <span className={cn('text-sm font-bold tabular-nums',
+                                                    docPct === 100 ? 'text-brand-primary' : docPct > 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400')}>
+                                                    {completedDocs}/{totalRequired}
+                                                </span>
+                                            </div>
+                                            <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                                                <motion.div
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${docPct}%` }}
+                                                    transition={{ duration: 0.6, ease: 'easeOut' }}
+                                                    className={cn('h-full rounded-full', docPct === 100 ? 'bg-brand-primary' : docPct > 50 ? 'bg-amber-500' : 'bg-red-500')}
+                                                />
+                                            </div>
+                                            <div className="mt-2.5 flex items-center justify-between gap-3">
+                                                <p className="text-caption text-muted-foreground">
+                                                    {docPct >= 100 ? 'Documentación completa' : `Faltan ${Math.max(totalRequired - completedDocs, 0)} documento${totalRequired - completedDocs === 1 ? '' : 's'}`}
+                                                </p>
+                                                <Button size="sm" variant="ghost" leftIcon={<FolderOpen className="h-4 w-4" />}
+                                                    onClick={() => { if (onViewDocuments) onViewDocuments(worker.id); else setModalType('docs'); }}>
+                                                    Abrir bóveda
+                                                </Button>
+                                            </div>
+                                        </section>
+
+                                        {subidos.length > 0 && (
+                                            <section>
+                                                <p className="mb-2 flex items-center gap-2 text-caption font-semibold uppercase tracking-wider text-muted-foreground">
+                                                    <FileText className="h-3.5 w-3.5" /> Documentos subidos
+                                                </p>
+                                                <div className="space-y-1.5">
+                                                    {subidos.slice(0, 5).map((doc: any, i: number) => (
+                                                        <div key={i}
+                                                            onClick={() => handleViewDoc(doc)}
+                                                            className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2.5 hover:border-brand-primary/30 transition-colors cursor-pointer"
+                                                            title="Ver documento">
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="text-section font-semibold text-brand-dark truncate">{doc.tipo_nombre || doc.nombre_archivo}</p>
+                                                                {doc.fecha_vencimiento && (
+                                                                    <p className="mt-0.5 flex items-center gap-1 text-caption text-muted-foreground">
+                                                                        <Clock className="h-3 w-3" />
+                                                                        Vence: {new Date(doc.fecha_vencimiento).toLocaleDateString('es-CL')}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            <IconButton size="sm" aria-label="Ver documento"
+                                                                disabled={viewingDocId === doc.id}
+                                                                onClick={(e) => { e.stopPropagation(); handleViewDoc(doc); }}
+                                                                className="hover:bg-brand-primary/10 hover:text-brand-primary shrink-0"
+                                                                icon={viewingDocId === doc.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} />
+                                                        </div>
+                                                    ))}
+                                                    {subidos.length > 5 && (
+                                                        <Button variant="ghost" size="sm" className="w-full text-muted-foreground"
+                                                            onClick={() => { if (onViewDocuments) onViewDocuments(worker.id); else setModalType('docs'); }}>
+                                                            Ver los {subidos.length - 5} restantes
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </section>
+                                        )}
+
+                                        {/* ── Documentos generados por Bóveda (plan Gestiones B2) ── */}
+                                        {hasPermission('documentos.ver') && (
+                                            <DocumentosGeneradosList
+                                                trabajadorId={worker.id}
+                                                worker={worker}
+                                                refreshKey={refreshKey}
+                                                onCambio={() => setRefreshKey(prev => prev + 1)}
+                                                // undefined mientras el resumen carga: el modal de finiquito lo pide él mismo si hace falta.
+                                                ultimaDesvinculacion={resumen ? (resumen.ultima_desvinculacion ?? null) : undefined}
+                                            />
+                                        )}
+                                    </>)}
+
+                                    {tab === 'datos' && (<>
+                                        {faltanContrato.length > 0 && (
+                                            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-caption text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-300">
+                                                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                                                <span>
+                                                    <span className="font-bold">Faltan datos que el contrato necesita:</span>{' '}
+                                                    {faltanContrato.map(c => DATOS_PERSONALES_LABELS[c]).join(', ')}. Complétalos en Editar, o al emitir el kit de ingreso.
+                                                </span>
                                             </div>
                                         )}
-                                    </div>
-
-                                    {/* ── Document Compliance ── */}
-                                    <div className="bg-background rounded-2xl p-4">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className="text-sm font-semibold text-brand-dark flex items-center gap-2">
-                                                <FileText className="h-4 w-4 text-brand-primary" /> Documentación
-                                            </span>
-                                            <span className={cn(
-                                                "text-xs font-bold px-2.5 py-1 rounded-lg",
-                                                // Rampa accesible para el TEXTO (los tokens saturados sobre su
-                                                // tinte /10 dan 1.77–2.86:1 y fallan AA en las tres ramas). El
-                                                // tinte de fondo se conserva: el significado ya viaja en el relleno.
-                                                // Verde/ámbar van en -800 (no -700) porque sobre el tinte /10 la
-                                                // -700 mide 4.2–4.3:1 — misma excepción que la rúbrica documenta
-                                                // para amber sobre bg-muted. Medido: -800 da 6.06:1. El rojo -700
-                                                // sí pasa sobre su tinte (5.17:1).
-                                                docPct === 100 ? "bg-brand-accent/10 text-green-800 dark:text-green-300" :
-                                                    docPct > 50 ? "bg-warning/10 text-amber-800 dark:text-amber-300" :
-                                                        "bg-destructive/10 text-red-700 dark:text-red-300"
-                                            )}>
-                                                {completedDocs}/{totalRequired}
-                                            </span>
-                                        </div>
-                                        <div className="h-2.5 bg-card rounded-full overflow-hidden">
-                                            <motion.div
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${Math.min(docPct, 100)}%` }}
-                                                transition={{ duration: 0.6, ease: 'easeOut' }}
-                                                className={cn(
-                                                    "h-full rounded-full",
-                                                    docPct === 100 ? "bg-brand-accent" :
-                                                        docPct > 50 ? "bg-warning" : "bg-destructive"
-                                                )}
-                                            />
-                                        </div>
-                                        <p className="text-label text-muted-foreground mt-2">
-                                            {docPct >= 100 ? 'Documentación completa ✓' : `Faltan ${Math.max(totalRequired - completedDocs, 0)} documento(s) obligatorio(s)`}
-                                        </p>
-                                    </div>
-
-                                    {/* ── Recent Documents List ── */}
-                                    {subidos.length > 0 && (
-                                        <div>
-                                            <h4 className="text-sm font-semibold text-brand-dark flex items-center gap-2 mb-3">
-                                                <FileText className="h-4 w-4 text-brand-primary" /> Documentos Subidos
-                                            </h4>
-                                            <div className="space-y-2">
-                                                {subidos.slice(0, 5).map((doc: any, i: number) => (
-                                                    <div key={i}
-                                                        onClick={() => handleViewDoc(doc)}
-                                                        className="flex items-center justify-between gap-2 p-3 rounded-xl bg-background hover:bg-muted/70 transition-colors cursor-pointer"
-                                                        title="Ver documento">
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-xs font-semibold text-brand-dark truncate">{doc.tipo_nombre || doc.nombre_archivo}</p>
-                                                            {doc.fecha_vencimiento && (
-                                                                <p className="text-caption text-muted-foreground flex items-center gap-1 mt-0.5">
-                                                                    <Clock className="h-3 w-3" />
-                                                                    Vence: {new Date(doc.fecha_vencimiento).toLocaleDateString('es-CL')}
-                                                                </p>
-                                                            )}
+                                        {datosPersonales.length > 0 ? (
+                                            <section className="rounded-2xl border border-border bg-background p-4">
+                                                <p className="flex items-center gap-1.5 text-caption font-semibold uppercase tracking-wider text-muted-foreground">
+                                                    <IdCard className="h-3.5 w-3.5" /> Datos personales
+                                                </p>
+                                                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3">
+                                                    {datosPersonales.map(d => (
+                                                        <div key={d.key} className={cn('min-w-0', d.key === 'direccion' && 'col-span-2')}>
+                                                            <dt className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{d.label}</dt>
+                                                            <dd className="mt-0.5 text-sm font-semibold text-brand-dark break-words">{d.value}</dd>
                                                         </div>
-                                                        <IconButton size="sm" aria-label="Ver documento"
-                                                            disabled={viewingDocId === doc.id}
-                                                            onClick={(e) => { e.stopPropagation(); handleViewDoc(doc); }}
-                                                            className="hover:bg-brand-primary/10 hover:text-brand-primary shrink-0"
-                                                            icon={viewingDocId === doc.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* ── Documentos generados por Bóveda (plan Gestiones B2) ── */}
-                                    {hasPermission('documentos.ver') && (
-                                        <DocumentosGeneradosList
-                                            trabajadorId={worker.id}
-                                            worker={worker}
-                                            refreshKey={refreshKey}
-                                            onCambio={() => setRefreshKey(prev => prev + 1)}
-                                            // undefined mientras el resumen carga: el modal de finiquito lo pide él mismo si hace falta.
-                                            ultimaDesvinculacion={resumen ? (resumen.ultima_desvinculacion ?? null) : undefined}
-                                        />
-                                    )}
-
-                                    {/* ── Quick Actions ── */}
-                                    <div className="grid grid-cols-3 gap-2 pt-2 pb-4">
-                                        {/* eslint-disable-next-line no-restricted-syntax -- card de acción */}
-                                        <button
-                                            onClick={() => {
-                                                if (onEditWorker) {
-                                                    onEditWorker(worker.id);
-                                                } else {
-                                                    setModalType('form');
-                                                }
-                                            }}
-                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-brand-primary/5 hover:bg-brand-primary/10 border border-brand-primary/10 transition-colors group"
-                                        >
-                                            <Pencil className="h-5 w-5 text-brand-primary group-hover:scale-110 transition-transform" />
-                                            <span className="text-label font-semibold text-brand-primary">Editar</span>
-                                        </button>
-                                        {/* eslint-disable-next-line no-restricted-syntax -- card de acción */}
-                                        <button
-                                            onClick={() => {
-                                                if (onViewDocuments) {
-                                                    onViewDocuments(worker.id);
-                                                } else {
-                                                    setModalType('docs');
-                                                }
-                                            }}
-                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-brand-primary/5 hover:bg-brand-primary/10 border border-brand-primary/10 transition-colors group"
-                                        >
-                                            <FileText className="h-5 w-5 text-brand-primary group-hover:scale-110 transition-transform" />
-                                            <span className="text-label font-semibold text-brand-primary">Docs</span>
-                                        </button>
-                                        {/* eslint-disable-next-line no-restricted-syntax -- card de acción */}
-                                        <button
-                                            onClick={() => {
-                                                setShowCalendar(true);
-                                            }}
-                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-brand-accent/5 hover:bg-brand-accent/10 border border-brand-accent/10 transition-colors group"
-                                        >
-                                            <Calendar className="h-5 w-5 text-brand-accent group-hover:scale-110 transition-transform" />
-                                            <span className="text-label font-semibold text-brand-accent">Asistencia</span>
-                                        </button>
-                                    </div>
-                                    </div>
-                                ) : null}
-                            </div>
+                                                    ))}
+                                                </dl>
+                                            </section>
+                                        ) : faltanContrato.length === 0 && (
+                                            <p className="py-8 text-center text-sm text-muted-foreground">
+                                                Esta ficha no tiene datos personales cargados. Se completan en <b>Editar</b> o al aprobar la ficha de ingreso.
+                                            </p>
+                                        )}
+                                    </>)}
+                                </div>
+                            </>) : null}
                         </motion.div>
                     </>
                 )}
@@ -565,22 +528,6 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                 }}
             />
 
-            {/* Period Assignment Modal */}
-            <PeriodAssignModal
-                isOpen={!!periodSelection}
-                onClose={() => setPeriodSelection(null)}
-                worker={worker as any}
-                obraId={worker?.obra_id || null}
-                estados={estados}
-                initialDates={periodSelection}
-                onSuccess={() => {
-                    setPeriodSelection(null);
-                    // Refresh internal data
-                    setRefreshKey(prev => prev + 1);
-                    if (onUpdate) onUpdate();
-                }}
-            />
-
             {/* Action Modal (Edit/Docs) */}
             <Modal
                 isOpen={modalType !== null}
@@ -588,11 +535,9 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                     setModalType(null);
                     setIsUploading(false);
                 }}
-                title={
-                    modalType === 'form'
-                        ? "Editar Trabajador"
-                        : `Documentos: ${worker?.apellido_paterno} ${worker?.apellido_materno || ''} ${worker?.nombres}`
-                }
+                title={modalType === 'form' ? 'Editar trabajador' : 'Bóveda de documentos'}
+                description={worker ? `${worker.apellido_paterno} ${worker.apellido_materno || ''} ${worker.nombres} · ${worker.rut}`.replace(/\s+/g, ' ') : undefined}
+                icon={modalType === 'form' ? Pencil : FolderOpen}
                 size={modalType === 'docs' ? 'dynamic' : 'md'}
                 headerAction={
                     modalType === 'form' ? (
@@ -616,28 +561,11 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                 )}
 
                 {modalType === 'docs' && worker && (
-                    <div className="space-y-4 md:space-y-6">
-                        <div className="bg-brand-primary/5 border border-brand-primary/10 p-3 md:p-4 rounded-2xl flex items-center gap-3 md:gap-4">
-                            <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-brand-primary text-white flex items-center justify-center font-bold text-lg md:text-xl shrink-0">
-                                {initials}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-sm font-bold text-brand-dark">{worker.rut}</span>
-                                    <span className="px-2 py-0.5 rounded-lg bg-brand-primary/10 text-brand-primary text-caption font-black uppercase tracking-wider">
-                                        {worker.obra_nombre || 'Sin Obra'}
-                                    </span>
-                                </div>
-                                <p className="text-xs font-medium text-muted-foreground mt-1 truncate">
-                                    {worker.empresa_nombre} • {worker.cargo_nombre || 'Sin Cargo'}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-background p-3 md:p-4 rounded-xl">
+                    <div className="space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 rounded-2xl border border-border bg-background p-3 md:p-4">
                             <div className="hidden sm:block">
-                                <h4 className="text-base font-semibold text-brand-dark">Bóveda de Documentos</h4>
-                                <p className="text-sm text-muted-foreground">Sube y gestiona archivos para este trabajador.</p>
+                                <p className="text-section font-semibold text-brand-dark">{worker.obra_nombre || 'Sin obra'} · {worker.cargo_nombre || 'Sin cargo'}</p>
+                                <p className="text-caption text-muted-foreground">Sube y gestiona los archivos de este trabajador.</p>
                             </div>
                             <div className="flex gap-2 w-full sm:w-auto">
                                 {!isUploading && (
@@ -656,10 +584,10 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             toast.dismiss(nid);
                                             if (ok) toast.success('Descarga iniciada');
                                         }}
-                                        className="text-brand-primary hover:text-[#027A3B] flex-1 sm:flex-initial"
+                                        className="flex-1 sm:flex-initial"
                                         leftIcon={<Download className="h-4 w-4" />}
                                     >
-                                        <span className="hidden sm:inline">Descargar Todo (.zip)</span>
+                                        <span className="hidden sm:inline">Descargar todo (.zip)</span>
                                         <span className="sm:hidden">Descargar</span>
                                     </Button>
                                 )}
@@ -669,10 +597,10 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                     disabled={!hasPermission('documentos.subir') && !isUploading}
                                     onClick={() => setIsUploading(!isUploading)}
                                     leftIcon={isUploading ? <ArrowLeft className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
-                                    className={`flex-1 sm:flex-initial ${(!hasPermission('documentos.subir') && !isUploading) ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
+                                    className="flex-1 sm:flex-initial"
                                     title={(!hasPermission('documentos.subir') && !isUploading) ? "No tienes permisos" : (isUploading ? "Volver" : "Subir Documento")}
                                 >
-                                    <span className="hidden sm:inline">{isUploading ? 'Volver a la lista' : 'Subir Documento'}</span>
+                                    <span className="hidden sm:inline">{isUploading ? 'Volver a la lista' : 'Subir documento'}</span>
                                     <span className="sm:hidden">{isUploading ? 'Volver' : 'Subir'}</span>
                                 </Button>
                             </div>
