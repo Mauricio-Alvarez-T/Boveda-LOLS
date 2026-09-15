@@ -56,7 +56,9 @@ const LABEL_MAP = {
     representante_nombre: 'Representante legal', representante_rut: 'RUT representante',
     // Custodia de documentos físicos (mig 114).
     portador_id: 'Portador', lote_id: 'Lote', recibidos: 'Recibidos', no_entregados: 'No entregados',
-    firmados: 'Firmados', sin_firma: 'Sin firma', en_terreno: 'En terreno', liberados: 'Liberados'
+    firmados: 'Firmados', sin_firma: 'Sin firma', en_terreno: 'En terreno', liberados: 'Liberados',
+    // Alertas de documentos sin firmar (mig 115).
+    dias_aviso: 'Días aviso', dias_critico: 'Días crítico', etiqueta: 'Etiqueta', categoria: 'Categoría'
 };
 
 // Acciones consideradas "ruido" cuando el usuario sólo quiere ver cambios
@@ -144,6 +146,13 @@ const ENTIDAD_RESOLVERS = {
         tabla: 'documentos_lotes',
         labelExpr: "CONCAT('Lote #', id)",
         bodyKeys: ['resumen'],
+    },
+    // /api/documentos-alertas/config/:id — umbrales por categoría (mig 115); el logger global registra el PUT.
+    'documentos-alertas': {
+        tipo: 'alerta_documentos',
+        tabla: 'documentos_alertas_config',
+        labelExpr: 'etiqueta',
+        bodyKeys: ['etiqueta', 'categoria'],
     },
     usuarios: {
         tipo: 'usuario',

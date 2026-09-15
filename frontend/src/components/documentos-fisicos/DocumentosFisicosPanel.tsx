@@ -19,6 +19,8 @@ import { Chip } from '../ui/Chip';
 import { EmptyState } from '../ui/EmptyState';
 import { NuevoLoteModal } from './NuevoLoteModal';
 import { LoteDetalleModal } from './LoteDetalleModal';
+import { AlertasDocumentosStrip } from './AlertasDocumentosStrip';
+import { useDocumentosAlertas } from '../../hooks/useDocumentosAlertas';
 import { LOTE_ESTADO_LABEL, resumenLote, diasDesde, accionesLote, type LoteEstado, type LoteResumen } from './documentosFisicos';
 
 type Filtro = LoteEstado | 'todos';
@@ -35,6 +37,7 @@ export const DocumentosFisicosPanel: React.FC = () => {
     const puedeRegistrar = hasPermission('documentos.entrega.registrar');
     const puedePortar = hasPermission('documentos.entrega.portar');
     const { refetch: refetchPendientes } = useLotesPendientes();
+    const { refetch: refetchAlertas } = useDocumentosAlertas();
 
     const [filtro, setFiltro] = useState<Filtro>('todos');
     const [lotes, setLotes] = useState<LoteResumen[]>([]);
@@ -60,7 +63,7 @@ export const DocumentosFisicosPanel: React.FC = () => {
 
     useEffect(() => { cargar(); }, [cargar]);
 
-    const cambio = () => { cargar(true); refetchPendientes(); };
+    const cambio = () => { cargar(true); refetchPendientes(); refetchAlertas(); };
     const cerrarDetalle = useCallback(() => setAbierto(null), []);
     const quien = { id: user?.id, puedeRegistrar, puedePortar };
 
@@ -86,6 +89,8 @@ export const DocumentosFisicosPanel: React.FC = () => {
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto p-3">
+                {/* B7: documentos y lotes que superaron su umbral (solo RRHH; el hook devuelve null sin permiso). */}
+                {puedeRegistrar && <AlertasDocumentosStrip onAbrirLote={setAbierto} />}
                 {loading && lotes.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-8 text-center">Cargando lotes…</p>
                 ) : lotes.length === 0 ? (

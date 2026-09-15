@@ -19,6 +19,8 @@ import { useVencimientosVehiculos } from '../hooks/useVencimientosVehiculos';
 import { useSolicitudesIngreso } from '../hooks/useSolicitudesIngreso';
 import { useLotesPendientes } from '../hooks/useLotesPendientes';
 import { filasBandejaLotes } from '../components/documentos-fisicos/documentosFisicos';
+import { useDocumentosAlertas } from '../hooks/useDocumentosAlertas';
+import { filasBandejaAlertas } from '../components/documentos-fisicos/documentosAlertas';
 import { textoVencimiento, etiquetaVencimiento } from '../utils/vencimientos';
 import type { DashboardAlerta } from '../hooks/inventario/useDashboardEjecutivo';
 import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
@@ -127,8 +129,15 @@ const Dashboard: React.FC = () => {
     // Documentos físicos (B6): mismo store que el botón de Gestiones. El backend ya recorta el alcance
     // (portador: sus lotes; RRHH: todos); sin permiso el hook devuelve null y no hay filas.
     const lotes = useLotesPendientes();
-    const documentosFisicosItems = useMemo((): BandejaItem[] =>
-        filasBandejaLotes(lotes.pendientes).map(f => ({ ...f, ruta: '/consultas?tab=fisicos' })), [lotes.pendientes]);
+    // B7: RRHH ve lo que superó su UMBRAL (por tipo + lotes atascados, con críticos); el portador, que no tiene
+    // esas alertas, ve el contador simple de sus lotes por confirmar.
+    const alertasDocs = useDocumentosAlertas();
+    const canRegistrarEntregas = permisos.includes('documentos.entrega.registrar');
+    const documentosFisicosItems = useMemo((): BandejaItem[] => (
+        canRegistrarEntregas
+            ? filasBandejaAlertas(alertasDocs.alertas)
+            : filasBandejaLotes(lotes.pendientes).map(f => ({ ...f, ruta: '/consultas?tab=fisicos' }))
+    ), [canRegistrarEntregas, alertasDocs.alertas, lotes.pendientes]);
     const { visibleWidgets } = useDashboardLayout(user?.id ?? 0, permisos);
 
     // Widgets que el usuario puede ver (gating por permiso granular). El layout es

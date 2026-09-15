@@ -484,6 +484,7 @@ safeRoute('/api/avisos', './src/routes/avisos.routes', 'Avisos (Resumen de Noved
 safeRoute('/api/cargo-sueldos', './src/routes/cargo-sueldos.routes', 'Cargos — parámetros de sueldo ($, plan Gestiones B3)');
 safeRoute('/api/documentos-laborales', './src/routes/documentos-laborales.routes', 'Documentos laborales generados (Word, plan Gestiones B2)');
 safeRoute('/api/documentos-lotes', './src/routes/documentos-lotes.routes', 'Custodia de documentos físicos por lotes (plan Gestiones B6)');
+safeRoute('/api/documentos-alertas', './src/routes/documentos-alertas.routes', 'Alertas de documentos sin firmar (plan Gestiones B7)');
 safeRoute('/api/vehiculos', './src/routes/vehiculos.routes', 'Vehículos');
 safeRoute('/api/tutoriales-progreso', './src/routes/tutoriales.routes', 'Tutoriales (progreso Centro de ayuda)');
 

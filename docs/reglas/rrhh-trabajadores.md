@@ -578,7 +578,38 @@ firma en la obra (papel) → el portador devuelve los firmados → RRHH recibe.
   muestra "En terreno · con Jhoan desde …" y "Firmado …" en la lista de generados (`statusConfig` gana
   `en_terreno` y `firmado`). Lógica pura en `documentos-fisicos/documentosFisicos.ts` (+ test).
 - **Velocidad neta**: RRHH 2 acciones por viaje (crear lote / registrar recepción), portador 1 tap, el
-  trabajador no toca nada. B7 agrega umbrales: lote sin confirmar > 1 día, documentos en terreno > N días.
+  trabajador no toca nada. Los umbrales de alerta viven en B7 (sección siguiente).
+
+## Alertas de documentos sin firmar (plan Gestiones B7, mig 115 — 2026-09-15)
+
+Requerimiento 11 de RRHH: ver en el Inicio lo que lleva demasiado tiempo sin cerrar el ciclo de firma, con
+umbrales que RRHH ajusta sin tocar código. **Solo in-app** (Bandeja del Día + Gestiones → Documentos
+físicos); sin correo en v1 (un cron de email sería un follow-up con el patrón de avisos diarios, mig 084).
+
+- **Umbrales por categoría** (`documentos_alertas_config`, seed en la mig 115): `categoria` =
+  `tipos_documento.codigo` para los documentos (CONTRATO 3/10, ODI/DAS/PTS/EPP/RI 3/10, FINIQUITO 3/7,
+  AMONESTACION 3/10, SOLICITUD_INGRESO 5/15 **desactivada** porque no se firma en obra) más dos de lote:
+  `LOTE_SIN_CONFIRMAR` 1/3 y `LOTE_EN_TERRENO` 7/14. `dias_aviso` = ámbar, `dias_critico` = rojo, con
+  **crítico ≥ aviso** (regla cruzada en `beforeUpdate`: 400 `UMBRALES_INVERTIDOS`). Categorías fijas: la UI
+  solo edita etiqueta, días y activo (Configuración → Sistema & Correo → **Alertas de Documentos**, permiso
+  `sistema.alertas_documentos.gestionar`, creado en la mig 115 y asignado a mano).
+- **Qué cuenta**: documentos `origen = 'generado'`, activos, en estado `generado` (sin imprimir),
+  `descargado` (impreso: por retirar, o *por confirmar* si ya está en un lote pendiente) o `en_terreno`;
+  `firmado` sale del radar. Los días se cuentan desde **`fecha_generacion`** — nunca desde la descarga:
+  volver a imprimir no silencia el aviso (D-D de la mig 110). Trabajadores de prueba (`es_prueba = 1`) no
+  alertan. Los lotes cuentan desde `creado_en` (sin confirmar) o `retirado_en` (en terreno).
+- **API** `GET /api/documentos-alertas/pendientes` [`documentos.entrega.registrar`, `cacheControl(60)`] →
+  `{ total, criticos, por_tipo[], por_etapa{sin_imprimir, por_retirar, por_confirmar, en_terreno}, lotes{sin_confirmar,
+  en_terreno}{total, criticos, items[]}, items[] }`; `GET/PUT /api/documentos-alertas/config[/:id]`
+  [`sistema.alertas_documentos.gestionar`] (CRUD genérico acotado a listar/editar). Degradación: sin la mig
+  115/114/110 la respuesta es la estructura vacía (200), nunca 500.
+- **UI**: Bandeja del Día, grupo **Documentos físicos**: para RRHH una fila por tipo ("3 contratos de trabajo
+  sin firmar · 2 críticos"), tope de 4 tipos + "+N tipos más", y una fila por categoría de lote; crítico =
+  rojo. El portador (sin `registrar`) sigue viendo el contador simple de sus lotes por confirmar. En la
+  pestaña Documentos físicos, la franja **"Documentos sin firmar fuera de plazo"** (`AlertasDocumentosStrip`)
+  resume por etapa y, desplegada, lista trabajador · tipo · días · portador y los lotes atascados (con
+  "Abrir"). Store de módulo `useDocumentosAlertas` (gate `registrar`); lógica pura en
+  `documentos-fisicos/documentosAlertas.ts` (+ test).
 
 ## Empresas: representante legal (mig 110)
 

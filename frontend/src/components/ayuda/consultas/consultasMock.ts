@@ -73,6 +73,12 @@ export function installConsultasMock(api: AxiosInstance, opts: ConsultasMockOpts
     mock.onPost(/\/documentos-lotes$/).reply(201, { data: { lote_id: 1, portador_id: 1, portador_nombre: 'Demo', n: 0 } });
     mock.onPut(/\/documentos-lotes\/\d+\/(confirmar-retiro|recepcion)/).reply(200, { data: { lote_id: 1, estado: 'cerrado' } });
     mock.onDelete(/\/documentos-lotes\/\d+$/).reply(200, { data: { lote_id: 1, liberados: 0 } });
+    // Alertas de documentos sin firmar (B7): nada fuera de plazo en la demo.
+    mock.onGet(/\/documentos-alertas\/pendientes/).reply(200, { data: {
+        total: 0, criticos: 0, por_tipo: [],
+        por_etapa: { sin_imprimir: { total: 0, criticos: 0 }, por_retirar: { total: 0, criticos: 0 }, por_confirmar: { total: 0, criticos: 0 }, en_terreno: { total: 0, criticos: 0 } },
+        lotes: { sin_confirmar: { total: 0, criticos: 0, items: [] }, en_terreno: { total: 0, criticos: 0, items: [] } }, items: [],
+    } });
     mock.onGet(/\/asistencias\/estados/).reply(200, estadosDemo);
     mock.onGet(/\/asistencias\/(periodos|reporte)/).reply(200, { data: [] });
 

@@ -158,7 +158,7 @@ const MAESTRO_PERMISOS = [
     ['sistema.tipos_ausencia.gestionar', 'Sistema', 'Gestionar Tipos Ausencia',   'Crear y editar tipos de ausencia', 6],
     ['sistema.reportes.gestionar',   'Sistema', 'Gestionar Reportes Automáticos', 'Gestionar destinatarios y enviar prueba del reporte semanal RRHH', 7],
     ['sistema.avisos.gestionar',     'Sistema', 'Gestionar Avisos',                'Configurar el resumen diario de novedades (categorías, umbrales, destinatarios) y enviar prueba', 8],
-    ['sistema.alertas_documentos.gestionar', 'Sistema', 'Configurar Alertas de Documentos', '(Disponible próximamente) Configuración → Alertas de Documentos: días de aviso y crítico por tipo de documento laboral pendiente de entrega física (plan Gestiones B7, mig 114).', 9],
+    ['sistema.alertas_documentos.gestionar', 'Sistema', 'Configurar Alertas de Documentos', 'Configuración → Alertas de Documentos: días de aviso y crítico por tipo de documento laboral sin firmar y por lote de custodia (plan Gestiones B7). Solo in-app: Bandeja del Día y Documentos físicos.', 9],
 
     // VEHÍCULOS
     ['vehiculos.ver',      'Vehículos', 'Ver Vehículos',       'Acceso al módulo de vehículos: listado, detalle, seguros, revisiones y mantenciones', 1],

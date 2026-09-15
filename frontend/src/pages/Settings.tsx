@@ -62,7 +62,7 @@ import ChangePasswordForm from '../components/settings/ChangePasswordForm';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
 import { FeriadosPanel } from '../components/settings/FeriadosPanel';
-import { ShieldCheck, UserCog, Package, Warehouse, Wrench, Archive, Bell, Banknote, Lock } from 'lucide-react';
+import { ShieldCheck, UserCog, Package, Warehouse, Wrench, Archive, Bell, Banknote, Lock, FileWarning } from 'lucide-react';
 import { FinalizarObraModal } from '../components/obras/FinalizarObraModal';
 import { ParticipaToggle } from '../components/settings/ParticipaToggle';
 import { CategoriaInventarioForm } from '../components/settings/CategoriaInventarioForm';
@@ -72,10 +72,11 @@ import PermisosRolPanel from '../components/settings/PermisosRolPanel';
 import PermisosUsuarioPanel from '../components/settings/PermisosUsuarioPanel';
 import ReporteSuscriptoresPanel from '../components/settings/ReporteSuscriptoresPanel';
 import AvisosPanel from '../components/settings/AvisosPanel';
+import AlertasDocumentosPanel from '../components/settings/AlertasDocumentosPanel';
 import { CargoSueldoModal } from '../components/settings/CargoSueldoModal';
 import { Modal } from '../components/ui/Modal';
 
-type TabKey = 'empresas' | 'obras' | 'cargos' | 'conductores' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'reportes_suscriptores' | 'avisos' | 'logs' | 'seguridad' | 'cat_inventario' | 'bodegas' | 'items_inventario';
+type TabKey = 'empresas' | 'obras' | 'cargos' | 'conductores' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'reportes_suscriptores' | 'avisos' | 'alertas_documentos' | 'logs' | 'seguridad' | 'cat_inventario' | 'bodegas' | 'items_inventario';
 
 interface TabDef {
     key: TabKey;
@@ -143,6 +144,7 @@ const tabGroups: TabGroup[] = [
             { key: 'plantillas', label: 'Plantillas Email', shortLabel: 'Plantillas', icon: FileText },
             { key: 'reportes_suscriptores', label: 'Reportes Automáticos', shortLabel: 'Reportes', icon: Mail },
             { key: 'avisos', label: 'Avisos de Novedades', shortLabel: 'Avisos', icon: Bell },
+            { key: 'alertas_documentos', label: 'Alertas de Documentos', shortLabel: 'Alertas doc.', icon: FileWarning },
             { key: 'logs', label: 'Historial de Actividad', shortLabel: 'Historial', icon: Clock },
             { key: 'seguridad', label: 'Seguridad', icon: Shield },
         ]
@@ -719,6 +721,15 @@ const SettingsPage: React.FC = () => {
                                 <p className="text-sm text-muted-foreground mt-1">Resumen automático por email cada mañana con las novedades del día anterior (trabajadores, roles/permisos, inventario, vehículos, obras). Configura qué se vigila, el umbral y a quién llega.</p>
                             </div>
                             <AvisosPanel />
+                        </div>
+                    )}
+                    {activeTab === 'alertas_documentos' && (
+                        <div className="space-y-4">
+                            <div>
+                                <h3 className="text-base font-semibold text-brand-dark">Alertas de Documentos</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Días de aviso y crítico por tipo de documento laboral sin firmar y por lote de custodia (plan Gestiones B7). Aparecen en la Bandeja del Día y en Gestiones → Documentos físicos; no envían correo.</p>
+                            </div>
+                            <AlertasDocumentosPanel />
                         </div>
                     )}
                     {activeTab === 'logs' && (
