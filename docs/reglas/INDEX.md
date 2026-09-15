@@ -13,7 +13,7 @@ Catálogo de TODAS las reglas de negocio de Bóveda LOLS, separadas por categor�
 | Seguridad y RBAC | [seguridad-rbac.md](seguridad-rbac.md) | Catálogo de permisos (+ pre-registro plan Gestiones), JWT/re-login, permisos financieros, gates exclusivos (documentos laborales, sueldos), overrides, sanitización backend (quick-view), errores enriquecidos `{error, code, details}` |
 | Vehículos | [vehiculos.md](vehiculos.md) | Seguros, revisiones, mantenciones, permisos de circulación, alertas email |
 | Bombas de Hormigón | [bombas.md](bombas.md) | Registro por obra, costos gateados |
-| Infraestructura | [infraestructura.md](infraestructura.md) | Migraciones, deploy, cron, env, logs, worktrees, pre-deploy checks |
+| Infraestructura | [infraestructura.md](infraestructura.md) | Migraciones, deploy, cron, env, logs, worktrees, pre-deploy checks, **datos ficticios en staging (saneo)** |
 | Diseño (Design System) | [diseno.md](diseno.md) | Tokens tipográficos, colores, primitivas ui/, statusConfig, helpers de formato, reglas ESLint, migración F2 |
 
 > Documento creado en Fase 0 del plan v2 (ver `docs/ARQUITECTURA.md`). Fuente: auditoría de código

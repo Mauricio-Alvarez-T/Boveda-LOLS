@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
 import { IconButton } from '../ui/IconButton';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
+import { EntornoBanner } from './EntornoBanner';
 import { Menu, Smartphone } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import { useAuth } from '../../context/AuthContext';
@@ -50,6 +51,9 @@ export const MainLayout: React.FC = () => {
 
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col min-w-0 h-[100dvh]">
+                {/* Franja de entorno: solo en staging (VITE_ENTORNO), encima de todo. */}
+                <EntornoBanner />
+
                 {/* Top Navbar — fixed above scroll area */}
                 <header className="shrink-0 h-14 md:h-16 border-b border-border bg-card/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-8 z-50 shadow-sm relative gap-2">
                     {/* Mobile Hamburger */}

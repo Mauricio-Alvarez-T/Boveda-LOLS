@@ -81,3 +81,18 @@ cd backend && npm test          # 373+ tests, mocks de DB
 - Móvil: alturas con **dvh** (no vh) — viewport visible real.
 - Touch targets ≥44px y divulgación progresiva en pantallas para usuarios no técnicos
   (principios impeccable — ej. panel aprobación de materiales).
+
+## Datos ficticios en staging (2026-09-15)
+
+`test.boveda.lols.cl` NO debe contener datos de personas reales. La regla operativa:
+
+> Un trabajador de staging es legítimo **si y solo si** su RUT está en el bloque **44.000.000-44.000.999**.
+
+- **Purga + siembra**: `backend/scripts/sanear_staging.js` (núcleo en `src/services/saneoStaging|saneoSiembra|saneoArchivos.service.js`, con test).
+  Tres guardas: `DB_NAME` no puede ser la base de producción, debe decir test/staging/dev, y escribir exige
+  `--aplicar` + `SANEO_STAGING=1`. Sin flags, dry-run.
+- **Red de seguridad**: bloque `sanear-datos` en `scripts/cpanel-deploy-staging.sh` (NO en el de producción),
+  con gracia de 48 h sobre `created_at`; publica `datos-status.txt` en el docroot.
+- **No se usa `es_prueba`** para esto: esa bandera esconde las filas de reportes y KPIs (mig 066) y dejaría el QA vacío.
+- **Franja de entorno**: `VITE_ENTORNO=staging` en el build de staging → `components/layout/EntornoBanner.tsx`.
+- Detalle completo y comandos de cron: `docs/RUNBOOK.md § 19`.

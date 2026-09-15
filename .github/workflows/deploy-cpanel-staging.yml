@@ -44,6 +44,9 @@ jobs:
       - name: 🔨 Compilar Frontend (React)
         working-directory: ./frontend
         run: npm run build
+        env:
+          # Enciende la franja "Entorno de pruebas" del frontend (EntornoBanner). Producción no la define.
+          VITE_ENTORNO: staging
 
       - name: 🌿 Publicar dist + backend a la rama deploy-staging
         run: |

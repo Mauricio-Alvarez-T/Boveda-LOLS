@@ -68,7 +68,11 @@ Si alguna vez necesitas recrear el entorno de staging desde cero:
      started"). Caída real 2026-08-24: ambos entornos abajo por editar la app con ese valor guardado.
 4. **Crear `.env`** en `/home/lolscl/test-boveda/.env` con las variables requeridas (ver sección 5).
 5. **Run NPM Install** desde la interfaz de cPanel y luego **Restart**.
-6. **Importar datos** de producción (usuarios, roles, permisos) si la BD está vacía.
+6. **Poblar la BD**: importar de producción **solo** `usuarios`, `roles`, `permisos_catalogo` y
+   `permisos_rol_v2` (para poder entrar). Los datos operativos se **siembran ficticios**, nunca se
+   copian: `SANEO_STAGING=1 <NODE> scripts/sanear_staging.js --aplicar --sembrar` (ver § 19).
+   ⛔ NUNCA importar `trabajadores`, `solicitudes_ingreso`, `documentos` ni `asistencias` de
+   producción: son datos de personas reales (RUT, domicilio, salud, cuenta bancaria).
 
 > ⚠️ Las credenciales de BD y JWT_SECRET de staging no se almacenan en el repositorio. Consultar con el administrador del servidor.
 
@@ -1163,6 +1167,105 @@ Cualquier query **nueva** que liste/agregue obras o trabajadores debe recordar e
 `es_prueba`. Auditar con: `grep -rn "activa = 1\|activo = 1" backend/src/services` y
 confirmar que cada LIST/AGGREGATE tenga el `es_prueba` co-locado. Omitirlo = fuga de
 datos de prueba a un reporte.
+
+---
+
+## 19. Datos ficticios en staging (saneo) — 2026-09-15
+
+### El problema
+
+`test.boveda.lols.cl` es una web pública con login y llegó a tener **trabajadores reales**: RUT,
+domicilio, fecha de nacimiento, AFP, **salud**, **cuenta bancaria**, imágenes de cédula y causal de
+desvinculación. Entraron por el único procedimiento que había para poblar staging: importar tablas
+de producción por phpMyAdmin (`§ 1` paso 6 y `TROUBLESHOOTING.md`, ambos ya corregidos).
+
+Producción es el lugar legítimo para esos datos. Staging no.
+
+### La regla
+
+> Un trabajador de staging es legítimo **si y solo si** su RUT está en el bloque ficticio
+> **44.000.000 – 44.000.999**.
+
+Ese tramo no está asignado a personas (Chile va por ~28 millones) ni a empresas (60 millones en
+adelante), y los RUT que genera el sembrado son **válidos por módulo 11**, así que el QA de los
+flujos que validan RUT funciona igual.
+
+**No se usa `es_prueba`** (§ 18) a propósito: esa bandera es aislamiento de *presentación* — una
+fila marcada desaparece de reportes, KPIs, asistencia y selectores. Marcar staging entero dejaría el
+QA sin datos que mirar. Lo sembrado va con `es_prueba = 0`.
+
+### Qué hace el saneo
+
+`backend/scripts/sanear_staging.js` (núcleo en `src/services/saneoStaging|saneoSiembra|saneoArchivos`):
+
+1. **Purga** los trabajadores fuera del bloque y todo lo que cuelga de ellos: documentos, lotes de
+   custodia, asistencias, períodos de ausencia, sábados extra, y —explícitamente, porque su FK es
+   `SET NULL` y sobrevivirían con PII— `trabajador_desvinculaciones` (guarda `rut_normalized` y
+   `nombre_snapshot`) y `solicitudes_ingreso` (copia íntegra de la ficha, cuenta bancaria incluida).
+2. **Borra los archivos**: la carpeta `uploads/<trabajadorId>/` completa, más las huérfanas. Los
+   nombres de archivo **llevan el RUT** (`pdf.service.js`), así que borrar solo las filas no basta.
+3. **Limpia rastros**: `logs_actividad` entero (`entidad_label` lleva nombres y `detalle` el body
+   completo del request, con IP), y los nombres de persona de `obras.encargado_nombre`,
+   `empresas.representante_*`, `bodegas.responsable_nombre` y `conductores.nombre`.
+4. **Apaga el correo saliente**: vacía `reportes_suscriptores` y `avisos_suscriptores`, anula
+   `vehiculo_*.email_alerta` y `usuarios.email_password_enc` (la clave AES del correo corporativo).
+   Sin esto, los cron de staging (§ 4.1) le escriben a personas reales. **No toca `usuarios.email`
+   ni `password_hash`: el login sigue funcionando.**
+5. **Siembra** (con `--sembrar`): 3 empresas, 4 obras, 10 cargos, ~40 trabajadores con ficha
+   completa e ingresos escalonados, asistencia de los últimos 30 días y 2 documentos por trabajador
+   con un **archivo marcador** real (PDF mínimo válido / `.doc` de Word) para que "Ver documento",
+   descargar e imprimir funcionen.
+
+### Las tres guardas
+
+El script se niega a correr salvo que se cumplan **todas**:
+
+1. `DB_NAME` **no** es `lolscl_boveda` (la base de producción).
+2. `DB_NAME` contiene `test`, `staging` o `dev`.
+3. Escribir exige el flag `--aplicar` **y** la variable `SANEO_STAGING=1`.
+
+Si alguna falla → `exit 1` sin tocar ninguna tabla. **Sin flags el default es dry-run**: informa y
+no escribe. Si el nombre real de la base de staging no casa con el patrón, el script se niega: es el
+fail-safe correcto, no un bug.
+
+### Cómo correrlo a mano (no hay SSH)
+
+cPanel → Cron Jobs → Add New Cron Job, una sola vez, y después borrar la entrada:
+
+```
+cd ~/test-boveda && <NODE> scripts/sanear_staging.js >> ~/saneo.log 2>&1          # ver qué haría
+cd ~/test-boveda && SANEO_STAGING=1 <NODE> scripts/sanear_staging.js --aplicar --sembrar >> ~/saneo.log 2>&1
+```
+
+`<NODE>` sale de cPanel → Setup Node.js App (p. ej. `/home/lolscl/nodevenv/test-boveda/20/bin/node`).
+Alias locales: `npm run sanear-staging-dry` y `npm run sanear-staging`.
+
+### Red de seguridad automática
+
+`scripts/cpanel-deploy-staging.sh` trae el bloque `sanear-datos` (calcado de `auto-migrate`: mismo
+lock, mismo timeout, jamás tumba el deploy). Corre en cada tick tras el rsync y publica una línea
+verificable por HTTP en **`https://test.boveda.lols.cl/datos-status.txt`**:
+
+```
+2026-09-15 18:20:01 · OK · 0 foráneos · 40 ficticios
+2026-09-15 18:25:03 · LIMPIEZA · 137 purgados · 0 sembrados · 0 foráneos
+```
+
+⚠️ **`cpanel-deploy-prod.sh` NO tiene este bloque y no debe tenerlo.**
+
+### Gracia de 48 horas (leer antes de hacer QA)
+
+La red de seguridad ignora los trabajadores creados en las últimas **48 h**: lo que crees a mano
+mientras pruebas sobrevive la sesión. Pasado ese plazo, si su RUT no está en el bloque ficticio, el
+deploy lo purga. Una importación desde producción llega con `created_at` antiguo y cae de inmediato.
+
+**Si necesitas que un trabajador de prueba sobreviva, créalo con un RUT del bloque 44.000.xxx.**
+
+### Franja de entorno
+
+El frontend de staging muestra una franja ámbar "Entorno de pruebas · los datos son ficticios".
+Se enciende con `VITE_ENTORNO=staging` en el build (paso del workflow `deploy-cpanel-staging.yml`);
+producción no define la variable y no renderiza nada.
 
 ---
 

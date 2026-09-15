@@ -350,6 +350,60 @@ run_auto_migrate() {
 run_auto_migrate || echo "$(date '+%F %T') · auto-migrate: falló (rc=$?) — no fatal"
 # --- auto-migrate:end ---
 
+# --- sanear-datos:begin — Datos ficticios en staging (PERMANENTE, 2026-09-15) ---
+# Staging es una web pública y llegó a tener trabajadores REALES (RUT, domicilio, salud, cuenta
+# bancaria) porque el único procedimiento para poblarlo era importar tablas de producción. Este
+# bloque es la red de seguridad: cada tick revisa que no haya trabajadores fuera del bloque de RUT
+# ficticios (44.000.000-44.000.999) y, si los hay, los purga junto con sus rastros (solicitudes,
+# desvinculaciones, logs, archivos de uploads) y apaga el correo saliente.
+#
+# Gracia de 48 h sobre created_at: lo que el dueño crea a mano mientras hace QA sobrevive la
+# sesión; una importación desde producción llega con created_at antiguo y cae igual.
+#
+# SOLO EXISTE EN EL SCRIPT DE STAGING. cpanel-deploy-prod.sh no lo tiene y no debe tenerlo.
+# El script además se niega a correr si DB_NAME es la base de producción o no dice test/staging/dev.
+# Mismo diseño defensivo que auto-migrate: lock, timeout, jamás tumba el deploy, y una línea por
+# HTTP en el docroot (datos-status.txt) para verificar sin SSH.
+run_sanear_datos() {
+    local ht="$FRONT_DEST/api/.htaccess"
+    if [ ! -f "$ht" ] && grep -q '^PassengerAppRoot' "$FRONT_DEST/.htaccess" 2>/dev/null; then
+        ht="$FRONT_DEST/.htaccess"
+    fi
+    [ -f "$ht" ] || return 0
+    local nb
+    nb="$(sed -n 's/^PassengerNodejs[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}[[:space:]]*$/\1/p' "$ht" | tail -n1)"
+    { [ -n "$nb" ] && [ -x "$nb" ] && [ -s "$nb" ]; } || return 0
+    { [ -f "$BACK_DEST/scripts/sanear_staging.js" ] && [ -d "$BACK_DEST/node_modules/mysql2" ]; } || return 0
+
+    local lock="$BACK_DEST/tmp/.sanear-datos.lock"
+    if [ -d "$lock" ] && [ -n "$(find "$lock" -maxdepth 0 -mmin +30 2>/dev/null)" ]; then
+        rmdir "$lock" 2>/dev/null || true
+    fi
+    if ! mkdir "$lock" 2>/dev/null; then
+        echo "$(date '+%F %T') · sanear-datos: otro tick en curso (lock) — salto"
+        return 0
+    fi
+
+    mkdir -p "$BACK_DEST/tmp"
+    local slog="$BACK_DEST/tmp/sanear-datos.log" rc=0 tmo=""
+    command -v timeout >/dev/null 2>&1 && tmo="timeout 600"
+    ( cd "$BACK_DEST" && SANEO_STAGING=1 $tmo "$nb" scripts/sanear_staging.js --aplicar --sembrar --auto ) > "$slog" 2>&1 || rc=$?
+    rmdir "$lock" 2>/dev/null || true
+
+    local resumen
+    resumen="$(grep -m1 '^RESUMEN' "$slog" 2>/dev/null | tr -d '\r' | sed 's/^RESUMEN · //')"
+    [ -n "$resumen" ] || resumen="sin resumen"
+    if [ "$rc" = "0" ]; then
+        echo "$(date '+%F %T') · sanear-datos: $resumen"
+        printf '%s · %s\n' "$(date '+%F %T')" "$resumen" > "$FRONT_DEST/datos-status.txt" 2>/dev/null || true
+    else
+        echo "$(date '+%F %T') · sanear-datos: falló (rc=$rc) — ver tmp/sanear-datos.log"
+        printf '%s · FALLO rc=%s — revisar tmp/sanear-datos.log del backend\n' "$(date '+%F %T')" "$rc" > "$FRONT_DEST/datos-status.txt" 2>/dev/null || true
+    fi
+    return 0
+}
+# --- sanear-datos:end ---
+
 # 1) Traer lo último de la rama de build
 git fetch origin "$BRANCH" --quiet
 LOCAL="$(git rev-parse HEAD)"
@@ -415,6 +469,7 @@ fi
 # 3b) Migraciones del backend recién copiado — mismo tick del deploy (la llamada
 #     inicial de auto-migrate corrió ANTES del rsync, con la firma anterior).
 run_auto_migrate || echo "$(date '+%F %T') · auto-migrate: falló (rc=$?) — no fatal"
+run_sanear_datos || echo "$(date '+%F %T') · sanear-datos: falló (rc=$?) — no fatal"
 
 # 4) Reiniciar Passenger
 mkdir -p "$BACK_DEST/tmp"
