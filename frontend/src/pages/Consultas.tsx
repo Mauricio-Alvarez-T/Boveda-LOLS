@@ -14,7 +14,6 @@ import {
     Mail,
     SearchCheck,
     X,
-    ClipboardList,
     Building2,
     CheckSquare,
     UserCheck,
@@ -26,7 +25,6 @@ import {
     CalendarClock,
     CalendarPlus,
     Save,
-    Truck,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -95,9 +93,9 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     const { seccion, irA, disponibles } = useSeccionGestiones({ permisos: permisosGestiones, userId: user?.id, seccionFija });
     const esGrilla = seccion === 'trabajadores';
     // Con una sola sección no hay portada ni switcher (se entra directo, como antes).
+    // Con ≥2 secciones el título «Gestiones» es la casa (vuelve a la portada); el cambio de sección se hace desde ahí.
     const conSwitcher = disponibles.length >= 2 && !seccionFija;
-    // En la portada las tarjetas ya son el switcher: los botones del header solo dentro de una sección.
-    const switcherVisible = conSwitcher && seccion !== 'inicio';
+    const conCrear = seccion !== 'inicio' && seccion !== 'fisicos';
 
     // --- Custom Hooks ---
     // 1. Filtros
@@ -193,13 +191,6 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
         setShowCreatePanel(false);
         irA(s, extra);
     }, [irA]);
-    /** Switcher de sección del header (desktop y móvil): solo las secciones disponibles, con sus contadores. */
-    const secciones = useMemo(() => ([
-        { s: 'trabajadores' as const, label: 'Trabajadores', icon: SearchCheck, badge: 0 },
-        { s: 'solicitudes' as const, label: 'Solicitudes', icon: ClipboardList, badge: solicitudes.pendientes },
-        { s: 'fisicos' as const, label: 'Documentos físicos', icon: Truck, badge: lotes.badge },
-    ].filter(x => disponibles.includes(x.s))), [disponibles, solicitudes.pendientes, lotes.badge]);
-
     // Modificando Header Global
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -241,37 +232,8 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
         <div className="flex items-center gap-1.5 md:gap-2">
             {/* Desktop Desktop Actions */}
             <div className="hidden md:flex items-center gap-2">
-                {/* Switcher de sección (B8): el activo no hace nada (antes el toggle volvía a la grilla). Contador ÁMBAR = pendientes. */}
-                {switcherVisible && secciones.map(({ s, label, icon: Icon, badge }) => {
-                    const activo = seccion === s;
-                    return (
-                        <Button
-                            key={s}
-                            size="sm"
-                            variant={activo ? 'primary' : 'outline'}
-                            aria-current={activo ? 'page' : undefined}
-                            onClick={() => irASeccion(s)}
-                            title={label}
-                            leftIcon={<Icon className="h-3.5 w-3.5" />}
-                            className={cn(
-                                "h-9 px-4 rounded-xl font-semibold gap-2 border-border shadow-sm transition-all duration-300",
-                                activo ? "bg-brand-primary text-white border-transparent" : "bg-card text-brand-dark hover:bg-background"
-                            )}
-                        >
-                            <span>{label}</span>
-                            {badge > 0 && (
-                                <span className={cn(
-                                    "flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-micro font-bold tabular-nums transition-colors duration-300",
-                                    activo ? "bg-card text-amber-700 dark:text-amber-300" : "bg-amber-500 text-white"
-                                )}>
-                                    {badge}
-                                </span>
-                            )}
-                        </Button>
-                    );
-                })}
-                {/* CREAR: en la portada ya está la fila Crear. */}
-                {seccion !== 'inicio' && (
+                {/* CREAR: en la portada ya está el mosaico Crear; en Documentos físicos manda «Nuevo lote». Solicitudes lo necesita (terreno crea su ingreso desde aquí). */}
+                {conCrear && (
                 <Button
                     variant={showCreatePanel ? 'primary' : 'outline'}
                     size="sm" 
@@ -352,30 +314,9 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
 
             {/* Mobile Actions — icon-buttons del DS: gris idle → verde hover, sin
                 relleno activo. El estado se indica por el icono (Plus rota, Filter↔X,
-                ClipboardList↔SearchCheck) y el badge, no por el color de fondo. */}
+                Filter↔X) y el badge, no por el color de fondo. */}
             <div className="lg:hidden flex items-center gap-2">
-                {switcherVisible && secciones.map(({ s, label, icon: Icon, badge }) => {
-                    const activo = seccion === s;
-                    return (
-                        <IconButton
-                            key={s}
-                            variant="ghost"
-                            aria-label={label}
-                            aria-pressed={activo}
-                            onClick={() => irASeccion(s)}
-                            className={cn("relative rounded-xl border shadow-sm", activo ? "border-brand-primary text-brand-primary" : "border-border")}
-                            icon={<>
-                                <Icon className="h-4 w-4" />
-                                {badge > 0 && (
-                                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-0.5 items-center justify-center rounded-full text-micro font-bold tabular-nums bg-amber-500 text-white shadow-sm">
-                                        {badge}
-                                    </span>
-                                )}
-                            </>}
-                        />
-                    );
-                })}
-                {seccion !== 'inicio' && (
+                {conCrear && (
                 <IconButton
                     variant="ghost"
                     aria-label="Crear"
@@ -414,7 +355,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
             </div>
         </div>
     ), [workers.length, exporting, activeFilterCount, showMobileFilters, showCreatePanel, exportIds,
-        seccion, esGrilla, switcherVisible, secciones, irASeccion]);
+        seccion, esGrilla, conCrear]);
 
     useSetPageHeader(headerTitle, headerActions);
 
