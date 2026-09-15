@@ -95,7 +95,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     // Con una sola sección no hay portada ni switcher (se entra directo, como antes).
     // Con ≥2 secciones el título «Gestiones» es la casa (vuelve a la portada); el cambio de sección se hace desde ahí.
     const conSwitcher = disponibles.length >= 2 && !seccionFija;
-    const conCrear = seccion !== 'inicio' && seccion !== 'fisicos';
+    const conCrear = esGrilla;
 
     // --- Custom Hooks ---
     // 1. Filtros
@@ -232,7 +232,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
         <div className="flex items-center gap-1.5 md:gap-2">
             {/* Desktop Desktop Actions */}
             <div className="hidden md:flex items-center gap-2">
-                {/* CREAR: en la portada ya está el mosaico Crear; en Documentos físicos manda «Nuevo lote». Solicitudes lo necesita (terreno crea su ingreso desde aquí). */}
+                {/* CREAR: solo en la grilla. La portada tiene el mosaico Crear; Solicitudes y Documentos físicos traen su propio botón (Nuevo ingreso / Nuevo lote). */}
                 {conCrear && (
                 <Button
                     variant={showCreatePanel ? 'primary' : 'outline'}
@@ -475,6 +475,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 <SolicitudesIngresoPanel
                     refreshKey={solicitudesVersion}
                     onAprobada={() => performSearch(true)}
+                    onNuevoIngreso={() => setModalType('solicitud')}
                 />
             ) : (
             /* Main Content Area */

@@ -30,6 +30,8 @@ interface Props {
     refreshKey?: number;
     /** Tras aprobar: el padre recarga la grilla de trabajadores (el nuevo ya existe). */
     onAprobada?: () => void;
+    /** Abre el formulario de nueva ficha de ingreso (el modal vive en la página). Solo con trabajadores.solicitud.crear. */
+    onNuevoIngreso?: () => void;
 }
 
 const iniciales = (s: SolicitudIngreso) =>
@@ -41,9 +43,10 @@ const iniciales = (s: SolicitudIngreso) =>
  * propias (el solicitante sigue su estado y lee el motivo si fue rechazada).
  * Ocupa el lugar de la grilla de Consultas cuando `?tab=solicitudes`.
  */
-export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onAprobada }) => {
+export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onAprobada, onNuevoIngreso }) => {
     const { hasPermission } = useAuth();
     const puedeAprobar = hasPermission('trabajadores.solicitud.aprobar');
+    const puedeCrear = hasPermission('trabajadores.solicitud.crear');
     const { refetch: refetchPendientes } = useSolicitudesIngreso();
 
     const [filtro, setFiltro] = useState<Filtro>('pendiente');
@@ -121,6 +124,9 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                         className="shrink-0"
                         icon={<RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />}
                     />
+                    {puedeCrear && onNuevoIngreso && (
+                        <Button size="sm" leftIcon={<UserPlus className="h-4 w-4" />} onClick={onNuevoIngreso} className="shrink-0 ml-1">Nuevo ingreso</Button>
+                    )}
                 </div>
             </div>
 
@@ -145,6 +151,7 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                         title={vacioTitulo}
                         description={vacioDesc}
                         className="h-full justify-center"
+                        action={puedeCrear && onNuevoIngreso ? <Button size="sm" leftIcon={<UserPlus className="h-4 w-4" />} onClick={onNuevoIngreso}>Nuevo ingreso</Button> : undefined}
                     />
                 ) : (
                     <div className="flex flex-col gap-2.5 pb-10 sm:pb-5">
