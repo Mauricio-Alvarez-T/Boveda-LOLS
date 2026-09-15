@@ -96,6 +96,8 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     const esGrilla = seccion === 'trabajadores';
     // Con una sola sección no hay portada ni switcher (se entra directo, como antes).
     const conSwitcher = disponibles.length >= 2 && !seccionFija;
+    // En la portada las tarjetas ya son el switcher: los botones del header solo dentro de una sección.
+    const switcherVisible = conSwitcher && seccion !== 'inicio';
 
     // --- Custom Hooks ---
     // 1. Filtros
@@ -240,7 +242,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
             {/* Desktop Desktop Actions */}
             <div className="hidden md:flex items-center gap-2">
                 {/* Switcher de sección (B8): el activo no hace nada (antes el toggle volvía a la grilla). Contador ÁMBAR = pendientes. */}
-                {conSwitcher && secciones.map(({ s, label, icon: Icon, badge }) => {
+                {switcherVisible && secciones.map(({ s, label, icon: Icon, badge }) => {
                     const activo = seccion === s;
                     return (
                         <Button
@@ -352,7 +354,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 relleno activo. El estado se indica por el icono (Plus rota, Filter↔X,
                 ClipboardList↔SearchCheck) y el badge, no por el color de fondo. */}
             <div className="lg:hidden flex items-center gap-2">
-                {conSwitcher && secciones.map(({ s, label, icon: Icon, badge }) => {
+                {switcherVisible && secciones.map(({ s, label, icon: Icon, badge }) => {
                     const activo = seccion === s;
                     return (
                         <IconButton
@@ -412,7 +414,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
             </div>
         </div>
     ), [workers.length, exporting, activeFilterCount, showMobileFilters, showCreatePanel, exportIds,
-        seccion, esGrilla, conSwitcher, secciones, irASeccion]);
+        seccion, esGrilla, switcherVisible, secciones, irASeccion]);
 
     useSetPageHeader(headerTitle, headerActions);
 
