@@ -1,0 +1,17 @@
+<svg viewBox="0 0 220 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g fill="#029E4D">
+        <!-- Líneas exteriores superior e inferior -->
+        <rect x="20" y="20" width="180" height="12" />
+        <rect x="20" y="208" width="180" height="12" />
+
+        <!-- Rectángulo sólido izquierdo -->
+        <rect x="20" y="48" width="75" height="144" />
+
+        <!-- 3 Rectángulos apilados en el centro -->
+        <rect x="119" y="52" width="77" height="32" fill="transparent" stroke="#029E4D" strokeWidth="8" />
+        <rect x="119" y="104" width="77" height="32" fill="transparent" stroke="#029E4D" strokeWidth="8" />
+        
+        <!-- El último rectángulo abajo es sólido -->
+        <rect x="115" y="152" width="85" height="40" />
+    </g>
+</svg>
