@@ -31,8 +31,9 @@
   (`documentos.entrega.registrar` / `.portar`). La grilla solo consulta el endpoint avanzado cuando se
   muestra (`useConsultasData(filters, enabled)` — evita el 403 y el costo desde las otras secciones).
 - **Portada y secciones (plan Gestiones B8, 2026-09-15)**: Gestiones tiene cuatro vistas —
-  `?tab=inicio` (portada con tarjetas: Trabajadores con atajos a filtros, Solicitudes con pendientes,
-  Documentos físicos con lotes y alertas fuera de plazo, y la fila Crear), `trabajadores` (grilla),
+  `?tab=inicio` (portada "bento": saludo + fecha, tile hero verde Trabajadores con atajos a filtros,
+  tiles de contador Solicitudes (pendientes) y Documentos físicos (sin confirmar / en terreno / críticos),
+  y mosaico Crear con un cuadrado por acción; catálogo único en `crearItems.ts`), `trabajadores` (grilla),
   `solicitudes`, `fisicos`. La URL es la fuente de verdad; la sección se resuelve en
   `components/consultas/gestionesNav.ts` (`resolverSeccion`, con test): **tab explícito** válido y
   permitido → **deep-link con filtros de la grilla** (`q`, `obra_id`, `completitud`, `aniversario10m`…) →
