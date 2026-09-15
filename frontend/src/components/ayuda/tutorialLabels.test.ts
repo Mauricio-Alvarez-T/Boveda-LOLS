@@ -32,7 +32,7 @@ const CASOS: Array<{ archivo: string; etiquetas: string[] }> = [
     { archivo: '../pages/Consultas.tsx', etiquetas: ['Gestiones', 'CREAR', 'Guardar', 'Editar trabajador'] },
 
     { archivo: 'layout/Sidebar.tsx', etiquetas: ["label: 'Gestiones'"] },
-    { archivo: 'consultas/CreatePanel.tsx', etiquetas: ['Trabajador'] },
+    { archivo: 'consultas/crearItems.ts', etiquetas: ['Trabajador', 'Nuevo ingreso'] },
     { archivo: 'workers/WorkerQuickView.tsx', etiquetas: ['Ver documento'] },
 ];
 
