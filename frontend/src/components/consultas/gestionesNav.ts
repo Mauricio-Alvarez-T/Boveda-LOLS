@@ -33,7 +33,7 @@ export const SECCION_LABEL: Record<SeccionGestiones, string> = {
 const ORDEN: SeccionTrabajo[] = ['trabajadores', 'solicitudes', 'fisicos'];
 
 /** Query params de la grilla (espejo de hooks/consultas/useConsultasFilters.ts). Un deep-link con alguno abre la grilla. */
-export const PARAMS_GRILLA = ['q', 'obra_id', 'empresa_id', 'cargo_id', 'categoria', 'activo', 'completitud', 'ausentes', 'aniversario10m', 'ingreso_desde', 'ingreso_hasta'] as const;
+export const PARAMS_GRILLA = ['q', 'obra_id', 'empresa_id', 'cargo_id', 'categoria', 'activo', 'completitud', 'ausentes', 'aniversario10m', 'ingreso_desde', 'ingreso_hasta', 'falta_dato', 'doc_tipo_falta', 'doc_vigencia', 'salida_desde', 'salida_hasta', 'no_recontratar', 'finiquito', 'solo_prueba'] as const;
 
 export const esParamGrilla = (key: string): boolean => (PARAMS_GRILLA as readonly string[]).includes(key);
 

@@ -23,6 +23,46 @@
   ingreso** (`fecha_ingreso_desde`/`fecha_ingreso_hasta`, inclusivos, extremos opcionales —
   "ingresos del período", 2026-08-24). El rango tiene control propio en el FilterPanel
   (2 inputs date) y la card del trabajador muestra la fecha de ingreso (oculta en xs).
+- **Filtros de la ficha (2026-09-15)** — se agregaron tras investigar cómo lo resuelven los HRIS
+  (BambooHR, Workday, Personio, Factorial, Buk, Rankmi) y el software de construcción y prevención:
+  - `falta_dato` — **qué dato bloquea una gestión**, no un campo cualquiera: `contrato` (los 5 datos
+    personales que imprime el contrato), `pago` (sin cuenta RUT y sin banco/número no hay
+    transferencia) y `tallas` (sin talla no se compra el EPP). Lista blanca en un `Map`.
+    La etiqueta dice "faltan datos personales", **nunca "listo para emitir"**: el contrato exige
+    además representante de la empresa y sueldo del cargo, que no se pueden mirar desde este
+    endpoint sin romper el gate de `cargos.sueldo.ver`.
+  - `doc_tipo_falta` — a quién le falta **un** documento obligatorio concreto (`NOT EXISTS` por
+    `tipo_documento_id`). **Nunca por `td.codigo`**: los seis tipos obligatorios de producción son
+    de legado y tienen `codigo` NULL, así que filtrar por código sería ciego al histórico.
+  - `doc_vigencia` — `vencido` | `30` | `60` | `90`. **Vigencia ≠ completitud**: "¿está el papel?"
+    y "¿sirve el papel?" son dos preguntas. Cubre cualquier tipo con `dias_vigencia` configurado,
+    igual que las alertas del Inicio, que hasta ahora contaban vencidos sin tener a dónde llevar.
+  - `fecha_desvinc_desde`/`_hasta` — bajas del período; acota `finiquito`.
+  - `no_recontratar`, `finiquito=pendiente`, `solo_prueba` — atajos de un clic. Los dos primeros
+    cierran un hueco visible: la grilla ya pintaba esos badges y no dejaba preguntarlos.
+  - **Gate de permisos**: los filtros sobre columnas personales (`falta_dato` contrato/pago,
+    `no_recontratar`) se **ignoran en silencio** sin `trabajadores.ver`. Sin eso, filtrar sería un
+    oráculo para deducir el dato que `sanitizeTrabajadorPersonal` oculta en la respuesta.
+  - **Dónde va el código**: todo bloque `if` nuevo va entre el rango de fecha de ingreso y el
+    `ORDER BY`. Después del `ORDER BY` es SQL inválido; antes de los de fecha rompe los cuatro
+    tests de `fiscalizacion_filtros.test.js`, que comparan `params` con `toEqual` exacto.
+- **Atajos** (`components/consultas/FiltrosRapidos.tsx`, rangos puros en `rangosFecha.ts` con test):
+  fila de chips sobre la grilla — Ingresos de este mes, Cumplen 10 meses, Finiquito pendiente,
+  No recontratar y Fichas de prueba. Los tres primeros **no tocan el backend**: reusan params que ya
+  existían. Los que fijan más de un filtro lo declaran en su tooltip (p. ej. "finiquito pendiente"
+  fuerza desvinculados de los últimos 60 días, porque con "Solo activos" saldría vacío).
+  Los rangos se calculan en hora **local**: con `toISOString()` un 30 de septiembre a las 23:30 en
+  Chile ya es 1 de octubre en UTC y "este mes" saltaría al siguiente.
+- **Saneamiento del endpoint (2026-09-15)**: `GET /fiscalizacion/trabajadores-avanzado` exige solo
+  `documentos.ver` y hace `SELECT t.*`; ahora pasa por `sanitizeTrabajadorPersonal` como el
+  quick-view (B1). Los agregados de documentación se re-adjuntan tras sanear: no son datos
+  personales y sin ellos la barra de completitud se vería en 0 %.
+- **Arreglos que entraron con la tanda**: `ausentes` usaba `toISOString()` (UTC) y entre las 21:00 y
+  medianoche consultaba el día siguiente → `CURDATE()`; `ausentes` no aplicaba la regla de **fila
+  vigente** y marcaba como ausente a un trasladado → desempate por `MAX(id)` del día; el conteo de
+  completitud de la grilla ahora descarta documentos vencidos, igual que la ficha; y las alertas
+  "Documentos Vencidos" y "Documentos por Vencer" del Inicio, que apuntaban a `?completitud=faltantes`
+  (otra pregunta) y a `/consultas` pelado, ahora aterrizan en `?doc_vigencia=`.
 - Excluye `es_prueba=1` por defecto (`?incluir_prueba=true` lo anula) y obras finalizadas.
 - Exportación Excel con fichas y documentos por trabajador. Con el filtro de ingreso
   activo, el export manda los ids visibles (el Excel de asistencia no entiende ese filtro).

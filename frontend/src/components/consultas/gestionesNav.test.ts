@@ -54,7 +54,13 @@ describe('gestionesNav (plan Gestiones B8)', () => {
     });
 
     it('esParamGrilla espeja los filtros de useConsultasFilters y rechaza tab/page', () => {
-        expect([...PARAMS_GRILLA]).toEqual(['q', 'obra_id', 'empresa_id', 'cargo_id', 'categoria', 'activo', 'completitud', 'ausentes', 'aniversario10m', 'ingreso_desde', 'ingreso_hasta']);
+        expect([...PARAMS_GRILLA]).toEqual([
+            'q', 'obra_id', 'empresa_id', 'cargo_id', 'categoria', 'activo', 'completitud', 'ausentes',
+            'aniversario10m', 'ingreso_desde', 'ingreso_hasta',
+            // Tanda 2026-09-15
+            'falta_dato', 'doc_tipo_falta', 'doc_vigencia', 'salida_desde', 'salida_hasta',
+            'no_recontratar', 'finiquito', 'solo_prueba',
+        ]);
         for (const k of PARAMS_GRILLA) expect(esParamGrilla(k)).toBe(true);
         expect(esParamGrilla('tab')).toBe(false);
         expect(esParamGrilla('page')).toBe(false);

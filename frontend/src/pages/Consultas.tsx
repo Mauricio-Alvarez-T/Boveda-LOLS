@@ -18,6 +18,10 @@ import {
     Plus,
     Eraser,
     CalendarClock,
+    CalendarPlus,
+    FileSignature,
+    FlaskConical,
+    AlertTriangle,
     Save,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -52,6 +56,8 @@ import { useSeccionGestiones } from '../hooks/consultas/useSeccionGestiones';
 import { GestionesInicio } from '../components/consultas/GestionesInicio';
 import { SECCION_LABEL, type SeccionGestiones } from '../components/consultas/gestionesNav';
 import { TrabajadoresGrilla } from '../components/consultas/TrabajadoresGrilla';
+import { FiltrosRapidos, type FiltroRapido } from '../components/consultas/FiltrosRapidos';
+import { mesEnCurso, ultimosDias } from '../components/consultas/rangosFecha';
 
 import {
     useConsultasFilters,
@@ -101,19 +107,29 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
         filterActivo, setFilterActivo,
         filterCompletitud, setFilterCompletitud,
         filterAusentes, setFilterAusentes,
-        filterAniversario10m, clearAniversario10m,
+        filterAniversario10m, setFilterAniversario10m, clearAniversario10m,
         filterIngresoDesde, setFilterIngresoDesde,
         filterIngresoHasta, setFilterIngresoHasta,
+        filterFaltaDato, setFilterFaltaDato,
+        filterDocTipoFalta, setFilterDocTipoFalta,
+        filterDocVigencia, setFilterDocVigencia,
+        filterSalidaDesde, setFilterSalidaDesde,
+        filterSalidaHasta, setFilterSalidaHasta,
+        filterNoRecontratar, setFilterNoRecontratar,
+        filterFiniquito, setFilterFiniquito,
+        filterSoloPrueba, setFilterSoloPrueba,
         handleClearFilters,
         activeFilterCount
     } = useConsultasFilters();
 
     // 2. Data & Paginación
     const {
-        empresas, obras, cargos, fetchCatalogs,
+        empresas, obras, cargos, tiposObligatorios, fetchCatalogs,
         workers, loading, performSearch
     } = useConsultasData({
-        search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, filterIngresoDesde, filterIngresoHasta
+        search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, filterIngresoDesde, filterIngresoHasta,
+        filterFaltaDato, filterDocTipoFalta, filterDocVigencia, filterSalidaDesde, filterSalidaHasta,
+        filterNoRecontratar, filterFiniquito, filterSoloPrueba
     }, puedeVerTrabajadores && esGrilla);
 
     // Etiqueta legible (MM/AAAA) del filtro de aniversario, si está activo.
@@ -125,13 +141,70 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     // ids memoizados: evita recrear el array en cada render (dep del hook de selección).
     const workerIds = useMemo(() => workers.map(w => w.id), [workers]);
 
-    // El export Excel es de ASISTENCIA y no entiende el filtro de fecha de ingreso:
-    // con ese filtro activo se exportan los ids visibles para que el archivo
-    // coincida con la lista filtrada (el backend no pagina, workers = set completo).
+    // El export Excel es de ASISTENCIA y solo entiende 6 filtros (obra, empresa, cargo, categoría,
+    // estado y búsqueda). Con cualquier otro activo se mandan los ids visibles para que el archivo
+    // coincida con la lista en pantalla (el backend no pagina, workers = set completo).
     const exportIds = useMemo(
-        () => (filterIngresoDesde || filterIngresoHasta) ? workerIds : undefined,
-        [filterIngresoDesde, filterIngresoHasta, workerIds]
+        () => (filterIngresoDesde || filterIngresoHasta || filterCompletitud || filterAusentes
+            || filterAniversario10m || filterFaltaDato || filterDocTipoFalta || filterDocVigencia
+            || filterSalidaDesde || filterSalidaHasta || filterNoRecontratar || filterFiniquito
+            || filterSoloPrueba) ? workerIds : undefined,
+        [filterIngresoDesde, filterIngresoHasta, filterCompletitud, filterAusentes, filterAniversario10m,
+            filterFaltaDato, filterDocTipoFalta, filterDocVigencia, filterSalidaDesde, filterSalidaHasta,
+            filterNoRecontratar, filterFiniquito, filterSoloPrueba, workerIds]
     );
+
+    /**
+     * Atajos de un clic. Cada uno responde una pregunta de negocio, no expone un campo: es el patrón
+     * que el producto ya tenía con "cumplen 10 meses" (lo encendía una alerta del Inicio) y que acá se
+     * hace visible. Los que fijan más de un filtro lo declaran en su nota, para que nadie vea una lista
+     * recortada sin saber por qué.
+     */
+    const filtrosRapidos = useMemo<FiltroRapido[]>(() => {
+        const mes = mesEnCurso();
+        const ult60 = ultimosDias(60);
+        return [
+            {
+                id: 'ingresos-mes', label: 'Ingresos de este mes', icon: CalendarPlus,
+                activo: filterIngresoDesde === mes.desde && filterIngresoHasta === mes.hasta,
+                encender: () => { setFilterIngresoDesde(mes.desde); setFilterIngresoHasta(mes.hasta); },
+                apagar: () => { setFilterIngresoDesde(''); setFilterIngresoHasta(''); },
+            },
+            {
+                id: 'aniv10m', label: 'Cumplen 10 meses', icon: CalendarClock,
+                activo: filterAniversario10m === mes.mes,
+                encender: () => setFilterAniversario10m(mes.mes),
+                apagar: clearAniversario10m,
+            },
+            {
+                id: 'finiquito', label: 'Finiquito pendiente', icon: FileSignature, tono: 'aviso',
+                nota: 'Muestra desvinculados de los últimos 60 días sin finiquito emitido',
+                activo: filterFiniquito === 'pendiente',
+                encender: () => {
+                    setFilterFiniquito('pendiente');
+                    setFilterActivo('false');                       // son bajas: con "Solo activos" saldría vacío
+                    setFilterSalidaDesde(ult60.desde); setFilterSalidaHasta(ult60.hasta);
+                },
+                apagar: () => { setFilterFiniquito(''); setFilterSalidaDesde(''); setFilterSalidaHasta(''); },
+            },
+            {
+                id: 'no-recontratar', label: 'No recontratar', icon: AlertTriangle, tono: 'peligro',
+                nota: 'Incluye desvinculados: la marca se conserva entre períodos',
+                activo: filterNoRecontratar,
+                encender: () => { setFilterNoRecontratar(true); setFilterActivo(''); },
+                apagar: () => setFilterNoRecontratar(false),
+            },
+            {
+                id: 'prueba', label: 'Fichas de prueba', icon: FlaskConical, tono: 'aviso',
+                activo: filterSoloPrueba,
+                encender: () => setFilterSoloPrueba(true),
+                apagar: () => setFilterSoloPrueba(false),
+            },
+        ];
+    }, [filterIngresoDesde, filterIngresoHasta, filterAniversario10m, filterFiniquito, filterNoRecontratar,
+        filterSoloPrueba, setFilterIngresoDesde, setFilterIngresoHasta, setFilterAniversario10m,
+        clearAniversario10m, setFilterFiniquito, setFilterActivo, setFilterSalidaDesde, setFilterSalidaHasta,
+        setFilterNoRecontratar, setFilterSoloPrueba]);
 
     // Opciones de filtros memoizadas: identidad estable hacia FilterPanel (react-select).
     const obraOptions = useMemo(() => obras.map(o => ({ value: o.value, label: o.label })), [obras]);
@@ -400,6 +473,17 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                                 filterIngresoDesde={filterIngresoDesde}
                                 setFilterIngresoDesde={setFilterIngresoDesde}
                                 filterIngresoHasta={filterIngresoHasta}
+                                tiposObligatorios={tiposObligatorios}
+                                filterFaltaDato={filterFaltaDato}
+                                setFilterFaltaDato={setFilterFaltaDato}
+                                filterDocTipoFalta={filterDocTipoFalta}
+                                setFilterDocTipoFalta={setFilterDocTipoFalta}
+                                filterDocVigencia={filterDocVigencia}
+                                setFilterDocVigencia={setFilterDocVigencia}
+                                filterSalidaDesde={filterSalidaDesde}
+                                setFilterSalidaDesde={setFilterSalidaDesde}
+                                filterSalidaHasta={filterSalidaHasta}
+                                setFilterSalidaHasta={setFilterSalidaHasta}
                                 setFilterIngresoHasta={setFilterIngresoHasta}
                             />
                         </motion.div>
@@ -447,6 +531,8 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     </Button>
                 </div>
             )}
+
+            {esGrilla && <FiltrosRapidos filtros={filtrosRapidos} />}
 
             {/* Vista por sección (B8). Al aprobar una solicitud el trabajador ya existe → recargar la grilla. */}
             {seccion === 'inicio' ? (
@@ -736,6 +822,17 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                                     filterIngresoDesde={filterIngresoDesde}
                                     setFilterIngresoDesde={setFilterIngresoDesde}
                                     filterIngresoHasta={filterIngresoHasta}
+                                tiposObligatorios={tiposObligatorios}
+                                filterFaltaDato={filterFaltaDato}
+                                setFilterFaltaDato={setFilterFaltaDato}
+                                filterDocTipoFalta={filterDocTipoFalta}
+                                setFilterDocTipoFalta={setFilterDocTipoFalta}
+                                filterDocVigencia={filterDocVigencia}
+                                setFilterDocVigencia={setFilterDocVigencia}
+                                filterSalidaDesde={filterSalidaDesde}
+                                setFilterSalidaDesde={setFilterSalidaDesde}
+                                filterSalidaHasta={filterSalidaHasta}
+                                setFilterSalidaHasta={setFilterSalidaHasta}
                                     setFilterIngresoHasta={setFilterIngresoHasta}
                                 />
                                 {activeFilterCount > 0 && (

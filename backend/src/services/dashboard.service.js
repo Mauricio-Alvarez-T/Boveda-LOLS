@@ -114,7 +114,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                 titulo: 'Documentos Vencidos',
                 mensaje: `Hay ${expired[0].count} documentos caducados que requieren atención inmediata.`,
                 count: expired[0].count,
-                ruta: '/consultas?completitud=faltantes'
+                ruta: '/consultas?tab=trabajadores&doc_vigencia=vencido'
             });
         }
         if (expiringSoon[0].count > 0) {
@@ -123,7 +123,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                 titulo: 'Documentos por Vencer',
                 mensaje: `${expiringSoon[0].count} documentos vencen en los próximos 7 días.`,
                 count: expiringSoon[0].count,
-                ruta: '/consultas'
+                ruta: '/consultas?tab=trabajadores&doc_vigencia=30'
             });
         }
         if (noDocWorkers[0].count > 0) {

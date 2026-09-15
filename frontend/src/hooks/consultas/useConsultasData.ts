@@ -21,6 +21,14 @@ export interface FetchWorkersParams {
     filterAniversario10m: string;
     filterIngresoDesde: string;
     filterIngresoHasta: string;
+    filterFaltaDato: string;
+    filterDocTipoFalta: string;
+    filterDocVigencia: string;
+    filterSalidaDesde: string;
+    filterSalidaHasta: string;
+    filterNoRecontratar: boolean;
+    filterFiniquito: string;
+    filterSoloPrueba: boolean;
 }
 
 /**
@@ -32,6 +40,9 @@ export const useConsultasData = (filters: FetchWorkersParams, enabled: boolean =
     const [empresas, setEmpresas] = useState<{value: string | number; label: string}[]>([]);
     const [obras, setObras] = useState<{value: string | number; label: string}[]>([]);
     const [cargos, setCargos] = useState<{value: string | number; label: string}[]>([]);
+    // Tipos de documento OBLIGATORIOS y activos: alimentan el filtro "le falta este documento".
+    // Se filtran acá y no en el backend porque el CRUD de tipos ya devuelve ambas columnas.
+    const [tiposObligatorios, setTiposObligatorios] = useState<{value: string | number; label: string}[]>([]);
 
     // Estado local
     const [loading, setLoading] = useState(false);
@@ -47,15 +58,19 @@ export const useConsultasData = (filters: FetchWorkersParams, enabled: boolean =
     // Cargar catálogos
     const fetchCatalogs = useCallback(async () => {
         try {
-            const [empRes, obraRes, cargoRes] = await Promise.all([
+            const [empRes, obraRes, cargoRes, tipoRes] = await Promise.all([
                 api.get<ApiResponse<Empresa[]>>('/empresas?activo=true'),
                 api.get<ApiResponse<Obra[]>>('/obras?activo=true'),
-                api.get<ApiResponse<Cargo[]>>('/cargos?activo=true')
+                api.get<ApiResponse<Cargo[]>>('/cargos?activo=true'),
+                api.get<ApiResponse<{ id: number; nombre: string; obligatorio: boolean | number; activo: boolean | number }[]>>('/documentos/tipos')
             ]);
 
             setEmpresas([{ value: '', label: 'Todas las Empresas' }, ...empRes.data.data.map(e => ({ value: e.id, label: e.razon_social }))]);
             setObras([{ value: '', label: 'Todas las Obras' }, ...obraRes.data.data.map(o => ({ value: o.id, label: o.nombre }))]);
             setCargos([{ value: '', label: 'Todos los Cargos' }, ...cargoRes.data.data.map(c => ({ value: c.id, label: c.nombre }))]);
+            setTiposObligatorios((tipoRes.data.data || [])
+                .filter(t => !!t.obligatorio && !!t.activo)
+                .map(t => ({ value: t.id, label: t.nombre })));
         } catch (err) {
             console.error('Error fetching catalogs', err);
         }
@@ -92,6 +107,14 @@ export const useConsultasData = (filters: FetchWorkersParams, enabled: boolean =
             if (filters.filterAniversario10m) urlParams.append('aniversario10m', filters.filterAniversario10m);
             if (filters.filterIngresoDesde) urlParams.append('fecha_ingreso_desde', filters.filterIngresoDesde);
             if (filters.filterIngresoHasta) urlParams.append('fecha_ingreso_hasta', filters.filterIngresoHasta);
+            if (filters.filterFaltaDato) urlParams.append('falta_dato', filters.filterFaltaDato);
+            if (filters.filterDocTipoFalta) urlParams.append('doc_tipo_falta', filters.filterDocTipoFalta);
+            if (filters.filterDocVigencia) urlParams.append('doc_vigencia', filters.filterDocVigencia);
+            if (filters.filterSalidaDesde) urlParams.append('fecha_desvinc_desde', filters.filterSalidaDesde);
+            if (filters.filterSalidaHasta) urlParams.append('fecha_desvinc_hasta', filters.filterSalidaHasta);
+            if (filters.filterNoRecontratar) urlParams.append('no_recontratar', 'true');
+            if (filters.filterFiniquito) urlParams.append('finiquito', filters.filterFiniquito);
+            if (filters.filterSoloPrueba) urlParams.append('solo_prueba', 'true');
             // Consultas es superficie de administración: incluir trabajadores de
             // prueba (se muestran con badge) para poder gestionarlos/revertirlos.
             urlParams.append('incluir_prueba', 'true');
@@ -137,7 +160,7 @@ export const useConsultasData = (filters: FetchWorkersParams, enabled: boolean =
         }, 300);
         return () => clearTimeout(timeoutId);
     // `enabled` en deps: la grilla se monta al entrar a la sección (B8) y debe consultar recién ahí.
-    }, [enabled, filters.search, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes, filters.filterAniversario10m, filters.filterIngresoDesde, filters.filterIngresoHasta]);
+    }, [enabled, filters.search, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes, filters.filterAniversario10m, filters.filterIngresoDesde, filters.filterIngresoHasta, filters.filterFaltaDato, filters.filterDocTipoFalta, filters.filterDocVigencia, filters.filterSalidaDesde, filters.filterSalidaHasta, filters.filterNoRecontratar, filters.filterFiniquito, filters.filterSoloPrueba]);
 
     // Abortar cualquier búsqueda en vuelo al desmontar.
     useEffect(() => () => abortRef.current?.abort(), []);
@@ -152,6 +175,7 @@ export const useConsultasData = (filters: FetchWorkersParams, enabled: boolean =
         empresas, setEmpresas,
         obras, setObras,
         cargos, setCargos,
+        tiposObligatorios,
         fetchCatalogs,
         workers, setWorkers,
         loading, hasMore, isLoadingMore,

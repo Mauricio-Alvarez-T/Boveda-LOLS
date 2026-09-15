@@ -21,6 +21,22 @@ export const useConsultasFilters = () => {
     // Rango de fecha de ingreso (YYYY-MM-DD, extremos opcionales): "ingresos del período".
     const [filterIngresoDesde, setFilterIngresoDesde] = useState<string>(searchParams.get('ingreso_desde') || '');
     const [filterIngresoHasta, setFilterIngresoHasta] = useState<string>(searchParams.get('ingreso_hasta') || '');
+    // ── Filtros de la tanda 2026-09-15 ──
+    // Qué dato bloquea una gestión: 'contrato' (no se puede emitir), 'pago' (no se puede
+    // transferir el día 5), 'tallas' (no se puede comprar el EPP).
+    const [filterFaltaDato, setFilterFaltaDato] = useState<string>(searchParams.get('falta_dato') || '');
+    // A quién le falta UN documento obligatorio concreto (id del tipo).
+    const [filterDocTipoFalta, setFilterDocTipoFalta] = useState<string>(searchParams.get('doc_tipo_falta') || '');
+    // Vigencia: 'vencido' | '30' | '60' | '90'. Distinto de completitud: "¿está el papel?"
+    // y "¿sirve el papel?" son dos preguntas.
+    const [filterDocVigencia, setFilterDocVigencia] = useState<string>(searchParams.get('doc_vigencia') || '');
+    // Rango de fecha de desvinculación: bajas del período.
+    const [filterSalidaDesde, setFilterSalidaDesde] = useState<string>(searchParams.get('salida_desde') || '');
+    const [filterSalidaHasta, setFilterSalidaHasta] = useState<string>(searchParams.get('salida_hasta') || '');
+    // Atajos de un clic (chips), sin control propio en el panel.
+    const [filterNoRecontratar, setFilterNoRecontratar] = useState<boolean>(searchParams.get('no_recontratar') === 'true');
+    const [filterFiniquito, setFilterFiniquito] = useState<string>(searchParams.get('finiquito') || '');
+    const [filterSoloPrueba, setFilterSoloPrueba] = useState<boolean>(searchParams.get('solo_prueba') === 'true');
 
     // Aplicar filtro de obra contextual solo si no viene de la URL
     useEffect(() => {
@@ -41,6 +57,14 @@ export const useConsultasFilters = () => {
         setFilterAniversario10m('');
         setFilterIngresoDesde('');
         setFilterIngresoHasta('');
+        setFilterFaltaDato('');
+        setFilterDocTipoFalta('');
+        setFilterDocVigencia('');
+        setFilterSalidaDesde('');
+        setFilterSalidaHasta('');
+        setFilterNoRecontratar(false);
+        setFilterFiniquito('');
+        setFilterSoloPrueba(false);
         // Limpia los filtros de la URL pero conserva la sección (B8): sin esto "Limpiar" saltaría a la portada.
         setSearchParams(prev => { const tab = new URLSearchParams(prev).get('tab'); const next = new URLSearchParams(); if (tab) next.set('tab', tab); return next; });
     }, [selectedObra, setSearchParams]);
@@ -66,9 +90,16 @@ export const useConsultasFilters = () => {
             !!filterCompletitud,
             filterAusentes,
             !!filterAniversario10m,
-            !!filterIngresoDesde || !!filterIngresoHasta
+            !!filterIngresoDesde || !!filterIngresoHasta,
+            !!filterFaltaDato,
+            !!filterDocTipoFalta,
+            !!filterDocVigencia,
+            !!filterSalidaDesde || !!filterSalidaHasta,   // el rango cuenta como uno
+            filterNoRecontratar,
+            !!filterFiniquito,
+            filterSoloPrueba
         ].filter(Boolean).length;
-    }, [search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, filterIngresoDesde, filterIngresoHasta, selectedObra]);
+    }, [search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, filterIngresoDesde, filterIngresoHasta, filterFaltaDato, filterDocTipoFalta, filterDocVigencia, filterSalidaDesde, filterSalidaHasta, filterNoRecontratar, filterFiniquito, filterSoloPrueba, selectedObra]);
 
     return {
         search, setSearch,
@@ -82,6 +113,14 @@ export const useConsultasFilters = () => {
         filterAniversario10m, setFilterAniversario10m,
         filterIngresoDesde, setFilterIngresoDesde,
         filterIngresoHasta, setFilterIngresoHasta,
+        filterFaltaDato, setFilterFaltaDato,
+        filterDocTipoFalta, setFilterDocTipoFalta,
+        filterDocVigencia, setFilterDocVigencia,
+        filterSalidaDesde, setFilterSalidaDesde,
+        filterSalidaHasta, setFilterSalidaHasta,
+        filterNoRecontratar, setFilterNoRecontratar,
+        filterFiniquito, setFilterFiniquito,
+        filterSoloPrueba, setFilterSoloPrueba,
         clearAniversario10m,
         handleClearFilters,
         activeFilterCount

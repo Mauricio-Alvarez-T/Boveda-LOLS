@@ -28,6 +28,17 @@ export function installConsultasMock(api: AxiosInstance, opts: ConsultasMockOpts
     // ── Grilla / búsqueda ──
     mock.onGet(/\/fiscalizacion\/trabajadores-avanzado/).reply(200, { data: trabajadoresAvanzadoDemo });
 
+    // Catálogo de tipos de documento: alimenta el filtro "le falta este documento" del panel.
+    // Sin esto el select sale vacío en el tutorial y la llamada se iría al backend real.
+    mock.onGet(/\/documentos\/tipos/).reply(200, {
+        data: [
+            { id: 1, nombre: 'Contrato de Trabajo', obligatorio: 1, activo: 1 },
+            { id: 11, nombre: 'Obligación de informar los riesgos (ODI)', obligatorio: 1, activo: 1 },
+            { id: 13, nombre: 'Recepción de implementos de seguridad', obligatorio: 1, activo: 1 },
+            { id: 6, nombre: 'Finiquito', obligatorio: 0, activo: 1 },
+        ],
+    });
+
     // ── Ficha del trabajador (WorkerQuickView) ──
     // Abrir la ficha = criterio de aceptación del tutorial "consultar".
     mock.onGet(/\/trabajadores\/check-rut\//).reply(200, { exists: false, trabajador: null });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, Briefcase, Users, UserCheck, FileText, UserX, CalendarPlus } from 'lucide-react';
+import { Building2, Briefcase, Users, UserCheck, FileText, UserX, CalendarPlus, CalendarMinus, ClipboardX, IdCard, CalendarClock } from 'lucide-react';
 import { FilterSelect } from '../ui/Filters';
 import { cn } from '../../utils/cn';
 
@@ -30,6 +30,18 @@ interface FilterPanelProps {
     setFilterIngresoDesde: (val: string) => void;
     filterIngresoHasta: string;
     setFilterIngresoHasta: (val: string) => void;
+    /** Tipos de documento obligatorios y activos, para "le falta este documento". */
+    tiposObligatorios: SelectOption[];
+    filterFaltaDato: string;
+    setFilterFaltaDato: (val: string) => void;
+    filterDocTipoFalta: string;
+    setFilterDocTipoFalta: (val: string) => void;
+    filterDocVigencia: string;
+    setFilterDocVigencia: (val: string) => void;
+    filterSalidaDesde: string;
+    setFilterSalidaDesde: (val: string) => void;
+    filterSalidaHasta: string;
+    setFilterSalidaHasta: (val: string) => void;
 }
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
@@ -44,7 +56,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     filterCompletitud, setFilterCompletitud,
     filterAusentes, setFilterAusentes,
     filterIngresoDesde, setFilterIngresoDesde,
-    filterIngresoHasta, setFilterIngresoHasta
+    filterIngresoHasta, setFilterIngresoHasta,
+    tiposObligatorios,
+    filterFaltaDato, setFilterFaltaDato,
+    filterDocTipoFalta, setFilterDocTipoFalta,
+    filterDocVigencia, setFilterDocVigencia,
+    filterSalidaDesde, setFilterSalidaDesde,
+    filterSalidaHasta, setFilterSalidaHasta
 }) => (
     <div className="p-4 md:p-5 bg-card border border-border rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end max-h-[65vh] overflow-y-auto md:overflow-visible md:max-h-none custom-scrollbar">
         <FilterSelect
@@ -90,14 +108,57 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             placeholder="Todos los Estados"
         />
         <FilterSelect
-            label={<><FileText className="h-4 w-4" /> Documentación</>}
+            label={<><FileText className="h-4 w-4" /> Papeles obligatorios</>}
             options={[
-                { value: '100', label: 'Al día (100%)' },
-                { value: 'faltantes', label: 'Con pendientes' }
+                { value: '100', label: 'Completos' },
+                { value: 'faltantes', label: 'Le faltan alguno' }
             ]}
             value={filterCompletitud}
             onChange={(e) => setFilterCompletitud(e.target.value)}
             placeholder="Cualquier estado"
+        />
+
+        {/* ── Tanda 2026-09-15 ── */}
+
+        {/* Qué dato bloquea una gestión concreta. NO dice "listo para emitir": el contrato
+            exige además representante de la empresa y sueldo del cargo, que no se pueden
+            mirar desde este endpoint sin romper el gate de cargos.sueldo.ver. */}
+        <FilterSelect
+            label={<><IdCard className="h-4 w-4" /> Falta en la ficha</>}
+            value={filterFaltaDato}
+            onChange={(e) => setFilterFaltaDato(e.target.value)}
+            options={[
+                { value: '', label: 'No filtrar' },
+                { value: 'contrato', label: 'Datos personales del contrato' },
+                { value: 'pago', label: 'Datos para transferir' },
+                { value: 'tallas', label: 'Tallas de EPP' },
+            ]}
+            placeholder="No filtrar"
+        />
+
+        {/* "Le faltan papeles" no es una tarea; "le falta LA ODI" sí. */}
+        <FilterSelect
+            label={<><ClipboardX className="h-4 w-4" /> Le falta este documento</>}
+            value={filterDocTipoFalta}
+            onChange={(e) => setFilterDocTipoFalta(e.target.value)}
+            options={[{ value: '', label: 'Cualquiera' }, ...tiposObligatorios]}
+            placeholder="Cualquiera"
+        />
+
+        {/* Vigencia ≠ completitud: "¿está el papel?" y "¿sirve el papel?" son dos preguntas.
+            Cubre cualquier tipo con vigencia configurada, igual que la alerta del Inicio. */}
+        <FilterSelect
+            label={<><CalendarClock className="h-4 w-4" /> Vigencia de papeles</>}
+            value={filterDocVigencia}
+            onChange={(e) => setFilterDocVigencia(e.target.value)}
+            options={[
+                { value: '', label: 'No filtrar' },
+                { value: 'vencido', label: 'Con alguno vencido' },
+                { value: '30', label: 'Vence en 30 días' },
+                { value: '60', label: 'Vence en 60 días' },
+                { value: '90', label: 'Vence en 90 días' },
+            ]}
+            placeholder="No filtrar"
         />
 
         {/* Rango de fecha de ingreso: "contrataciones del período". Extremos opcionales. */}
@@ -106,12 +167,43 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 "text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors",
                 (filterIngresoDesde || filterIngresoHasta) ? "text-brand-primary" : "text-muted-foreground/60"
             )}>
-                <CalendarPlus className="h-4 w-4" /> Fecha de Ingreso
+                <CalendarPlus className="h-4 w-4" /> Entró entre
             </label>
             <div className="grid grid-cols-2 gap-2">
                 {([
                     { value: filterIngresoDesde, set: setFilterIngresoDesde, aria: 'Ingreso desde' },
                     { value: filterIngresoHasta, set: setFilterIngresoHasta, aria: 'Ingreso hasta' },
+                ] as const).map(({ value, set, aria }) => (
+                    <input
+                        key={aria}
+                        type="date"
+                        aria-label={aria}
+                        value={value}
+                        onChange={(e) => set(e.target.value)}
+                        className={cn(
+                            "w-full border rounded-xl p-2.5 text-sm transition-all outline-none min-w-0",
+                            "bg-card border-border hover:border-brand-primary/40 text-brand-dark",
+                            "focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary",
+                            value && "bg-brand-primary/[0.03] border-brand-primary ring-1 ring-brand-primary/20 text-brand-primary font-semibold"
+                        )}
+                    />
+                ))}
+            </div>
+        </div>
+
+        {/* Rango de fecha de desvinculación: bajas del período. Además acota "finiquito
+            pendiente" para que la lista sea manejable. */}
+        <div className="space-y-2">
+            <label className={cn(
+                "text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors",
+                (filterSalidaDesde || filterSalidaHasta) ? "text-brand-primary" : "text-muted-foreground/60"
+            )}>
+                <CalendarMinus className="h-4 w-4" /> Salió entre
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+                {([
+                    { value: filterSalidaDesde, set: setFilterSalidaDesde, aria: 'Salida desde' },
+                    { value: filterSalidaHasta, set: setFilterSalidaHasta, aria: 'Salida hasta' },
                 ] as const).map(({ value, set, aria }) => (
                     <input
                         key={aria}
