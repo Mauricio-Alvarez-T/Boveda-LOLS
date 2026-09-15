@@ -136,9 +136,12 @@ rechazo con motivo obligatorio y visible al solicitante; **sin firma** de ningú
    refresco cada 5 min, `GET /pendientes/count` **solo con `solicitud.aprobar`**; sin permiso
    `pendientes = 0`).
 3. **Oficina** (`trabajadores.solicitud.aprobar`): Consultas → pestaña Solicitudes
-   (`?tab=solicitudes`, `SolicitudesIngresoPanel.tsx`; filtros Pendientes/Aprobadas/Rechazadas/
-   Todas, default Pendientes; fila = nombre, RUT, obra, cargo, fecha ingreso, solicitante, fecha
-   solicitud, chip de estado) → clic → `RevisarSolicitudModal.tsx`: la ficha llega **precargada y
+   (`?tab=solicitudes`, `SolicitudesIngresoPanel.tsx`; bandeja rediseñada 2026-09-15: carga TODO una vez
+   y filtra en cliente — pestañas Pendientes/Aprobadas/Rechazadas/Todas con contador, default Pendientes;
+   pendientes agrupadas por obra con antigüedad en días (≥2 ámbar, ≥5 rojo; `solicitudesLista.ts` + test);
+   fila = nombre, RUT, cargo, fecha ingreso, solicitante; «Revisar» con permiso de aprobar; resueltas
+   muestran quién y cuándo, y el motivo si fue rechazada; botón «Nuevo ingreso» propio del panel)
+   → clic → `RevisarSolicitudModal.tsx`: la ficha llega **precargada y
    editable** (todos los campos, incluido el RUT) + **Empresa obligatoria** + `categoria_reporte`
    (default `obra`) → **"Aprobar y crear trabajador"** (`PUT /:id/aprobar` con la ficha editada;
    toast "Trabajador creado: NOMBRE") o **"Rechazar"** (reutiliza `RechazarForm` de inventario;

@@ -1,29 +1,25 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { UserPlus, MapPin, Briefcase, CalendarPlus, ChevronRight, User, RefreshCw } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { UserPlus, MapPin, ChevronRight, RefreshCw, Clock, CheckCircle2, XCircle } from 'lucide-react';
 
 import api from '../../services/api';
 import { showApiError } from '../../utils/toastUtils';
 import type { ApiResponse } from '../../types';
-import type { SolicitudIngreso, SolicitudIngresoEstado } from '../../types/entities';
+import type { SolicitudIngreso } from '../../types/entities';
 import { useAuth } from '../../context/AuthContext';
 import { useSolicitudesIngreso } from '../../hooks/useSolicitudesIngreso';
 import { fmtFecha, normalizarFecha } from '../../utils/format';
 import { fmtFechaHora } from '../../utils/fechas';
+import { solicitudIngresoEstadoConfig } from '../../utils/statusConfig';
 import { cn } from '../../utils/cn';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { EmptyState } from '../ui/EmptyState';
 import { StatusBadge } from '../ui/StatusBadge';
 import { RevisarSolicitudModal, type SolicitudAccion } from './RevisarSolicitudModal';
-
-type Filtro = SolicitudIngresoEstado | 'todas';
-
-const FILTROS: { value: Filtro; label: string }[] = [
-    { value: 'pendiente', label: 'Pendientes' },
-    { value: 'aprobada', label: 'Aprobadas' },
-    { value: 'rechazada', label: 'Rechazadas' },
-    { value: 'todas', label: 'Todas' },
-];
+import {
+    FILTROS_SOLICITUDES, contarPorEstado, filtrar, diasDesde, tonoEspera, textoEspera, agruparPorObra,
+    iniciales, nombreCompleto, type FiltroSolicitudes,
+} from './solicitudesLista';
 
 interface Props {
     /** Súbelo cuando algo externo (una solicitud nueva) obligue a recargar la lista. */
@@ -34,14 +30,18 @@ interface Props {
     onNuevoIngreso?: () => void;
 }
 
-const iniciales = (s: SolicitudIngreso) =>
-    `${(s.apellido_paterno || '')[0] || ''}${(s.nombres || '')[0] || ''}`.toUpperCase();
+const TONO_ESPERA = {
+    ok: 'text-muted-foreground',
+    aviso: 'text-amber-600 dark:text-amber-400',
+    critico: 'text-red-600 dark:text-red-400',
+} as const;
 
 /**
- * Lista de solicitudes de ingreso (ficha digital). Con `solicitud.aprobar` se
- * ven todas y la fila abre la revisión; sin él el backend ya devuelve solo las
- * propias (el solicitante sigue su estado y lee el motivo si fue rechazada).
- * Ocupa el lugar de la grilla de Consultas cuando `?tab=solicitudes`.
+ * Bandeja de solicitudes de ingreso (ficha digital). Rediseño 2026-09-15: se carga TODO una vez
+ * (el backend no pagina) y se filtra en cliente → los contadores por estado son gratis y el cambio
+ * de pestaña es instantáneo. Las pendientes se agrupan por obra (así las revisa RRHH) y muestran
+ * cuántos días llevan esperando (≥2 ámbar, ≥5 rojo). Con `solicitud.aprobar` la fila ofrece
+ * «Revisar»; sin él, el backend ya devuelve solo las propias y la fila muestra su estado.
  */
 export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onAprobada, onNuevoIngreso }) => {
     const { hasPermission } = useAuth();
@@ -49,11 +49,11 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
     const puedeCrear = hasPermission('trabajadores.solicitud.crear');
     const { refetch: refetchPendientes } = useSolicitudesIngreso();
 
-    const [filtro, setFiltro] = useState<Filtro>('pendiente');
-    const [items, setItems] = useState<SolicitudIngreso[]>([]);
+    const [filtro, setFiltro] = useState<FiltroSolicitudes>('pendiente');
+    const [todas, setTodas] = useState<SolicitudIngreso[]>([]);
     const [loading, setLoading] = useState(true);
     const [seleccionada, setSeleccionada] = useState<SolicitudIngreso | null>(null);
-    const seq = useRef(0); // descarta respuestas viejas al cambiar de filtro rápido
+    const seq = useRef(0); // descarta respuestas viejas si se recarga rápido
 
     const cargar = useCallback(async (silencioso = false) => {
         const mio = ++seq.current;
@@ -61,22 +61,26 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
         try {
             // incluir_prueba: paridad con la grilla de Consultas (superficie de administración);
             // el form de terreno ofrece obras de prueba y sin el flag el backend las excluiría.
-            const res = await api.get<ApiResponse<SolicitudIngreso[]>>('/solicitudes-ingreso', { params: { estado: filtro, incluir_prueba: 'true' } });
+            const res = await api.get<ApiResponse<SolicitudIngreso[]>>('/solicitudes-ingreso', { params: { estado: 'todas', incluir_prueba: 'true' } });
             if (mio !== seq.current) return;
-            setItems(res.data.data || []);
+            setTodas(res.data.data || []);
         } catch (err) {
             if (mio !== seq.current) return;
             showApiError(err, 'No se pudieron cargar las solicitudes');
         } finally {
             if (mio === seq.current) setLoading(false);
         }
-    }, [filtro]);
+    }, []);
 
     useEffect(() => { cargar(); }, [cargar, refreshKey]);
 
+    const conteo = useMemo(() => contarPorEstado(todas), [todas]);
+    const items = useMemo(() => filtrar(todas, filtro), [todas, filtro]);
+    const grupos = useMemo(() => (filtro === 'pendiente' ? agruparPorObra(items) : null), [items, filtro]);
+
     const handleResuelta = (accion: SolicitudAccion) => {
         setSeleccionada(null);
-        refetchPendientes();   // badge del menú + botón "Solicitudes" + Bandeja
+        refetchPendientes();   // badge del menú + portada + Bandeja
         cargar(true);
         if (accion === 'aprobada') onAprobada?.();
     };
@@ -89,32 +93,108 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
 
     const vacioTitulo = filtro === 'pendiente' ? 'Sin solicitudes pendientes'
         : filtro === 'todas' ? 'Sin solicitudes de ingreso'
-            : `Sin solicitudes ${FILTROS.find(f => f.value === filtro)?.label.toLowerCase() ?? ''}`;
+            : `Sin solicitudes ${FILTROS_SOLICITUDES.find(f => f.value === filtro)?.label.toLowerCase() ?? ''}`;
     const vacioDesc = puedeAprobar
         ? 'Cuando terreno envíe una ficha de ingreso aparecerá aquí para revisarla.'
         : 'Las fichas de ingreso que envíes aparecerán aquí con su estado.';
+    const botonNuevo = puedeCrear && onNuevoIngreso
+        ? <Button size="sm" leftIcon={<UserPlus className="h-4 w-4" />} onClick={onNuevoIngreso} className="shrink-0">Nuevo ingreso</Button>
+        : null;
+
+    const renderFila = (s: SolicitudIngreso) => {
+        const cfg = solicitudIngresoEstadoConfig[s.estado];
+        const dias = s.estado === 'pendiente' ? diasDesde(s.fecha_solicitud) : null;
+        const tono = tonoEspera(dias);
+        return (
+            /* eslint-disable-next-line no-restricted-syntax -- fila clickeable que abre la ficha completa */
+            <button
+                key={s.id}
+                type="button"
+                onClick={() => setSeleccionada(s)}
+                className={cn(
+                    'w-full text-left bg-card rounded-2xl border border-border border-l-4 p-3.5 sm:p-4 shadow-sm transition-all duration-200',
+                    'hover:border-brand-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40',
+                    cfg.borderLeft,
+                )}
+            >
+                <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="h-11 w-11 shrink-0 rounded-2xl bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-section">
+                        {iniciales(s)}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                        <p className="text-ui font-bold text-brand-dark truncate leading-tight">{nombreCompleto(s)}</p>
+                        <p className="mt-0.5 text-caption text-muted-foreground truncate">
+                            {s.rut} · {s.cargo_nombre || 'Sin cargo'} · Ingreso {fmtFecha(normalizarFecha(s.fecha_ingreso)) || '—'}
+                            {filtro !== 'pendiente' && <> · <MapPin className="inline h-3 w-3 -mt-0.5" /> {s.obra_nombre || 'Sin obra'}</>}
+                        </p>
+                        {s.estado === 'pendiente' ? (
+                            <p className={cn('mt-1 flex items-center gap-1.5 text-caption font-semibold', TONO_ESPERA[tono])}>
+                                <Clock className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate">{textoEspera(dias)} · {s.solicitante_nombre || 'Sin solicitante'}</span>
+                            </p>
+                        ) : (
+                            <p className="mt-1 flex items-center gap-1.5 text-caption text-muted-foreground">
+                                {s.estado === 'aprobada'
+                                    ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600 dark:text-green-400" />
+                                    : <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500 dark:text-red-400" />}
+                                <span className="truncate">
+                                    {cfg.label} {fmtFechaHora(s.fecha_resolucion) ? `el ${fmtFechaHora(s.fecha_resolucion)}` : ''}
+                                    {s.resuelto_por_nombre ? ` por ${s.resuelto_por_nombre}` : ''} · enviada por {s.solicitante_nombre || '—'}
+                                </span>
+                            </p>
+                        )}
+                        {s.estado === 'rechazada' && s.motivo_rechazo && (
+                            <p className="mt-1.5 text-caption text-red-700 dark:text-red-300 line-clamp-2">Motivo: {s.motivo_rechazo}</p>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                        {s.estado === 'pendiente' && puedeAprobar ? (
+                            <span className="hidden sm:inline-flex h-9 items-center rounded-full bg-brand-primary px-4 text-section font-semibold text-white shadow-sm">
+                                Revisar
+                            </span>
+                        ) : (
+                            <StatusBadge domain="solicitudIngresoEstado" status={s.estado} showIcon />
+                        )}
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                </div>
+            </button>
+        );
+    };
 
     return (
         <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
-            {/* Header: rótulo + filtros por estado */}
-            <div className="min-h-[60px] border-b border-border bg-card/50 px-3 py-2 flex flex-wrap items-center justify-between shrink-0 gap-2">
-                <div className="hidden sm:flex items-center gap-2 bg-muted text-muted-foreground px-3 py-1.5 rounded-xl">
-                    <UserPlus className="h-4 w-4" />
-                    <span className="text-xs font-semibold uppercase tracking-widest">Solicitudes de ingreso</span>
+            {/* Cabecera: pestañas por estado con contador + acciones */}
+            <div className="border-b border-border px-3 sm:px-4 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                <div role="tablist" aria-label="Estado de las solicitudes" className="flex items-center gap-1 rounded-2xl bg-muted p-1 overflow-x-auto scrollbar-none max-w-full">
+                    {FILTROS_SOLICITUDES.map(f => {
+                        const activo = filtro === f.value;
+                        const n = conteo[f.value];
+                        return (
+                            <Button
+                                key={f.value}
+                                role="tab"
+                                size="sm"
+                                variant={activo ? 'glass' : 'ghost'}
+                                onClick={() => setFiltro(f.value)}
+                                aria-selected={activo}
+                                className={cn('h-9 shrink-0 rounded-xl px-3 text-section font-semibold gap-2',
+                                    activo ? 'text-brand-dark shadow-sm' : 'text-muted-foreground hover:text-brand-dark')}
+                            >
+                                {f.label}
+                                {!loading && n > 0 && (
+                                    <span className={cn('flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full text-micro font-bold tabular-nums',
+                                        f.value === 'pendiente' ? 'bg-amber-500 text-white' : 'bg-border text-muted-foreground')}>
+                                        {n}
+                                    </span>
+                                )}
+                            </Button>
+                        );
+                    })}
                 </div>
-                <div className="flex items-center gap-1 overflow-x-auto scrollbar-none w-full sm:w-auto">
-                    {FILTROS.map(f => (
-                        <Button
-                            key={f.value}
-                            size="sm"
-                            variant={filtro === f.value ? 'primary' : 'ghost'}
-                            onClick={() => setFiltro(f.value)}
-                            aria-pressed={filtro === f.value}
-                            className={cn('shrink-0 text-xs font-semibold', filtro !== f.value && 'text-muted-foreground')}
-                        >
-                            {f.label}
-                        </Button>
-                    ))}
+                <div className="flex items-center gap-2 ml-auto">
                     <IconButton
                         variant="ghost"
                         size="sm"
@@ -124,24 +204,22 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                         className="shrink-0"
                         icon={<RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />}
                     />
-                    {puedeCrear && onNuevoIngreso && (
-                        <Button size="sm" leftIcon={<UserPlus className="h-4 w-4" />} onClick={onNuevoIngreso} className="shrink-0 ml-1">Nuevo ingreso</Button>
-                    )}
+                    {botonNuevo}
                 </div>
             </div>
 
             {/* Lista */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar bg-muted/80 p-2 md:p-4">
+            <div className="flex-1 overflow-y-auto custom-scrollbar bg-muted/60 p-3 md:p-4">
                 {loading ? (
                     <div className="flex flex-col gap-3">
                         {[1, 2, 3, 4].map(i => (
                             <div key={i} className="h-20 w-full bg-card rounded-2xl border border-border flex items-center p-4 gap-4 animate-pulse">
-                                <div className="h-10 w-10 rounded-xl bg-muted shrink-0" />
+                                <div className="h-11 w-11 rounded-2xl bg-muted shrink-0" />
                                 <div className="flex-1 space-y-2">
                                     <div className="h-4 w-1/3 bg-muted rounded" />
-                                    <div className="h-3 w-1/4 bg-muted rounded" />
+                                    <div className="h-3 w-1/2 bg-muted rounded" />
                                 </div>
-                                <div className="hidden sm:flex h-6 w-24 bg-muted rounded-full ml-auto" />
+                                <div className="hidden sm:flex h-9 w-20 bg-muted rounded-full ml-auto" />
                             </div>
                         ))}
                     </div>
@@ -151,66 +229,24 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                         title={vacioTitulo}
                         description={vacioDesc}
                         className="h-full justify-center"
-                        action={puedeCrear && onNuevoIngreso ? <Button size="sm" leftIcon={<UserPlus className="h-4 w-4" />} onClick={onNuevoIngreso}>Nuevo ingreso</Button> : undefined}
+                        action={botonNuevo ?? undefined}
                     />
-                ) : (
-                    <div className="flex flex-col gap-2.5 pb-10 sm:pb-5">
-                        {items.map(s => (
-                            /* eslint-disable-next-line no-restricted-syntax -- fila clickeable que abre la ficha */
-                            <button
-                                key={s.id}
-                                type="button"
-                                onClick={() => setSeleccionada(s)}
-                                className="w-full text-left bg-card rounded-2xl border border-border p-3 sm:p-4 shadow-[var(--shadow-sm)] transition-all duration-200 hover:border-brand-primary/30 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
-                            >
-                                <div className="flex items-start sm:items-center gap-3 sm:gap-4">
-                                    <div className="h-10 w-10 shrink-0 rounded-xl bg-muted text-muted-foreground border border-border flex items-center justify-center font-black text-xs">
-                                        {iniciales(s)}
-                                    </div>
-
-                                    <div className="flex-1 min-w-0 grid grid-cols-1 lg:grid-cols-[1.4fr_1fr_1.2fr] gap-2 lg:gap-4 lg:items-center">
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-bold text-brand-dark truncate">
-                                                {s.apellido_paterno} {s.apellido_materno || ''} {s.nombres}
-                                            </p>
-                                            <p className="text-label font-medium text-muted-foreground">{s.rut}</p>
-                                        </div>
-                                        <div className="min-w-0 flex flex-col gap-0.5 text-label sm:text-xs">
-                                            <span className="flex items-center gap-1.5 font-semibold text-brand-dark truncate">
-                                                <MapPin className="h-3 w-3 text-muted-foreground shrink-0" /> {s.obra_nombre || 'Sin obra'}
-                                            </span>
-                                            <span className="flex items-center gap-1.5 text-muted-foreground truncate">
-                                                <Briefcase className="h-3 w-3 shrink-0" /> {s.cargo_nombre || 'Sin cargo'}
-                                            </span>
-                                        </div>
-                                        <div className="min-w-0 flex flex-col gap-0.5 text-label sm:text-xs">
-                                            <span className="flex items-center gap-1.5 font-semibold text-brand-dark">
-                                                <CalendarPlus className="h-3 w-3 text-muted-foreground shrink-0" /> Ingreso {fmtFecha(normalizarFecha(s.fecha_ingreso)) || '—'}
-                                            </span>
-                                            <span className="flex items-center gap-1.5 text-muted-foreground truncate">
-                                                <User className="h-3 w-3 shrink-0" /> {s.solicitante_nombre || '—'} · {fmtFechaHora(s.fecha_solicitud) || '—'}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        <StatusBadge domain="solicitudIngresoEstado" status={s.estado} showIcon />
-                                        <ChevronRight className="h-4 w-4 text-muted-foreground hidden sm:block" />
-                                    </div>
-                                </div>
-                            </button>
+                ) : grupos ? (
+                    <div className="flex flex-col gap-5 pb-10 sm:pb-5">
+                        {grupos.map(g => (
+                            <section key={g.clave}>
+                                <h3 className="mb-2 flex items-center gap-2 px-1 text-caption font-semibold uppercase tracking-wider text-muted-foreground">
+                                    <MapPin className="h-3.5 w-3.5 text-brand-primary" />
+                                    <span className="truncate">{g.obra}</span>
+                                    <span className="tabular-nums">· {g.items.length}</span>
+                                </h3>
+                                <div className="flex flex-col gap-2.5">{g.items.map(renderFila)}</div>
+                            </section>
                         ))}
                     </div>
+                ) : (
+                    <div className="flex flex-col gap-2.5 pb-10 sm:pb-5">{items.map(renderFila)}</div>
                 )}
-            </div>
-
-            {/* Status bar */}
-            <div className="h-9 bg-muted border-t border-border flex items-center justify-between px-5 text-label font-bold text-muted-foreground shrink-0 uppercase tracking-widest rounded-b-3xl">
-                <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-brand-primary/40" />
-                    <span>{items.length} {items.length === 1 ? 'solicitud' : 'solicitudes'}</span>
-                </div>
-                <span>{puedeAprobar ? 'Revisa y aprueba para crear al trabajador' : 'Tus solicitudes de ingreso'}</span>
             </div>
 
             <RevisarSolicitudModal
