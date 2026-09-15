@@ -8,7 +8,18 @@ class FiscalizacionService {
     /**
      * Búsqueda avanzada de trabajadores con múltiples filtros y cálculo de completitud en una sola query.
      */
-    async searchTrabajadores(filters) {
+    /**
+     * Búsqueda avanzada de la grilla de Trabajadores (Gestiones).
+     *
+     * `perms` = permisos efectivos del usuario (req.user.p). El endpoint solo exige `documentos.ver`,
+     * que es MÁS amplio que `trabajadores.ver`: sin este parámetro la consulta devolvía `SELECT t.*`
+     * crudo — domicilio, AFP, salud, banco, número de cuenta, causal de baja — a cualquiera que
+     * pudiera ver documentos. La ruta ahora sanitiza la respuesta con `sanitizeTrabajadorPersonal`
+     * (la misma allow-list que el quick-view) y acá se IGNORAN los filtros sobre columnas personales
+     * cuando falta `trabajadores.ver`: sin eso, filtrar sería un oráculo para adivinar el dato que
+     * la respuesta oculta (pedir `falta_dato=pago` y deducir quién tiene cuenta bancaria).
+     */
+    async searchTrabajadores(filters, perms) {
         const {
             q,
             obra_id,
