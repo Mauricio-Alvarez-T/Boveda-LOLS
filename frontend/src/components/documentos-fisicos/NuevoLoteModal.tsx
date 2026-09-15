@@ -143,7 +143,12 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
 
                 <div className="grid grid-cols-1 sm:grid-cols-[1fr_14rem] gap-3">
                     <Input placeholder="Buscar por nombre, RUT, tipo de documento u obra…" value={q} onChange={e => setQ(e.target.value)} leftIcon={<Search className="h-4 w-4" />} />
-                    <Select value={obraId} onChange={e => setObraId(e.target.value)} options={[{ value: '', label: 'Todas las obras' }, ...obras]} />
+                    {/* Filtro opcional, NO un campo a completar. Las obras salen de los documentos
+                        disponibles (no del catálogo): una obra sin nada impreso por retirar no tiene qué
+                        filtrar, así que no aparece. */}
+                    <Select value={obraId} onChange={e => setObraId(e.target.value)}
+                        aria-label="Filtrar por obra"
+                        options={[{ value: '', label: obras.length ? 'Todas las obras' : 'Sin obras por filtrar' }, ...obras]} />
                 </div>
 
                 {cargando ? (
@@ -156,7 +161,10 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
                 ) : (
                     <div className="space-y-3">
                         <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">{visibles.length} documento{visibles.length === 1 ? '' : 's'} visibles</span>
+                            <span className="text-muted-foreground">
+                                {visibles.length} de {docs.length} documento{docs.length === 1 ? '' : 's'} por retirar
+                                {obras.length > 1 ? ` · ${obras.length} obras con documentos impresos` : ''}
+                            </span>
                             <div className="flex gap-2">
                                 <Button size="sm" variant="ghost" onClick={() => marcar(idsVisibles, true)}>Marcar visibles</Button>
                                 <Button size="sm" variant="ghost" onClick={() => marcar(idsVisibles, false)} disabled={estadoSeleccion(seleccion, idsVisibles) === 'ninguno'}>Desmarcar</Button>

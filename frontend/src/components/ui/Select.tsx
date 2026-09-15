@@ -33,7 +33,13 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                         ref={ref}
                         {...props}
                     >
-                        <option value="" className="bg-card text-brand-dark">Seleccionar...</option>
+                        {/* El placeholder propio SOLO si el consumidor no trae el suyo. Antes se
+                            anteponía siempre: quien pasaba su opción vacía ("Todas las obras",
+                            "Selecciona al portador…") terminaba con DOS opciones de value=""; el
+                            navegador mostraba la primera y el campo parecía obligatorio. */}
+                        {!options.some(o => o.value === '') && (
+                            <option value="" className="bg-card text-brand-dark">Seleccionar...</option>
+                        )}
                         {options.map((opt) => (
                             <option key={opt.value} value={opt.value} className="bg-card text-brand-dark">
                                 {opt.label}
