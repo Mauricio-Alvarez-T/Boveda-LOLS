@@ -17,7 +17,6 @@ import { SlidersHorizontal, X } from 'lucide-react';
 
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
-import { cn } from '../../utils/cn';
 
 const ANCHO = 320;
 /**
@@ -36,14 +35,12 @@ interface Props {
     id: string;
     /** Filtros puestos, incluidos los que no viven en el panel (búsqueda y atajos). */
     activeFilterCount: number;
-    /** Resultados que dejó el filtro. Vive acá, no en la barra de la grilla: es donde el número importa. */
-    resultados?: number;
     onLimpiar: () => void;
     onCerrar: () => void;
     children: React.ReactNode;
 }
 
-export const FiltrosRail: React.FC<Props> = ({ modo, id, activeFilterCount, resultados, onLimpiar, onCerrar, children }) => {
+export const FiltrosRail: React.FC<Props> = ({ modo, id, activeFilterCount, onLimpiar, onCerrar, children }) => {
     // Sin movimiento: el panel aparece y desaparece con un fundido corto (mismo criterio que ui/Modal).
     const reduceMotion = useReducedMotion();
     const entrada = reduceMotion ? { duration: 0.12 } : CURVA;
@@ -69,12 +66,7 @@ export const FiltrosRail: React.FC<Props> = ({ modo, id, activeFilterCount, resu
                         {activeFilterCount}
                     </span>
                 )}
-                {typeof resultados === 'number' && (
-                    <span className="ml-auto min-w-0 truncate text-caption text-muted-foreground tabular-nums">
-                        {resultados} resultado{resultados === 1 ? '' : 's'}
-                    </span>
-                )}
-                <div className={cn('flex shrink-0 items-center gap-1', typeof resultados !== 'number' && 'ml-auto')}>
+                <div className="ml-auto flex shrink-0 items-center gap-1">
                     {activeFilterCount > 0 && (
                         <Button
                             variant="ghost"

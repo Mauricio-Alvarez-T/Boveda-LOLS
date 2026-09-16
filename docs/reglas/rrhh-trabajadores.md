@@ -72,11 +72,20 @@
 - **El botón «Filtros» vive en la barra de la grilla, no en el header** (2026-09-16). Está en el extremo
   izquierdo, que es el borde por el que sale el panel; con el rail `inline` abierto la grilla se corre a la
   derecha y el botón viaja con ella, así que el movimiento cuenta de dónde salió. El icono es la señal:
-  `PanelLeftOpen` → `PanelLeftClose` cuando hay panel lateral, y `SlidersHorizontal` → `X` en teléfono,
-  donde el panel entra desde abajo y prometer un lateral sería mentir. Sin relleno verde (regla de
-  `diseno.md`): el estado se lee por el icono, el badge y el panel abierto. El conteo «N trabajadores» que
-  ocupaba ese sitio se eliminó; la carga se ve en las filas esqueleto. La limpieza de filtros vive en el
-  panel (y en el estado vacío de la grilla), no en el header.
+  `PanelLeftOpen` → `PanelLeftClose` cuando hay panel lateral, y `PanelBottomOpen`/`PanelBottomClose` en
+  teléfono, donde la hoja sube desde abajo y prometer un lateral sería mentir. Sin relleno verde (regla de
+  `diseno.md`): el estado se lee por el icono, el badge y el panel abierto. La limpieza de filtros vive en
+  el panel (y en el estado vacío de la grilla), no en el header.
+  **Orden de la barra**: botón de filtros · atajos · **conteo de resultados**. El conteo dio dos saltos el
+  2026-09-16: salió del extremo izquierdo para hacerle sitio al botón de filtros, pasó un rato en la cabecera
+  del panel, y terminó en el extremo derecho, en el hueco que dejó «Seleccionar todos» — eliminado porque el
+  dueño confirmó que no se usaba. El número es honesto: el endpoint no pagina (ignora `page`/`limit`), así que
+  coincide siempre con las filas en pantalla.
+  La selección múltiple sigue existiendo casilla por casilla, y con al menos una marcada la barra se convierte
+  en la de acciones masivas. Para actuar sobre **todo** el resultado del filtro —que es para lo que servía
+  «Seleccionar todos»— el header tiene **Enviar** y **Exportar**, que trabajan sin selección: el modal manda
+  `trabajador_ids` undefined y el backend arma el Excel con el filtro completo. Diferencia a tener presente:
+  sin ids seleccionados el correo va **sin el ZIP de documentos** (`fiscalizacion.routes.js`).
   ⚠️ La etiqueta del botón no puede contener «trabajador» ni «crear»: el spotlight de los tutoriales busca
   botones por substring (`useTutorialSpotlight.ts:44-49`) y le robaría el pulso al botón que resalta.
 - **Atajos** (`components/consultas/FiltrosRapidos.tsx`, rangos puros en `rangosFecha.ts` con test):

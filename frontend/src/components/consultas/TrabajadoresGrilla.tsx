@@ -4,8 +4,8 @@
  * selecciona para acciones masivas (Enviar / Exportar), que aparecen en una barra que reemplaza la
  * cabecera mientras haya selección. Las acciones por fila son iconos siempre visibles (los tutoriales
  * de Ayuda resaltan «Editar trabajador» por su aria-label) y usan verbos del dominio: Desvincular, no
- * Eliminar. Sin numeración de filas ni barra de estado: la cabecera lleva el botón de filtros y los
- * atajos, y el estado de carga se ve en las filas esqueleto.
+ * Eliminar. Sin numeración de filas ni barra de estado: la cabecera lleva el botón de filtros, los
+ * atajos y el conteo de resultados.
  */
 import React from 'react';
 import { Mail, FileDown, FileText, UserPen, UserMinus, UserCheck, Eraser, Search, X, Building2, CalendarPlus, AlertTriangle } from 'lucide-react';
@@ -25,7 +25,6 @@ interface Props {
     hasPermission: (perm: string) => boolean;
     selected: Set<number>;
     onToggle: (id: number) => void;
-    onToggleAll: () => void;
     onClearSelection: () => void;
     onOpen: (id: number) => void;
     onEditar: (w: Trabajador) => void;
@@ -60,10 +59,9 @@ const DocsBar: React.FC<{ pct: number; compact?: boolean }> = ({ pct, compact })
 };
 
 export const TrabajadoresGrilla: React.FC<Props> = ({
-    workers, loading, activeFilterCount, hasPermission, selected, onToggle, onToggleAll, onClearSelection, onOpen,
+    workers, loading, activeFilterCount, hasPermission, selected, onToggle, onClearSelection, onOpen,
     onEditar, onConstancia, onDesvincular, onReactivar, onDepurar, onEnviar, onExportar, exporting, onClearFilters, formatFecha, filtros, atajos,
 }) => {
-    const todosSel = workers.length > 0 && selected.size === workers.length;
     const haySel = selected.size > 0;
 
     // Render helpers (no componentes: crearlos dentro del render rompe la regla react-hooks y pierde estado).
@@ -125,19 +123,21 @@ export const TrabajadoresGrilla: React.FC<Props> = ({
                         <Button variant="primary" size="sm" onClick={() => onExportar(Array.from(selected))} disabled={exporting || !hasPermission('reportes.exportar')} leftIcon={<FileDown className="h-4 w-4" />}>Exportar</Button>
                     </div>
                 </>) : (<>
-                    {/* Los atajos ocupan el hueco que esta barra ya tenía vacío. El conteo de
-                        trabajadores que vivía acá se quitó a pedido del dueño: la carga se ve en las
-                        filas esqueleto y el número vive ahora en la cabecera del panel de filtros. */}
+                    {/* Botón de filtros · atajos · conteo. «Seleccionar todos» se quitó (2026-09-16):
+                        el dueño confirmó que no se usa nunca, y su sitio es el que mejor le queda al
+                        número de resultados — al final de la barra, donde termina de leerse el filtro que
+                        acabas de aplicar. La selección múltiple sigue existiendo casilla por casilla.
+                        El anuncio para lectores de pantalla NO va acá: esta rama se desmonta al marcar la
+                        primera casilla, y una región viva tiene que estar siempre montada para anunciar. */}
                     {atajos && <div className="min-w-0 flex-1">{atajos}</div>}
-                    <label className={cn('shrink-0 flex items-center gap-2 text-caption font-semibold text-muted-foreground cursor-pointer select-none', !atajos && 'ml-auto')}
-                        title="Seleccionar todos">
-                        {casilla(todosSel, onToggleAll, 'Seleccionar todos')}
-                        <span className="hidden xl:inline">Seleccionar todos</span>
-                    </label>
+                    <span className={cn('shrink-0 text-ui font-bold text-brand-dark tabular-nums', !atajos && 'ml-auto')}>
+                        {loading ? 'Buscando…' : `${workers.length} trabajador${workers.length === 1 ? '' : 'es'}`}
+                    </span>
                 </>)}
 
-                {/* El conteo dejó de mostrarse, pero un lector de pantalla necesita saber cuántos
-                    resultados dejó el filtro. `sr-only` es absolute: no ocupa sitio en la barra. */}
+                {/* Región viva permanente: el número de arriba cambia solo (al filtrar o al buscar) y
+                    desaparece mientras hay selección, así que el anuncio vive en un nodo que nunca se
+                    desmonta. `sr-only` es absolute: no ocupa sitio en la barra. */}
                 <span className="sr-only" aria-live="polite">
                     {loading ? 'Buscando trabajadores' : `${workers.length} trabajador${workers.length === 1 ? '' : 'es'}`}
                 </span>

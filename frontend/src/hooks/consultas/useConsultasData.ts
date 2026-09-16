@@ -118,6 +118,11 @@ export const useConsultasData = (filters: FetchWorkersParams, enabled: boolean =
             // Consultas es superficie de administración: incluir trabajadores de
             // prueba (se muestran con badge) para poder gestionarlos/revertirlos.
             urlParams.append('incluir_prueba', 'true');
+            // ⚠️ El backend IGNORA page/limit: `fiscalizacion.service.searchTrabajadores` no tiene LIMIT ni
+            // OFFSET, así que devuelve el set filtrado completo y la grilla lo muestra entero (por eso el
+            // conteo de la cabecera coincide con las filas). `loadMore`/`hasMore` de abajo son código
+            // muerto: nadie los llama. Si alguna vez se pagina de verdad en el servidor, hay que cablear
+            // el scroll infinito Y el conteo en el mismo cambio, o la grilla se truncará en silencio.
             urlParams.append('page', isInitial ? '1' : page.toString());
             urlParams.append('limit', '50');
 

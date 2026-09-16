@@ -8,6 +8,7 @@
  */
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
+    Mail,
     Search,
     ArrowLeft,
     FileDown,
@@ -249,10 +250,9 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     // 3. Selección
     const {
         selectedWorkers,
-        handleSelectAll,
         handleSelectWorker,
         clearSelection
-    } = useConsultasSelection(workers.length, workerIds);
+    } = useConsultasSelection();
 
     // 4. Exportación
     const {
@@ -374,6 +374,23 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     Filtros se mudó a la barra de la grilla (2026-09-16), pegado al borde por donde sale
                     el panel: acá arriba estaba a casi mil píxeles de su efecto. */}
                 {esGrilla && (<>
+                {/* Enviar sobre el resultado completo del filtro: es lo que antes se conseguía con
+                    «Seleccionar todos» + Enviar. Sin selección, el modal manda `trabajador_ids`
+                    undefined y el backend arma el Excel con todo el filtro. */}
+                <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEmailModalOpen(true)}
+                    disabled={workers.length === 0 || !hasPermission('reportes.enviar_email')}
+                    leftIcon={<Mail className="h-3.5 w-3.5 text-brand-primary" />}
+                    className={cn(
+                        "h-9 px-4 rounded-xl shadow-sm border-border",
+                        hasPermission('reportes.enviar_email') ? "bg-card hover:bg-background" : "opacity-40 grayscale pointer-events-none"
+                    )}
+                >
+                    <span>Enviar</span>
+                </Button>
+
                 <Button
                     size="sm"
                     variant="outline"
@@ -406,6 +423,14 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 />
                 )}
                 {esGrilla && (<>
+                <IconButton
+                    variant="ghost"
+                    aria-label="Enviar por correo"
+                    onClick={() => setEmailModalOpen(true)}
+                    disabled={workers.length === 0 || !hasPermission('reportes.enviar_email')}
+                    className="rounded-xl border border-border shadow-sm"
+                    icon={<Mail className="h-4 w-4" />}
+                />
                 {/* Export Excel — paridad con desktop. Mismo gating de permiso/data. */}
                 <IconButton
                     variant="ghost"
@@ -543,7 +568,6 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                             id={ID_PANEL_FILTROS}
                             modo={railInline ? 'inline' : 'overlay'}
                             activeFilterCount={activeFilterCount}
-                            resultados={loading ? undefined : workers.length}
                             onLimpiar={handleClearFilters}
                             onCerrar={() => setShowFilters(false)}
                         >
@@ -558,7 +582,6 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     hasPermission={hasPermission}
                     selected={selectedWorkers}
                     onToggle={handleSelectWorker}
-                    onToggleAll={handleSelectAll}
                     onClearSelection={clearSelection}
                     onOpen={setQuickViewId}
                     onEditar={(w) => { setSelectedWorkerForAction(w); setModalType('form'); }}
