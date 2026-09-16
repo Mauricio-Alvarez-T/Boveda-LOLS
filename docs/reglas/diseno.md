@@ -259,7 +259,12 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    misma card lo rebana durante casi toda la animación. Lo que sí funciona es una **estela** que barre
    hacia el borde por donde entra el panel — ahí el recorte juega a favor: la estela se mete por la
    ranura y el panel toma la posta.
-9. **La animación no puede mentir sobre la dirección.** El icono dice de dónde viene el panel
+9. **Nunca animar `width`/`height`/`margin` de un contenedor que comparte fila con una tabla grande.**
+   Cada frame obliga al navegador a rehacer el layout, y una tabla de ancho automático vuelve a medir
+   todas las celdas de todas las filas: con 40 filas ya se nota el tirón, con 250 es inusable. El panel
+   toma su ancho **de una vez** (un solo reflow) y lo que se anima es `transform`/`opacity`. Por la misma
+   razón, nada de `backdrop-blur` sobre una tabla mientras algo se mueve encima.
+10. **La animación no puede mentir sobre la dirección.** El icono dice de dónde viene el panel
    (`PanelLeftOpen`/`PanelLeftClose` para un lateral, `SlidersHorizontal` para una hoja inferior) y el
    panel se despliega **desde el borde del disparador**: un panel en flujo que anima su ancho debe anclar
    su contenido al lado que toca el botón (`justify-end` cuando el botón queda a la derecha del panel),

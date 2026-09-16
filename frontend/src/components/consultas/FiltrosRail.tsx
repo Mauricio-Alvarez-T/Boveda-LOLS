@@ -20,7 +20,15 @@ import { IconButton } from '../ui/IconButton';
 import { cn } from '../../utils/cn';
 
 const ANCHO = 320;
-const RESORTE = { type: 'spring' as const, damping: 26, stiffness: 220 };
+/**
+ * Curva corta en vez de resorte, y SOLO sobre transform/opacity (2026-09-16, tras ver el tirón en
+ * staging): animar el `width` del rail obligaba al navegador a recalcular el layout de la tabla en CADA
+ * frame, y como la tabla es de ancho automático eso significa volver a medir todas las celdas de las 40+
+ * filas. Ahora el rail ocupa su ancho de una vez —la grilla se reajusta en un solo reflow— y lo único
+ * que se anima es el desplazamiento, que no toca el layout.
+ */
+const CURVA = { duration: 0.22, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] };
+const CURVA_SALIDA = { duration: 0.16, ease: [0.4, 0, 1, 1] as [number, number, number, number] };
 
 interface Props {
     modo: 'inline' | 'overlay';
@@ -38,7 +46,8 @@ interface Props {
 export const FiltrosRail: React.FC<Props> = ({ modo, id, activeFilterCount, resultados, onLimpiar, onCerrar, children }) => {
     // Sin movimiento: el panel aparece y desaparece con un fundido corto (mismo criterio que ui/Modal).
     const reduceMotion = useReducedMotion();
-    const transicion = reduceMotion ? { duration: 0.12 } : RESORTE;
+    const entrada = reduceMotion ? { duration: 0.12 } : CURVA;
+    const salida = reduceMotion ? { duration: 0.1 } : CURVA_SALIDA;
     // Escape cierra en los dos modos. En `inline` no es un diálogo, pero cerrar con Escape es lo que
     // espera cualquiera que acabe de abrirlo con el teclado.
     useEffect(() => {
@@ -96,20 +105,23 @@ export const FiltrosRail: React.FC<Props> = ({ modo, id, activeFilterCount, resu
     if (modo === 'overlay') {
         return (
             <>
+                {/* Sin `backdrop-blur`: desenfocar una tabla entera se repinta en cada frame y era parte
+                    del tirón. Oscurecer basta para separar el panel del fondo. */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
+                    transition={entrada}
                     onClick={onCerrar}
-                    className="absolute inset-0 z-20 rounded-3xl bg-black/25 backdrop-blur-[1px]"
+                    className="absolute inset-0 z-20 rounded-3xl bg-black/25"
                 />
                 <motion.aside
                     id={id}
                     aria-label="Filtros"
-                    initial={reduceMotion ? { opacity: 0 } : { x: -ANCHO * 0.4, opacity: 0 }}
+                    initial={reduceMotion ? { opacity: 0 } : { x: -ANCHO * 0.35, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
-                    exit={reduceMotion ? { opacity: 0 } : { x: -ANCHO * 0.4, opacity: 0 }}
-                    transition={transicion}
+                    exit={reduceMotion ? { opacity: 0, transition: salida } : { x: -ANCHO * 0.35, opacity: 0, transition: salida }}
+                    transition={entrada}
                     className="absolute inset-y-0 left-0 z-30 flex"
                 >
                     {cuerpo}
@@ -119,18 +131,17 @@ export const FiltrosRail: React.FC<Props> = ({ modo, id, activeFilterCount, resu
     }
 
     return (
-        // `justify-end` no es decorativo: con el contenido anclado a la DERECHA del aside, al animar el
-        // ancho de 0 a 320 el panel se revela desde el borde que toca la grilla — es decir, se despliega
-        // saliendo de debajo del botón «Filtros» y avanza hacia la izquierda. Anclado a la izquierda
-        // (el default) el efecto se lee al revés: aparecería primero el lado lejano.
+        // El aside toma sus 320px de una vez: la grilla se angosta en UN solo reflow, no en sesenta por
+        // segundo. Lo que se anima es el desplazamiento del panel hacia su sitio, que es puro transform.
         <motion.aside
             id={id}
             aria-label="Filtros"
-            initial={reduceMotion ? { width: ANCHO, opacity: 0 } : { width: 0, opacity: 0 }}
-            animate={{ width: ANCHO, opacity: 1 }}
-            exit={reduceMotion ? { opacity: 0 } : { width: 0, opacity: 0 }}
-            transition={transicion}
-            className="relative shrink-0 overflow-hidden flex justify-end"
+            style={{ width: ANCHO }}
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -28 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={reduceMotion ? { opacity: 0, transition: salida } : { opacity: 0, x: -28, transition: salida }}
+            transition={entrada}
+            className="relative shrink-0 flex justify-end"
         >
             {cuerpo}
         </motion.aside>
