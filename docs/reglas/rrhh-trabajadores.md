@@ -70,8 +70,9 @@
     scroll propio, un `absolute` quedaba recortado a media lista. Cierra con click fuera, `Escape` y
     cualquier scroll.
 - **Atajos** (`components/consultas/FiltrosRapidos.tsx`, rangos puros en `rangosFecha.ts` con test):
-  **una sola fila** de chips sobre la grilla (en móvil se desliza en horizontal; con `flex-wrap` ocupaba
-  3-4 líneas del alto que necesitan las tarjetas) — Ingresos de este mes, Cumplen 10 meses, Finiquito pendiente,
+  chips que viven **dentro de la barra de la cabecera de la grilla** (2026-09-16), en el hueco que esa barra
+  ya tenía vacío entre el conteo y «Seleccionar todos»: así no gastan una fila propia del alto de la lista.
+  Una sola línea siempre, que se desliza en horizontal cuando no caben — Ingresos de este mes, Cumplen 10 meses, Finiquito pendiente,
   No recontratar y Fichas de prueba. Los tres primeros **no tocan el backend**: reusan params que ya
   existían. Los que fijan más de un filtro lo declaran en su tooltip (p. ej. "finiquito pendiente"
   fuerza desvinculados de los últimos 60 días, porque con "Solo activos" saldría vacío).

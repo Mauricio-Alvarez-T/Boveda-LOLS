@@ -40,10 +40,10 @@ const TONOS = {
 export const FiltrosRapidos: React.FC<{ filtros: FiltroRapido[] }> = ({ filtros }) => {
     if (!filtros.length) return null;
     return (
-        // Una sola fila que se desliza en móvil: con `flex-wrap` los cinco chips ocupaban 3-4 líneas
-        // (~120px) del alto que necesitan las tarjetas de trabajadores. En desktop caben todos y envuelve.
-        <div className="shrink-0 flex flex-nowrap md:flex-wrap items-center gap-2 overflow-x-auto md:overflow-visible custom-scrollbar pb-0.5">
-            <span className="shrink-0 text-caption font-semibold uppercase tracking-wider text-muted-foreground">Atajos</span>
+        // Viven DENTRO de la barra de la cabecera de la grilla (2026-09-16), donde antes había hueco
+        // vacío: así no gastan una fila propia del alto de la lista. Por eso una sola línea siempre,
+        // que se desliza cuando no caben, y sin rótulo "Atajos" (el contexto de la barra ya lo dice).
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto scrollbar-none">
             {filtros.map(f => {
                 const Icon = f.icon;
                 return (

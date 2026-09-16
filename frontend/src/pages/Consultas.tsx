@@ -560,10 +560,9 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 )}
             </AnimatePresence>
 
-            {/* El banner de "10 meses de contrato" se fue (2026-09-16): decía lo mismo que el chip
-                «Cumplen 10 meses» de Atajos, que además se apaga con su propia ✕, y costaba 52px de
-                alto en una pantalla que se lee en vertical. El mes objetivo pasó al tooltip del chip. */}
-            {esGrilla && <FiltrosRapidos filtros={filtrosRapidos} />}
+            {/* Los Atajos ya no tienen fila propia: se pasan a la cabecera de la grilla, que tenía el
+                centro vacío (ver TrabajadoresGrilla). Con eso y el banner de "10 meses" —que decía lo
+                mismo que su chip— la lista recupera dos filas enteras. */}
 
             {/* Vista por sección (B8). Al aprobar una solicitud el trabajador ya existe → recargar la grilla. */}
             {seccion === 'inicio' ? (
@@ -623,6 +622,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     exporting={exporting}
                     onClearFilters={handleClearFilters}
                     formatFecha={formatFechaIngreso}
+                    atajos={<FiltrosRapidos filtros={filtrosRapidos} />}
                 />
             </div>
             )}

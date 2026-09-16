@@ -37,6 +37,8 @@ interface Props {
     exporting: boolean;
     onClearFilters: () => void;
     formatFecha: (f?: string | null) => string | null;
+    /** Chips de atajos: van dentro de la barra de la cabecera, no en una fila propia. */
+    atajos?: React.ReactNode;
 }
 
 const iniciales = (w: Trabajador) => `${(w.apellido_paterno || '')[0] || ''}${(w.nombres || '')[0] || ''}`.toUpperCase();
@@ -56,7 +58,7 @@ const DocsBar: React.FC<{ pct: number; compact?: boolean }> = ({ pct, compact })
 
 export const TrabajadoresGrilla: React.FC<Props> = ({
     workers, loading, activeFilterCount, hasPermission, selected, onToggle, onToggleAll, onClearSelection, onOpen,
-    onEditar, onConstancia, onDesvincular, onReactivar, onDepurar, onEnviar, onExportar, exporting, onClearFilters, formatFecha,
+    onEditar, onConstancia, onDesvincular, onReactivar, onDepurar, onEnviar, onExportar, exporting, onClearFilters, formatFecha, atajos,
 }) => {
     const todosSel = workers.length > 0 && selected.size === workers.length;
     const haySel = selected.size > 0;
@@ -112,12 +114,18 @@ export const TrabajadoresGrilla: React.FC<Props> = ({
                         <Button variant="primary" size="sm" onClick={() => onExportar(Array.from(selected))} disabled={exporting || !hasPermission('reportes.exportar')} leftIcon={<FileDown className="h-4 w-4" />}>Exportar</Button>
                     </div>
                 </>) : (<>
-                    <span className="text-ui font-bold text-brand-dark tabular-nums">{loading ? 'Buscando…' : `${workers.length} trabajador${workers.length === 1 ? '' : 'es'}`}</span>
-                    {activeFilterCount > 0 && !loading && (
-                        <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground -ml-1">· {activeFilterCount} filtro{activeFilterCount === 1 ? '' : 's'} · limpiar</Button>
-                    )}
-                    <label className="ml-auto flex items-center gap-2 text-caption font-semibold text-muted-foreground cursor-pointer select-none">
-                        {casilla(todosSel, onToggleAll, 'Seleccionar todos')} Seleccionar todos
+                    {/* Conteo · atajos · seleccionar todos, en la MISMA barra (2026-09-16). Los atajos
+                        vivían en una fila propia sobre la grilla; acá reusan el hueco que esta barra ya
+                        tenía vacío y devuelven esa fila entera a la lista. El conteo se queda porque es
+                        el resultado de lo que el usuario acaba de filtrar. */}
+                    <span className="shrink-0 text-ui font-bold text-brand-dark tabular-nums">
+                        {loading ? 'Buscando…' : `${workers.length} trabajador${workers.length === 1 ? '' : 'es'}`}
+                    </span>
+                    {atajos && <div className="min-w-0 flex-1">{atajos}</div>}
+                    <label className={cn('shrink-0 flex items-center gap-2 text-caption font-semibold text-muted-foreground cursor-pointer select-none', !atajos && 'ml-auto')}
+                        title="Seleccionar todos">
+                        {casilla(todosSel, onToggleAll, 'Seleccionar todos')}
+                        <span className="hidden xl:inline">Seleccionar todos</span>
                     </label>
                 </>)}
             </div>
