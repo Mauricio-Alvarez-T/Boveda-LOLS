@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../../utils/cn';
-import { calcularPosicion, fueraDeVista, type PosicionPopover } from './popoverPos';
+import { usePosicionFlotante } from '../../hooks/usePosicionFlotante';
+import { useCierreExterno } from '../../hooks/useCierreExterno';
 import { ChevronDown, Search } from 'lucide-react';
 
 export interface FilterSelectOption {
@@ -22,63 +23,20 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
     ({ className, label, options, placeholder = 'Seleccionar...', value, onChange, ...props }, ref) => {
         const [isOpen, setIsOpen] = useState(false);
         const [searchQuery, setSearchQuery] = useState('');
-        // El popover se dibuja en un PORTAL con position:fixed (2026-09-16). Antes era absolute dentro del
-        // panel y funcionaba solo porque el panel era overflow-visible; en el rail vertical, que tiene
-        // scroll propio, quedaba recortado a media lista.
-        const [pos, setPos] = useState<PosicionPopover | null>(null);
-        const containerRef = useRef<HTMLDivElement>(null);
-        const triggerRef = useRef<HTMLButtonElement>(null);
-        const popoverRef = useRef<HTMLDivElement>(null);
 
         const cerrar = useCallback(() => { setIsOpen(false); setSearchQuery(''); }, []);
 
-        const medir = useCallback(() => {
-            const el = triggerRef.current;
-            if (!el) return;
-            setPos(calcularPosicion(el.getBoundingClientRect(), window.innerHeight));
-        }, []);
-
-        useEffect(() => {
-            if (!isOpen) return;
-            const clickFuera = (e: MouseEvent) => {
-                const t = e.target as Node;
-                if (!containerRef.current?.contains(t) && !popoverRef.current?.contains(t)) cerrar();
-            };
-            const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') cerrar(); };
-
-            // `scroll` NO burbujea, pero sí se captura: registrado en window con capture llega también
-            // cuando el que scrollea es la propia lista. Cerrar ahí (como hacía la primera versión de
-            // este portal) volvía la lista inusable: un tic de rueda y desaparecía. Reglas:
-            //   1. scroll DENTRO del popover → no es asunto nuestro;
-            //   2. scroll de un ancestro → el disparador se movió: seguirlo (amortiguado con rAF, el
-            //      mismo patrón de useTutorialSpotlight);
-            //   3. solo si el disparador se fue de la pantalla, cerrar.
-            let raf = 0;
-            const enScroll = (e: Event) => {
-                const t = e.target as Node | null;
-                if (t && popoverRef.current && (t === popoverRef.current || popoverRef.current.contains(t))) return;
-                if (raf) return;
-                raf = requestAnimationFrame(() => {
-                    raf = 0;
-                    const el = triggerRef.current;
-                    if (!el) return;
-                    if (fueraDeVista(el.getBoundingClientRect(), window.innerHeight)) cerrar();
-                    else medir();
-                });
-            };
-
-            document.addEventListener('mousedown', clickFuera);
-            document.addEventListener('keydown', tecla);
-            window.addEventListener('scroll', enScroll, true);
-            window.addEventListener('resize', medir);
-            return () => {
-                if (raf) cancelAnimationFrame(raf);
-                document.removeEventListener('mousedown', clickFuera);
-                document.removeEventListener('keydown', tecla);
-                window.removeEventListener('scroll', enScroll, true);
-                window.removeEventListener('resize', medir);
-            };
-        }, [isOpen, cerrar, medir]);
+        // El popover se dibuja en un PORTAL con position:fixed (2026-09-16). Antes era absolute dentro del
+        // panel y funcionaba solo porque el panel era overflow-visible; en el rail vertical, que tiene
+        // scroll propio, quedaba recortado a media lista. El seguimiento durante el scroll —ignorar el de
+        // la propia lista, reposicionar ante el de un ancestro, cerrar solo si el campo salió de la
+        // pantalla— es `usePosicionFlotante` (regla §8.10 de docs/reglas/diseno.md).
+        const { disparadorRef: triggerRef, flotanteRef: popoverRef, estilo, medir } =
+            usePosicionFlotante<HTMLButtonElement>({ abierto: isOpen, alCerrar: cerrar });
+        // `tactil: false` porque esta rama es `hidden md:block` y hasta ahora solo escuchaba `mousedown`.
+        const containerRef = useCierreExterno({
+            abierto: isOpen, alCerrar: cerrar, extras: [popoverRef], tactil: false, escape: true,
+        });
 
         const filteredOptions = options.filter(opt =>
             opt.label.toLowerCase().includes(searchQuery.toLowerCase())
@@ -159,11 +117,11 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
                     </div>
                 </div>
 
-                {isOpen && pos && createPortal(
+                {isOpen && estilo && createPortal(
                     <div
                         ref={popoverRef}
                         role="listbox"
-                        style={{ position: 'fixed', left: pos.left, width: pos.width, maxHeight: pos.maxHeight, top: pos.top, bottom: pos.bottom }}
+                        style={estilo}
                         className="z-[1200] flex flex-col bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-[0_12px_40px_rgb(0,0,0,0.15)] overflow-hidden"
                     >
                         <div className="p-2 border-b border-border relative bg-background/50 shrink-0">

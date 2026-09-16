@@ -270,11 +270,29 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     debe: (1) ignorar el scroll originado dentro del popover; (2) ante el de un ancestro, **reposicionar**
     —amortiguado con `requestAnimationFrame`, como `useTutorialSpotlight`— en vez de cerrar; (3) cerrar
     solo si el disparador salió de la pantalla. Y la lista lleva `overscroll-contain`, para que al llegar
-    al final la rueda no siga scrolleando lo de atrás. La aritmética de colocación vive en
-    `components/ui/popoverPos.ts` (puro, con test): reusarla en vez de recalcularla a mano.
+    al final la rueda no siga scrolleando lo de atrás.
+    **Nada de esto se vuelve a escribir a mano:** el cableado es `hooks/usePosicionFlotante.ts` y la
+    aritmética `components/ui/popoverPos.ts` (puro, con test). El hook devuelve `disparadorRef`,
+    `flotanteRef` (el que deja ignorar el scroll propio), `estilo` y `medir()`; se llama `medir()` en el
+    mismo handler que abre, **antes** del `setOpen(true)`, porque medir dentro de un efecto es un
+    `setState` en efecto y además parpadea. La variante (`'lista'` / `'hoja'` / `'tooltip'`) elige qué
+    parte del cálculo llega al `style`: un menú que ya fija su ancho por CSS —los de asistencia son
+    `fixed left-3 right-3` en mobile— pide `'hoja'` y recibe solo la vertical, porque un `left`/`width`
+    en línea pisaría esas clases. (2026-09-16: los menús móviles de asistencia y el tooltip de
+    `StockBadge` medían una vez al abrir y se quedaban clavados al viewport al scrollear.)
 11. **La animación no puede mentir sobre la dirección.** El icono dice de dónde viene el panel
    (`PanelLeftOpen`/`PanelLeftClose` para un lateral, `SlidersHorizontal` para una hoja inferior) y el
    panel se despliega **desde el borde del disparador**: un panel en flujo que anima su ancho debe anclar
    su contenido al lado que toca el botón (`justify-end` cuando el botón queda a la derecha del panel),
    o se revelará por el lado contrario y el gesto se leerá al revés. Con `prefers-reduced-motion`, solo
    fundido (`useReducedMotion`, precedente en `ui/Modal.tsx`).
+12. **El listener que cierra un menú va gateado por «abierto», y vive en `hooks/useCierreExterno.ts`.**
+    Registrarlo con deps `[]` —como hacían `ObraSelector`, `NotificationBell` y el overflow del header de
+    asistencia— significa que cada `mousedown` y cada `touchstart` de la aplicación entera, en cualquier
+    pantalla y con todo cerrado, entra al handler y dispara un `setOpen(false)` inútil. El hook no
+    registra nada mientras `abierto` sea falso. Dos detalles que se pagan caro si se reimplementan: un
+    popover **en portal no cuelga del ancla**, así que hay que pasarle el ref del flotante en `extras` o
+    el menú se cerrará al tocar sus propias opciones (de ahí `hooks/cierreExterno.ts`, puro y con test); y
+    `alCerrar` es un callback libre, no un `setOpen`, porque hay menús que al cerrarse pliegan además su
+    detalle (la campana). Un menú `absolute` dentro de un `relative` necesita **solo** este hook, no el
+    de colocación.

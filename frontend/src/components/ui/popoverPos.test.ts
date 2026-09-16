@@ -1,4 +1,8 @@
-import { calcularPosicion, fueraDeVista, ALTO_MAX, ALTO_MIN, ANCHO_MIN, type RectDisparador } from './popoverPos';
+import {
+    calcularPosicion, fueraDeVista, estiloFlotante, mismaPosicion,
+    ALTO_MAX, ALTO_MIN, ANCHO_MIN,
+    type RectDisparador, type PosicionPopover,
+} from './popoverPos';
 
 /** Campo de 40px de alto en `top`, del ancho indicado. */
 const campo = (top: number, width = 296): RectDisparador => ({ top, bottom: top + 40, left: 24, width });
@@ -52,5 +56,69 @@ describe('popoverPos (colocación de la lista flotante)', () => {
         expect(fueraDeVista(campo(-60), 900)).toBe(true);         // se fue por arriba
         expect(fueraDeVista(campo(901), 900)).toBe(true);         // se fue por abajo
         expect(fueraDeVista(campo(880), 900)).toBe(false);        // asomando por abajo, todavía visible
+    });
+});
+
+describe('separacion — cada flotante respira distinto', () => {
+    it('corre la lista los pixeles que pida el consumidor', () => {
+        expect(calcularPosicion(campo(100), 900).top).toBe(144);                    // 4, el default
+        expect(calcularPosicion(campo(100), 900, ALTO_MAX, 8).top).toBe(148);       // menús móviles
+        expect(calcularPosicion(campo(100), 900, ALTO_MAX, 6).top).toBe(146);       // tooltip de stock
+    });
+
+    it('también cuando se voltea hacia arriba', () => {
+        expect(calcularPosicion(campo(800), 900, ALTO_MAX, 8).bottom).toBe(108);
+    });
+});
+
+describe('estiloFlotante — cada variante aplica solo lo que su CSS no resuelve', () => {
+    it("'hoja' NO emite left ni width: los pone el CSS (`left-3 right-3`)", () => {
+        // Es el punto del enum. Un `left`/`width` en línea descentraría el menú móvil.
+        expect(estiloFlotante(calcularPosicion(campo(100), 900), 'hoja'))
+            .toEqual({ position: 'fixed', top: 144 });
+    });
+
+    it("'tooltip' ancla sin imponer ancho ni alto (el chip tiene min-w propio)", () => {
+        expect(estiloFlotante(calcularPosicion(campo(100), 900), 'tooltip'))
+            .toEqual({ position: 'fixed', left: 24, top: 144 });
+    });
+
+    it("'lista' emite el paquete completo, y es el default", () => {
+        const esperado = { position: 'fixed', left: 24, width: 296, maxHeight: ALTO_MAX, top: 144 };
+        expect(estiloFlotante(calcularPosicion(campo(100), 900), 'lista')).toEqual(esperado);
+        expect(estiloFlotante(calcularPosicion(campo(100), 900))).toEqual(esperado);
+    });
+
+    it('volteada emite bottom y NINGÚN top', () => {
+        // Un `top: undefined` conviviendo con `bottom` estira el flotante de punta a punta.
+        const e = estiloFlotante(calcularPosicion(campo(800), 900), 'lista');
+        expect(e.bottom).toBe(104);
+        expect('top' in e).toBe(false);
+    });
+
+    it('colgando hacia abajo no emite bottom', () => {
+        expect('bottom' in estiloFlotante(calcularPosicion(campo(100), 900), 'lista')).toBe(false);
+    });
+});
+
+describe('mismaPosicion — corta el re-render cuando el scroll no movió nada', () => {
+    const base: PosicionPopover = { left: 24, width: 296, maxHeight: ALTO_MAX, top: 144 };
+
+    it('dos mediciones iguales son la misma posición', () => {
+        expect(mismaPosicion(calcularPosicion(campo(100), 900), calcularPosicion(campo(100), 900))).toBe(true);
+    });
+
+    it('distingue top de bottom aunque el resto coincida', () => {
+        const volteada: PosicionPopover = { left: 24, width: 296, maxHeight: ALTO_MAX, bottom: 144 };
+        expect(mismaPosicion(base, volteada)).toBe(false);
+    });
+
+    it('detecta el movimiento de un solo pixel', () => {
+        expect(mismaPosicion(base, { ...base, top: 145 })).toBe(false);
+        expect(mismaPosicion(base, { ...base, maxHeight: 248 })).toBe(false);
+    });
+
+    it('sin posición previa nunca es igual (primera medición)', () => {
+        expect(mismaPosicion(null, base)).toBe(false);
     });
 });

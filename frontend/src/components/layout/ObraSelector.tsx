@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HardHat, ChevronUp, Home, Check, Map } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { flagOff } from '../../utils/flags';
 import { useObra } from '../../context/ObraContext';
+import { useCierreExterno } from '../../hooks/useCierreExterno';
 
 export const ObraSelector: React.FC = () => {
     const { obras, selectedObra, setSelectedObra, isLoading } = useObra();
@@ -14,21 +15,7 @@ export const ObraSelector: React.FC = () => {
     const enAsistencia = location.pathname.startsWith('/asistencia');
     const visibleObras = enAsistencia ? obras.filter(o => !flagOff(o.participa_asistencia)) : obras;
     const [isOpen, setIsOpen] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handler = (e: MouseEvent | TouchEvent) => {
-            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handler);
-        document.addEventListener('touchstart', handler);
-        return () => {
-            document.removeEventListener('mousedown', handler);
-            document.removeEventListener('touchstart', handler);
-        };
-    }, []);
+    const containerRef = useCierreExterno({ abierto: isOpen, alCerrar: () => setIsOpen(false) });
 
     if (isLoading) {
         return (

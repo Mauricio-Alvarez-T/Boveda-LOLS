@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { usePosicionFlotante } from '../../hooks/usePosicionFlotante';
 
 export type StockEstado = 'ok' | 'justo' | 'insuficiente' | 'vacio';
 
@@ -25,15 +26,12 @@ interface Props {
  */
 export const StockBadge: React.FC<Props> = ({ disponible, solicitado, ubicaciones = [], unidad = 'u', className = '' }) => {
     const [hover, setHover] = useState(false);
-    const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
-    const chipRef = useRef<HTMLSpanElement>(null);
-
-    useEffect(() => {
-        if (hover && chipRef.current) {
-            const rect = chipRef.current.getBoundingClientRect();
-            setCoords({ top: rect.bottom + 6, left: rect.left });
-        }
-    }, [hover]);
+    // Ancho natural (`min-w-[180px]`) y sin alto impuesto → variante 'tooltip': de la aritmética solo se
+    // usa el ancla. Antes se medía UNA vez en un efecto de hover, así que cualquier scroll durante el
+    // hover dejaba el tooltip desprendido del chip; ahora lo sigue y desaparece si el chip sale de vista.
+    const { disparadorRef: chipRef, estilo, medir } = usePosicionFlotante<HTMLSpanElement>({
+        abierto: hover, alCerrar: () => setHover(false), variante: 'tooltip', separacion: 6,
+    });
 
     let estado: StockEstado = 'ok';
     let label = `${disponible} disp`;
@@ -67,16 +65,16 @@ export const StockBadge: React.FC<Props> = ({ disponible, solicitado, ubicacione
         <>
             <span
                 ref={chipRef}
-                onMouseEnter={() => hasBreakdown && setHover(true)}
+                onMouseEnter={() => { if (hasBreakdown) { medir(); setHover(true); } }}
                 onMouseLeave={() => setHover(false)}
                 className={`inline-flex items-center gap-1 px-2 py-0.5 text-caption font-bold border rounded-full ${colors[estado]} ${hasBreakdown ? 'cursor-help' : ''} ${className}`}
             >
                 {label}
             </span>
 
-            {hover && hasBreakdown && coords && createPortal(
+            {hover && hasBreakdown && estilo && createPortal(
                 <div
-                    style={{ top: coords.top, left: coords.left, position: 'fixed', zIndex: 9999 }}
+                    style={{ ...estilo, zIndex: 9999 }}
                     className="bg-card border border-border rounded-xl shadow-lg px-3 py-2 text-label min-w-[180px] pointer-events-none"
                 >
                     <div className="font-bold text-brand-dark mb-1.5">Stock por ubicación</div>

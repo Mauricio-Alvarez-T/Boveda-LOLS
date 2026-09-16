@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { CheckCircle2, PackageCheck, XCircle, Ban, MoreHorizontal, ChevronDown, Trash2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import { useCierreExterno } from '../../hooks/useCierreExterno';
 
 interface Props {
     canAprobar: boolean;
@@ -37,22 +38,7 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
     isPendiente = false,
 }) => {
     const [open, setOpen] = useState(false);
-    const wrapperRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (!open) return;
-        const handler = (e: MouseEvent | TouchEvent) => {
-            if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-                setOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handler);
-        document.addEventListener('touchstart', handler);
-        return () => {
-            document.removeEventListener('mousedown', handler);
-            document.removeEventListener('touchstart', handler);
-        };
-    }, [open]);
+    const wrapperRef = useCierreExterno({ abierto: open, alCerrar: () => setOpen(false) });
 
     const handleClick = (fn: () => void) => () => { fn(); setOpen(false); };
 
