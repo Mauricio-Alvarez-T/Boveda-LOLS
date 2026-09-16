@@ -17,20 +17,25 @@ import { SlidersHorizontal, X } from 'lucide-react';
 
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import { cn } from '../../utils/cn';
 
 const ANCHO = 320;
 const RESORTE = { type: 'spring' as const, damping: 26, stiffness: 220 };
 
 interface Props {
     modo: 'inline' | 'overlay';
+    /** id del panel: el botón que lo abre lo referencia con `aria-controls`. */
+    id: string;
     /** Filtros puestos, incluidos los que no viven en el panel (búsqueda y atajos). */
     activeFilterCount: number;
+    /** Resultados que dejó el filtro. Vive acá, no en la barra de la grilla: es donde el número importa. */
+    resultados?: number;
     onLimpiar: () => void;
     onCerrar: () => void;
     children: React.ReactNode;
 }
 
-export const FiltrosRail: React.FC<Props> = ({ modo, activeFilterCount, onLimpiar, onCerrar, children }) => {
+export const FiltrosRail: React.FC<Props> = ({ modo, id, activeFilterCount, resultados, onLimpiar, onCerrar, children }) => {
     // Sin movimiento: el panel aparece y desaparece con un fundido corto (mismo criterio que ui/Modal).
     const reduceMotion = useReducedMotion();
     const transicion = reduceMotion ? { duration: 0.12 } : RESORTE;
@@ -49,13 +54,18 @@ export const FiltrosRail: React.FC<Props> = ({ modo, activeFilterCount, onLimpia
         >
             <div className="h-14 shrink-0 border-b border-border px-3 flex items-center gap-2">
                 <SlidersHorizontal className="h-4 w-4 text-brand-primary shrink-0" />
-                <span className="text-ui font-bold text-brand-dark">Filtros</span>
+                <span className="shrink-0 text-ui font-bold text-brand-dark">Filtros</span>
                 {activeFilterCount > 0 && (
                     <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1.5 text-micro font-bold text-white">
                         {activeFilterCount}
                     </span>
                 )}
-                <div className="ml-auto flex items-center gap-1">
+                {typeof resultados === 'number' && (
+                    <span className="ml-auto min-w-0 truncate text-caption text-muted-foreground tabular-nums">
+                        {resultados} resultado{resultados === 1 ? '' : 's'}
+                    </span>
+                )}
+                <div className={cn('flex shrink-0 items-center gap-1', typeof resultados !== 'number' && 'ml-auto')}>
                     {activeFilterCount > 0 && (
                         <Button
                             variant="ghost"
@@ -94,10 +104,11 @@ export const FiltrosRail: React.FC<Props> = ({ modo, activeFilterCount, onLimpia
                     className="absolute inset-0 z-20 rounded-3xl bg-black/25 backdrop-blur-[1px]"
                 />
                 <motion.aside
+                    id={id}
                     aria-label="Filtros"
-                    initial={reduceMotion ? { opacity: 0 } : { x: -ANCHO, opacity: 0 }}
+                    initial={reduceMotion ? { opacity: 0 } : { x: -ANCHO * 0.4, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
-                    exit={reduceMotion ? { opacity: 0 } : { x: -ANCHO, opacity: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { x: -ANCHO * 0.4, opacity: 0 }}
                     transition={transicion}
                     className="absolute inset-y-0 left-0 z-30 flex"
                 >
@@ -113,6 +124,7 @@ export const FiltrosRail: React.FC<Props> = ({ modo, activeFilterCount, onLimpia
         // saliendo de debajo del botón «Filtros» y avanza hacia la izquierda. Anclado a la izquierda
         // (el default) el efecto se lee al revés: aparecería primero el lado lejano.
         <motion.aside
+            id={id}
             aria-label="Filtros"
             initial={reduceMotion ? { width: ANCHO, opacity: 0 } : { width: 0, opacity: 0 }}
             animate={{ width: ANCHO, opacity: 1 }}

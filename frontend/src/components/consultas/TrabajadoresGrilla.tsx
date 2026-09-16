@@ -109,6 +109,14 @@ export const TrabajadoresGrilla: React.FC<Props> = ({
         <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
             {/* Cabecera: filtros + atajos, o barra de selección */}
             <div className={cn('h-14 shrink-0 border-b border-border px-3 sm:px-4 flex items-center gap-3 transition-colors', haySel && 'bg-brand-primary/5')}>
+                {/* Ancla fija: el control de filtros abre un panel que aparece PEGADO al borde izquierdo
+                    de esta card, así que vive acá, el único punto de la pantalla adyacente a donde entra.
+                    Queda FUERA del ternario a propósito: durante una selección los filtros siguen
+                    alcanzables (solo se esconde su rótulo para no estorbar a las acciones masivas). */}
+                {filtros && (
+                    <div className={cn('shrink-0', haySel && '[&_[data-rotulo]]:hidden')}>{filtros}</div>
+                )}
+
                 {haySel ? (<>
                     <IconButton variant="ghost" size="sm" aria-label="Quitar selección" onClick={onClearSelection} icon={<X className="h-4 w-4" />} />
                     <span className="text-ui font-bold text-brand-dark tabular-nums">{selected.size} seleccionado{selected.size === 1 ? '' : 's'}</span>
@@ -117,11 +125,9 @@ export const TrabajadoresGrilla: React.FC<Props> = ({
                         <Button variant="primary" size="sm" onClick={() => onExportar(Array.from(selected))} disabled={exporting || !hasPermission('reportes.exportar')} leftIcon={<FileDown className="h-4 w-4" />}>Exportar</Button>
                     </div>
                 </>) : (<>
-                    {/* Filtros · atajos · seleccionar todos, en la MISMA barra (2026-09-16). El botón de
-                        filtros abre el rail, que sale justo del borde izquierdo donde está el botón; los
-                        atajos ocupan el hueco que esta barra ya tenía vacío. El conteo de trabajadores
-                        que vivía acá se quitó a pedido del dueño: la carga se ve en las filas esqueleto. */}
-                    {filtros}
+                    {/* Los atajos ocupan el hueco que esta barra ya tenía vacío. El conteo de
+                        trabajadores que vivía acá se quitó a pedido del dueño: la carga se ve en las
+                        filas esqueleto y el número vive ahora en la cabecera del panel de filtros. */}
                     {atajos && <div className="min-w-0 flex-1">{atajos}</div>}
                     <label className={cn('shrink-0 flex items-center gap-2 text-caption font-semibold text-muted-foreground cursor-pointer select-none', !atajos && 'ml-auto')}
                         title="Seleccionar todos">
@@ -129,6 +135,12 @@ export const TrabajadoresGrilla: React.FC<Props> = ({
                         <span className="hidden xl:inline">Seleccionar todos</span>
                     </label>
                 </>)}
+
+                {/* El conteo dejó de mostrarse, pero un lector de pantalla necesita saber cuántos
+                    resultados dejó el filtro. `sr-only` es absolute: no ocupa sitio en la barra. */}
+                <span className="sr-only" aria-live="polite">
+                    {loading ? 'Buscando trabajadores' : `${workers.length} trabajador${workers.length === 1 ? '' : 'es'}`}
+                </span>
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">

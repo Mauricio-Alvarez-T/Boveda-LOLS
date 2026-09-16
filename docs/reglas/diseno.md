@@ -254,7 +254,12 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    por el que el panel aparece, no en el header global: si el panel entra por la izquierda de una tabla,
    el botón va en el extremo izquierdo de la cabecera de esa tabla. Referencia:
    `components/consultas/BotonFiltros.tsx`.
-8. **La animación no puede mentir sobre la dirección.** El icono dice de dónde viene el panel
+8. **Nada de morph con `layoutId` desde un control que vive dentro de un contenedor `overflow-hidden`
+   hacia un panel que está fuera de él**: al cerrar, el elemento arranca con el tamaño del panel y esa
+   misma card lo rebana durante casi toda la animación. Lo que sí funciona es una **estela** que barre
+   hacia el borde por donde entra el panel — ahí el recorte juega a favor: la estela se mete por la
+   ranura y el panel toma la posta.
+9. **La animación no puede mentir sobre la dirección.** El icono dice de dónde viene el panel
    (`PanelLeftOpen`/`PanelLeftClose` para un lateral, `SlidersHorizontal` para una hoja inferior) y el
    panel se despliega **desde el borde del disparador**: un panel en flujo que anima su ancho debe anclar
    su contenido al lado que toca el botón (`justify-end` cuando el botón queda a la derecha del panel),

@@ -74,6 +74,9 @@ import {
     useConsultasActions,
 } from '../hooks/consultas';
 
+/** Un solo id para el panel de filtros (rail o hoja): el botón lo referencia con `aria-controls`. */
+const ID_PANEL_FILTROS = 'panel-filtros-trabajadores';
+
 // DATE de MySQL llega como 'YYYY-MM-DD' (o ISO datetime) → DD/MM/YYYY legible.
 const formatFechaIngreso = (f?: string | null): string | null => {
     if (!f) return null;
@@ -415,7 +418,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 </>)}
             </div>
         </div>
-    ), [workers.length, exporting, activeFilterCount, showFilters, showCreatePanel, exportIds,
+    ), [workers.length, exporting, activeFilterCount, showCreatePanel, exportIds,
         seccion, esGrilla, conCrear]);
 
     useSetPageHeader(headerTitle, headerActions);
@@ -537,8 +540,10 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     {showFilters && conRail && (
                         <FiltrosRail
                             key="rail"
+                            id={ID_PANEL_FILTROS}
                             modo={railInline ? 'inline' : 'overlay'}
                             activeFilterCount={activeFilterCount}
+                            resultados={loading ? undefined : workers.length}
                             onLimpiar={handleClearFilters}
                             onCerrar={() => setShowFilters(false)}
                         >
@@ -571,7 +576,8 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                             abierto={showFilters}
                             onToggle={() => { setShowFilters(prev => !prev); setShowCreatePanel(false); }}
                             activos={activeFilterCount}
-                            lateral={conRail}
+                            modo={conRail ? 'lateral' : 'hoja'}
+                            controla={ID_PANEL_FILTROS}
                         />
                     }
                     atajos={<FiltrosRapidos filtros={filtrosRapidos} />}
@@ -781,6 +787,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                            id={ID_PANEL_FILTROS}
                             className="fixed bottom-0 left-0 right-0 w-full max-h-[85dvh] bg-card rounded-t-[32px] shadow-2xl z-[1001] flex flex-col overflow-hidden"
                         >
                             {/* Drag Handle */}
