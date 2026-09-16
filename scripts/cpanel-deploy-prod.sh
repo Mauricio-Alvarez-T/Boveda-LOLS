@@ -29,6 +29,30 @@ BRANCH="deploy-prod"
 
 cd "$REPO_DIR"
 
+# --- lock global:begin — UNA pasada del cron a la vez (2026-09-16) ---
+# Los locks de heal-deps/auto-migrate son POR FUNCIÓN: el tick perdedor se salta esa función
+# pero SIGUE hasta la sección de deploy. Con npm ci o migrate cruzando ticks (timeout 600 s cada
+# uno, y el cron dispara cada 5 min) dos pasadas podían solaparse sobre el MISMO clone: dos
+# `git reset --hard` y dos rsync del mismo árbol, con archivos cambiando bajo el rsync de la
+# otra y un orden de escritura del docroot indefinido.
+# Cubre el script ENTERO y se libera con `trap EXIT` (también cuando `set -e` mata la pasada).
+# Stale a 60 min: por encima del peor caso real (npm ci 10' + migrate 10' + rsyncs), así que
+# solo lo libera un SIGKILL o un reinicio del host, nunca una pasada viva.
+# Probado primero en staging (ver cpanel-deploy-staging.sh).
+LOCK_GLOBAL="$REPO_DIR/.deploy.lock"
+if [ -d "$LOCK_GLOBAL" ] && [ -n "$(find "$LOCK_GLOBAL" -maxdepth 0 -mmin +60 2>/dev/null)" ]; then
+    echo "$(date '+%F %T') · lock global viejo (>60 min) — lo libero"
+    rmdir "$LOCK_GLOBAL" 2>/dev/null || true
+fi
+if ! mkdir "$LOCK_GLOBAL" 2>/dev/null; then
+    echo "$(date '+%F %T') · otra pasada en curso (lock global) — salto este tick"
+    exit 0
+fi
+# El trap se arma DESPUÉS de tomar el lock: armarlo antes haría que el tick perdedor borrara al
+# salir el lock del tick que sí lo tiene.
+trap 'rmdir "$LOCK_GLOBAL" 2>/dev/null || true' EXIT
+# --- lock global:end ---
+
 # --- heal:begin — Auto-reparación de Passenger (corre en CADA tick del cron) ---
 # Caída real 2026-08-24: al editar la app en Setup Node.js App, el panel reescribió
 # el api/.htaccess con "PassengerStartupFile server.js" (archivo que NO existe en el
@@ -347,42 +371,96 @@ run_auto_migrate() {
 run_auto_migrate || echo "$(date '+%F %T') · auto-migrate: falló (rc=$?) — no fatal"
 # --- auto-migrate:end ---
 
+# --- helpers del deploy ---
+# rsync corre bajo `set -e`: cualquier rc≠0 aborta la pasada a mitad del docroot. rc=24
+# ("partial transfer due to vanished source files") es benigno — algo desapareció del ORIGEN
+# mientras copiaba — y con el lock global ya casi no puede pasar, pero tolerarlo evita que un
+# caso inofensivo deje el deploy por la mitad. Cualquier otro rc (23 = fallos de transferencia,
+# 12 = protocolo, …) sigue siendo FATAL a propósito: ahí el destino sí puede quedar mal, y lo
+# que queremos es que la pasada muera SIN escribir el testigo para que el próximo tick la rehaga.
+rsync_deploy() {
+    local rc=0
+    rsync "$@" || rc=$?
+    if [ "$rc" = "24" ]; then
+        echo "$(date '+%F %T') · rsync: rc=24 (archivos del origen desaparecieron) — tolerado"
+        return 0
+    fi
+    return "$rc"
+}
+
+# Una línea por HTTP con el build que REALMENTE está corriendo (hosting sin SSH):
+# https://boveda.lols.cl/deploy-status.txt. migrate-status.txt dice cómo fue la migración, pero
+# ninguno decía QUÉ build hay desplegado — el dato que hace falta para decidir un rollback. Se
+# escribe "EN CURSO" antes de tocar el docroot y "OK" al final: un "EN CURSO" con hora vieja es
+# la señal de una pasada que murió a mitad. El repo es público → el SHA y el asunto del commit
+# no son información sensible.
+estado_deploy() {
+    printf '%s · %s · %s %s · %s\n' \
+        "$(date '+%F %T')" "$1" "$BRANCH" "${2:0:7}" \
+        "$(git log -1 --format=%s "$2" 2>/dev/null || echo '-')" \
+        > "$FRONT_DEST/deploy-status.txt" 2>/dev/null || true
+}
+
 # 1) Traer lo último de la rama de build
 git fetch origin "$BRANCH" --quiet
-LOCAL="$(git rev-parse HEAD)"
 REMOTE="$(git rev-parse "origin/$BRANCH")"
 
-if [ "$LOCAL" = "$REMOTE" ]; then
-    echo "$(date '+%F %T') · sin cambios ($LOCAL) — nada que desplegar"
+# Lo que decide si hay algo que hacer es el TESTIGO del último deploy COMPLETO, no HEAD.
+# Antes se comparaba HEAD con origin, y a HEAD lo mueve el `git reset --hard` de abajo ANTES de
+# los rsync, las migraciones y el restart. Si una pasada moría en ese tramo (un rsync con rc≠0
+# bajo `set -e`, el proceso matado, el host reiniciado), HEAD ya estaba en el SHA nuevo y TODOS
+# los ticks siguientes caían en "sin cambios — nada que desplegar" PARA SIEMPRE: el docroot
+# podía quedar con frontend nuevo y backend/esquema viejos, y el cron lo reportaba como
+# desplegado. Solo lo sacaba un humano empujando otro commit — en producción, a ciegas.
+# El testigo se escribe recién al final de la pasada, así que una pasada incompleta se reintenta
+# sola al tick siguiente. Repetir es seguro: los rsync son idempotentes, migrate.js no re-aplica
+# lo que ya está en schema_migrations y el restart es tocar un archivo.
+MARCA="$REPO_DIR/.deploy-ultimo-ok"
+DESPLEGADO="$(cat "$MARCA" 2>/dev/null || true)"
+
+if [ "$DESPLEGADO" = "$REMOTE" ]; then
+    echo "$(date '+%F %T') · sin cambios ($REMOTE) — nada que desplegar"
     exit 0
 fi
 
-echo "$(date '+%F %T') · desplegando $REMOTE (antes $LOCAL)"
+if [ "$(git rev-parse HEAD)" = "$REMOTE" ]; then
+    if [ -z "$DESPLEGADO" ]; then
+        echo "$(date '+%F %T') · primera pasada con testigo — redesplegando $REMOTE para partir de un estado conocido"
+    else
+        echo "$(date '+%F %T') · el árbol ya estaba en $REMOTE pero el deploy anterior no terminó — lo rehago"
+    fi
+fi
+
+echo "$(date '+%F %T') · desplegando $REMOTE (último completo: ${DESPLEGADO:-ninguno})"
 git reset --hard "origin/$BRANCH" --quiet
 
 # 2) Frontend: copiar dist prebuildeado → docroot de prod
 mkdir -p "$FRONT_DEST"
+estado_deploy "EN CURSO" "$REMOTE"
 if command -v rsync >/dev/null 2>&1; then
     # --delete espeja dist, PERO preserva lo que NO es del build y vive en el docroot:
     #   .well-known/ → AutoSSL/Let's Encrypt
     #   .htaccess    → routing del SPA
     #   api/         → mount de Passenger del backend (boveda.lols.cl/api) — borrarlo ROMPE la API
     #   migrate-status.txt → estado del último auto-migrate (lo escribe el bloque de arriba)
-    rsync -a --delete \
+    #   deploy-status.txt  → qué build está desplegado (estado_deploy) — se escribe ANTES de
+    #                        este rsync, así que sin el exclude el --delete lo borraría
+    rsync_deploy -a --delete \
         --exclude '.well-known/' \
         --exclude '.htaccess' \
         --exclude 'migrate-status.txt' \
+        --exclude 'deploy-status.txt' \
         --exclude 'api/' \
         "$REPO_DIR/frontend/dist/" "$FRONT_DEST/"
 else
-    find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.htaccess' ! -name 'migrate-status.txt' ! -name 'api' -exec rm -rf {} +
+    find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.htaccess' ! -name 'migrate-status.txt' ! -name 'deploy-status.txt' ! -name 'api' -exec rm -rf {} +
     cp -a "$REPO_DIR/frontend/dist/." "$FRONT_DEST/"
 fi
 
 # 3) Backend: copiar código (sin node_modules/tmp/uploads/.env — se preservan en destino)
 mkdir -p "$BACK_DEST"
 if command -v rsync >/dev/null 2>&1; then
-    rsync -a \
+    rsync_deploy -a \
         --exclude 'node_modules/' \
         --exclude 'tmp/' \
         --exclude 'uploads/' \
@@ -399,7 +477,7 @@ fi
 #     prefijo NNN activaría el guard anti-duplicados de migrate.js, bloqueando TODO
 #     el set). Espejar solo esta subcarpeta es seguro: ahí no viven datos.
 if command -v rsync >/dev/null 2>&1; then
-    rsync -a --delete "$REPO_DIR/backend/db/migrations/" "$BACK_DEST/db/migrations/"
+    rsync_deploy -a --delete "$REPO_DIR/backend/db/migrations/" "$BACK_DEST/db/migrations/"
 else
     rm -rf "$BACK_DEST/db/migrations"
     cp -a "$REPO_DIR/backend/db/migrations" "$BACK_DEST/db/"
@@ -412,5 +490,10 @@ run_auto_migrate || echo "$(date '+%F %T') · auto-migrate: falló (rc=$?) — n
 # 4) Reiniciar Passenger
 mkdir -p "$BACK_DEST/tmp"
 date > "$BACK_DEST/tmp/restart.txt"
+
+# 5) Testigo del deploy COMPLETO (ver el paso 1): recién ahora el próximo tick puede decir
+#    "sin cambios". Si la pasada murió antes de esta línea, el tick siguiente la rehace entera.
+printf '%s\n' "$REMOTE" > "$MARCA"
+estado_deploy "OK" "$REMOTE"
 
 echo "$(date '+%F %T') · deploy OK → $REMOTE"
