@@ -182,12 +182,12 @@ export const GestionesInicio: React.FC<Props> = ({ permisos, hasPermission, soli
 
                     {permisos.fisicos && (
                         <TileContador icon={Truck} titulo="Documentos físicos"
-                            descripcion={puedeRegistrar ? 'Lotes impresos: qué se entregó, qué está en terreno y qué volvió firmado.' : 'Documentos que te entregó RRHH para llevar a firmar: confirma el retiro.'}
+                            descripcion={puedeRegistrar ? 'Dónde están los papeles: en oficina, en terreno o ya firmados.' : 'Documentos que RRHH dejó a tu nombre para llevar a firmar: confirma el retiro.'}
                             onEntrar={() => onIr('fisicos')}
                             pie={(
                                 <div className="flex flex-wrap items-center gap-2">
                                     <Button size="sm" variant={lotesBadge > 0 ? 'primary' : 'glass'} onClick={() => onIr('fisicos')}>
-                                        {lotesBadge > 0 ? 'Ver lotes pendientes' : 'Ver lotes'}
+                                        {lotesBadge > 0 ? 'Ver lotes pendientes' : 'Ver dónde están'}
                                     </Button>
                                     {alertasTotal > 0 && (
                                         <span className={cn('inline-flex items-center gap-1 text-caption font-semibold',
@@ -198,7 +198,7 @@ export const GestionesInicio: React.FC<Props> = ({ permisos, hasPermission, soli
                                     )}
                                 </div>
                             )}>
-                            <Cifra n={lotes?.por_confirmar ?? 0} label={lotes?.alcance === 'propios' ? 'por confirmar' : 'sin confirmar'} tono="aviso" />
+                            <Cifra n={lotes?.por_confirmar ?? 0} label={lotes?.alcance === 'propios' ? 'te esperan' : 'sin retirar'} tono="aviso" />
                             <Cifra n={lotes?.en_terreno ?? 0} label="en terreno" />
                             {alertasCriticas > 0 && <Cifra n={alertasCriticas} label="críticos" tono="critico" />}
                         </TileContador>

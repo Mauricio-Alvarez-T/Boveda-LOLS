@@ -1,7 +1,7 @@
 import {
     agruparPorTrabajador, agruparPorObra, filtrarDisponibles, toggleIds, estadoSeleccion,
     buildCrearLotePayload, validarNuevoLote, buildConfirmarRetiroPayload, buildRecepcionPayload,
-    diasDesde, resumenLote, accionesLote, filasBandejaLotes,
+    diasDesde, resumenLote, accionesLote, filasBandejaLotes, desenlaceLote,
     type DocumentoDisponible, type LoteResumen, agruparLotesPorEstado, inicialesNombre, lineaTiempoLote,
 } from './documentosFisicos';
 
@@ -84,8 +84,8 @@ describe('documentosFisicos (plan Gestiones B6)', () => {
     });
 
     it('resumenLote: solo conteos distintos de cero, con plural', () => {
-        expect(resumenLote(lote())).toBe('3 por confirmar');
-        expect(resumenLote(lote({ pendientes: 0, en_terreno: 1, firmados: 2, sin_firma: 1, no_entregados: 1 }))).toBe('1 en terreno · 2 firmados · 1 sin firma · 1 no entregado');
+        expect(resumenLote(lote())).toBe('3 esperando retiro');
+        expect(resumenLote(lote({ pendientes: 0, en_terreno: 1, firmados: 2, sin_firma: 1, no_entregados: 1 }))).toBe('1 en terreno · 2 firmados · 1 sin firma · 1 quedó en oficina');
         expect(resumenLote(lote({ pendientes: 0 }))).toBe('Sin documentos');
     });
 
@@ -103,12 +103,30 @@ describe('documentosFisicos (plan Gestiones B6)', () => {
         expect(accionesLote(lote({ portador_id: 3 }), { id: 3, puedeRegistrar: true, puedePortar: true }).confirmarRetiro).toBe(true);
     });
 
+    it('desenlaceLote: el carril dice «Firmados», la tarjeta dice si terminó de otra forma', () => {
+        // Solo aplica a lotes cerrados: los otros dos carriles ya dicen dónde están los papeles.
+        expect(desenlaceLote(lote({ estado: 'pendiente_retiro' }))).toBeNull();
+        expect(desenlaceLote(lote({ estado: 'en_terreno', pendientes: 0, en_terreno: 3 }))).toBeNull();
+
+        const cerrado = (extra: Partial<LoteResumen>) => desenlaceLote(lote({ estado: 'cerrado', pendientes: 0, ...extra }));
+        expect(cerrado({ firmados: 3 })).toBe('firmado');
+        // Volvió con algunas firmas: sigue siendo el caso normal del carril.
+        expect(cerrado({ firmados: 2, sin_firma: 1 })).toBe('firmado');
+        // Volvió entero sin una sola firma: esos papeles ya están listos para salir de nuevo.
+        expect(cerrado({ sin_firma: 3 })).toBe('sin_firmas');
+        // El portador nunca lo retiró: nunca salió de la oficina.
+        expect(cerrado({ no_entregados: 3 })).toBe('no_retirado');
+        // Mezcla sin firmas: manda lo que volvió en blanco, que es lo que hay que volver a mandar.
+        expect(cerrado({ sin_firma: 1, no_entregados: 2 })).toBe('sin_firmas');
+    });
+
     it('filasBandejaLotes: texto por alcance; nada si todo es cero', () => {
         expect(filasBandejaLotes({ por_confirmar: 1, en_terreno: 0, alcance: 'propios' })).toEqual([
-            { severity: 'warning', title: '1 lote de documentos por confirmar', description: 'RRHH te entregó documentos impresos: confirma que los recibiste' },
+            { severity: 'warning', title: '1 lote te espera en oficina', description: 'RRHH los dejó impresos a tu nombre: confirma cuando los retires' },
         ]);
         const rrhh = filasBandejaLotes({ por_confirmar: 2, en_terreno: 3, alcance: 'todos' });
-        expect(rrhh.map(f => f.title)).toEqual(['2 lotes esperando confirmación del portador', '3 lotes de documentos en terreno']);
+        expect(rrhh.map(f => f.title)).toEqual(['2 lotes que el portador aún no retira', '3 lotes de documentos en terreno']);
+        expect(filasBandejaLotes({ por_confirmar: 3, en_terreno: 0, alcance: 'propios' })[0].title).toBe('3 lotes te esperan en oficina');
         expect(filasBandejaLotes({ por_confirmar: 0, en_terreno: 0, alcance: 'todos' })).toEqual([]);
         expect(filasBandejaLotes(null)).toEqual([]);
     });
@@ -132,8 +150,8 @@ describe('tablero de custodia', () => {
         expect(inicialesNombre('  Héctor  ')).toBe('H');
         expect(inicialesNombre(null)).toBe('');
         const hoy = new Date(2026, 8, 15, 12);
-        expect(lineaTiempoLote({ ...base, estado: 'pendiente_retiro', creado_en: '2026-09-15 08:00:00' }, hoy)).toBe('Armado hoy por Matías');
-        expect(lineaTiempoLote({ ...base, estado: 'en_terreno', creado_en: '2026-09-10 08:00:00', retirado_en: '2026-09-14 08:00:00' }, hoy)).toBe('Retirado ayer');
-        expect(lineaTiempoLote({ ...base, estado: 'cerrado', creado_en: '2026-09-01 08:00:00', retirado_en: '2026-09-02 08:00:00', cerrado_en: '2026-09-10 08:00:00' }, hoy)).toBe('Cerrado hace 5 días');
+        expect(lineaTiempoLote({ ...base, estado: 'pendiente_retiro', creado_en: '2026-09-15 08:00:00' }, hoy)).toBe('Listo desde hoy · lo preparó Matías');
+        expect(lineaTiempoLote({ ...base, estado: 'en_terreno', creado_en: '2026-09-10 08:00:00', retirado_en: '2026-09-14 08:00:00' }, hoy)).toBe('En terreno desde ayer');
+        expect(lineaTiempoLote({ ...base, estado: 'cerrado', creado_en: '2026-09-01 08:00:00', retirado_en: '2026-09-02 08:00:00', cerrado_en: '2026-09-10 08:00:00' }, hoy)).toBe('Volvió hace 5 días');
     });
 });

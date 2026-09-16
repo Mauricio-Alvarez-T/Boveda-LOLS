@@ -652,6 +652,38 @@ ingreso (B2); B5 agrega el CTA tras aprobar (ver § Solicitudes → Después de 
 
 ## Cadena de custodia de documentos físicos (plan Gestiones B6, mig 114 — 2026-09-14)
 
+
+### Cómo se llama cada cosa en pantalla (2026-09-16)
+
+El tablero se lee como un **mapa de ubicación**: contesta dónde están los papeles y quién los tiene, no en
+qué paso del trámite van. Los valores de base de datos **no cambian**; esta tabla es la capa de texto, y es
+la fuente única: si aparece un rótulo nuevo, va acá.
+
+| Valor en BD | En pantalla (corto / largo) |
+|---|---|
+| `documentos_lotes.estado = 'pendiente_retiro'` | «En oficina» / «En oficina, listos para retiro» |
+| `= 'en_terreno'` | «En terreno» |
+| `= 'cerrado'` | «Firmados» / «Firmados en oficina» |
+| `items.estado = 'pendiente'` | «Esperando retiro» |
+| `= 'retirado'` | «En terreno» |
+| `= 'devuelto_sin_firma'` | «Volvió sin firma» |
+| `= 'no_entregado'` | «Quedó en oficina» |
+
+**El carril «Firmados en oficina» no significa "todo salió bien".** La migración lo define como *nada queda
+en terreno*, y ahí caen también el lote que volvió entero sin firmas y el que el portador nunca retiró
+(`no_entregado`: nunca salió de la oficina). Se resolvió sin aguar el título: la **tarjeta** de esos lotes
+lleva un chip ámbar —«Volvió sin firmas» o «Nadie lo retiró»— calculado por `desenlaceLote()`
+(`components/documentos-fisicos/documentosFisicos.ts`, con test). Si alguna vez se renombra el carril,
+ese helper es el que hay que revisar.
+
+**Cabecera ≠ primer carril**: en la cabecera los documentos están impresos y **sin asignar** (no son de
+nadie); en el primer carril ya tienen **portador asignado** y esperan que pase a buscarlos. Los textos
+usan «sin asignar» vs «esperando retiro» justamente para no pisarse.
+
+**Palabras que se conservan**: «lote» (como folio: *Lote #41*), «portador» (en permisos y código; en
+pantalla se prefiere el nombre propio o «quién retira») y «retiro». **Salieron de la UI**: «armado»,
+«recepción» (el botón dice «Registrar lo que volvió») y «doble llave» (queda en los comentarios).
+
 Requerimiento 9 de RRHH, **rediseñado con el dueño tras el QA de B5**. El flujo real no es "entregar un
 documento al trabajador" sino una cadena de custodia con dos traspasos, ambos en la oficina central:
 RRHH (Matías) imprime → el **portador** autorizado (Jhoan Vásquez / Héctor Gómez) retira → el trabajador

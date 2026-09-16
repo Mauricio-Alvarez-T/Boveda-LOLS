@@ -76,6 +76,8 @@ const moduloLabels: Record<string, string> = {
     conductores: 'Conductores', feriados: 'Feriados', roles: 'Roles',
     'bombas-hormigon': 'Bombas de hormigón', sistema: 'Sistema',
     'facturas-inventario': 'Facturas',
+    // Sin esta entrada el Historial mostraba «Documentos lotes» (prettify del slug).
+    'documentos-lotes': 'Documentos físicos',
 };
 
 /** Verbo legible por acción (para encabezados del detalle). */

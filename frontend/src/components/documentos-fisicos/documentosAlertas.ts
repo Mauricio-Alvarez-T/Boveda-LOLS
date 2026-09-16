@@ -45,18 +45,22 @@ export interface AlertaConfig {
     orden: number;
 }
 
+/**
+ * Estas etiquetas se pintan DENTRO del tablero (AlertasDocumentosStrip), así que tienen que hablar el
+ * mismo idioma que los carriles: dónde está el papel y quién lo tiene (ver documentosFisicos.ts).
+ */
 export const ETAPA_LABEL: Record<EtapaDocumento, string> = {
     sin_imprimir: 'Sin imprimir',
-    por_retirar: 'Impreso, por retirar',
-    por_confirmar: 'En lote por confirmar',
+    por_retirar: 'Impreso, sin portador',
+    por_confirmar: 'En oficina, esperando retiro',
     en_terreno: 'En terreno',
 };
 
 /** Qué tiene que hacer RRHH en cada etapa (texto corto para la fila). */
 export const ETAPA_ACCION: Record<EtapaDocumento, string> = {
     sin_imprimir: 'Imprimir desde la ficha del trabajador',
-    por_retirar: 'Armar un lote para el portador',
-    por_confirmar: 'El portador debe confirmar el retiro',
+    por_retirar: 'Prepararle un lote a un portador',
+    por_confirmar: 'El portador aún no pasa a buscarlos',
     en_terreno: 'Esperando que vuelva firmado',
 };
 

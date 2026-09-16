@@ -56,7 +56,7 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
             setPortadores(p.data?.data ?? []);
             setDocs(d.data?.data ?? []);
         } catch (err) {
-            showApiError(err, 'No se pudieron cargar los documentos por retirar');
+            showApiError(err, 'No se pudieron cargar los documentos impresos');
         } finally {
             setCargando(false);
         }
@@ -124,7 +124,7 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Nuevo lote de documentos" icon={PackageOpen} size="lg" footer={footer}
-            description="Marca los documentos impresos que entregas y a quién. El lote queda por confirmar hasta que el portador lo acepte en Bóveda.">
+            description="Marca los documentos impresos que entregas y a quién. Quedan en oficina a su nombre hasta que confirme el retiro en Bóveda.">
             <div className="space-y-4">
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -152,9 +152,9 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
                 </div>
 
                 {cargando ? (
-                    <p className="text-sm text-muted-foreground py-6 text-center">Cargando documentos por retirar…</p>
+                    <p className="text-sm text-muted-foreground py-6 text-center">Cargando documentos impresos…</p>
                 ) : docs.length === 0 ? (
-                    <EmptyState title="No hay documentos impresos por retirar"
+                    <EmptyState title="Nada impreso esperando salir"
                         description="Aparecen aquí los documentos generados por Bóveda que ya se descargaron o imprimieron y aún no están en un lote." />
                 ) : visibles.length === 0 ? (
                     <EmptyState title="Sin resultados" description="Prueba con otro nombre, RUT u obra." />
@@ -162,7 +162,7 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
                     <div className="space-y-3">
                         <div className="flex items-center justify-between text-xs">
                             <span className="text-muted-foreground">
-                                {visibles.length} de {docs.length} documento{docs.length === 1 ? '' : 's'} por retirar
+                                {visibles.length} de {docs.length} documento{docs.length === 1 ? '' : 's'} sin asignar
                                 {obras.length > 1 ? ` · ${obras.length} obras con documentos impresos` : ''}
                             </span>
                             <div className="flex gap-2">

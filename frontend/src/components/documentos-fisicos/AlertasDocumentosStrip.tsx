@@ -34,7 +34,7 @@ export const AlertasDocumentosStrip: React.FC<Props> = ({ onAbrirLote }) => {
     const criticos = a.criticos + a.lotes.sin_confirmar.criticos + a.lotes.en_terreno.criticos;
     const grupos = agruparPorEtapa(a.items);
     const lotes = [
-        ...a.lotes.sin_confirmar.items.map(l => ({ ...l, motivo: 'sin confirmar por el portador' })),
+        ...a.lotes.sin_confirmar.items.map(l => ({ ...l, motivo: 'en oficina, sin retirar' })),
         ...a.lotes.en_terreno.items.map(l => ({ ...l, motivo: 'en terreno' })),
     ];
 

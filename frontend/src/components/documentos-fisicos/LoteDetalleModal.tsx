@@ -105,7 +105,7 @@ export const LoteDetalleModal: React.FC<Props> = ({ loteId, onClose, onCambio })
         setOcupado(true);
         try {
             await api.delete(`/documentos-lotes/${lote.id}`);
-            toast.success(`Lote #${lote.id} anulado: los documentos vuelven a "por retirar"`);
+            toast.success(`Lote #${lote.id} anulado: los documentos quedan listos para salir de nuevo`);
             onCambio?.(); onClose();
         } catch (err) { showApiError(err, 'No se pudo anular el lote'); } finally { setOcupado(false); }
     };
@@ -130,7 +130,7 @@ export const LoteDetalleModal: React.FC<Props> = ({ loteId, onClose, onCambio })
                     </Button>
                 )}
                 {acciones.recepcion && (
-                    <Button leftIcon={<FileCheck2 className="h-4 w-4" />} onClick={registrarRecepcion} isLoading={ocupado} disabled={!nFirmados && !nSinFirma}>Registrar recepción</Button>
+                    <Button leftIcon={<FileCheck2 className="h-4 w-4" />} onClick={registrarRecepcion} isLoading={ocupado} disabled={!nFirmados && !nSinFirma}>Registrar lo que volvió</Button>
                 )}
             </div>
         </div>
@@ -148,7 +148,7 @@ export const LoteDetalleModal: React.FC<Props> = ({ loteId, onClose, onCambio })
                     <div className="bg-background rounded-2xl p-4 border border-border text-sm space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip tone={toneLote[lote.estado]} icon={<Truck className="h-3 w-3" />} label={LOTE_ESTADO_LABEL[lote.estado]} />
-                            <span className="font-bold text-brand-dark">Portador: {lote.portador_nombre || '(usuario eliminado)'}</span>
+                            <span className="font-bold text-brand-dark">Lo lleva: {lote.portador_nombre || '(usuario eliminado)'}</span>
                         </div>
                         <p className="text-xs text-muted-foreground">
                             Creado {fmtFechaHora(lote.creado_en)}{lote.creado_por_nombre ? ` por ${lote.creado_por_nombre}` : ''}
@@ -162,17 +162,17 @@ export const LoteDetalleModal: React.FC<Props> = ({ loteId, onClose, onCambio })
                     {acciones.confirmarRetiro && (
                         <div role="status" className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-300">
                             <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                            <span>RRHH dice que te entregó estos documentos impresos. <b>Desmarca</b> los que no tengas en la mano y confirma; los desmarcados quedan en oficina.</span>
+                            <span>RRHH dice que te pasó estos documentos. <b>Desmarca</b> los que no tengas en la mano; esos quedan en oficina.</span>
                         </div>
                     )}
                     {acciones.recepcion && (
                         <div role="status" className="flex items-start gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm text-brand-dark">
                             <FileCheck2 className="h-4 w-4 mt-0.5 shrink-0 text-brand-primary" />
-                            <span>Todos vienen marcados como <b>firmados</b>. Cambia a <b>Sin firma</b> el que volvió sin firmar (vuelve a "por retirar") o a <b>Sigue en terreno</b> el que aún no volvió.</span>
+                            <span>Todos vienen marcados como <b>firmados</b>. Cambia a <b>Sin firma</b> el que volvió sin firmar (queda listo para salir de nuevo) o a <b>Sigue en terreno</b> el que aún no volvió.</span>
                         </div>
                     )}
                     {lote.estado === 'pendiente_retiro' && !acciones.confirmarRetiro && (
-                        <p className="text-xs text-muted-foreground">Esperando que <b>{lote.portador_nombre || 'el portador'}</b> confirme el retiro en Bóveda. RRHH no puede confirmar por él (doble llave).</p>
+                        <p className="text-xs text-muted-foreground">Esperando que <b>{lote.portador_nombre || 'el portador'}</b> pase a buscarlos y lo confirme en Bóveda. RRHH no puede confirmar por él.</p>
                     )}
 
                     {lote.items.length === 0 ? (

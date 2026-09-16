@@ -67,18 +67,38 @@ export interface LoteDetalle extends LoteResumen { items: LoteItem[] }
 
 export interface PendientesLotes { por_confirmar: number; en_terreno: number; alcance: 'todos' | 'propios' }
 
+/**
+ * Vocabulario del tablero (2026-09-16). El dueño lo pidió así: esta pantalla sirve para saber **dónde
+ * están los papeles y quién los tiene**, no para narrar el trámite. Por eso los rótulos nombran el lugar
+ * («en oficina», «en terreno») y no el paso administrativo («por confirmar», «cerrado»).
+ *
+ * Corto para pestañas y `aria-label`; largo para la cabecera del carril en escritorio.
+ */
 export const LOTE_ESTADO_LABEL: Record<LoteEstado, string> = {
-    pendiente_retiro: 'Por confirmar',
+    pendiente_retiro: 'En oficina',
     en_terreno: 'En terreno',
-    cerrado: 'Cerrado',
+    cerrado: 'Firmados',
+};
+
+export const LOTE_ESTADO_TITULO: Record<LoteEstado, string> = {
+    pendiente_retiro: 'En oficina, listos para retiro',
+    en_terreno: 'En terreno',
+    cerrado: 'Firmados en oficina',
+};
+
+/** Qué significa que un carril esté vacío: también dice el lugar, no "no hay datos". */
+export const LOTE_ESTADO_VACIO: Record<LoteEstado, string> = {
+    pendiente_retiro: 'Nada esperando en oficina',
+    en_terreno: 'Nada en terreno ahora',
+    cerrado: 'Todavía no vuelve nada',
 };
 
 export const ITEM_ESTADO_LABEL: Record<LoteItemEstado, string> = {
-    pendiente: 'Por confirmar',
+    pendiente: 'Esperando retiro',
     retirado: 'En terreno',
     firmado: 'Firmado',
-    devuelto_sin_firma: 'Devuelto sin firma',
-    no_entregado: 'No entregado',
+    devuelto_sin_firma: 'Volvió sin firma',
+    no_entregado: 'Quedó en oficina',
 };
 
 /** Clave de localStorage: RRHH casi siempre arma lotes para el mismo portador. */
@@ -217,13 +237,34 @@ export function diasDesde(fecha: string | null | undefined, hoy: Date = new Date
 /** "3 en terreno · 2 firmados · 1 sin firma" — solo los conteos distintos de cero. */
 export function resumenLote(l: Pick<LoteResumen, 'pendientes' | 'en_terreno' | 'firmados' | 'sin_firma' | 'no_entregados'>): string {
     const partes: string[] = [];
-    if (l.pendientes) partes.push(`${l.pendientes} por confirmar`);
+    if (l.pendientes) partes.push(`${l.pendientes} esperando retiro`);
     if (l.en_terreno) partes.push(`${l.en_terreno} en terreno`);
     if (l.firmados) partes.push(`${l.firmados} firmado${l.firmados === 1 ? '' : 's'}`);
     if (l.sin_firma) partes.push(`${l.sin_firma} sin firma`);
-    if (l.no_entregados) partes.push(`${l.no_entregados} no entregado${l.no_entregados === 1 ? '' : 's'}`);
+    if (l.no_entregados) partes.push(`${l.no_entregados} qued${l.no_entregados === 1 ? 'ó' : 'aron'} en oficina`);
     return partes.join(' · ') || 'Sin documentos';
 }
+
+/**
+ * Cómo terminó un lote ya cerrado. El carril se llama «Firmados en oficina» porque es lo que pasa casi
+ * siempre, pero `cerrado` significa en realidad "no queda nada en terreno" y ahí caen dos finales que no
+ * son felices: el lote que volvió entero sin firmas y el que el portador nunca retiró (nunca salió de la
+ * oficina). Esos dos se marcan en la tarjeta, para que el rótulo del carril no tenga que aguarse.
+ */
+export function desenlaceLote(
+    l: Pick<LoteResumen, 'estado' | 'firmados' | 'sin_firma' | 'no_entregados' | 'total'>,
+): 'firmado' | 'sin_firmas' | 'no_retirado' | null {
+    if (l.estado !== 'cerrado') return null;
+    if (l.firmados > 0) return 'firmado';
+    if (l.no_entregados > 0 && l.sin_firma === 0) return 'no_retirado';
+    if (l.sin_firma > 0) return 'sin_firmas';
+    return null;
+}
+
+export const DESENLACE_LABEL: Record<'sin_firmas' | 'no_retirado', string> = {
+    sin_firmas: 'Volvió sin firmas',
+    no_retirado: 'Nadie lo retiró',
+};
 
 export interface QuienMira { id: number | null | undefined; puedeRegistrar: boolean; puedePortar: boolean }
 
@@ -255,9 +296,9 @@ export function inicialesNombre(nombre: string | null | undefined): string {
 /** Línea de tiempo del lote según su etapa: qué pasó y hace cuánto. */
 export function lineaTiempoLote(l: Pick<LoteResumen, 'estado' | 'creado_en' | 'retirado_en' | 'cerrado_en' | 'creado_por_nombre'>, hoy: Date = new Date()): string {
     const d = (f: string | null | undefined) => { const n = diasDesde(f, hoy); return n === 0 ? 'hoy' : n === 1 ? 'ayer' : `hace ${n} días`; };
-    if (l.estado === 'pendiente_retiro') return `Armado ${d(l.creado_en)}${l.creado_por_nombre ? ` por ${l.creado_por_nombre}` : ''}`;
-    if (l.estado === 'en_terreno') return `Retirado ${d(l.retirado_en ?? l.creado_en)}`;
-    return `Cerrado ${d(l.cerrado_en ?? l.retirado_en ?? l.creado_en)}`;
+    if (l.estado === 'pendiente_retiro') return `Listo desde ${d(l.creado_en)}${l.creado_por_nombre ? ` · lo preparó ${l.creado_por_nombre}` : ''}`;
+    if (l.estado === 'en_terreno') return `En terreno desde ${d(l.retirado_en ?? l.creado_en)}`;
+    return `Volvió ${d(l.cerrado_en ?? l.retirado_en ?? l.creado_en)}`;
 }
 /** Texto para la Bandeja / badge según el alcance del contador. */
 export function filasBandejaLotes(p: PendientesLotes | null | undefined): { severity: 'warning' | 'info'; title: string; description: string }[] {
@@ -265,8 +306,8 @@ export function filasBandejaLotes(p: PendientesLotes | null | undefined): { seve
     const out: { severity: 'warning' | 'info'; title: string; description: string }[] = [];
     if (p.por_confirmar > 0) {
         out.push(p.alcance === 'propios'
-            ? { severity: 'warning', title: `${p.por_confirmar} lote${p.por_confirmar === 1 ? '' : 's'} de documentos por confirmar`, description: 'RRHH te entregó documentos impresos: confirma que los recibiste' }
-            : { severity: 'info', title: `${p.por_confirmar} lote${p.por_confirmar === 1 ? '' : 's'} esperando confirmación del portador`, description: 'Documentos impresos declarados, aún sin confirmar el retiro' });
+            ? { severity: 'warning', title: `${p.por_confirmar} lote${p.por_confirmar === 1 ? ' te espera' : 's te esperan'} en oficina`, description: 'RRHH los dejó impresos a tu nombre: confirma cuando los retires' }
+            : { severity: 'info', title: `${p.por_confirmar} lote${p.por_confirmar === 1 ? '' : 's'} que el portador aún no retira`, description: 'Impresos y apartados en oficina, esperando que pase a buscarlos' });
     }
     if (p.en_terreno > 0) {
         out.push({ severity: 'info', title: `${p.en_terreno} lote${p.en_terreno === 1 ? '' : 's'} de documentos en terreno`, description: p.alcance === 'propios' ? 'Documentos que llevas a firmar; RRHH registra la devolución' : 'Documentos en obra pendientes de volver firmados' });

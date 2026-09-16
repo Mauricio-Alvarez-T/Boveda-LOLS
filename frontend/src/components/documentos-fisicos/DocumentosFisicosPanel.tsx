@@ -9,7 +9,7 @@
  * En móvil los carriles se muestran de a uno con un selector; en desktop los tres a la vez.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Truck, PackageOpen, RefreshCw, ChevronRight, PackageCheck, ClipboardCheck, Printer, FileText } from 'lucide-react';
+import { Truck, PackageOpen, RefreshCw, ChevronRight, PackageCheck, ClipboardCheck, Printer, FileText, AlertTriangle } from 'lucide-react';
 
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -24,15 +24,28 @@ import { LoteDetalleModal } from './LoteDetalleModal';
 import { AlertasDocumentosStrip } from './AlertasDocumentosStrip';
 import { useDocumentosAlertas } from '../../hooks/useDocumentosAlertas';
 import {
-    LOTE_ESTADO_LABEL, LOTE_ESTADOS, agruparLotesPorEstado, resumenLote, accionesLote, inicialesNombre, lineaTiempoLote,
+    LOTE_ESTADO_LABEL, LOTE_ESTADO_TITULO, LOTE_ESTADO_VACIO, LOTE_ESTADOS, agruparLotesPorEstado, resumenLote, accionesLote, inicialesNombre, lineaTiempoLote,
+    desenlaceLote, DESENLACE_LABEL,
     type LoteEstado, type LoteResumen, type DocumentoDisponible,
 } from './documentosFisicos';
 
-/** Qué significa cada carril para quien mira (RRHH vs portador). */
+/**
+ * Dónde están los papeles y quién los tiene, contado para quien mira (RRHH o el portador).
+ * Rediseño de lenguaje 2026-09-16: los rótulos nombran el LUGAR, no el trámite (ver documentosFisicos.ts).
+ */
 const CARRIL_HINT: Record<LoteEstado, { rrhh: string; portador: string }> = {
-    pendiente_retiro: { rrhh: 'Armados; el portador aún no confirma que los retiró', portador: 'RRHH te los entregó: confirma que los recibiste' },
-    en_terreno: { rrhh: 'Firmándose en obra; registra lo que vuelva', portador: 'Los llevas tú; devuélvelos firmados a RRHH' },
-    cerrado: { rrhh: 'Todo devuelto y registrado', portador: 'Ya devueltos' },
+    pendiente_retiro: {
+        rrhh: 'Ya impresos y apartados para un portador; esperan a que pase a buscarlos',
+        portador: 'Están en oficina a tu nombre: confirma cuando los retires',
+    },
+    en_terreno: {
+        rrhh: 'Los tiene el portador; se están firmando en obra',
+        portador: 'Los llevas tú; devuélvelos firmados a RRHH',
+    },
+    cerrado: {
+        rrhh: 'Lo que volvió firmado quedó en la ficha; lo que volvió sin firma está listo para salir de nuevo',
+        portador: 'Ya los devolviste',
+    },
 };
 
 const CARRIL_ESTILO: Record<LoteEstado, { punto: string; conteo: string }> = {
@@ -101,7 +114,7 @@ export const DocumentosFisicosPanel: React.FC = () => {
     const renderLote = (l: LoteResumen) => {
         const acc = accionesLote(l, quien);
         const cta = acc.confirmarRetiro ? { texto: 'Confirmar retiro', icon: PackageCheck }
-            : acc.recepcion ? { texto: 'Registrar recepción', icon: ClipboardCheck }
+            : acc.recepcion ? { texto: 'Registrar lo que volvió', icon: ClipboardCheck }
                 : null;
         return (
             /* eslint-disable-next-line no-restricted-syntax -- tarjeta completa clickeable (abre el detalle del lote) */
@@ -126,6 +139,16 @@ export const DocumentosFisicosPanel: React.FC = () => {
                     <FileText className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{resumenLote(l)}</span>
                 </p>
                 {l.observacion && <p className="mt-1 text-caption text-muted-foreground italic line-clamp-1">“{l.observacion}”</p>}
+                {/* El carril se llama «Firmados en oficina» porque es lo que pasa casi siempre; cuando un
+                    lote terminó de otra forma, lo dice acá, en el lote concreto. */}
+                {(() => {
+                    const fin = desenlaceLote(l);
+                    return fin === 'sin_firmas' || fin === 'no_retirado'
+                        ? <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-caption font-semibold text-amber-700 dark:border-amber-700/70 dark:bg-amber-500/10 dark:text-amber-300">
+                            <AlertTriangle className="h-3 w-3 shrink-0" />{DESENLACE_LABEL[fin]}
+                        </span>
+                        : null;
+                })()}
                 {cta ? (
                     <span className={cn('mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full px-4 text-section font-semibold shadow-sm',
                         acc.confirmarRetiro ? 'bg-amber-500 text-white' : 'bg-brand-primary text-white')}>
@@ -145,19 +168,19 @@ export const DocumentosFisicosPanel: React.FC = () => {
         const items = estado === 'cerrado' && !verTodosCerrados ? todos.slice(0, CERRADOS_VISIBLES) : todos;
         const est = CARRIL_ESTILO[estado];
         return (
-            <section key={estado} aria-label={LOTE_ESTADO_LABEL[estado]}
+            <section key={estado} aria-label={LOTE_ESTADO_TITULO[estado]}
                 className={cn('min-h-0 flex-col rounded-2xl bg-muted/60 border border-border/60', carrilMovil === estado ? 'flex' : 'hidden lg:flex')}>
                 <header className="shrink-0 px-3.5 pt-3 pb-2">
                     <div className="flex items-center gap-2">
                         <span className={cn('h-2.5 w-2.5 rounded-full', est.punto)} />
-                        <h3 className="text-section font-bold text-brand-dark">{LOTE_ESTADO_LABEL[estado]}</h3>
+                        <h3 className="text-section font-bold text-brand-dark">{LOTE_ESTADO_TITULO[estado]}</h3>
                         <span className={cn('ml-auto flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full text-micro font-bold tabular-nums', est.conteo)}>{todos.length}</span>
                     </div>
                     <p className="mt-0.5 text-caption text-muted-foreground">{CARRIL_HINT[estado][rol]}</p>
                 </header>
                 <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-2.5 pb-2.5 space-y-2">
                     {todos.length === 0 ? (
-                        <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-caption text-muted-foreground">Nada en esta etapa</p>
+                        <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-caption text-muted-foreground">{LOTE_ESTADO_VACIO[estado]}</p>
                     ) : items.map(renderLote)}
                     {estado === 'cerrado' && todos.length > CERRADOS_VISIBLES && (
                         <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={() => setVerTodosCerrados(v => !v)}>
@@ -178,9 +201,9 @@ export const DocumentosFisicosPanel: React.FC = () => {
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10"><Printer className="h-5 w-5 text-brand-primary" /></span>
                         <div className="min-w-0">
                             <p className="text-ui font-bold text-brand-dark leading-tight">
-                                {disponibles === null ? 'Documentos impresos' : disponibles === 0 ? 'Nada impreso esperando lote' : `${disponibles} documento${disponibles === 1 ? '' : 's'} impreso${disponibles === 1 ? '' : 's'} sin lote`}
+                                {disponibles === null ? 'Documentos impresos' : disponibles === 0 ? 'Nada impreso esperando salir' : `${disponibles} documento${disponibles === 1 ? '' : 's'} impreso${disponibles === 1 ? '' : 's'}, sin asignar`}
                             </p>
-                            <p className="text-caption text-muted-foreground truncate">Lo que descargaste desde las fichas y aún no entregaste a un portador.</p>
+                            <p className="text-caption text-muted-foreground truncate">Salieron impresos desde las fichas y todavía no van en ninguna entrega.</p>
                         </div>
                     </div>
                 ) : (
@@ -196,7 +219,7 @@ export const DocumentosFisicosPanel: React.FC = () => {
                     <IconButton variant="ghost" size="sm" aria-label="Recargar" title="Recargar" onClick={() => cargar()} icon={<RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />} />
                     {botonNuevo}
                 </div>
-                <div role="tablist" aria-label="Etapa" className="lg:hidden flex w-full items-center gap-1 rounded-2xl bg-muted p-1">
+                <div role="tablist" aria-label="Dónde están" className="lg:hidden flex w-full items-center gap-1 rounded-2xl bg-muted p-1">
                     {LOTE_ESTADOS.map(e => (
                         <Button key={e} role="tab" size="sm" variant={carrilMovil === e ? 'glass' : 'ghost'} aria-selected={carrilMovil === e}
                             onClick={() => setCarrilMovil(e)}
@@ -217,10 +240,10 @@ export const DocumentosFisicosPanel: React.FC = () => {
                     </div>
                 ) : lotes.length === 0 ? (
                     <EmptyState icon={Truck} className="flex-1 justify-center"
-                        title="Sin lotes de documentos"
+                        title="Ningún documento en circulación"
                         description={puedeRegistrar
-                            ? 'Imprime los documentos desde la ficha del trabajador y arma un lote para quien los lleve a firmar.'
-                            : 'Cuando RRHH te entregue documentos impresos, aparecerán aquí para que confirmes el retiro.'}
+                            ? 'Imprime los documentos desde la ficha del trabajador y prepara un lote para quien los lleve a firmar.'
+                            : 'Cuando RRHH deje documentos impresos a tu nombre, aparecerán aquí para que confirmes el retiro.'}
                         action={botonNuevo ?? undefined} />
                 ) : (
                     <div className="grid flex-1 min-h-0 grid-cols-1 lg:grid-cols-3 gap-3">
