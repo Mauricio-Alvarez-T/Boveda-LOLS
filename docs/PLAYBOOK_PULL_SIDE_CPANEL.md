@@ -195,6 +195,11 @@ tail -n 40 ~/deploy-staging.log
 
 Éxito = la última línea es `… · deploy OK → <sha>` o `… · sin cambios (<sha>)`.
 
+> **Sin abrir el log**: `https://test.boveda.lols.cl/deploy-status.txt` dice qué build está desplegado
+> (`<fecha> · OK · deploy-staging <sha> · <asunto del build>`). Se escribe `EN CURSO` al empezar y `OK`
+> al terminar, así que un `EN CURSO` con hora vieja = pasada muerta a mitad. Los otros dos:
+> `migrate-status.txt` (migraciones) y `datos-status.txt` (saneo de datos ficticios).
+
 > **El cron también migra la BD** (bloque `auto-migrate` del `.sh`, desde 2026-08-27): al detectar
 > `.sql` nuevos en `db/migrations/` corre `node scripts/migrate.js` y publica el resultado en
 > `https://<host>/migrate-status.txt` (el rsync del frontend lo excluye del `--delete`). Detalle en
@@ -215,6 +220,8 @@ tail -n 40 ~/deploy-staging.log
 | Cron no corre nunca (log vacío/inexistente) | Cron no guardado | Confirmar que el job aparece en "Current Cron Jobs". |
 | **El login falla / `POST /api/...` da 404 HTML tras un deploy** | La carpeta **`api/` del docroot** (mount de Passenger del backend) **fue borrada** por el `rsync --delete` | Recrear `…/test.boveda.lols.cl/api/.htaccess` con el bloque Passenger (ver §7bis) y reiniciar. Asegurar que el `.sh` excluye `api/` (ya lo hace) y usar el cron self-healing de §4.1. |
 | **El primer deploy tras editar el `.sh` se comporta como la versión vieja** | **Carrera de auto-modificación:** el script se `git reset` a sí mismo a mitad de ejecución; bash ya tenía bufferizada la versión anterior | Usar el cron **self-healing** de §4.1 (pre-carga el `.sh` antes de ejecutarlo). Si usas la versión simple: tras editar el `.sh`, corre el deploy DOS veces (el 2º ya usa la versión nueva) y restaura manualmente cualquier daño del 1º. |
+| El log repite `sin cambios` pero el sitio quedó a medias (front nuevo, backend/esquema viejos) | **Ventana absorbente** (arreglada 2026-09-16): se comparaba HEAD con origin, y a HEAD lo mueve el `git reset --hard` ANTES de los rsync/migraciones/restart → una pasada muerta a mitad dejaba a todos los ticks siguientes diciendo "sin cambios" para siempre | Ya lo cubre el **testigo** `~/deploy-staging/.deploy-ultimo-ok` (se escribe al FINAL): el tick siguiente rehace la pasada entera. Mirar `deploy-status.txt`; para forzar un redeploy, borrar el testigo con File Manager. |
+| `otra pasada en curso (lock global) — salto este tick`, varios ticks seguidos | Una pasada larga sigue viva (el `npm ci` del heal-deps o `migrate.js` pueden tardar hasta 10 min cada uno) y tiene tomado `~/deploy-staging/.deploy.lock` | Normal: esperar. El lock se libera solo (`trap EXIT`) y, si quedó huérfano por un SIGKILL o un reinicio del host, el propio script lo suelta a los 60 min. Para desatascar antes: borrar esa carpeta con File Manager. |
 
 > **Clave sobre el cron y la rama:** el script NO hace `checkout` de rama; hace
 > `git fetch origin deploy-staging` + `git reset --hard origin/deploy-staging`. **El clone DEBE estar
@@ -258,6 +265,12 @@ Tras un push a `develop`:
    ```bash
    grep -oE '/assets/[A-Za-z0-9_.-]+\.js' ~/deploy-staging/frontend/dist/index.html   # rama
    curl -s https://test.boveda.lols.cl/ | grep -oE '/assets/[A-Za-z0-9_.-]+\.js'      # sitio
+   ```
+4. `https://test.boveda.lols.cl/deploy-status.txt` dice `OK` con **ese** `<sha>` y hora reciente
+   (es el chequeo que no necesita ni SSH ni abrir el log):
+   ```bash
+   curl -s https://test.boveda.lols.cl/deploy-status.txt
+   # 2026-09-16 14:32:05 · OK · deploy-staging 63b1843 · build(staging): dist de e08a807
    ```
 
 ---
