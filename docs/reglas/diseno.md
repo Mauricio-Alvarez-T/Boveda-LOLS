@@ -264,7 +264,15 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    todas las celdas de todas las filas: con 40 filas ya se nota el tirón, con 250 es inusable. El panel
    toma su ancho **de una vez** (un solo reflow) y lo que se anima es `transform`/`opacity`. Por la misma
    razón, nada de `backdrop-blur` sobre una tabla mientras algo se mueve encima.
-10. **La animación no puede mentir sobre la dirección.** El icono dice de dónde viene el panel
+10. **Una lista flotante nunca se cierra por «un scroll cualquiera».** `scroll` no burbujea, pero un
+    listener en `window` con `capture: true` **sí** recibe el de la propia lista, así que cerrar ahí la
+    vuelve inusable: un tic de rueda y desaparece (pasó el 2026-09-16 con `FilterSelect`). El handler
+    debe: (1) ignorar el scroll originado dentro del popover; (2) ante el de un ancestro, **reposicionar**
+    —amortiguado con `requestAnimationFrame`, como `useTutorialSpotlight`— en vez de cerrar; (3) cerrar
+    solo si el disparador salió de la pantalla. Y la lista lleva `overscroll-contain`, para que al llegar
+    al final la rueda no siga scrolleando lo de atrás. La aritmética de colocación vive en
+    `components/ui/popoverPos.ts` (puro, con test): reusarla en vez de recalcularla a mano.
+11. **La animación no puede mentir sobre la dirección.** El icono dice de dónde viene el panel
    (`PanelLeftOpen`/`PanelLeftClose` para un lateral, `SlidersHorizontal` para una hoja inferior) y el
    panel se despliega **desde el borde del disparador**: un panel en flujo que anima su ancho debe anclar
    su contenido al lado que toca el botón (`justify-end` cuando el botón queda a la derecha del panel),

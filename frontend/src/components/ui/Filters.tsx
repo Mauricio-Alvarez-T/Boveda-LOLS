@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../../utils/cn';
+import { calcularPosicion, fueraDeVista, type PosicionPopover } from './popoverPos';
 import { ChevronDown, Search } from 'lucide-react';
 
 export interface FilterSelectOption {
@@ -16,10 +17,6 @@ interface FilterSelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectEl
     onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
-/** Alto máximo del popover (buscador + lista). Decide si abre hacia abajo o hacia arriba. */
-const POPOVER_MAX = 320;
-
-interface PosicionPopover { left: number; width: number; maxHeight: number; top?: number; bottom?: number }
 
 export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
     ({ className, label, options, placeholder = 'Seleccionar...', value, onChange, ...props }, ref) => {
@@ -38,15 +35,7 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
         const medir = useCallback(() => {
             const el = triggerRef.current;
             if (!el) return;
-            const r = el.getBoundingClientRect();
-            const libreAbajo = window.innerHeight - r.bottom;
-            const abajo = libreAbajo >= POPOVER_MAX || libreAbajo >= r.top;
-            const base: PosicionPopover = {
-                left: r.left,
-                width: Math.max(r.width, 200),
-                maxHeight: Math.max(160, Math.min(POPOVER_MAX, (abajo ? libreAbajo : r.top) - 12)),
-            };
-            setPos(abajo ? { ...base, top: r.bottom + 4 } : { ...base, bottom: window.innerHeight - r.top + 4 });
+            setPos(calcularPosicion(el.getBoundingClientRect(), window.innerHeight));
         }, []);
 
         useEffect(() => {
@@ -56,17 +45,37 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
                 if (!containerRef.current?.contains(t) && !popoverRef.current?.contains(t)) cerrar();
             };
             const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') cerrar(); };
-            // Cualquier scroll (el del rail incluido) cierra la lista: reposicionar en cada frame cuesta más
-            // de lo que vale, y es lo mismo que hace un select nativo.
-            const scroll = () => cerrar();
+
+            // `scroll` NO burbujea, pero sí se captura: registrado en window con capture llega también
+            // cuando el que scrollea es la propia lista. Cerrar ahí (como hacía la primera versión de
+            // este portal) volvía la lista inusable: un tic de rueda y desaparecía. Reglas:
+            //   1. scroll DENTRO del popover → no es asunto nuestro;
+            //   2. scroll de un ancestro → el disparador se movió: seguirlo (amortiguado con rAF, el
+            //      mismo patrón de useTutorialSpotlight);
+            //   3. solo si el disparador se fue de la pantalla, cerrar.
+            let raf = 0;
+            const enScroll = (e: Event) => {
+                const t = e.target as Node | null;
+                if (t && popoverRef.current && (t === popoverRef.current || popoverRef.current.contains(t))) return;
+                if (raf) return;
+                raf = requestAnimationFrame(() => {
+                    raf = 0;
+                    const el = triggerRef.current;
+                    if (!el) return;
+                    if (fueraDeVista(el.getBoundingClientRect(), window.innerHeight)) cerrar();
+                    else medir();
+                });
+            };
+
             document.addEventListener('mousedown', clickFuera);
             document.addEventListener('keydown', tecla);
-            window.addEventListener('scroll', scroll, true);
+            window.addEventListener('scroll', enScroll, true);
             window.addEventListener('resize', medir);
             return () => {
+                if (raf) cancelAnimationFrame(raf);
                 document.removeEventListener('mousedown', clickFuera);
                 document.removeEventListener('keydown', tecla);
-                window.removeEventListener('scroll', scroll, true);
+                window.removeEventListener('scroll', enScroll, true);
                 window.removeEventListener('resize', medir);
             };
         }, [isOpen, cerrar, medir]);
@@ -169,7 +178,7 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
                                 autoFocus
                             />
                         </div>
-                        <ul className="flex-1 min-h-0 overflow-y-auto custom-scrollbar py-1">
+                        <ul className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar py-1">
                             {!conPlaceholderPropio && (
                                 <li
                                     className={cn(
