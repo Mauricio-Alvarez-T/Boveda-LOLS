@@ -18,6 +18,18 @@ on:
       - 'LICENSE'
   workflow_dispatch:
 
+# Un push puede llegar a GitHub como DOS eventos (pasó con afcbf20 el 2026-09-16: cuatro runs
+# para un solo `git push`). Los dos deploys compilan lo mismo y pelean por publicar la rama
+# `deploy-staging`; el que llega segundo muere con "cannot lock ref ... is at X but expected Y"
+# (el `push -f` no salva la carrera: el servidor rechaza la transaccion si la ref se movió
+# mientras se empujaba) y deja el commit pintado en rojo sin que nada esté roto.
+# Con esto, el run nuevo cancela al viejo del mismo ref: se publica una sola vez y el duplicado
+# queda "cancelled" (gris), no "failure". Cancelar a mitad del push es inocuo: el push es atómico
+# en el servidor y el run que sobrevive publica el mismo dist.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write   # para publicar la rama deploy-staging con GITHUB_TOKEN
 

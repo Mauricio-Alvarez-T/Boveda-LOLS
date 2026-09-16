@@ -18,6 +18,14 @@ on:
       - 'LICENSE'
   workflow_dispatch:
 
+# Mismo patron que staging (ver el comentario equivalente alli): dos runs simultaneos del mismo
+# ref se pisan al publicar `deploy-prod` y el perdedor falla al bloquear la ref. Acá importa más:
+# un release a main no debería pintar rojo por una carrera. El run mas nuevo gana; el servidor
+# baja la rama por cron, así que lo único que cuenta es que la rama quede con el build correcto.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write   # para publicar la rama deploy-prod con GITHUB_TOKEN
 

@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [ "main", "develop" ]
 
+# Evita la suite duplicada cuando un push llega como dos eventos, y cancela la corrida anterior
+# de una PR cuando se empuja un commit nuevo. El resultado que vale es siempre el del último commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
