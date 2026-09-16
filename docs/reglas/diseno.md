@@ -226,3 +226,27 @@ Principios y reglas concretas:
 
 **Referencia canónica del look:** `frontend/src/pages/Login.tsx` (hero a pantalla
 dividida) — úsalo como ancla al migrar otras pantallas en F5.
+
+---
+
+## 8. Paneles laterales y filtros (2026-09-16)
+
+1. **Los filtros de una lista larga van en un rail vertical, no en una banda horizontal.** Una pantalla
+   de datos se lee en vertical: cada fila es un registro. Si el panel de filtros se abre **encima** de la
+   lista dentro de un contenedor de alto fijo, no la desplaza: le quita filas justo cuando el usuario
+   quiere ver el resultado de lo que está filtrando. El rail le quita **ancho**, que sobra.
+   (Coincide con Baymard, Pencil & Paper y Helios: el sidebar escala en vertical, persiste mientras se
+   recorre el resultado y no esconde tipos de filtro detrás de un "ver más".)
+   Implementación de referencia: `components/consultas/FiltrosRail.tsx` + `FilterPanel.tsx`.
+2. **Tres presentaciones del mismo panel, por ancho:** ≥1280 columna en flujo que empuja el contenido ·
+   768–1279 la misma columna flotando sobre él, con backdrop · <768 hoja inferior arrastrable.
+3. **Elegir la presentación con `useMediaQuery` (`hooks/useMediaQuery.ts`), NUNCA con
+   `hidden md:block` / `md:hidden`.** Las dos ramas CSS montan los hijos **dos veces** en el DOM: ids de
+   formulario duplicados (el caso de `ui/Modal.tsx`) o `aria-label` duplicados (el caso de los filtros).
+4. **Más de ~8 controles → grupos plegables con contador**, con los grupos más usados abiertos y los que
+   traen un valor por deep-link desplegados solos. La estructura y el conteo van en un `.ts` puro con
+   test (el jest del front solo corre `*.test.ts` sin JSX).
+5. **Un popover dentro de un contenedor con scroll va en portal con `position: fixed`.** Un `absolute`
+   queda recortado por el `overflow` del panel. Cierra con click fuera, `Escape` y scroll.
+6. **Filtrado instantáneo** (sin botón "Aplicar") mientras el conjunto sea chico y la consulta tenga
+   debounce. "Limpiar" siempre visible en la cabecera del panel cuando haya algo puesto.

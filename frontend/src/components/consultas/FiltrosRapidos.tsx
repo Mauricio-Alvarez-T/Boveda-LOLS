@@ -40,8 +40,10 @@ const TONOS = {
 export const FiltrosRapidos: React.FC<{ filtros: FiltroRapido[] }> = ({ filtros }) => {
     if (!filtros.length) return null;
     return (
-        <div className="shrink-0 flex flex-wrap items-center gap-2">
-            <span className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Atajos</span>
+        // Una sola fila que se desliza en móvil: con `flex-wrap` los cinco chips ocupaban 3-4 líneas
+        // (~120px) del alto que necesitan las tarjetas de trabajadores. En desktop caben todos y envuelve.
+        <div className="shrink-0 flex flex-nowrap md:flex-wrap items-center gap-2 overflow-x-auto md:overflow-visible custom-scrollbar pb-0.5">
+            <span className="shrink-0 text-caption font-semibold uppercase tracking-wider text-muted-foreground">Atajos</span>
             {filtros.map(f => {
                 const Icon = f.icon;
                 return (
@@ -55,7 +57,7 @@ export const FiltrosRapidos: React.FC<{ filtros: FiltroRapido[] }> = ({ filtros 
                         leftIcon={<Icon className="h-3.5 w-3.5" />}
                         rightIcon={f.activo ? <X className="h-3.5 w-3.5" /> : undefined}
                         className={cn(
-                            'h-8 rounded-full border px-3 text-caption font-semibold',
+                            'h-8 shrink-0 rounded-full border px-3 text-caption font-semibold',
                             f.activo ? TONOS[f.tono ?? 'brand'] : 'border-border text-muted-foreground hover:text-brand-dark',
                         )}
                     >

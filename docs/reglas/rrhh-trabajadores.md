@@ -46,13 +46,40 @@
   - **Dónde va el código**: todo bloque `if` nuevo va entre el rango de fecha de ingreso y el
     `ORDER BY`. Después del `ORDER BY` es SQL inválido; antes de los de fecha rompe los cuatro
     tests de `fiscalizacion_filtros.test.js`, que comparan `params` con `toEqual` exacto.
+- **Dónde se muestran los filtros (2026-09-16): rail vertical, no banda horizontal.** La pantalla se lee
+  en vertical (una fila = un trabajador) y la página vive en un alto fijo, así que el panel horizontal
+  que había encima de la grilla le quitaba filas a la lista cada vez que se abría — con 12 controles,
+  unos 300px. Ahora el panel es una **columna hermana** de la grilla: abrirlo le quita **ancho**, nunca
+  alto. Tres presentaciones del **mismo** `FilterPanel`, elegidas con `useMediaQuery` y **nunca** con
+  `hidden md:block` (dos ramas CSS montan los controles dos veces, con `aria-label` duplicados — era el
+  bug que tenía la hoja móvil):
+  - **≥1280px** — `FiltrosRail` en modo `inline`: columna de 320px en flujo que empuja la tabla.
+  - **768–1279px** — el mismo rail en modo `overlay`, flotando sobre el área del módulo con backdrop.
+    A ese ancho quitarle 320px a la tabla la dejaría ilegible.
+  - **<768px** — la hoja de abajo de siempre, arrastrable.
+  Los 12 controles van en **cinco grupos plegables con contador** (`components/consultas/filtrosPanel.ts`,
+  puro y con test): Dónde trabaja · Situación · Papeles · Datos de la ficha · Fechas. Al montar se
+  despliegan los dos primeros **más el que traiga un deep-link** (la alerta "Documentos Vencidos" del
+  Inicio entra con `doc_vigencia` y su control tiene que verse). El estado abierto/cerrado del rail se
+  recuerda por usuario en `localStorage` (`boveda.gestiones.filtrosAbiertos.<userId>`), como la última
+  sección de `gestionesNav.ts`.
+  - **El contador del rail y los contadores por grupo NO son el mismo número, a propósito**:
+    `activeFilterCount` cuenta 17 cosas, cinco de las cuales no viven en el panel (la búsqueda y los
+    cuatro atajos). No hay que "cuadrarlos".
+  - El popover de `FilterSelect` se dibuja en un **portal con `position: fixed`**: dentro de un rail con
+    scroll propio, un `absolute` quedaba recortado a media lista. Cierra con click fuera, `Escape` y
+    cualquier scroll.
 - **Atajos** (`components/consultas/FiltrosRapidos.tsx`, rangos puros en `rangosFecha.ts` con test):
-  fila de chips sobre la grilla — Ingresos de este mes, Cumplen 10 meses, Finiquito pendiente,
+  **una sola fila** de chips sobre la grilla (en móvil se desliza en horizontal; con `flex-wrap` ocupaba
+  3-4 líneas del alto que necesitan las tarjetas) — Ingresos de este mes, Cumplen 10 meses, Finiquito pendiente,
   No recontratar y Fichas de prueba. Los tres primeros **no tocan el backend**: reusan params que ya
   existían. Los que fijan más de un filtro lo declaran en su tooltip (p. ej. "finiquito pendiente"
   fuerza desvinculados de los últimos 60 días, porque con "Solo activos" saldría vacío).
   Los rangos se calculan en hora **local**: con `toISOString()` un 30 de septiembre a las 23:30 en
   Chile ya es 1 de octubre en UTC y "este mes" saltaría al siguiente.
+  El banner propio de "10 meses de contrato" se eliminó (2026-09-16): decía lo mismo que su chip, que
+  además se apaga con su ✕, y costaba una fila entera de la lista. El mes objetivo que fija la alerta
+  del Inicio vive ahora en el tooltip del chip.
 - **Saneamiento del endpoint (2026-09-15)**: `GET /fiscalizacion/trabajadores-avanzado` exige solo
   `documentos.ver` y hace `SELECT t.*`; ahora pasa por `sanitizeTrabajadorPersonal` como el
   quick-view (B1). Los agregados de documentación se re-adjuntan tras sanear: no son datos

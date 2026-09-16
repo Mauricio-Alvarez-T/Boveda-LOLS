@@ -6,7 +6,7 @@
  * Rename solo de etiqueta (precedentes 33a9fcb, 59fd108): los deep-links /consultas?… del Dashboard
  * y el test por path tutorialLabels.test.ts dependen de estos identificadores.
  */
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
     Search,
     ArrowLeft,
@@ -58,6 +58,13 @@ import { SECCION_LABEL, type SeccionGestiones } from '../components/consultas/ge
 import { TrabajadoresGrilla } from '../components/consultas/TrabajadoresGrilla';
 import { FiltrosRapidos, type FiltroRapido } from '../components/consultas/FiltrosRapidos';
 import { mesEnCurso, ultimosDias } from '../components/consultas/rangosFecha';
+import { FiltrosRail } from '../components/consultas/FiltrosRail';
+import {
+    contarPorGrupo, gruposIniciales, leerRailAbierto, guardarRailAbierto,
+    type GrupoFiltroId, type ValoresFiltros,
+} from '../components/consultas/filtrosPanel';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import { useObra } from '../context/ObraContext';
 
 import {
     useConsultasFilters,
@@ -172,6 +179,9 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
             },
             {
                 id: 'aniv10m', label: 'Cumplen 10 meses', icon: CalendarClock,
+                // El mes objetivo lo fija la alerta del Inicio y puede no ser el actual: va en el tooltip
+                // (antes lo decía un banner propio que ocupaba una fila entera de la lista).
+                nota: aniversario10mLabel ? 'Cumplen 10 meses de contrato en ' + aniversario10mLabel : undefined,
                 activo: filterAniversario10m === mes.mes,
                 encender: () => setFilterAniversario10m(mes.mes),
                 apagar: clearAniversario10m,
@@ -201,7 +211,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 apagar: () => setFilterSoloPrueba(false),
             },
         ];
-    }, [filterIngresoDesde, filterIngresoHasta, filterAniversario10m, filterFiniquito, filterNoRecontratar,
+    }, [filterIngresoDesde, filterIngresoHasta, filterAniversario10m, aniversario10mLabel, filterFiniquito, filterNoRecontratar,
         filterSoloPrueba, setFilterIngresoDesde, setFilterIngresoHasta, setFilterAniversario10m,
         clearAniversario10m, setFilterFiniquito, setFilterActivo, setFilterSalidaDesde, setFilterSalidaHasta,
         setFilterNoRecontratar, setFilterSoloPrueba]);
@@ -210,6 +220,28 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     const obraOptions = useMemo(() => obras.map(o => ({ value: o.value, label: o.label })), [obras]);
     const empresaOptions = useMemo(() => empresas.map(e => ({ value: e.value, label: e.label })), [empresas]);
     const cargoOptions = useMemo(() => cargos.map(c => ({ value: c.value, label: c.label })), [cargos]);
+
+    // ── Rail de filtros: agrupación y contador por grupo (lógica pura en filtrosPanel.ts) ──
+    // La obra del selector global no cuenta como filtro elegido, igual que en activeFilterCount.
+    const { selectedObra } = useObra();
+    const obraContexto = selectedObra ? String(selectedObra.id) : '';
+    const valoresPanel = useMemo<ValoresFiltros>(() => ({
+        obra: filterObra, empresa: filterEmpresa, cargo: filterCargo, categoria: filterCategoria,
+        activo: filterActivo, ausentes: filterAusentes,
+        completitud: filterCompletitud, docTipoFalta: filterDocTipoFalta, docVigencia: filterDocVigencia,
+        faltaDato: filterFaltaDato,
+        ingresoDesde: filterIngresoDesde, ingresoHasta: filterIngresoHasta,
+        salidaDesde: filterSalidaDesde, salidaHasta: filterSalidaHasta,
+    }), [filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterAusentes,
+        filterCompletitud, filterDocTipoFalta, filterDocVigencia, filterFaltaDato,
+        filterIngresoDesde, filterIngresoHasta, filterSalidaDesde, filterSalidaHasta]);
+    const conteosGrupo = useMemo(() => contarPorGrupo(valoresPanel, { obraContexto }), [valoresPanel, obraContexto]);
+    // Al montar se despliegan los dos primeros grupos, más el que traiga un deep-link
+    // (la alerta "Documentos Vencidos" del Inicio entra con doc_vigencia y debe verse su control).
+    const [gruposAbiertos, setGruposAbiertos] = useState<GrupoFiltroId[]>(() => gruposIniciales(valoresPanel, { obraContexto }));
+    const toggleGrupo = useCallback((id: GrupoFiltroId) => {
+        setGruposAbiertos(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
+    }, []);
 
     // 3. Selección
     const {
@@ -245,8 +277,26 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     const [quickViewId, setQuickViewId] = useState<number | null>(null);
     const [constanciaWorker, setConstanciaWorker] = useState<Trabajador | null>(null);
     const [emailModalOpen, setEmailModalOpen] = useState(false);
-    const [showMobileFilters, setShowMobileFilters] = useState(false);
+    // Rail de filtros (2026-09-16). Tres presentaciones del mismo panel, elegidas por ancho:
+    //  ≥1280 columna en flujo que empuja la grilla · 768-1279 el mismo rail flotando sobre ella ·
+    //  <768 la hoja de abajo de siempre. Se elige por matchMedia y NO por clases hidden/md:block:
+    //  dos ramas CSS montarían los 12 controles dos veces (ver el comentario de ui/Modal.tsx).
+    const railInline = useMediaQuery('(min-width: 1280px)');
+    const conRail = useMediaQuery('(min-width: 768px)');
+    const [showFilters, setShowFilters] = useState(() =>
+        !seccionFija
+        && typeof window !== 'undefined' && !!window.matchMedia
+        && window.matchMedia('(min-width: 768px)').matches
+        && leerRailAbierto(user?.id)
+    );
     const [showCreatePanel, setShowCreatePanel] = useState(false);
+
+    // Memoria del rail por usuario (solo desktop: en el teléfono la hoja siempre arranca cerrada).
+    // Solo se guarda estando en la grilla: salir a otra sección cierra el rail, y eso no es una
+    // decisión del usuario que haya que recordar.
+    useEffect(() => {
+        if (!seccionFija && conRail && esGrilla) guardarRailAbierto(user?.id, showFilters);
+    }, [showFilters, conRail, esGrilla, user?.id, seccionFija]);
     
     // ── Contadores de las secciones (stores de módulo compartidos con el Sidebar y la Bandeja) ──
     const solicitudes = useSolicitudesIngreso();
@@ -254,7 +304,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     const lotes = useLotesPendientes();
     const alertasDocs = useDocumentosAlertas();
     const irASeccion = useCallback((s: SeccionGestiones, extra?: Record<string, string>) => {
-        setShowMobileFilters(false);
+        setShowFilters(false);
         setShowCreatePanel(false);
         irA(s, extra);
     }, [irA]);
@@ -304,7 +354,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     size="sm" 
                     onClick={() => {
                         setShowCreatePanel(prev => !prev);
-                        setShowMobileFilters(false);
+                        setShowFilters(false);
                     }}
                     leftIcon={<Plus className={cn("h-4 w-4 transition-transform duration-300 ease-out", showCreatePanel ? "rotate-45 scale-110" : "")} />}
                     className={cn(
@@ -321,19 +371,20 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 {esGrilla && (<>
                 <Button
                     size="sm"
+                    aria-expanded={showFilters}
                     onClick={() => {
-                        setShowMobileFilters(!showMobileFilters);
+                        setShowFilters(!showFilters);
                         setShowCreatePanel(false);
                     }}
-                    variant={showMobileFilters ? 'primary' : 'outline'}
+                    variant={showFilters ? 'primary' : 'outline'}
                     className={cn(
                         "h-9 px-4 rounded-xl font-semibold gap-2 border-border shadow-sm transition-all duration-300",
-                        showMobileFilters 
+                        showFilters 
                             ? "bg-brand-primary text-white border-transparent" 
                             : "bg-card text-brand-dark hover:bg-background"
                     )}
                 >
-                    {showMobileFilters ? (
+                    {showFilters ? (
                         <X className="h-3.5 w-3.5 animate-in zoom-in spin-in-12 duration-300" />
                     ) : (
                         <Filter className="h-3.5 w-3.5 animate-in fade-in zoom-in duration-300" />
@@ -342,7 +393,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     {activeFilterCount > 0 && (
                         <span className={cn(
                             "flex h-4 w-4 items-center justify-center rounded-full text-micro transition-colors duration-300",
-                            showMobileFilters ? "bg-card text-green-700 dark:text-green-300" : "bg-brand-primary text-white"
+                            showFilters ? "bg-card text-green-700 dark:text-green-300" : "bg-brand-primary text-white"
                         )}>
                             {activeFilterCount}
                         </span>
@@ -380,12 +431,12 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
             {/* Mobile Actions — icon-buttons del DS: gris idle → verde hover, sin
                 relleno activo. El estado se indica por el icono (Plus rota, Filter↔X,
                 Filter↔X) y el badge, no por el color de fondo. */}
-            <div className="lg:hidden flex items-center gap-2">
+            <div className="md:hidden flex items-center gap-2">
                 {conCrear && (
                 <IconButton
                     variant="ghost"
                     aria-label="Crear"
-                    onClick={() => { setShowCreatePanel(prev => !prev); setShowMobileFilters(false); }}
+                    onClick={() => { setShowCreatePanel(prev => !prev); setShowFilters(false); }}
                     className="rounded-xl border border-border shadow-sm"
                     icon={<Plus className={cn("h-4 w-4 transition-transform duration-300 ease-out", showCreatePanel ? "rotate-45 scale-110" : "")} />}
                 />
@@ -403,10 +454,11 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 <IconButton
                     variant="ghost"
                     aria-label="Filtros"
-                    onClick={() => { setShowMobileFilters(prev => !prev); setShowCreatePanel(false); }}
+                    aria-expanded={showFilters}
+                    onClick={() => { setShowFilters(prev => !prev); setShowCreatePanel(false); }}
                     className="relative rounded-xl border border-border shadow-sm"
                     icon={<>
-                        {showMobileFilters
+                        {showFilters
                             ? <X className="h-4 w-4 animate-in zoom-in spin-in-12 duration-300" />
                             : <Filter className="h-4 w-4 animate-in fade-in zoom-in duration-300" />}
                         {activeFilterCount > 0 && (
@@ -419,15 +471,60 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 </>)}
             </div>
         </div>
-    ), [workers.length, exporting, activeFilterCount, showMobileFilters, showCreatePanel, exportIds,
+    ), [workers.length, exporting, activeFilterCount, showFilters, showCreatePanel, exportIds,
         seccion, esGrilla, conCrear]);
 
     useSetPageHeader(headerTitle, headerActions);
 
+    // Los mismos controles para el rail (desktop) y la hoja (móvil): se instancian UNA vez y se montan
+    // en el sitio que corresponda al ancho. Nunca los dos a la vez (antes sí, y duplicaba aria-labels).
+    const panelFiltros = (
+        <FilterPanel
+            obras={obraOptions}
+            empresas={empresaOptions}
+            cargos={cargoOptions}
+            filterObra={filterObra}
+            setFilterObra={setFilterObra}
+            filterEmpresa={filterEmpresa}
+            setFilterEmpresa={setFilterEmpresa}
+            filterCargo={filterCargo}
+            setFilterCargo={setFilterCargo}
+            filterCategoria={filterCategoria}
+            setFilterCategoria={setFilterCategoria}
+            filterActivo={filterActivo}
+            setFilterActivo={setFilterActivo}
+            filterCompletitud={filterCompletitud}
+            setFilterCompletitud={setFilterCompletitud}
+            filterAusentes={filterAusentes}
+            setFilterAusentes={setFilterAusentes}
+            filterIngresoDesde={filterIngresoDesde}
+            setFilterIngresoDesde={setFilterIngresoDesde}
+            filterIngresoHasta={filterIngresoHasta}
+            setFilterIngresoHasta={setFilterIngresoHasta}
+            tiposObligatorios={tiposObligatorios}
+            filterFaltaDato={filterFaltaDato}
+            setFilterFaltaDato={setFilterFaltaDato}
+            filterDocTipoFalta={filterDocTipoFalta}
+            setFilterDocTipoFalta={setFilterDocTipoFalta}
+            filterDocVigencia={filterDocVigencia}
+            setFilterDocVigencia={setFilterDocVigencia}
+            filterSalidaDesde={filterSalidaDesde}
+            setFilterSalidaDesde={setFilterSalidaDesde}
+            filterSalidaHasta={filterSalidaHasta}
+            setFilterSalidaHasta={setFilterSalidaHasta}
+            abiertos={gruposAbiertos}
+            onToggleGrupo={toggleGrupo}
+            conteos={conteosGrupo}
+        />
+    );
+
     // Componentes extraídos al directorio components/consultas/...
 
     return (
-        <div className="h-[calc(100dvh-116px)] md:h-[calc(100dvh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full">
+        // Alto sin números mágicos (2026-09-16): el padre ya es un flex column con alto definido
+        // (MainLayout), así que `flex-1 min-h-0` calcula lo que antes intentaba un calc() a mano — que
+        // ignoraba la franja de "Entorno de pruebas" y se pasaba 4px en móvil.
+        <div className="flex-1 min-h-0 flex flex-col gap-2 p-0 overflow-hidden w-full">
             {/* Mobile Search - Only visible on small screens (solo en la grilla) */}
             {esGrilla && (
             <div className="md:hidden relative shrink-0">
@@ -441,97 +538,31 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
             </div>
             )}
 
-            <div className="flex flex-col gap-4 shrink-0">
-                <AnimatePresence mode="wait">
-                    {showMobileFilters && (
-                        <motion.div
-                            key="filters"
-                            initial={{ height: 0, opacity: 0, y: -10 }}
-                            animate={{ height: 'auto', opacity: 1, y: 0 }}
-                            exit={{ height: 0, opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                            className="relative z-40"
-                        >
-                            <FilterPanel 
-                                obras={obraOptions}
-                                empresas={empresaOptions}
-                                cargos={cargoOptions}
-                                filterObra={filterObra}
-                                setFilterObra={setFilterObra}
-                                filterEmpresa={filterEmpresa}
-                                setFilterEmpresa={setFilterEmpresa}
-                                filterCargo={filterCargo}
-                                setFilterCargo={setFilterCargo}
-                                filterCategoria={filterCategoria}
-                                setFilterCategoria={setFilterCategoria}
-                                filterActivo={filterActivo}
-                                setFilterActivo={setFilterActivo}
-                                filterCompletitud={filterCompletitud}
-                                setFilterCompletitud={setFilterCompletitud}
-                                filterAusentes={filterAusentes}
-                                setFilterAusentes={setFilterAusentes}
-                                filterIngresoDesde={filterIngresoDesde}
-                                setFilterIngresoDesde={setFilterIngresoDesde}
-                                filterIngresoHasta={filterIngresoHasta}
-                                tiposObligatorios={tiposObligatorios}
-                                filterFaltaDato={filterFaltaDato}
-                                setFilterFaltaDato={setFilterFaltaDato}
-                                filterDocTipoFalta={filterDocTipoFalta}
-                                setFilterDocTipoFalta={setFilterDocTipoFalta}
-                                filterDocVigencia={filterDocVigencia}
-                                setFilterDocVigencia={setFilterDocVigencia}
-                                filterSalidaDesde={filterSalidaDesde}
-                                setFilterSalidaDesde={setFilterSalidaDesde}
-                                filterSalidaHasta={filterSalidaHasta}
-                                setFilterSalidaHasta={setFilterSalidaHasta}
-                                setFilterIngresoHasta={setFilterIngresoHasta}
-                            />
-                        </motion.div>
-                    )}
-                    {showCreatePanel && (
-                        <motion.div
-                            key="create"
-                            initial={{ height: 0, opacity: 0, y: -10 }}
-                            animate={{ height: 'auto', opacity: 1, y: 0 }}
-                            exit={{ height: 0, opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                            className="relative"
-                        >
-                            <CreatePanel 
-                                hasPermission={hasPermission}
-                                setModalType={setModalType as any}
-                                setSelectedWorkerForAction={setSelectedWorkerForAction}
-                            />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            {/* Chip de filtro activo "10 meses de contrato" (viene de la alerta del dashboard).
-                No tiene control en el FilterPanel, así que se expone acá como banner removible. */}
-            {esGrilla && filterAniversario10m && (
-                <div className="shrink-0 flex items-center justify-between gap-3 px-3 sm:px-4 py-2.5 rounded-2xl border border-brand-primary/20 bg-brand-primary/5">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="h-8 w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center shrink-0">
-                            <CalendarClock className="h-4 w-4 text-brand-primary" />
-                        </div>
-                        <p className="text-xs sm:text-sm font-semibold text-brand-dark truncate">
-                            Trabajadores que cumplen <span className="text-green-700 dark:text-green-300">10 meses de contrato</span>
-                            {aniversario10mLabel && <> en {aniversario10mLabel}</>}
-                        </p>
-                    </div>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearAniversario10m}
-                        leftIcon={<X className="h-3.5 w-3.5" />}
-                        className="shrink-0 text-green-700 dark:text-green-300"
+            {/* Panel Crear. Los filtros ya no viven acá: se fueron al rail lateral, que no le quita alto
+                a la lista. Sin el <div> contenedor de antes, que sumaba un gap permanente aunque no
+                hubiera panel abierto (AnimatePresence vacío no pinta nada). */}
+            <AnimatePresence mode="wait">
+                {showCreatePanel && (
+                    <motion.div
+                        key="create"
+                        initial={{ height: 0, opacity: 0, y: -10 }}
+                        animate={{ height: 'auto', opacity: 1, y: 0 }}
+                        exit={{ height: 0, opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="relative shrink-0"
                     >
-                        Quitar
-                    </Button>
-                </div>
-            )}
+                        <CreatePanel
+                            hasPermission={hasPermission}
+                            setModalType={setModalType as any}
+                            setSelectedWorkerForAction={setSelectedWorkerForAction}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
+            {/* El banner de "10 meses de contrato" se fue (2026-09-16): decía lo mismo que el chip
+                «Cumplen 10 meses» de Atajos, que además se apaga con su propia ✕, y costaba 52px de
+                alto en una pantalla que se lee en vertical. El mes objetivo pasó al tooltip del chip. */}
             {esGrilla && <FiltrosRapidos filtros={filtrosRapidos} />}
 
             {/* Vista por sección (B8). Al aprobar una solicitud el trabajador ya existe → recargar la grilla. */}
@@ -556,27 +587,44 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     onNuevoIngreso={() => setModalType('solicitud')}
                 />
             ) : (
-            <TrabajadoresGrilla
-                workers={workers}
-                loading={loading}
-                activeFilterCount={activeFilterCount}
-                hasPermission={hasPermission}
-                selected={selectedWorkers}
-                onToggle={handleSelectWorker}
-                onToggleAll={handleSelectAll}
-                onClearSelection={clearSelection}
-                onOpen={setQuickViewId}
-                onEditar={(w) => { setSelectedWorkerForAction(w); setModalType('form'); }}
-                onConstancia={setConstanciaWorker}
-                onDesvincular={handleDelete}
-                onReactivar={handleReactivate}
-                onDepurar={handleDepurar}
-                onEnviar={() => setEmailModalOpen(true)}
-                onExportar={handleExportExcel}
-                exporting={exporting}
-                onClearFilters={handleClearFilters}
-                formatFecha={formatFechaIngreso}
-            />
+            /* Grilla y rail son HERMANOS en una fila: abrir los filtros le quita ancho a la lista,
+               nunca alto. `relative` porque en 768-1279px el rail flota acá dentro. */
+            <div className="flex-1 min-h-0 flex gap-2 relative">
+                <AnimatePresence initial={false}>
+                    {showFilters && conRail && (
+                        <FiltrosRail
+                            key="rail"
+                            modo={railInline ? 'inline' : 'overlay'}
+                            activeFilterCount={activeFilterCount}
+                            onLimpiar={handleClearFilters}
+                            onCerrar={() => setShowFilters(false)}
+                        >
+                            {panelFiltros}
+                        </FiltrosRail>
+                    )}
+                </AnimatePresence>
+                <TrabajadoresGrilla
+                    workers={workers}
+                    loading={loading}
+                    activeFilterCount={activeFilterCount}
+                    hasPermission={hasPermission}
+                    selected={selectedWorkers}
+                    onToggle={handleSelectWorker}
+                    onToggleAll={handleSelectAll}
+                    onClearSelection={clearSelection}
+                    onOpen={setQuickViewId}
+                    onEditar={(w) => { setSelectedWorkerForAction(w); setModalType('form'); }}
+                    onConstancia={setConstanciaWorker}
+                    onDesvincular={handleDelete}
+                    onReactivar={handleReactivate}
+                    onDepurar={handleDepurar}
+                    onEnviar={() => setEmailModalOpen(true)}
+                    onExportar={handleExportExcel}
+                    exporting={exporting}
+                    onClearFilters={handleClearFilters}
+                    formatFecha={formatFechaIngreso}
+                />
+            </div>
             )}
 
             {/* Modals */}
@@ -753,17 +801,18 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 />
             </Modal>
 
-            {/* Mobile Filter Sheet */}
+            {/* Hoja de filtros en teléfono (<768px). Arriba de ese ancho el mismo panel vive en el rail
+                lateral: se elige por matchMedia, nunca las dos ramas montadas a la vez. */}
             <AnimatePresence>
-                {showMobileFilters && (
+                {showFilters && !conRail && (
                     <>
                         {/* Backdrop */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={() => setShowMobileFilters(false)}
-                            className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[1000]"
+                            onClick={() => setShowFilters(false)}
+                            className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[1000]"
                         />
                         
                         {/* Sheet */}
@@ -773,17 +822,17 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                             dragElastic={0.1}
                             onDragEnd={(_, info) => {
                                 if (info.offset.y > 150 || info.velocity.y > 500) {
-                                    setShowMobileFilters(false);
+                                    setShowFilters(false);
                                 }
                             }}
                             initial={{ y: '100%' }}
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="lg:hidden fixed bottom-0 left-0 right-0 w-full max-h-[85dvh] bg-card rounded-t-[32px] shadow-2xl z-[1001] flex flex-col overflow-hidden"
+                            className="fixed bottom-0 left-0 right-0 w-full max-h-[85dvh] bg-card rounded-t-[32px] shadow-2xl z-[1001] flex flex-col overflow-hidden"
                         >
                             {/* Drag Handle */}
-                            <div className="pt-3 pb-2 flex justify-center shrink-0" onClick={() => setShowMobileFilters(false)}>
+                            <div className="pt-3 pb-2 flex justify-center shrink-0" onClick={() => setShowFilters(false)}>
                                 <div className="w-12 h-1.5 rounded-full bg-muted" />
                             </div>
 
@@ -793,7 +842,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                                 <IconButton
                                     variant="ghost"
                                     aria-label="Cerrar filtros"
-                                    onClick={() => setShowMobileFilters(false)}
+                                    onClick={() => setShowFilters(false)}
                                     className="bg-muted"
                                     icon={<X className="h-5 w-5" />}
                                 />
@@ -801,40 +850,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
 
                             {/* Body */}
                             <div className="flex-1 overflow-y-auto px-5 pb-8 custom-scrollbar">
-                                <FilterPanel 
-                                    obras={obraOptions}
-                                    empresas={empresaOptions}
-                                    cargos={cargoOptions}
-                                    filterObra={filterObra}
-                                    setFilterObra={setFilterObra}
-                                    filterEmpresa={filterEmpresa}
-                                    setFilterEmpresa={setFilterEmpresa}
-                                    filterCargo={filterCargo}
-                                    setFilterCargo={setFilterCargo}
-                                    filterCategoria={filterCategoria}
-                                    setFilterCategoria={setFilterCategoria}
-                                    filterActivo={filterActivo}
-                                    setFilterActivo={setFilterActivo}
-                                    filterCompletitud={filterCompletitud}
-                                    setFilterCompletitud={setFilterCompletitud}
-                                    filterAusentes={filterAusentes}
-                                    setFilterAusentes={setFilterAusentes}
-                                    filterIngresoDesde={filterIngresoDesde}
-                                    setFilterIngresoDesde={setFilterIngresoDesde}
-                                    filterIngresoHasta={filterIngresoHasta}
-                                tiposObligatorios={tiposObligatorios}
-                                filterFaltaDato={filterFaltaDato}
-                                setFilterFaltaDato={setFilterFaltaDato}
-                                filterDocTipoFalta={filterDocTipoFalta}
-                                setFilterDocTipoFalta={setFilterDocTipoFalta}
-                                filterDocVigencia={filterDocVigencia}
-                                setFilterDocVigencia={setFilterDocVigencia}
-                                filterSalidaDesde={filterSalidaDesde}
-                                setFilterSalidaDesde={setFilterSalidaDesde}
-                                filterSalidaHasta={filterSalidaHasta}
-                                setFilterSalidaHasta={setFilterSalidaHasta}
-                                    setFilterIngresoHasta={setFilterIngresoHasta}
-                                />
+                                {panelFiltros}
                                 {activeFilterCount > 0 && (
                                     <Button
                                         variant="destructive"

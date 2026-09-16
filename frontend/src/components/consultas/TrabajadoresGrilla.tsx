@@ -101,7 +101,7 @@ export const TrabajadoresGrilla: React.FC<Props> = ({
     );
 
     return (
-        <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
+        <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
             {/* Cabecera: conteo o barra de selección */}
             <div className={cn('h-14 shrink-0 border-b border-border px-3 sm:px-4 flex items-center gap-3 transition-colors', haySel && 'bg-brand-primary/5')}>
                 {haySel ? (<>
