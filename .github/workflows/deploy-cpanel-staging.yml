@@ -21,13 +21,24 @@ on:
 # Un push puede llegar a GitHub como DOS eventos (pasó con afcbf20 el 2026-09-16: cuatro runs
 # para un solo `git push`). Los dos deploys compilan lo mismo y pelean por publicar la rama
 # `deploy-staging`; el que llega segundo muere con "cannot lock ref ... is at X but expected Y"
-# (el `push -f` no salva la carrera: el servidor rechaza la transaccion si la ref se movió
+# (el `push -f` no salva la carrera: el servidor rechaza la transacción si la ref se movió
 # mientras se empujaba) y deja el commit pintado en rojo sin que nada esté roto.
-# Con esto, el run nuevo cancela al viejo del mismo ref: se publica una sola vez y el duplicado
-# queda "cancelled" (gris), no "failure". Cancelar a mitad del push es inocuo: el push es atómico
-# en el servidor y el run que sobrevive publica el mismo dist.
+#
+# La llave del grupo es la RAMA DE DESTINO, no `github.ref`: lo que se disputan los runs es
+# `deploy-staging`, y con la llave puesta en el ref de origen un `workflow_dispatch` desde otra
+# rama (el desplegable de "Run workflow" viene preseleccionado con `main`) caería en otro grupo,
+# correría en paralelo y volvería a chocar — publicando además el árbol de main en staging.
+#
+# `cancel-in-progress: true` porque acá el run más nuevo siempre manda: si a los 40 s de empujar
+# un commit malo se empuja el arreglo, el run del commit malo se cancela ANTES de publicar
+# (el push son los últimos segundos de un run de ~55 s) y el build superado nunca sale de GitHub.
+# Cancelar a mitad del push es inocuo: la actualización de la ref es atómica del lado del servidor.
+# Contrapartida asumida: solo queda UN candidato a publicar, así que si ese run falla no se publica
+# nada y el cron dirá "sin cambios" — hay que volver a empujar. Y los runs cancelados salen en gris:
+# NO re-ejecutar uno viejo, porque el paso de publicación es un `push -f` sin guarda y rebobinaría
+# la rama a un build anterior (ver la tabla de errores comunes del RUNBOOK).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: publicar-deploy-staging
   cancel-in-progress: true
 
 permissions:

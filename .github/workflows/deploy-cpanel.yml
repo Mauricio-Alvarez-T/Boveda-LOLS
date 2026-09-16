@@ -18,12 +18,15 @@ on:
       - 'LICENSE'
   workflow_dispatch:
 
-# Mismo patron que staging (ver el comentario equivalente alli): dos runs simultaneos del mismo
-# ref se pisan al publicar `deploy-prod` y el perdedor falla al bloquear la ref. Acá importa más:
-# un release a main no debería pintar rojo por una carrera. El run mas nuevo gana; el servidor
-# baja la rama por cron, así que lo único que cuenta es que la rama quede con el build correcto.
+# Mismo patrón y mismas razones que en el workflow de staging (ver el comentario de
+# deploy-cpanel-staging.yml): la llave es la rama de destino porque el recurso en disputa es
+# `deploy-prod`, y el run más nuevo cancela al viejo para no publicar nunca un build superado.
+# Acá importa más que en staging: un release a main no debería pintar rojo por una carrera.
+# Contrapartida asumida: si el único run que queda falla, no se publica nada y el servidor sigue
+# sirviendo el build anterior hasta que se vuelva a empujar — conviene mirar el run antes de dar
+# un rollback por hecho (RUNBOOK § "Rollback de un deploy fallido").
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: publicar-deploy-prod
   cancel-in-progress: true
 
 permissions:
