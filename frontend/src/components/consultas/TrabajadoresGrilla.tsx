@@ -4,7 +4,8 @@
  * selecciona para acciones masivas (Enviar / Exportar), que aparecen en una barra que reemplaza la
  * cabecera mientras haya selección. Las acciones por fila son iconos siempre visibles (los tutoriales
  * de Ayuda resaltan «Editar trabajador» por su aria-label) y usan verbos del dominio: Desvincular, no
- * Eliminar. Sin numeración de filas ni barra de estado: el conteo vive en la cabecera.
+ * Eliminar. Sin numeración de filas ni barra de estado: la cabecera lleva el botón de filtros y los
+ * atajos, y el estado de carga se ve en las filas esqueleto.
  */
 import React from 'react';
 import { Mail, FileDown, FileText, UserPen, UserMinus, UserCheck, Eraser, Search, X, Building2, CalendarPlus, AlertTriangle } from 'lucide-react';
@@ -37,6 +38,8 @@ interface Props {
     exporting: boolean;
     onClearFilters: () => void;
     formatFecha: (f?: string | null) => string | null;
+    /** Botón que abre el panel de filtros: primer elemento de la barra, pegado al borde por donde sale. */
+    filtros?: React.ReactNode;
     /** Chips de atajos: van dentro de la barra de la cabecera, no en una fila propia. */
     atajos?: React.ReactNode;
 }
@@ -58,7 +61,7 @@ const DocsBar: React.FC<{ pct: number; compact?: boolean }> = ({ pct, compact })
 
 export const TrabajadoresGrilla: React.FC<Props> = ({
     workers, loading, activeFilterCount, hasPermission, selected, onToggle, onToggleAll, onClearSelection, onOpen,
-    onEditar, onConstancia, onDesvincular, onReactivar, onDepurar, onEnviar, onExportar, exporting, onClearFilters, formatFecha, atajos,
+    onEditar, onConstancia, onDesvincular, onReactivar, onDepurar, onEnviar, onExportar, exporting, onClearFilters, formatFecha, filtros, atajos,
 }) => {
     const todosSel = workers.length > 0 && selected.size === workers.length;
     const haySel = selected.size > 0;
@@ -104,7 +107,7 @@ export const TrabajadoresGrilla: React.FC<Props> = ({
 
     return (
         <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
-            {/* Cabecera: conteo o barra de selección */}
+            {/* Cabecera: filtros + atajos, o barra de selección */}
             <div className={cn('h-14 shrink-0 border-b border-border px-3 sm:px-4 flex items-center gap-3 transition-colors', haySel && 'bg-brand-primary/5')}>
                 {haySel ? (<>
                     <IconButton variant="ghost" size="sm" aria-label="Quitar selección" onClick={onClearSelection} icon={<X className="h-4 w-4" />} />
@@ -114,13 +117,11 @@ export const TrabajadoresGrilla: React.FC<Props> = ({
                         <Button variant="primary" size="sm" onClick={() => onExportar(Array.from(selected))} disabled={exporting || !hasPermission('reportes.exportar')} leftIcon={<FileDown className="h-4 w-4" />}>Exportar</Button>
                     </div>
                 </>) : (<>
-                    {/* Conteo · atajos · seleccionar todos, en la MISMA barra (2026-09-16). Los atajos
-                        vivían en una fila propia sobre la grilla; acá reusan el hueco que esta barra ya
-                        tenía vacío y devuelven esa fila entera a la lista. El conteo se queda porque es
-                        el resultado de lo que el usuario acaba de filtrar. */}
-                    <span className="shrink-0 text-ui font-bold text-brand-dark tabular-nums">
-                        {loading ? 'Buscando…' : `${workers.length} trabajador${workers.length === 1 ? '' : 'es'}`}
-                    </span>
+                    {/* Filtros · atajos · seleccionar todos, en la MISMA barra (2026-09-16). El botón de
+                        filtros abre el rail, que sale justo del borde izquierdo donde está el botón; los
+                        atajos ocupan el hueco que esta barra ya tenía vacío. El conteo de trabajadores
+                        que vivía acá se quitó a pedido del dueño: la carga se ve en las filas esqueleto. */}
+                    {filtros}
                     {atajos && <div className="min-w-0 flex-1">{atajos}</div>}
                     <label className={cn('shrink-0 flex items-center gap-2 text-caption font-semibold text-muted-foreground cursor-pointer select-none', !atajos && 'ml-auto')}
                         title="Seleccionar todos">

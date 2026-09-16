@@ -10,7 +10,6 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
     Search,
     ArrowLeft,
-    Filter,
     FileDown,
     SearchCheck,
     X,
@@ -59,6 +58,7 @@ import { TrabajadoresGrilla } from '../components/consultas/TrabajadoresGrilla';
 import { FiltrosRapidos, type FiltroRapido } from '../components/consultas/FiltrosRapidos';
 import { mesEnCurso, ultimosDias } from '../components/consultas/rangosFecha';
 import { FiltrosRail } from '../components/consultas/FiltrosRail';
+import { BotonFiltros } from '../components/consultas/BotonFiltros';
 import {
     contarPorGrupo, gruposIniciales, leerRailAbierto, guardarRailAbierto,
     type GrupoFiltroId, type ValoresFiltros,
@@ -367,39 +367,10 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     {showCreatePanel ? 'CERRAR' : 'CREAR'}
                 </Button>
                 )}
-                {/* Filtros / Exportar / Limpiar son de la grilla: en las otras secciones no aplican. */}
+                {/* Exportar / Limpiar son de la grilla: en las otras secciones no aplican. El botón
+                    Filtros se mudó a la barra de la grilla (2026-09-16), pegado al borde por donde sale
+                    el panel: acá arriba estaba a casi mil píxeles de su efecto. */}
                 {esGrilla && (<>
-                <Button
-                    size="sm"
-                    aria-expanded={showFilters}
-                    onClick={() => {
-                        setShowFilters(!showFilters);
-                        setShowCreatePanel(false);
-                    }}
-                    variant={showFilters ? 'primary' : 'outline'}
-                    className={cn(
-                        "h-9 px-4 rounded-xl font-semibold gap-2 border-border shadow-sm transition-all duration-300",
-                        showFilters 
-                            ? "bg-brand-primary text-white border-transparent" 
-                            : "bg-card text-brand-dark hover:bg-background"
-                    )}
-                >
-                    {showFilters ? (
-                        <X className="h-3.5 w-3.5 animate-in zoom-in spin-in-12 duration-300" />
-                    ) : (
-                        <Filter className="h-3.5 w-3.5 animate-in fade-in zoom-in duration-300" />
-                    )}
-                    <span>Filtros</span>
-                    {activeFilterCount > 0 && (
-                        <span className={cn(
-                            "flex h-4 w-4 items-center justify-center rounded-full text-micro transition-colors duration-300",
-                            showFilters ? "bg-card text-green-700 dark:text-green-300" : "bg-brand-primary text-white"
-                        )}>
-                            {activeFilterCount}
-                        </span>
-                    )}
-                </Button>
-
                 <Button
                     size="sm"
                     variant="outline"
@@ -415,16 +386,6 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     <span>Exportar</span>
                 </Button>
 
-                {activeFilterCount > 0 && (
-                    <IconButton
-                        variant="danger"
-                        aria-label="Limpiar Filtros"
-                        title="Limpiar Filtros"
-                        onClick={handleClearFilters}
-                        className="rounded-xl border border-border shadow-sm"
-                        icon={<X className="h-4 w-4" />}
-                    />
-                )}
                 </>)}
             </div>
 
@@ -450,23 +411,6 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     disabled={workers.length === 0 || !hasPermission('reportes.exportar') || exporting}
                     className={cn("rounded-xl border border-border shadow-sm", exporting && "opacity-60")}
                     icon={<FileDown className={cn("h-4 w-4", exporting && "animate-pulse")} />}
-                />
-                <IconButton
-                    variant="ghost"
-                    aria-label="Filtros"
-                    aria-expanded={showFilters}
-                    onClick={() => { setShowFilters(prev => !prev); setShowCreatePanel(false); }}
-                    className="relative rounded-xl border border-border shadow-sm"
-                    icon={<>
-                        {showFilters
-                            ? <X className="h-4 w-4 animate-in zoom-in spin-in-12 duration-300" />
-                            : <Filter className="h-4 w-4 animate-in fade-in zoom-in duration-300" />}
-                        {activeFilterCount > 0 && (
-                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-micro font-bold bg-brand-primary text-white shadow-sm">
-                                {activeFilterCount}
-                            </span>
-                        )}
-                    </>}
                 />
                 </>)}
             </div>
@@ -622,6 +566,14 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     exporting={exporting}
                     onClearFilters={handleClearFilters}
                     formatFecha={formatFechaIngreso}
+                    filtros={
+                        <BotonFiltros
+                            abierto={showFilters}
+                            onToggle={() => { setShowFilters(prev => !prev); setShowCreatePanel(false); }}
+                            activos={activeFilterCount}
+                            lateral={conRail}
+                        />
+                    }
                     atajos={<FiltrosRapidos filtros={filtrosRapidos} />}
                 />
             </div>

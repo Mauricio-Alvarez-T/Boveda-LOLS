@@ -250,3 +250,13 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    queda recortado por el `overflow` del panel. Cierra con click fuera, `Escape` y scroll.
 6. **Filtrado instantáneo** (sin botón "Aplicar") mientras el conjunto sea chico y la consulta tenga
    debounce. "Limpiar" siempre visible en la cabecera del panel cuando haya algo puesto.
+7. **El disparador vive donde ocurre el efecto.** El botón que abre un panel lateral va pegado al borde
+   por el que el panel aparece, no en el header global: si el panel entra por la izquierda de una tabla,
+   el botón va en el extremo izquierdo de la cabecera de esa tabla. Referencia:
+   `components/consultas/BotonFiltros.tsx`.
+8. **La animación no puede mentir sobre la dirección.** El icono dice de dónde viene el panel
+   (`PanelLeftOpen`/`PanelLeftClose` para un lateral, `SlidersHorizontal` para una hoja inferior) y el
+   panel se despliega **desde el borde del disparador**: un panel en flujo que anima su ancho debe anclar
+   su contenido al lado que toca el botón (`justify-end` cuando el botón queda a la derecha del panel),
+   o se revelará por el lado contrario y el gesto se leerá al revés. Con `prefers-reduced-motion`, solo
+   fundido (`useReducedMotion`, precedente en `ui/Modal.tsx`).

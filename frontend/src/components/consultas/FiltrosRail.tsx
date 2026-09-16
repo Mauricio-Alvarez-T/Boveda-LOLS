@@ -12,7 +12,7 @@
  *    la tabla la dejaría ilegible, así que se superpone y se cierra al tocar fuera.
  */
 import React, { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { SlidersHorizontal, X } from 'lucide-react';
 
 import { Button } from '../ui/Button';
@@ -31,6 +31,9 @@ interface Props {
 }
 
 export const FiltrosRail: React.FC<Props> = ({ modo, activeFilterCount, onLimpiar, onCerrar, children }) => {
+    // Sin movimiento: el panel aparece y desaparece con un fundido corto (mismo criterio que ui/Modal).
+    const reduceMotion = useReducedMotion();
+    const transicion = reduceMotion ? { duration: 0.12 } : RESORTE;
     // Escape cierra en los dos modos. En `inline` no es un diálogo, pero cerrar con Escape es lo que
     // espera cualquiera que acabe de abrirlo con el teclado.
     useEffect(() => {
@@ -92,10 +95,10 @@ export const FiltrosRail: React.FC<Props> = ({ modo, activeFilterCount, onLimpia
                 />
                 <motion.aside
                     aria-label="Filtros"
-                    initial={{ x: -ANCHO, opacity: 0 }}
+                    initial={reduceMotion ? { opacity: 0 } : { x: -ANCHO, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: -ANCHO, opacity: 0 }}
-                    transition={RESORTE}
+                    exit={reduceMotion ? { opacity: 0 } : { x: -ANCHO, opacity: 0 }}
+                    transition={transicion}
                     className="absolute inset-y-0 left-0 z-30 flex"
                 >
                     {cuerpo}
@@ -105,13 +108,17 @@ export const FiltrosRail: React.FC<Props> = ({ modo, activeFilterCount, onLimpia
     }
 
     return (
+        // `justify-end` no es decorativo: con el contenido anclado a la DERECHA del aside, al animar el
+        // ancho de 0 a 320 el panel se revela desde el borde que toca la grilla — es decir, se despliega
+        // saliendo de debajo del botón «Filtros» y avanza hacia la izquierda. Anclado a la izquierda
+        // (el default) el efecto se lee al revés: aparecería primero el lado lejano.
         <motion.aside
             aria-label="Filtros"
-            initial={{ width: 0, opacity: 0 }}
+            initial={reduceMotion ? { width: ANCHO, opacity: 0 } : { width: 0, opacity: 0 }}
             animate={{ width: ANCHO, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={RESORTE}
-            className="relative shrink-0 overflow-hidden flex"
+            exit={reduceMotion ? { opacity: 0 } : { width: 0, opacity: 0 }}
+            transition={transicion}
+            className="relative shrink-0 overflow-hidden flex justify-end"
         >
             {cuerpo}
         </motion.aside>

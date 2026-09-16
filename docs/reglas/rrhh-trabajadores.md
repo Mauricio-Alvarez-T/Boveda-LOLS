@@ -69,9 +69,19 @@
   - El popover de `FilterSelect` se dibuja en un **portal con `position: fixed`**: dentro de un rail con
     scroll propio, un `absolute` quedaba recortado a media lista. Cierra con click fuera, `Escape` y
     cualquier scroll.
+- **El botón «Filtros» vive en la barra de la grilla, no en el header** (2026-09-16). Está en el extremo
+  izquierdo, que es el borde por el que sale el panel; con el rail `inline` abierto la grilla se corre a la
+  derecha y el botón viaja con ella, así que el movimiento cuenta de dónde salió. El icono es la señal:
+  `PanelLeftOpen` → `PanelLeftClose` cuando hay panel lateral, y `SlidersHorizontal` → `X` en teléfono,
+  donde el panel entra desde abajo y prometer un lateral sería mentir. Sin relleno verde (regla de
+  `diseno.md`): el estado se lee por el icono, el badge y el panel abierto. El conteo «N trabajadores» que
+  ocupaba ese sitio se eliminó; la carga se ve en las filas esqueleto. La limpieza de filtros vive en el
+  panel (y en el estado vacío de la grilla), no en el header.
+  ⚠️ La etiqueta del botón no puede contener «trabajador» ni «crear»: el spotlight de los tutoriales busca
+  botones por substring (`useTutorialSpotlight.ts:44-49`) y le robaría el pulso al botón que resalta.
 - **Atajos** (`components/consultas/FiltrosRapidos.tsx`, rangos puros en `rangosFecha.ts` con test):
   chips que viven **dentro de la barra de la cabecera de la grilla** (2026-09-16), en el hueco que esa barra
-  ya tenía vacío entre el conteo y «Seleccionar todos»: así no gastan una fila propia del alto de la lista.
+  ya tenía vacío: así no gastan una fila propia del alto de la lista.
   Una sola línea siempre, que se desliza en horizontal cuando no caben — Ingresos de este mes, Cumplen 10 meses, Finiquito pendiente,
   No recontratar y Fichas de prueba. Los tres primeros **no tocan el backend**: reusan params que ya
   existían. Los que fijan más de un filtro lo declaran en su tooltip (p. ej. "finiquito pendiente"
