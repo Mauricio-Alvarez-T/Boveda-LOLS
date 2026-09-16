@@ -37,8 +37,13 @@ on:
 # nada y el cron dirá "sin cambios" — hay que volver a empujar. Y los runs cancelados salen en gris:
 # NO re-ejecutar uno viejo, porque el paso de publicación es un `push -f` sin guarda y rebobinaría
 # la rama a un build anterior (ver la tabla de errores comunes del RUNBOOK).
+#
+# Un run con el ref EQUIVOCADO (ver la guarda de rama del job) no debe entrar a este grupo: si
+# entrara, lo primero que haría sería cancelar el deploy legítimo en curso y recién después
+# morir en la guarda — staging se quedaría sin publicar por un dispatch mal apuntado. Por eso
+# el ref inválido cae en un grupo propio y descartable (único por run) y muere solo.
 concurrency:
-  group: publicar-deploy-staging
+  group: ${{ github.ref == 'refs/heads/develop' && 'publicar-deploy-staging' || format('deploy-staging-ref-invalido-{0}', github.run_id) }}
   cancel-in-progress: true
 
 permissions:
@@ -50,6 +55,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # GUARDA DE RAMA (2026-09-16). `workflow_dispatch` no restringe el ref, y el desplegable
+      # "Run workflow" de GitHub viene preseleccionado con la rama por DEFECTO (`main`): un
+      # "republicar staging a mano" dejando el desplegable como viene compilaba el árbol de
+      # PRODUCCIÓN y lo empujaba a `deploy-staging` con `push -f`. El cron lo bajaba (despliega
+      # por DESIGUALDAD de SHA, no por ancestría) y, como el propio `cpanel-deploy-staging.sh`
+      # VIAJA EN esa rama, staging pasaba a correr el script de main: sin `run_sanear_datos` —
+      # la purga de trabajadores REALES (RUT, domicilio, salud, cuenta bancaria) de una web
+      # pública — y con el `rsync --delete` de `db/migrations` borrando del servidor las
+      # migraciones que main no tiene. Dos runs verdes y ninguna señal para el dueño.
+      #
+      # Se MANTIENE `workflow_dispatch`: es el único modo de republicar a mano cuando el run de
+      # un push falla (contrapartida de `cancel-in-progress`). Pero solo desde `develop`, sin
+      # input de override: en los últimos 200 runs no hubo ni un solo dispatch, así que no hay
+      # un uso legítimo desde otra rama que romper, y "feature → staging" saltándose develop va
+      # contra el modelo de ramas (docs/reglas/infraestructura.md).
+      #
+      # OJO: en un `workflow_dispatch` GitHub usa el workflow DEL REF ELEGIDO. Esta guarda
+      # protege de verdad recién cuando `main` también la tiene (llega con el próximo release).
+      - name: 🛡️ Guarda de rama — staging solo se publica desde develop
+        if: github.ref != 'refs/heads/develop'
+        run: |
+          echo "::error title=Rama equivocada::Este workflow publica deploy-staging (test.boveda.lols.cl) y SOLO puede correr desde 'develop'. Vino de '${{ github.ref }}'. No se compiló ni publicó nada."
+          exit 1
+
       - name: 🚚 Obtener el código (historial completo para poder pushear rama)
         uses: actions/checkout@v4
         with:

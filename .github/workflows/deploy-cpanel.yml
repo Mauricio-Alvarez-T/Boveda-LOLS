@@ -25,8 +25,13 @@ on:
 # Contrapartida asumida: si el único run que queda falla, no se publica nada y el servidor sigue
 # sirviendo el build anterior hasta que se vuelva a empujar — conviene mirar el run antes de dar
 # un rollback por hecho (RUNBOOK § "Rollback de un deploy fallido").
+#
+# Un run con el ref EQUIVOCADO (ver la guarda de rama del job) no debe entrar a este grupo: si
+# entrara, lo primero que haría sería cancelar el release legítimo en curso y recién después
+# morir en la guarda. Por eso el ref inválido cae en un grupo propio y descartable (único por
+# run) y muere solo.
 concurrency:
-  group: publicar-deploy-prod
+  group: ${{ github.ref == 'refs/heads/main' && 'publicar-deploy-prod' || format('deploy-prod-ref-invalido-{0}', github.run_id) }}
   cancel-in-progress: true
 
 permissions:
@@ -38,6 +43,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # GUARDA DE RAMA (2026-09-16) — el reverso del agujero de staging (mismo comentario en
+      # deploy-cpanel-staging.yml). `workflow_dispatch` no restringe el ref: correr este
+      # workflow a mano desde `develop` (o desde una rama de feature) compilaba ESE árbol y lo
+      # empujaba a `deploy-prod` con `push -f` → el cron de producción lo bajaba en ≤5 min
+      # (despliega por DESIGUALDAD de SHA, no por ancestría) y boveda.lols.cl quedaba corriendo
+      # código sin release, con sus migraciones aplicadas sobre la base de PRODUCCIÓN. Run
+      # verde, cero señales.
+      #
+      # Se mantiene el dispatch (único modo de republicar a mano si el run de un push falla),
+      # pero solo desde `main`. OJO: en un dispatch GitHub usa el workflow DEL REF ELEGIDO, así
+      # que esta guarda no frena un dispatch desde una rama que todavía no la tenga.
+      - name: 🛡️ Guarda de rama — producción solo se publica desde main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error title=Rama equivocada::Este workflow publica deploy-prod (boveda.lols.cl) y SOLO puede correr desde 'main'. Vino de '${{ github.ref }}'. No se compiló ni publicó nada."
+          exit 1
+
       - name: 🚚 Obtener el código (historial completo para poder pushear rama)
         uses: actions/checkout@v4
         with:
