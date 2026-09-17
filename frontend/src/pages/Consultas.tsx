@@ -9,7 +9,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
     Mail,
-    Search,
     ArrowLeft,
     FileDown,
     SearchCheck,
@@ -56,6 +55,8 @@ import { useSeccionGestiones } from '../hooks/consultas/useSeccionGestiones';
 import { GestionesInicio } from '../components/consultas/GestionesInicio';
 import { SECCION_LABEL, type SeccionGestiones } from '../components/consultas/gestionesNav';
 import { TrabajadoresGrilla } from '../components/consultas/TrabajadoresGrilla';
+import { BuscadorTrabajadores } from '../components/consultas/BuscadorTrabajadores';
+import { indexar, tokenizar, coincide, ranking } from '../utils/busquedaTrabajadores';
 import { FiltrosRapidos, type FiltroRapido } from '../components/consultas/FiltrosRapidos';
 import { mesEnCurso, ultimosDias } from '../components/consultas/rangosFecha';
 import { FiltrosRail } from '../components/consultas/FiltrosRail';
@@ -110,7 +111,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     // --- Custom Hooks ---
     // 1. Filtros
     const {
-        search, setSearch,
+        busquedaDiferida, resetBusqueda, publicarBusqueda, leerBusquedaInicial,
         filterObra, setFilterObra,
         filterEmpresa, setFilterEmpresa,
         filterCargo, setFilterCargo,
@@ -138,10 +139,31 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
         empresas, obras, cargos, tiposObligatorios, fetchCatalogs,
         workers, loading, performSearch
     } = useConsultasData({
-        search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, filterIngresoDesde, filterIngresoHasta,
+        filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, filterIngresoDesde, filterIngresoHasta,
         filterFaltaDato, filterDocTipoFalta, filterDocVigencia, filterSalidaDesde, filterSalidaHasta,
         filterNoRecontratar, filterFiniquito, filterSoloPrueba
     }, puedeVerTrabajadores && esGrilla);
+
+    // Búsqueda por texto: se filtra EN EL CLIENTE (2026-09-17). El backend ya devuelve el set completo de
+    // los demás filtros —no pagina— y son menos de 500 personas, así que teclear no necesita red y el
+    // resultado aparece en el mismo frame; el índice se arma UNA vez por carga y cada tecla solo hace
+    // `indexOf`. `useDeferredValue` deja que el input se pinte primero y la lista se recalcule en un
+    // render de baja prioridad que React puede interrumpir si llega otra tecla — sin el `React.memo` de
+    // TrabajadoresGrilla no serviría de nada: los dos van juntos.
+    // `incluirObra`: acá sí, porque la grilla puede mostrar varias obras a la vez y buscar por obra es
+    // útil. En Asistencia va apagado — ver el porqué en `OpcionesIndice`.
+    const indice = useMemo(() => workers.map(w => ({ w, idx: indexar(w, { incluirObra: true }) })), [workers]);
+    const workersVisibles = useMemo(() => {
+        const tokens = tokenizar(busquedaDiferida);
+        if (!tokens.length) return workers;
+        // El rango se calcula UNA vez por fila, no dentro del comparador: ahí se evaluaría O(n log n)
+        // veces y cada evaluación vuelve a normalizar el mismo texto.
+        return indice
+            .filter(({ idx }) => coincide(idx, tokens))
+            .map(x => ({ ...x, rango: ranking(x.idx, busquedaDiferida) }))
+            .sort((a, b) => a.rango - b.rango)
+            .map(({ w }) => w);
+    }, [indice, workers, busquedaDiferida]);
 
     // Etiqueta legible (MM/AAAA) del filtro de aniversario, si está activo.
     const aniversario10mLabel = useMemo(() => {
@@ -150,17 +172,24 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     }, [filterAniversario10m]);
 
     // ids memoizados: evita recrear el array en cada render (dep del hook de selección).
-    const workerIds = useMemo(() => workers.map(w => w.id), [workers]);
+    // Son los VISIBLES, no los que trajo el servidor: con texto escrito la lista ya está filtrada acá.
+    const workerIds = useMemo(() => workersVisibles.map(w => w.id), [workersVisibles]);
 
     // El export Excel es de ASISTENCIA y solo entiende 6 filtros (obra, empresa, cargo, categoría,
     // estado y búsqueda). Con cualquier otro activo se mandan los ids visibles para que el archivo
     // coincida con la lista en pantalla (el backend no pagina, workers = set completo).
+    //
+    // La búsqueda por texto entró a la lista (2026-09-17): como ya no viaja como `q`, la única forma de
+    // que el Excel y el correo digan lo mismo que la pantalla es mandar los ids visibles.
+    // Se usa `busquedaDiferida` y no `search` a propósito: así esto cambia al mismo ritmo que
+    // `workersVisibles` —en el render de baja prioridad— y la tecla recién pulsada no arrastra consigo
+    // una recomposición del header.
     const exportIds = useMemo(
-        () => (filterIngresoDesde || filterIngresoHasta || filterCompletitud || filterAusentes
+        () => (busquedaDiferida || filterIngresoDesde || filterIngresoHasta || filterCompletitud || filterAusentes
             || filterAniversario10m || filterFaltaDato || filterDocTipoFalta || filterDocVigencia
             || filterSalidaDesde || filterSalidaHasta || filterNoRecontratar || filterFiniquito
             || filterSoloPrueba) ? workerIds : undefined,
-        [filterIngresoDesde, filterIngresoHasta, filterCompletitud, filterAusentes, filterAniversario10m,
+        [busquedaDiferida, filterIngresoDesde, filterIngresoHasta, filterCompletitud, filterAusentes, filterAniversario10m,
             filterFaltaDato, filterDocTipoFalta, filterDocVigencia, filterSalidaDesde, filterSalidaHasta,
             filterNoRecontratar, filterFiniquito, filterSoloPrueba, workerIds]
     );
@@ -258,14 +287,18 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     const {
         exporting,
         handleExportExcel
-    } = useConsultasExport({
+    } = useConsultasExport(useMemo(() => ({
         obra_id: filterObra,
         empresa_id: filterEmpresa,
         cargo_id: filterCargo,
         categoria_reporte: filterCategoria,
         activo: filterActivo,
-        q: search
-    });
+        // SIN `q` (2026-09-17). Dos razones: (1) el texto ya no se filtra en el servidor, así que mandarlo
+        // sería una segunda implementación de la misma regla, y el Excel podría no coincidir con la
+        // pantalla — para eso está `exportIds`, que manda los ids que se ven; (2) si `q` entrara acá,
+        // `handleExportExcel` cambiaría de identidad en cada tecla y, como la grilla lo recibe por prop,
+        // su `React.memo` no podría saltarse ni un render. Con la lista vacía los botones van disabled.
+    }), [filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo]));
 
     // 5. Acciones CRUD (Eliminar/Reactivar)
     const {
@@ -293,6 +326,31 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
         && leerRailAbierto(user?.id)
     );
     const [showCreatePanel, setShowCreatePanel] = useState(false);
+
+    // ── Props estables para la grilla memoizada (2026-09-17) ───────────────────────────────────────
+    // `React.memo` compara por identidad: una arrow inline o un elemento JSX creados en el JSX son
+    // objetos nuevos en cada render, así que la grilla se volvería a renderizar en cada tecla y la
+    // memoización no serviría de nada. `hasPermission`, `handleSelectWorker` y `clearSelection` ya
+    // vienen estables de sus hooks.
+    const abrirEdicion = useCallback((w: Trabajador) => {
+        setSelectedWorkerForAction(w);
+        setModalType('form');
+    }, [setSelectedWorkerForAction, setModalType]);
+    const abrirEnvioEmail = useCallback(() => setEmailModalOpen(true), []);
+    const alternarFiltros = useCallback(() => {
+        setShowFilters(prev => !prev);
+        setShowCreatePanel(false);
+    }, []);
+    const botonFiltros = useMemo(() => (
+        <BotonFiltros
+            abierto={showFilters}
+            onToggle={alternarFiltros}
+            activos={activeFilterCount}
+            modo={conRail ? 'lateral' : 'hoja'}
+            controla={ID_PANEL_FILTROS}
+        />
+    ), [showFilters, alternarFiltros, activeFilterCount, conRail]);
+    const chipsAtajos = useMemo(() => <FiltrosRapidos filtros={filtrosRapidos} />, [filtrosRapidos]);
 
     // Memoria del rail por usuario (solo desktop: en el teléfono la hoja siempre arranca cerrada).
     // Solo se guarda estando en la grilla: salir a otra sección cierra el rail, y eso no es una
@@ -331,20 +389,22 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 </>)}
             </div>
 
-            {/* Desktop Search Bar - integrated into title area (solo en la grilla) */}
-            {esGrilla && (
-            <div className="hidden md:block relative max-w-md w-full ml-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="Buscar por Nombre, RUT..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9 h-10 bg-muted/50 border-border focus:bg-card transition-all rounded-xl text-sm"
+            {/* Buscador de escritorio, integrado en la zona del título (solo en la grilla).
+                `search` NO va en las deps de este useMemo a propósito: este elemento viaja al header por
+                `useSetPageHeader`, que lo guarda en un estado de contexto DESDE UN EFECTO. Si cambiara en
+                cada tecla, el `value` del input llegaría un ciclo de render tarde y se perderían letras
+                —el bug del 2026-09-17—. El texto lo maneja el propio BuscadorTrabajadores. */}
+            {esGrilla && conRail && (
+                <BuscadorTrabajadores
+                    key={resetBusqueda}
+                    obtenerValorInicial={leerBusquedaInicial}
+                    onCambio={publicarBusqueda}
+                    compacto
+                    className="relative max-w-md w-full ml-4"
                 />
-            </div>
             )}
         </div>
-    ), [search, seccion, conSwitcher, esGrilla, irASeccion]);
+    ), [seccion, conSwitcher, esGrilla, conRail, irASeccion, resetBusqueda, leerBusquedaInicial, publicarBusqueda]);
 
     const headerActions = useMemo(() => (
         <div className="flex items-center gap-1.5 md:gap-2">
@@ -375,13 +435,14 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     el panel: acá arriba estaba a casi mil píxeles de su efecto. */}
                 {esGrilla && (<>
                 {/* Enviar sobre el resultado completo del filtro: es lo que antes se conseguía con
-                    «Seleccionar todos» + Enviar. Sin selección, el modal manda `trabajador_ids`
-                    undefined y el backend arma el Excel con todo el filtro. */}
+                    «Seleccionar todos» + Enviar. Sin selección manda `exportIds` —los que están a la
+                    vista— y solo cuando tampoco hay filtros de esos va `undefined` y el backend arma el
+                    Excel con la query. */}
                 <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setEmailModalOpen(true)}
-                    disabled={workers.length === 0 || !hasPermission('reportes.enviar_email')}
+                    disabled={workersVisibles.length === 0 || !hasPermission('reportes.enviar_email')}
                     leftIcon={<Mail className="h-3.5 w-3.5 text-brand-primary" />}
                     className={cn(
                         "h-9 px-4 rounded-xl shadow-sm border-border",
@@ -396,7 +457,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     variant="outline"
                     onClick={() => handleExportExcel(exportIds)}
                     isLoading={exporting}
-                    disabled={workers.length === 0 || !hasPermission('reportes.exportar')}
+                    disabled={workersVisibles.length === 0 || !hasPermission('reportes.exportar')}
                     leftIcon={<FileDown className="h-3.5 w-3.5 text-brand-primary" />}
                     className={cn(
                         "h-9 px-4 rounded-xl shadow-sm border-border",
@@ -427,7 +488,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     variant="ghost"
                     aria-label="Enviar por correo"
                     onClick={() => setEmailModalOpen(true)}
-                    disabled={workers.length === 0 || !hasPermission('reportes.enviar_email')}
+                    disabled={workersVisibles.length === 0 || !hasPermission('reportes.enviar_email')}
                     className="rounded-xl border border-border shadow-sm"
                     icon={<Mail className="h-4 w-4" />}
                 />
@@ -436,15 +497,15 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     variant="ghost"
                     aria-label="Exportar Excel"
                     onClick={() => handleExportExcel(exportIds)}
-                    disabled={workers.length === 0 || !hasPermission('reportes.exportar') || exporting}
+                    disabled={workersVisibles.length === 0 || !hasPermission('reportes.exportar') || exporting}
                     className={cn("rounded-xl border border-border shadow-sm", exporting && "opacity-60")}
                     icon={<FileDown className={cn("h-4 w-4", exporting && "animate-pulse")} />}
                 />
                 </>)}
             </div>
         </div>
-    ), [workers.length, exporting, activeFilterCount, showCreatePanel, exportIds,
-        seccion, esGrilla, conCrear]);
+    ), [workersVisibles.length, exporting, showCreatePanel, exportIds,
+        esGrilla, conCrear, hasPermission, handleExportExcel]);
 
     useSetPageHeader(headerTitle, headerActions);
 
@@ -497,17 +558,15 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
         // (MainLayout), así que `flex-1 min-h-0` calcula lo que antes intentaba un calc() a mano — que
         // ignoraba la franja de "Entorno de pruebas" y se pasaba 4px en móvil.
         <div className="flex-1 min-h-0 flex flex-col gap-2 p-0 overflow-hidden w-full">
-            {/* Mobile Search - Only visible on small screens (solo en la grilla) */}
-            {esGrilla && (
-            <div className="md:hidden relative shrink-0">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                    placeholder="Buscar por Nombre, RUT..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-10 h-11 bg-card rounded-2xl border-border shadow-sm"
+            {/* Buscador móvil. Se renderiza SOLO acá o SOLO en el header, nunca en los dos (regla §8.3):
+                dos instancias tendrían dos textos locales y se desincronizarían al girar el teléfono. */}
+            {esGrilla && !conRail && (
+                <BuscadorTrabajadores
+                    key={resetBusqueda}
+                    obtenerValorInicial={leerBusquedaInicial}
+                    onCambio={publicarBusqueda}
+                    className="relative shrink-0"
                 />
-            </div>
             )}
 
             {/* Panel Crear. Los filtros ya no viven acá: se fueron al rail lateral, que no le quita alto
@@ -575,8 +634,10 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                         </FiltrosRail>
                     )}
                 </AnimatePresence>
+                {/* La grilla está memoizada (React.memo): para que sirva, TODO lo que recibe tiene que ser
+                    estable entre teclas — de ahí los useCallback y los useMemo de arriba. */}
                 <TrabajadoresGrilla
-                    workers={workers}
+                    workers={workersVisibles}
                     loading={loading}
                     activeFilterCount={activeFilterCount}
                     hasPermission={hasPermission}
@@ -584,26 +645,18 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     onToggle={handleSelectWorker}
                     onClearSelection={clearSelection}
                     onOpen={setQuickViewId}
-                    onEditar={(w) => { setSelectedWorkerForAction(w); setModalType('form'); }}
+                    onEditar={abrirEdicion}
                     onConstancia={setConstanciaWorker}
                     onDesvincular={handleDelete}
                     onReactivar={handleReactivate}
                     onDepurar={handleDepurar}
-                    onEnviar={() => setEmailModalOpen(true)}
+                    onEnviar={abrirEnvioEmail}
                     onExportar={handleExportExcel}
                     exporting={exporting}
                     onClearFilters={handleClearFilters}
                     formatFecha={formatFechaIngreso}
-                    filtros={
-                        <BotonFiltros
-                            abierto={showFilters}
-                            onToggle={() => { setShowFilters(prev => !prev); setShowCreatePanel(false); }}
-                            activos={activeFilterCount}
-                            modo={conRail ? 'lateral' : 'hoja'}
-                            controla={ID_PANEL_FILTROS}
-                        />
-                    }
-                    atajos={<FiltrosRapidos filtros={filtrosRapidos} />}
+                    filtros={botonFiltros}
+                    atajos={chipsAtajos}
                 />
             </div>
             )}
@@ -619,8 +672,13 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     cargo_id: filterCargo,
                     categoria_reporte: filterCategoria,
                     activo: filterActivo,
-                    q: search
+                    // Sin `q`: el texto se filtra en el cliente y lo que viaja son los ids visibles
+                    // (`trabajador_ids`), que por construcción son lo que se ve en pantalla.
                 }}
+                // SOLO la selección explícita: `trabajador_ids` no elige únicamente las filas del Excel —
+                // en `fiscalizacion.routes.js` también dispara `zipService.createZip(...)`, que adjunta
+                // los DOCUMENTOS de cada id. Mandar acá los ids visibles enviaría por correo los papeles
+                // de cientos de personas sin que nadie lo haya pedido.
                 trabajador_ids={selectedWorkers.size > 0 ? Array.from(selectedWorkers) : undefined}
             />
 

@@ -6,67 +6,13 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import type { Trabajador, Asistencia, EstadoAsistencia, ConfiguracionHorario, Feriado } from '../../types/entities';
 import type { ApiResponse } from '../../types';
+import { indexar, tokenizar, coincide } from '../../utils/busquedaTrabajadores';
 
 export type AlertaFalta = { trabajador_id: number; total_faltas: number; alertas: { tipo: string; mensaje: string }[] };
 
-// Normaliza string para búsqueda: lowercase + quita tildes (NFD) + trim.
-// Centralizar acá garantiza que todos los matches usen el mismo criterio.
-const STRIP_DIACRITICS = /[̀-ͯ]/g;
-const normalize = (s: string | null | undefined): string =>
-    (s ?? '')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(STRIP_DIACRITICS, '')
-        .trim();
-
-// Palabras genéricas que NO aportan al alias de una razón social.
-// Filtrar acá evita que 'TRANSPORTES DEDALIUS LIMITADA' genere alias 'transportes'
-// o que 'LOLS EMPRESAS DE INGENIERIA LTDA' genere alias 'empresas'.
-const EMPRESA_STOP_WORDS = new Set([
-    'empresas', 'empresa', 'de', 'del', 'la', 'el', 'los', 'las',
-    'ingenieria', 'ltda', 'limitada', 'sa', 's.a.', 'spa',
-    'transportes', 'transporte', 'sociedad', 'cia', 'compania', 'compañia',
-    'y', 'e',
-]);
-
-/**
- * Deriva aliases buscables a partir del nombre de una empresa.
- *
- * Casos cubiertos:
- *   - 'LOLS EMPRESAS DE INGENIERIA LTDA' → ['lols']  (palabra única tras stopwords)
- *   - 'Provisorio'                       → ['provisorio']
- *   - 'TRANSPORTES DEDALIUS LIMITADA'    → ['dedalius']
- *   - 'MIGUEL ANGEL URRUTIA AGUILERA'    → ['maua']  (acrónimo iniciales)
- *
- * En el caso de nombres-persona (varias palabras significativas sin stopwords)
- * NO se incluyen las palabras individuales como aliases — eso reintroduciría
- * el falso positivo de tipear 'miguel angel' y traer trabajadores de la empresa
- * cuyo nombre es 'MIGUEL ANGEL URRUTIA AGUILERA'.
- */
-const deriveEmpresaAliases = (nombre: string | null | undefined): string[] => {
-    if (!nombre) return [];
-    // Limpiar puntuación común (puntos, comas, paréntesis) para que
-    // 'LIMITADA.' o 'S.A.' caigan en la lista de stopwords.
-    const norm = normalize(nombre).replace(/[.,;:!?()"']/g, ' ');
-    const words = norm.split(/\s+/).filter(Boolean);
-    if (words.length === 0) return [];
-
-    const aliases = new Set<string>();
-    // Descartamos tokens de 1 char (iniciales sueltas, conectores) para que
-    // 'Algo S.A.' → ['algo'] y no ['asa'].
-    const meaningful = words.filter(w => w.length >= 2 && !EMPRESA_STOP_WORDS.has(w));
-
-    if (meaningful.length === 1) {
-        // Una sola palabra distintiva → alias directo.
-        aliases.add(meaningful[0]);
-    } else if (meaningful.length >= 2) {
-        // Probable nombre-persona o multi-palabra: solo acrónimo de iniciales.
-        const initials = meaningful.map(w => w[0]).filter(Boolean).join('');
-        if (initials.length >= 2) aliases.add(initials);
-    }
-
-    return [...aliases];
-};
+// Qué significa que un texto «coincida» con un trabajador vive en utils/busquedaTrabajadores.ts
+// (2026-09-17): estaba acá, privado y sin test, y Gestiones volvió a caer en el mismo bug de
+// teclas perdidas por no tenerlo a mano. Ahora las dos pantallas responden igual y hay tests.
 
 export function useAttendanceData() {
     const { selectedObra } = useObra();
@@ -336,36 +282,23 @@ export function useAttendanceData() {
             .sort((a, b) => a.nombre.localeCompare(b.nombre));
     }, [workers]);
 
-    // Corpus pre-normalizado por worker: se calcula una sola vez cuando cambian
-    // los workers (no por keystroke). Cada item contiene un "blob" con todos los
-    // campos buscables concatenados ya en lowercase + sin tildes, lo que permite
-    // que `filteredWorkers` haga solo `String.includes` baratos por keystroke.
-    //
-    // Campos incluidos en el blob: apellido_paterno, apellido_materno, nombres,
-    // rut (formateado y colapsado), cargo_nombre.
-    //
-    // empresa_nombre va aparte como `empresaAliases`: tipear el nombre completo
-    // de una raz\u00f3n social produce falsos positivos cuando la raz\u00f3n es un nombre
-    // de persona (ej. 'MIGUEL ANGEL URRUTIA AGUILERA'). En su lugar derivamos
-    // aliases distintivos (lols, maua, dedalius, provisorio) y matcheamos por
-    // prefijo, no substring.
-    const searchableWorkers = useMemo(() => {
-        return workers.map(w => {
-            const rut = w.rut || '';
-            const rutCollapsed = rut.replace(/[\s.-]/g, '');
-            const blob = normalize(
-                `${w.apellido_paterno || ''} ${w.apellido_materno || ''} ${w.nombres || ''} ${rut} ${rutCollapsed} ${w.cargo_nombre || ''}`
-            );
-            const empresaAliases = deriveEmpresaAliases(w.empresa_nombre);
-            return { worker: w, blob, rutCollapsed, empresaAliases };
-        });
-    }, [workers]);
+    // Corpus pre-normalizado por worker: se calcula una sola vez cuando cambian los workers (no por
+    // keystroke), para que el filtrado por tecla sea solo `String.includes` barato. Qu\u00e9 entra al corpus
+    // y qu\u00e9 cuenta como coincidencia est\u00e1 en `utils/busquedaTrabajadores.ts`, compartido con Gestiones.
+    const searchableWorkers = useMemo(
+        // Sin `incluirObra`: acá la lista ya viene acotada a una obra, así que su nombre es el mismo
+        // para todos y meterlo en el corpus haría que un token suyo devolviera la lista entera.
+        () => workers.map(w => ({ worker: w, idx: indexar(w) })),
+        [workers]
+    );
 
     // Sort estable por nombre \u2014 independiente del query. Se recalcula solo
     // cuando cambia la lista de workers, no en cada tecla del input.
     const sortedSearchable = useMemo(() => {
         return [...searchableWorkers].sort((a, b) =>
-            a.blob.localeCompare(b.blob, 'es', { sensitivity: 'base' })
+            // Por `nombreNorm` («apellidos nombres») y no por el blob: el blob lleva RUT y cargo, así
+            // que el orden dependería de qué campos sean buscables.
+            a.idx.nombreNorm.localeCompare(b.idx.nombreNorm, 'es', { sensitivity: 'base' })
         );
     }, [searchableWorkers]);
 
@@ -387,30 +320,10 @@ export function useAttendanceData() {
             return true;
         });
 
-        // B\u00fasqueda multi-token con AND: tipe\u00e1s "juan perez" y trae a quien tenga
-        // AMBOS tokens en el corpus. Habilita cualquier combo nombre+apellido,
-        // alias-empresa+nombre, cargo+nombre, etc.
-        //
-        // Para cada token, debe encajar en AL MENOS UNO de:
-        //   1) blob (substring) \u2014 apellidos, nombres, rut, cargo.
-        //   2) alias de empresa (exact / prefix) \u2014 'lols', 'maua', 'dedalius',
-        //      'provisorio'. Match es por prefijo de alias para que 'lol' o
-        //      'mau' tambi\u00e9n funcionen, pero NUNCA substring del nombre real
-        //      de la raz\u00f3n social (eso causar\u00eda 'miguel angel' \u2192 todos MAUA).
-        //   3) rut colapsado (substring) \u2014 tipear '123456789' matchea
-        //      '12.345.678-9'. Solo si token tiene \u22653 chars tras colapsar.
-        const q = deferredSearchQuery.trim();
-        if (q) {
-            const tokens = normalize(q).split(/\s+/).filter(Boolean);
-            result = result.filter(({ blob, rutCollapsed, empresaAliases }) => {
-                return tokens.every(t => {
-                    if (blob.includes(t)) return true;
-                    if (empresaAliases.some(a => a === t || a.startsWith(t))) return true;
-                    const tCollapsed = t.replace(/[\s.-]/g, '');
-                    return tCollapsed.length >= 3 && rutCollapsed.includes(tCollapsed);
-                });
-            });
-        }
+        // Búsqueda multi-token con AND: las reglas (blob, alias de empresa por prefijo, RUT
+        // colapsado) viven en `utils/busquedaTrabajadores.ts`, compartidas con Gestiones.
+        const tokens = tokenizar(deferredSearchQuery);
+        if (tokens.length) result = result.filter(({ idx }) => coincide(idx, tokens));
 
         return result.map(({ worker }) => worker);
     }, [sortedSearchable, deferredSearchQuery, selectedEmpresaId, statusFilter, attendance, date]);

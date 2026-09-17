@@ -248,8 +248,9 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    test (el jest del front solo corre `*.test.ts` sin JSX).
 5. **Un popover dentro de un contenedor con scroll va en portal con `position: fixed`.** Un `absolute`
    queda recortado por el `overflow` del panel. Cierra con click fuera, `Escape` y scroll.
-6. **Filtrado instantáneo** (sin botón "Aplicar") mientras el conjunto sea chico y la consulta tenga
-   debounce. "Limpiar" siempre visible en la cabecera del panel cuando haya algo puesto.
+6. **Filtrado instantáneo** (sin botón "Aplicar") mientras el conjunto sea chico. "Limpiar" siempre
+   visible en la cabecera del panel cuando haya algo puesto. El debounce que pedía esta regla vale para
+   los controles que van al servidor; el buscador de texto **no lo lleva** — ver la regla 13.
 7. **El disparador vive donde ocurre el efecto.** El botón que abre un panel lateral va pegado al borde
    por el que el panel aparece, no en el header global: si el panel entra por la izquierda de una tabla,
    el botón va en el extremo izquierdo de la cabecera de esa tabla. Referencia:
@@ -296,3 +297,29 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     `alCerrar` es un callback libre, no un `setOpen`, porque hay menús que al cerrarse pliegan además su
     detalle (la campana). Un menú `absolute` dentro de un `relative` necesita **solo** este hook, no el
     de colocación.
+13. **Un buscador que filtra una lista ya cargada no va al servidor, y el debounce no es lo que arregla
+    que se pierdan letras.** (2026-09-17, Gestiones → Trabajadores.) Con menos de ~1.000 registros y un
+    índice pre-normalizado, filtrar cuesta microsegundos: pedirle al servidor una vez por tecla solo
+    agrega latencia, y un debounce agrega más. Lo que sí traba el input es el **render**. Tres reglas:
+    - **El texto vive en el componente del input.** Nunca en un estado de arriba que se lo reinyecte —y
+      muchísimo menos viajando por un contexto que lo guarda **desde un efecto**, como hace
+      `PageHeaderContext`: ahí el `value` llega un ciclo de render tarde, React le devuelve al nodo DOM
+      el valor viejo al cerrar el evento y las pulsaciones rápidas se pierden. Ese fue el bug exacto de
+      Gestiones, y por eso `BuscadorTrabajadores` es dueño de su texto y publica hacia arriba. Para
+      resetearlo desde afuera se le cambia la `key`; pasarle el valor lo devolvería al principio. Y el
+      valor inicial entra como **getter estable**, no como string: un buscador que vive en el header
+      **se desmonta** al salir de la sección o al cruzar el breakpoint, y si al volver leyera un valor
+      viejo, la caja aparecería vacía sobre una lista filtrada. El getter es además lo que permite que
+      el elemento no dependa del texto y el header no se recomponga por tecla.
+    - **Lo que se deriva del texto usa el valor diferido, no el inmediato** — la lista, el contador de
+      filtros activos, los ids de exportación. Si alguno usa el inmediato, cambia en el render urgente
+      y esa sola prop distinta basta para que la lista memoizada se renderice igual.
+    - **`useDeferredValue` y `React.memo` van juntos o no van.** El primero baja de prioridad el render
+      de la lista; el segundo permite que la lista se lo salte. Uno sin el otro no hace nada. React
+      Compiler **no** está instalado en este repo y, aunque lo estuviera, no reemplaza al primero.
+    - **La aritmética del match vive en un `.ts` puro con test** (`utils/busquedaTrabajadores.ts`, usado
+      por Asistencia y por Gestiones): normalizar con `NFD` una sola vez al cargar, no por tecla; el RUT
+      indexado en sus tres escrituras; multi-token con AND; y la empresa por **alias**, no por substring.
+      Nada de librerías de fuzzy: sobre un RUT, dos dígitos distintos están a una edición de distancia.
+
+    Por encima de ~2.000 registros esto deja de aplicar y hay que volver al servidor con paginación.

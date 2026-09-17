@@ -13,6 +13,7 @@ import { Mail, FileDown, FileText, UserPen, UserMinus, UserCheck, Eraser, Search
 import type { TrabajadorAvanzado } from '../../hooks/consultas/useConsultasData';
 import type { Trabajador } from '../../types/entities';
 import { cn } from '../../utils/cn';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Chip } from '../ui/Chip';
@@ -45,6 +46,35 @@ interface Props {
 
 const iniciales = (w: Trabajador) => `${(w.apellido_paterno || '')[0] || ''}${(w.nombres || '')[0] || ''}`.toUpperCase();
 
+/**
+ * Acción de fila. Es `IconButton` sin framer-motion (2026-09-17): el primitivo es un `motion.button`
+ * con `whileHover`/`whileTap`, y acá se montan 3-4 por trabajador — con 300 filas eran ~1.000
+ * componentes con hooks de animación reconciliándose en cada tecla del buscador, el costo que trababa
+ * el input. Mismas clases, mismos tamaños, mismo foco visible; solo se pierde el rebote de escala, que
+ * además contradecía la regla §7.5 de `docs/reglas/diseno.md` («hover = brillo/opacidad, NO scale»).
+ */
+const ACCION_BASE = 'inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors '
+    + 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:ring-offset-2 '
+    + 'disabled:opacity-40 disabled:cursor-not-allowed text-muted-foreground';
+const ACCION_TONO = {
+    ghost: 'hover:bg-brand-primary/10 hover:text-brand-primary dark:hover:bg-brand-primary/15',
+    danger: 'hover:bg-destructive/10 hover:text-destructive',
+};
+
+interface AccionFilaProps {
+    icon: React.ReactNode;
+    tono?: keyof typeof ACCION_TONO;
+    onClick: () => void;
+    disabled?: boolean;
+    title?: string;
+    'aria-label': string;
+}
+
+const AccionFila: React.FC<AccionFilaProps> = ({ icon, tono = 'ghost', ...props }) => (
+    // eslint-disable-next-line no-restricted-syntax -- IconButton sin framer-motion: ver ACCION_BASE (perf de la grilla)
+    <button type="button" className={cn(ACCION_BASE, ACCION_TONO[tono])} {...props}>{icon}</button>
+);
+
 const DocsBar: React.FC<{ pct: number; compact?: boolean }> = ({ pct, compact }) => {
     const p = Math.max(0, Math.min(100, pct));
     const completo = p === 100;
@@ -58,11 +88,14 @@ const DocsBar: React.FC<{ pct: number; compact?: boolean }> = ({ pct, compact })
     );
 };
 
-export const TrabajadoresGrilla: React.FC<Props> = ({
+const TrabajadoresGrillaImpl: React.FC<Props> = ({
     workers, loading, activeFilterCount, hasPermission, selected, onToggle, onClearSelection, onOpen,
     onEditar, onConstancia, onDesvincular, onReactivar, onDepurar, onEnviar, onExportar, exporting, onClearFilters, formatFecha, filtros, atajos,
 }) => {
     const haySel = selected.size > 0;
+    // Tabla O tarjetas, nunca las dos (regla §8.3): con `hidden md:table` / `md:hidden` los dos árboles
+    // existen en el DOM y se reconcilian los dos en cada render — el doble de trabajo por tecla.
+    const esDesktop = useMediaQuery('(min-width: 768px)');
 
     // Render helpers (no componentes: crearlos dentro del render rompe la regla react-hooks y pierde estado).
     const casilla = (checked: boolean, onChange: () => void, label: string) => (
@@ -72,23 +105,23 @@ export const TrabajadoresGrilla: React.FC<Props> = ({
 
     const acciones = (w: TrabajadorAvanzado) => (
         <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
-            <IconButton variant="ghost" size="sm" aria-label="Constancia"
+            <AccionFila aria-label="Constancia"
                 title={hasPermission('documentos.laborales.emitir') ? 'Carta de amonestación' : 'Requiere "Emitir Documentos Laborales"'}
                 disabled={!hasPermission('documentos.laborales.emitir') || !w.activo}
                 onClick={() => onConstancia(w)} icon={<FileText className="h-4 w-4" />} />
-            <IconButton variant="ghost" size="sm" aria-label="Editar trabajador" title="Editar trabajador"
+            <AccionFila aria-label="Editar trabajador" title="Editar trabajador"
                 disabled={!hasPermission('trabajadores.editar')}
                 onClick={() => onEditar(w)} icon={<UserPen className="h-4 w-4" />} />
             {w.activo ? (
-                <IconButton variant="danger" size="sm" aria-label="Desvincular trabajador" title="Desvincular"
+                <AccionFila tono="danger" aria-label="Desvincular trabajador" title="Desvincular"
                     disabled={!hasPermission('trabajadores.eliminar')}
                     onClick={() => onDesvincular(w)} icon={<UserMinus className="h-4 w-4" />} />
             ) : (<>
-                <IconButton variant="ghost" size="sm" aria-label="Reactivar trabajador" title="Reactivar"
+                <AccionFila aria-label="Reactivar trabajador" title="Reactivar"
                     disabled={!hasPermission('trabajadores.reactivar')}
                     onClick={() => onReactivar(w)} icon={<UserCheck className="h-4 w-4" />} />
                 {hasPermission('trabajadores.depurar') && (
-                    <IconButton variant="danger" size="sm" aria-label="Depurar trabajador" title="Depurar (borrado definitivo)"
+                    <AccionFila tono="danger" aria-label="Depurar trabajador" title="Depurar (borrado definitivo)"
                         onClick={() => onDepurar(w)} icon={<Eraser className="h-4 w-4" />} />
                 )}
             </>)}
@@ -157,9 +190,9 @@ export const TrabajadoresGrilla: React.FC<Props> = ({
                 ) : workers.length === 0 ? (
                     <EmptyState icon={Search} title="Sin resultados" description="No se encontraron trabajadores que coincidan con los filtros aplicados." className="h-full justify-center"
                         action={activeFilterCount > 0 ? <Button variant="outline" size="sm" onClick={onClearFilters}>Limpiar Búsqueda</Button> : undefined} />
-                ) : (<>
-                    {/* Desktop: tabla */}
-                    <table className="hidden md:table w-full border-separate border-spacing-0">
+                ) : esDesktop ? (
+                    /* Desktop: tabla */
+                    <table className="w-full border-separate border-spacing-0">
                         <thead className="sticky top-0 z-10 bg-card">
                             <tr className="text-left text-caption font-semibold uppercase tracking-wider text-muted-foreground [&>th]:border-b [&>th]:border-border [&>th]:px-3 [&>th]:py-2.5">
                                 <th className="w-10" />
@@ -204,9 +237,9 @@ export const TrabajadoresGrilla: React.FC<Props> = ({
                             })}
                         </tbody>
                     </table>
-
-                    {/* Móvil: tarjetas */}
-                    <div className="md:hidden p-2 flex flex-col gap-2">
+                ) : (
+                    /* Móvil: tarjetas */
+                    <div className="p-2 flex flex-col gap-2">
                         {workers.map(w => {
                             const sel = selected.has(w.id);
                             return (
@@ -227,8 +260,16 @@ export const TrabajadoresGrilla: React.FC<Props> = ({
                             );
                         })}
                     </div>
-                </>)}
+                )}
             </div>
         </div>
     );
 };
+
+/**
+ * `React.memo` (2026-09-17): escribir en el buscador de Gestiones re-renderizaba esta grilla entera en
+ * cada tecla aunque `workers` no hubiera cambiado. Contrato para quien la use —el mismo que documenta
+ * `WorkerCheckList`—: los callbacks van envueltos en `useCallback` y los props de tipo JSX (`filtros`,
+ * `atajos`) en `useMemo`, o la memoización no corta nada.
+ */
+export const TrabajadoresGrilla = React.memo(TrabajadoresGrillaImpl);

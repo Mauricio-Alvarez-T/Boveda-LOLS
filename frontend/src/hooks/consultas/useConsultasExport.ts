@@ -9,7 +9,6 @@ interface ExportFilters {
     cargo_id?: string;
     categoria_reporte?: string;
     activo?: string;
-    q?: string;
 }
 
 export const useConsultasExport = (filters: ExportFilters) => {
@@ -42,7 +41,6 @@ export const useConsultasExport = (filters: ExportFilters) => {
             if (filters.cargo_id) params.append('cargo_id', filters.cargo_id);
             if (filters.categoria_reporte) params.append('categoria_reporte', filters.categoria_reporte);
             if (filters.activo) params.append('activo', filters.activo);
-            if (filters.q) params.append('q', filters.q);
             
             if (trabajador_ids && trabajador_ids.length > 0) {
                 params.append('trabajador_ids', trabajador_ids.join(','));

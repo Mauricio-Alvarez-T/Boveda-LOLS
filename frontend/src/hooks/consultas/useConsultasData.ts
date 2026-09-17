@@ -9,8 +9,13 @@ export interface TrabajadorAvanzado extends Trabajador {
     docs_porcentaje: number;
 }
 
+/**
+ * OJO: no hay `search`. Desde el 2026-09-17 el texto del buscador se filtra EN EL CLIENTE
+ * (`Consultas.tsx` + `utils/busquedaTrabajadores.ts`): son menos de 500 personas, el backend no pagina y
+ * devuelve el set completo, así que teclear no necesita red y el resultado sale en el mismo frame.
+ * El parámetro `q` del endpoint sigue existiendo para otros consumidores, pero esta grilla no lo usa.
+ */
 export interface FetchWorkersParams {
-    search: string;
     filterObra: string;
     filterEmpresa: string;
     filterCargo: string;
@@ -96,7 +101,6 @@ export const useConsultasData = (filters: FetchWorkersParams, enabled: boolean =
 
         try {
             const urlParams = new URLSearchParams();
-            if (filters.search) urlParams.append('q', filters.search);
             if (filters.filterObra) urlParams.append('obra_id', filters.filterObra);
             if (filters.filterEmpresa) urlParams.append('empresa_id', filters.filterEmpresa);
             if (filters.filterCargo) urlParams.append('cargo_id', filters.filterCargo);
@@ -165,7 +169,7 @@ export const useConsultasData = (filters: FetchWorkersParams, enabled: boolean =
         }, 300);
         return () => clearTimeout(timeoutId);
     // `enabled` en deps: la grilla se monta al entrar a la sección (B8) y debe consultar recién ahí.
-    }, [enabled, filters.search, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes, filters.filterAniversario10m, filters.filterIngresoDesde, filters.filterIngresoHasta, filters.filterFaltaDato, filters.filterDocTipoFalta, filters.filterDocVigencia, filters.filterSalidaDesde, filters.filterSalidaHasta, filters.filterNoRecontratar, filters.filterFiniquito, filters.filterSoloPrueba]);
+    }, [enabled, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes, filters.filterAniversario10m, filters.filterIngresoDesde, filters.filterIngresoHasta, filters.filterFaltaDato, filters.filterDocTipoFalta, filters.filterDocVigencia, filters.filterSalidaDesde, filters.filterSalidaHasta, filters.filterNoRecontratar, filters.filterFiniquito, filters.filterSoloPrueba]);
 
     // Abortar cualquier búsqueda en vuelo al desmontar.
     useEffect(() => () => abortRef.current?.abort(), []);

@@ -1,4 +1,4 @@
-const db = require('../config/db');
+const db = require('../config/db');
 const { has } = require('../utils/sanitizeFinancialFields');
 const ExcelJS = require('exceljs');
 const path = require('path');
@@ -111,13 +111,34 @@ class FiscalizacionService {
         if (q) {
             const words = q.trim().split(/\s+/).filter(w => w.length > 0);
             if (words.length > 0) {
+                // El RUT se guarda FORMATEADO ('19.742.932-1'), así que comparar la columna cruda contra
+                // lo que alguien teclea de memoria ('19742932') nunca encontraba a nadie. Se usa la
+                // columna generada `rut_normalized` + su índice `idx_trab_rut_norm` (mig 053), igual que
+                // `crud.service.js`, y se le pasa el término ya sin puntos ni guiones.
+                //
+                // Desde 2026-09-17 este `q` ya NO tiene consumidor en la app: la grilla de Gestiones
+                // filtra el texto en el cliente (`frontend/src/utils/busquedaTrabajadores.ts`), y ni
+                // Exportar ni Enviar pasan por acá —van a `asistencia.service.generarExcel`, que además
+                // nunca leyó `q`: su destructuring no lo incluye—. Queda como parámetro público del
+                // endpoint, ya sin el defecto del RUT; lo que garantiza que el Excel diga lo mismo que la
+                // pantalla es `trabajador_ids`, no esta cláusula.
                 const blockConditions = [];
                 words.forEach(word => {
-                    blockConditions.push(`(t.rut LIKE ? OR t.nombres LIKE ? OR t.apellido_paterno LIKE ? OR t.apellido_materno LIKE ?)`);
+                    blockConditions.push(`(t.rut_normalized LIKE ? OR t.nombres LIKE ? OR t.apellido_paterno LIKE ? OR t.apellido_materno LIKE ?)`);
                     const searchTerm = `%${word}%`;
-                    params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+                    params.push(`%${word.replace(/[.-]/g, '')}%`, searchTerm, searchTerm, searchTerm);
                 });
-                query += ` AND (${blockConditions.join(' AND ')})`;
+                let condicion = `(${blockConditions.join(' AND ')})`;
+
+                // RUT tecleado con separadores que parten en varias palabras ("17 611 988-8"): se intenta
+                // además el texto completo colapsado. Mismo remate que `crud.service.js`.
+                const qColapsada = q.replace(/[\s.-]/g, '');
+                if (words.length > 1 && qColapsada.length > 0) {
+                    condicion = `(${condicion} OR t.rut_normalized LIKE ?)`;
+                    params.push(`%${qColapsada}%`);
+                }
+
+                query += ` AND ${condicion}`;
             }
         }
 
