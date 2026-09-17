@@ -46,7 +46,6 @@ export const NotificationBell: React.FC = () => {
     }, []);
 
     const totalCount = alerts.reduce((sum, a) => sum + a.count, 0);
-    const alert10m = alerts.find(a => a.titulo === '10 Meses de Contrato');
 
     const alertColorMap: Record<string, string> = {
         critical: '#FF3B30',
