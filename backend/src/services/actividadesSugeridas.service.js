@@ -1,4 +1,6 @@
+const ExcelJS = require('exceljs');
 const db = require('../config/db');
+const { isoDe, esLunesIso, labelSemana } = require('../utils/semana');
 
 /**
  * Service: Lista de trabajadores en actividades sugeridas
@@ -456,6 +458,240 @@ const actividadesSugeridasService = {
         } finally {
             conn.release();
         }
+    },
+
+    // ── Informe de asistencia (resumen por cargo + Excel de 2 hojas) ──────────
+    //
+    // Fuente: solo listas `realizada` (las que ya tienen asistencia registrada) y
+    // solo las filas con estado 'asistio'. Se excluyen obras de prueba; las obras
+    // finalizadas SÍ entran (es historial de pago). Pedido del dueño 2026-09-21.
+
+    /** Semanas (lunes, 'YYYY-MM-DD') con asistencia registrada, de la más nueva a la más vieja. */
+    async semanasConAsistencia(limite = 12) {
+        const tope = Math.min(Math.max(parseInt(limite, 10) || 12, 1), 52);
+        // LIMIT interpolado (saneado): mysql2 bindea el placeholder como string y MariaDB lo rechaza.
+        const [rows] = await db.query(`
+            SELECT DISTINCT DATE_FORMAT(s.semana, '%Y-%m-%d') AS semana
+            FROM actividades_sugeridas s
+            JOIN obras o ON o.id = s.obra_id
+            WHERE s.estado = 'realizada' AND o.es_prueba = 0
+            ORDER BY s.semana DESC
+            LIMIT ${tope}
+        `);
+        return rows.map(r => r.semana);
+    },
+
+    /**
+     * Resumen de una semana: cuántos asistieron por cargo + totales.
+     * Sin `semana` toma la última con asistencia registrada.
+     */
+    async resumenSemana(semana) {
+        const disponibles = await this.semanasConAsistencia();
+        const elegida = isoDe(semana) || disponibles[0] || null;
+
+        if (!elegida) {
+            return {
+                semana: null, semana_label: null, semanas_disponibles: disponibles,
+                listas: 0, obras: 0, total_asistieron: 0, por_cargo: [],
+            };
+        }
+
+        const [porCargo] = await db.query(`
+            SELECT COALESCE(c.nombre, 'Sin cargo') AS cargo_nombre, COUNT(*) AS asistieron
+            FROM actividades_sugeridas s
+            JOIN obras o ON o.id = s.obra_id
+            JOIN actividades_sugeridas_trabajadores t ON t.actividad_id = s.id AND t.estado = 'asistio'
+            JOIN trabajadores w ON w.id = t.trabajador_id
+            LEFT JOIN cargos c ON c.id = w.cargo_id
+            WHERE s.semana = ? AND s.estado = 'realizada' AND o.es_prueba = 0
+            GROUP BY c.id, c.nombre
+            ORDER BY asistieron DESC, cargo_nombre ASC
+        `, [elegida]);
+
+        const [cabeceras] = await db.query(`
+            SELECT COUNT(*) AS listas, COUNT(DISTINCT s.obra_id) AS obras
+            FROM actividades_sugeridas s
+            JOIN obras o ON o.id = s.obra_id
+            WHERE s.semana = ? AND s.estado = 'realizada' AND o.es_prueba = 0
+        `, [elegida]);
+
+        const por_cargo = porCargo.map(r => ({ cargo_nombre: r.cargo_nombre, asistieron: Number(r.asistieron) }));
+        return {
+            semana: elegida,
+            semana_label: labelSemana(elegida),
+            semanas_disponibles: disponibles,
+            listas: Number(cabeceras[0]?.listas || 0),
+            obras: Number(cabeceras[0]?.obras || 0),
+            total_asistieron: por_cargo.reduce((acc, r) => acc + r.asistieron, 0),
+            por_cargo,
+        };
+    },
+
+    /** Filas del informe: un trabajador que asistió, con su cargo y la obra de la lista. */
+    async detalleAsistenciaSemana(semana) {
+        const elegida = isoDe(semana);
+        if (!elegida) throw err400('La semana debe indicarse por su lunes');
+        const [rows] = await db.query(`
+            SELECT
+                w.rut, w.nombres, w.apellido_paterno, w.apellido_materno,
+                COALESCE(c.nombre, 'Sin cargo') AS cargo_nombre,
+                o.nombre AS obra_nombre,
+                t.observacion
+            FROM actividades_sugeridas s
+            JOIN obras o ON o.id = s.obra_id
+            JOIN actividades_sugeridas_trabajadores t ON t.actividad_id = s.id AND t.estado = 'asistio'
+            JOIN trabajadores w ON w.id = t.trabajador_id
+            LEFT JOIN cargos c ON c.id = w.cargo_id
+            WHERE s.semana = ? AND s.estado = 'realizada' AND o.es_prueba = 0
+            ORDER BY cargo_nombre ASC, obra_nombre ASC, w.apellido_paterno ASC, w.nombres ASC
+        `, [elegida]);
+        return rows;
+    },
+
+    /**
+     * Excel del informe, 2 hojas (pedido del dueño 2026-09-21):
+     *   "Por cargo" — todos los que asistieron agrupados por cargo.
+     *   "Por obra"  — los mismos, separados por obra y, dentro de cada obra, por cargo.
+     * Estilos calcados de `crud.service.exportToExcel` (header oscuro, zebra, frozen).
+     */
+    async generarInformeExcel(semana) {
+        const elegida = isoDe(semana);
+        if (!elegida) throw err400('La semana debe indicarse por su lunes');
+        if (!esLunesIso(elegida)) throw err400('La semana debe indicarse por su lunes');
+
+        const [filas, resumen] = await Promise.all([
+            this.detalleAsistenciaSemana(elegida),
+            this.resumenSemana(elegida),
+        ]);
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Bóveda LOLS';
+        workbook.created = new Date();
+
+        const COLUMNAS = ['N°', 'APELLIDOS', 'NOMBRES', 'RUT', 'CARGO', 'OBRA', 'OBSERVACIÓN'];
+        const ANCHOS = [5, 26, 24, 14, 22, 24, 30];
+        const HEADER_ROW = 5;
+
+        const nombreDe = (r) => [r.apellido_paterno, r.apellido_materno].filter(Boolean).join(' ');
+
+        const crearHoja = (nombre) => {
+            const ws = workbook.addWorksheet(nombre.substring(0, 31), {
+                views: [{ state: 'frozen', ySplit: HEADER_ROW }],
+                pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
+            });
+
+            ws.mergeCells(1, 1, 1, COLUMNAS.length);
+            const titulo = ws.getCell(1, 1);
+            titulo.value = 'ASISTENCIA A ACTIVIDADES SUGERIDAS';
+            titulo.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: 'FF1E293B' } };
+            titulo.alignment = { vertical: 'middle', horizontal: 'center' };
+            ws.getRow(1).height = 26;
+
+            ws.mergeCells(2, 1, 2, COLUMNAS.length);
+            const sub = ws.getCell(2, 1);
+            sub.value = resumen.semana_label || '';
+            sub.font = { name: 'Segoe UI', size: 12, bold: true, color: { argb: 'FF475569' } };
+            sub.alignment = { vertical: 'middle', horizontal: 'center' };
+
+            ws.mergeCells(3, 1, 3, COLUMNAS.length);
+            const meta = ws.getCell(3, 1);
+            meta.value = `Generado ${new Date().toLocaleString('es-CL')} · Total asistieron: ${resumen.total_asistieron}`
+                + ` · Listas: ${resumen.listas} · Obras: ${resumen.obras}`;
+            meta.font = { name: 'Segoe UI', size: 9, italic: true, color: { argb: 'FF64748B' } };
+            meta.alignment = { vertical: 'middle', horizontal: 'center' };
+
+            COLUMNAS.forEach((label, i) => {
+                const cell = ws.getCell(HEADER_ROW, i + 1);
+                cell.value = label;
+                cell.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                cell.border = { bottom: { style: 'medium', color: { argb: 'FF000000' } } };
+                ws.getColumn(i + 1).width = ANCHOS[i];
+            });
+            ws.getRow(HEADER_ROW).height = 22;
+            return ws;
+        };
+
+        const filaGrupo = (ws, texto, argb) => {
+            const row = ws.addRow([texto]);
+            ws.mergeCells(row.number, 1, row.number, COLUMNAS.length);
+            const cell = ws.getCell(row.number, 1);
+            cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF1E293B' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } };
+            cell.alignment = { vertical: 'middle', horizontal: 'left' };
+            row.height = 20;
+            return row;
+        };
+
+        const filaTrabajador = (ws, r, n, zebra) => {
+            const row = ws.addRow([n, nombreDe(r), r.nombres || '', r.rut || '', r.cargo_nombre || '', r.obra_nombre || '', r.observacion || '']);
+            row.height = 20;
+            if (zebra) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+            row.eachCell({ includeEmpty: true }, (cell) => {
+                cell.font = { name: 'Segoe UI', size: 10 };
+                cell.alignment = { vertical: 'middle', wrapText: true };
+                cell.border = {
+                    bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    right: { style: 'thin', color: { argb: 'FFF1F5F9' } },
+                };
+            });
+            return row;
+        };
+
+        const filaTotal = (ws, texto) => {
+            const row = ws.addRow([texto]);
+            ws.mergeCells(row.number, 1, row.number, COLUMNAS.length);
+            const cell = ws.getCell(row.number, 1);
+            cell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF1E293B' } };
+            cell.alignment = { vertical: 'middle', horizontal: 'left' };
+            row.height = 22;
+        };
+
+        const sinDatos = (ws) => {
+            const row = ws.addRow(['Sin asistencias registradas esta semana.']);
+            ws.mergeCells(row.number, 1, row.number, COLUMNAS.length);
+            ws.getCell(row.number, 1).font = { name: 'Segoe UI', size: 11, italic: true, color: { argb: 'FF64748B' } };
+        };
+
+        const agrupar = (items, clave) => {
+            const mapa = new Map();
+            items.forEach(it => {
+                const k = it[clave] || '—';
+                if (!mapa.has(k)) mapa.set(k, []);
+                mapa.get(k).push(it);
+            });
+            return [...mapa.entries()].sort((a, b) => a[0].localeCompare(b[0], 'es'));
+        };
+
+        // ── Hoja 1: por cargo ──
+        const wsCargo = crearHoja('Por cargo');
+        if (filas.length === 0) {
+            sinDatos(wsCargo);
+        } else {
+            agrupar(filas, 'cargo_nombre').forEach(([cargo, items]) => {
+                filaGrupo(wsCargo, `${cargo.toUpperCase()} — ${items.length} asistieron`, 'FFFFF2CC');
+                items.forEach((r, i) => filaTrabajador(wsCargo, r, i + 1, i % 2 === 1));
+            });
+            filaTotal(wsCargo, `TOTAL ASISTIERON: ${filas.length}`);
+        }
+
+        // ── Hoja 2: por obra y, dentro de cada obra, por cargo ──
+        const wsObra = crearHoja('Por obra');
+        if (filas.length === 0) {
+            sinDatos(wsObra);
+        } else {
+            agrupar(filas, 'obra_nombre').forEach(([obra, deObra]) => {
+                filaGrupo(wsObra, `${obra.toUpperCase()} — ${deObra.length} asistieron`, 'FFD9D9D9');
+                agrupar(deObra, 'cargo_nombre').forEach(([cargo, items]) => {
+                    filaGrupo(wsObra, `    ${cargo.toUpperCase()} — ${items.length}`, 'FFFFF2CC');
+                    items.forEach((r, i) => filaTrabajador(wsObra, r, i + 1, i % 2 === 1));
+                });
+            });
+            filaTotal(wsObra, `TOTAL ASISTIERON: ${filas.length}`);
+        }
+
+        return await workbook.xlsx.writeBuffer();
     },
 };
 

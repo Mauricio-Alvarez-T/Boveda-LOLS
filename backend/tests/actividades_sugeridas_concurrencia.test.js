@@ -143,12 +143,38 @@ describe('ActividadesSugeridas — RBAC granular', () => {
         expect(ROUTES_SRC).toMatch(/router\.post\('\/'[\s\S]*?asistencia\.actividades_sugeridas\.crear/);
     });
 
-    test('las 6 claves nuevas existen en permisos.config.js y ninguna vieja', () => {
+    test('las 7 claves existen en permisos.config.js y ninguna vieja', () => {
         const cfg = fs.readFileSync(path.resolve(__dirname, '../src/config/permisos.config.js'), 'utf8');
-        for (const k of ['ver', 'crear', 'editar', 'cancelar', 'registrar', 'enviar_whatsapp']) {
+        for (const k of ['ver', 'crear', 'editar', 'cancelar', 'registrar', 'enviar_whatsapp', 'informe']) {
             expect(cfg).toContain(`'asistencia.actividades_sugeridas.${k}'`);
         }
         expect(cfg).not.toMatch(/sabados_extra/);
+    });
+
+    test('el informe Excel exige su propio permiso, no el de ver', () => {
+        expect(ROUTES_SRC).toMatch(/router\.get\('\/informe-excel'[\s\S]*?asistencia\.actividades_sugeridas\.informe/);
+    });
+
+    test('las rutas estáticas se registran ANTES de /:id (o Express las toma como id)', () => {
+        const iResumen = ROUTES_SRC.indexOf("router.get('/resumen-semana'");
+        const iInforme = ROUTES_SRC.indexOf("router.get('/informe-excel'");
+        const iId = ROUTES_SRC.indexOf("router.get('/:id'");
+        expect(iResumen).toBeGreaterThan(-1);
+        expect(iInforme).toBeGreaterThan(-1);
+        expect(iResumen).toBeLessThan(iId);
+        expect(iInforme).toBeLessThan(iId);
+    });
+
+    test('la migración 117 da de alta el permiso del informe con INSERT IGNORE', () => {
+        const sql = fs.readFileSync(path.resolve(__dirname, '../db/migrations/117_permiso_informe_actividades.sql'), 'utf8');
+        expect(sql).toMatch(/INSERT IGNORE INTO permisos_catalogo/);
+        expect(sql).toContain("'asistencia.actividades_sugeridas.informe'");
+        // FK permisos_rol_v2.permiso_clave → permisos_catalogo.clave: el catálogo va primero.
+        // Se comparan los INSERT, no menciones sueltas (los comentarios nombran ambas tablas).
+        const iCat = sql.indexOf('INSERT IGNORE INTO permisos_catalogo');
+        const iRol = sql.indexOf('INSERT IGNORE INTO permisos_rol_v2');
+        expect(iCat).toBeGreaterThan(-1);
+        expect(iRol).toBeGreaterThan(iCat);
     });
 });
 

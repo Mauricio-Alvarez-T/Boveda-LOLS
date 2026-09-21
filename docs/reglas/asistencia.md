@@ -134,6 +134,17 @@ claves de permiso, archivos) en la migración 116.
   "Nueva lista" / "Crear lista" / "Guardar asistencia" (los resalta el tutorial de Ayuda).
 - Historial de actividad: las filas anteriores conservan `modulo='sabados-extra'`; el frontend
   las rotula "Actividades sugeridas" (`logNormalizer.ts`).
+- **Informe de asistencia (mig 117, 2026-09-21).** Permiso propio
+  `asistencia.actividades_sugeridas.informe` (Paula prepara pagos por cargo). Dos endpoints:
+  `GET /resumen-semana?semana=` (gate `…ver`) devuelve `por_cargo`, totales y las semanas con
+  asistencia; `GET /informe-excel?semana=` (gate `…informe`) entrega el Excel de **dos hojas**:
+  "Por cargo" (todos los que asistieron agrupados por cargo) y "Por obra" (obra → cargo →
+  trabajadores), columnas N°/apellidos/nombres/RUT/cargo/obra/observación, total por grupo y
+  general. **Solo listas `realizada` y filas `asistio`**; excluye obras de prueba e **incluye**
+  finalizadas (es historial de pago). Sin montos (pendiente). La semana por defecto es la última
+  con asistencia; se elige con un selector. Se ve en **Inicio** (widget `ActividadesSemana`) y en
+  **Gestiones** (botón "Informe actividades" → modal con el mismo bloque). Etiqueta de semana
+  compartida en `backend/src/utils/semana.js` y `frontend/src/utils/semanas.ts`.
 
 ## Excel de nómina — pago base 30 días (mes comercial)
 

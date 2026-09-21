@@ -97,19 +97,12 @@ const SOLICITUD_INGRESO_RESOLVER = {
 };
 
 /**
- * "Semana lun 28/09 – vie 02/10" desde el lunes de la semana ('YYYY-MM-DD' o ISO).
- * Espejo en JS del labelExpr SQL de `actividades-sugeridas`: el historial debe mostrar
- * el mismo texto haya venido del body (CREATE) o de la tabla (UPDATE/DELETE).
+ * Etiqueta de semana ("Semana lun 28/09 – vie 02/10"): la comparte el informe Excel y
+ * el servicio, y es el espejo en JS del labelExpr SQL de `actividades-sugeridas` — el
+ * historial debe mostrar el mismo texto haya venido del body (CREATE) o de la tabla
+ * (UPDATE/DELETE).
  */
-function labelSemana(valor) {
-    const iso = String(valor || '').slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
-    const lunes = new Date(iso + 'T12:00:00');
-    if (Number.isNaN(lunes.getTime())) return null;
-    const viernes = new Date(lunes); viernes.setDate(viernes.getDate() + 4);
-    const dm = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-    return `Semana lun ${dm(lunes)} – vie ${dm(viernes)}`;
-}
+const { labelSemana } = require('../utils/semana');
 
 const ENTIDAD_RESOLVERS = {
     'solicitudes-ingreso': SOLICITUD_INGRESO_RESOLVER,

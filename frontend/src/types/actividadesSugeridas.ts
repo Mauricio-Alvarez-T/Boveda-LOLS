@@ -88,6 +88,21 @@ export interface EditarListaPayload {
 }
 
 /**
+ * GET /actividades-sugeridas/resumen-semana — informe de una semana (pedido 2026-09-21).
+ * `semana` es el lunes; `semanas_disponibles` son las semanas con asistencia registrada,
+ * de la más nueva a la más vieja. Sin datos: `semana` = null y los conteos en 0.
+ */
+export interface ResumenSemanaActividades {
+    semana: string | null;
+    semana_label: string | null;
+    semanas_disponibles: string[];
+    listas: number;
+    obras: number;
+    total_asistieron: number;
+    por_cargo: Array<{ cargo_nombre: string; asistieron: number }>;
+}
+
+/**
  * Payload del PUT /:id/asistencia.
  * Sin horas (jefatura 2026-08-17): solo asistió / no asistió.
  */

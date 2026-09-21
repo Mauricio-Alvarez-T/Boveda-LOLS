@@ -25,6 +25,7 @@ const MAESTRO_PERMISOS = [
     ['asistencia.actividades_sugeridas.cancelar',        'Asistencia', 'Cancelar lista de actividades sugeridas',       'Cancelar listas de trabajadores en actividades sugeridas', 15],
     ['asistencia.actividades_sugeridas.registrar',       'Asistencia', 'Registrar asistencia a actividades sugeridas', 'Marcar quién asistió a las actividades sugeridas', 16],
     ['asistencia.actividades_sugeridas.enviar_whatsapp', 'Asistencia', 'Enviar lista por WhatsApp',                     'Compartir la lista o su asistencia por WhatsApp', 17],
+    ['asistencia.actividades_sugeridas.informe',          'Asistencia', 'Descargar informe de actividades sugeridas',     'Ver el resumen por cargo y descargar el Excel (por cargo / por obra) de quiénes asistieron en una semana', 18],
     ['asistencia.horas_extra.ver',  'Asistencia', '$ Ver Horas Extra',           'Asistencia → Vista Diaria y Exportación Excel: si está denegado, oculta la columna "Horas Extra" (dato sensible porque es insumo del cálculo de pago).', 18],
 
     // TRABAJADORES

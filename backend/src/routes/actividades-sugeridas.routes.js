@@ -16,6 +16,40 @@ router.get('/', auth, checkPermission('asistencia.actividades_sugeridas.ver'), a
 });
 
 /**
+ * GET /api/actividades-sugeridas/resumen-semana?semana=
+ * Resumen de una semana: cuántos asistieron por cargo + totales + semanas disponibles.
+ * Sin `semana` devuelve la última semana con asistencia registrada.
+ * OJO: las rutas estáticas van ANTES de `/:id` o Express las captura como id.
+ */
+router.get('/resumen-semana', auth, checkPermission('asistencia.actividades_sugeridas.ver'), async (req, res, next) => {
+    try {
+        const result = await actividadesSugeridasService.resumenSemana(req.query.semana);
+        res.json({ data: result });
+    } catch (err) {
+        if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+        next(err);
+    }
+});
+
+/**
+ * GET /api/actividades-sugeridas/informe-excel?semana=
+ * Informe de asistencia en Excel, 2 hojas: "Por cargo" y "Por obra".
+ * Permiso propio: se le da solo a quien prepara los pagos.
+ */
+router.get('/informe-excel', auth, checkPermission('asistencia.actividades_sugeridas.informe'), async (req, res, next) => {
+    try {
+        const buffer = await actividadesSugeridasService.generarInformeExcel(req.query.semana);
+        const fileName = `Actividades_sugeridas_semana_${req.query.semana}.xlsx`;
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.send(buffer);
+    } catch (err) {
+        if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+        next(err);
+    }
+});
+
+/**
  * GET /api/actividades-sugeridas/:id
  * Detalle: cabecera + trabajadores con datos enriquecidos.
  */

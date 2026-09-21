@@ -28,6 +28,7 @@ import AbsencesToday from '../components/dashboard/widgets/AbsencesToday';
 import QuickActions from '../components/dashboard/widgets/QuickActions';
 import AbsenceAlerts, { type TrabajadorConAlerta } from '../components/dashboard/widgets/AbsenceAlerts';
 import ObraRanking from '../components/dashboard/widgets/ObraRanking';
+import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
 
 // ─── Types ───
 interface DocExpiryItem {
@@ -111,6 +112,9 @@ const Dashboard: React.FC = () => {
 
     const permisos = user?.permisos ?? [];
     const canInventario = permisos.includes('inventario.ver');
+    // El WidgetRegistry solo expresa permisos de 2 niveles (modulo.accion), así que este
+    // widget se gatea directo con la clave granular (mismo criterio que canInventario).
+    const canActividades = permisos.includes('asistencia.actividades_sugeridas.ver');
 
     // Solicitudes de ingreso pendientes (ficha digital): mismo store que el badge de
     // Consultas. Una sola fila-resumen, solo para quien aprueba y solo si hay algo.
@@ -266,6 +270,15 @@ const Dashboard: React.FC = () => {
                         </Panel>
                     )}
                 </div>
+            )}
+
+            {/* Asistencia a actividades sugeridas de la semana (pedido dueño 2026-09-21):
+                cuántos de cada cargo asistieron + descarga del informe Excel. Trae sus
+                propios datos (tiene selector de semana), por eso no depende de `ready`. */}
+            {canActividades && (
+                <Panel>
+                    <ActividadesSemana />
+                </Panel>
             )}
 
             {/* Zona principal: Bandeja del Día (izq) + Ausentes del Día (der, sticky) */}

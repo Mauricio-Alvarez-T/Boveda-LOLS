@@ -18,6 +18,7 @@ import {
     Eraser,
     CalendarClock,
     CalendarPlus,
+    ClipboardList,
     FileSignature,
     FlaskConical,
     AlertTriangle,
@@ -37,6 +38,7 @@ import { TipoDocumentoForm } from '../components/settings/TipoDocumentoForm';
 import type { Trabajador } from '../types/entities';
 import { cn } from '../utils/cn';
 import EnvioEmailModal from '../components/workers/EnvioEmailModal';
+import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
 import WorkerQuickView from '../components/workers/WorkerQuickView';
 import { DesvincularModal } from '../components/workers/DesvincularModal';
 import { ReactivarModal } from '../components/workers/ReactivarModal';
@@ -313,6 +315,8 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     const [quickViewId, setQuickViewId] = useState<number | null>(null);
     const [constanciaWorker, setConstanciaWorker] = useState<Trabajador | null>(null);
     const [emailModalOpen, setEmailModalOpen] = useState(false);
+    // Informe de asistencia a actividades sugeridas (mismo bloque que el Inicio, en modal).
+    const [informeModalOpen, setInformeModalOpen] = useState(false);
     // Rail de filtros (2026-09-16). Tres presentaciones del mismo panel, elegidas por ancho:
     //  ≥1280 columna en flujo que empuja la grilla · 768-1279 el mismo rail flotando sobre ella ·
     //  <768 la hoja de abajo de siempre. Se elige por matchMedia y NO por clases hidden/md:block:
@@ -467,6 +471,20 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     <span>Exportar</span>
                 </Button>
 
+                {/* Informe de actividades sugeridas: resumen por cargo de la semana + Excel.
+                    No depende de la grilla ni de los filtros — es el mismo bloque del Inicio. */}
+                {hasPermission('asistencia.actividades_sugeridas.informe') && (
+                <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setInformeModalOpen(true)}
+                    leftIcon={<ClipboardList className="h-3.5 w-3.5 text-brand-primary" />}
+                    className="h-9 px-4 rounded-xl shadow-sm border-border bg-card hover:bg-background"
+                >
+                    <span>Informe actividades</span>
+                </Button>
+                )}
+
                 </>)}
             </div>
 
@@ -501,6 +519,15 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     className={cn("rounded-xl border border-border shadow-sm", exporting && "opacity-60")}
                     icon={<FileDown className={cn("h-4 w-4", exporting && "animate-pulse")} />}
                 />
+                {hasPermission('asistencia.actividades_sugeridas.informe') && (
+                <IconButton
+                    variant="ghost"
+                    aria-label="Informe de actividades sugeridas"
+                    onClick={() => setInformeModalOpen(true)}
+                    className="rounded-xl border border-border shadow-sm"
+                    icon={<ClipboardList className="h-4 w-4" />}
+                />
+                )}
                 </>)}
             </div>
         </div>
@@ -662,6 +689,15 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
             )}
 
             {/* Modals */}
+            <Modal
+                isOpen={informeModalOpen}
+                onClose={() => setInformeModalOpen(false)}
+                title="Asistencia a actividades sugeridas"
+                size="lg"
+            >
+                {informeModalOpen && <ActividadesSemana />}
+            </Modal>
+
             <EnvioEmailModal
                 isOpen={emailModalOpen}
                 onClose={() => setEmailModalOpen(false)}

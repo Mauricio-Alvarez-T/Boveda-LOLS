@@ -123,6 +123,7 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'asistencia.actividades_sugeridas.cancelar':       { seccion: 'asistencia', subseccion: 'Actividades sugeridas', verbo: 'eliminar' },
     'asistencia.actividades_sugeridas.registrar':      { seccion: 'asistencia', subseccion: 'Actividades sugeridas', verbo: 'editar' },
     'asistencia.actividades_sugeridas.enviar_whatsapp':{ seccion: 'asistencia', subseccion: 'Actividades sugeridas', verbo: 'enviar' },
+    'asistencia.actividades_sugeridas.informe':        { seccion: 'asistencia', subseccion: 'Actividades sugeridas', verbo: 'exportar' },
     'asistencia.horas_extra.ver':              { seccion: 'asistencia', subseccion: 'Datos Sensibles',  verbo: 'ver', sensible: 'financiero' },
 
     // ─── CONSULTAS ─────────────────────────────────────────────────────────

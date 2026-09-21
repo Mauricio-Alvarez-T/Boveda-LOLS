@@ -698,8 +698,9 @@ diaria — no toca `asistencias` ni los reportes. **Jefatura 2026-09-21:** sin r
 `hooks/attendance/useActividadesSugeridas.ts`, `types/actividadesSugeridas.ts`, `utils/semanas.ts`.
 Log de actividad: `log-config.js` clave `actividades-sugeridas` (label "Semana del dd-mm-YYYY").
 
-**Permisos** (`permisos.config.js`, módulo Asistencia, órdenes 12-17):
-`asistencia.actividades_sugeridas.ver`, `crear`, `editar`, `cancelar`, `registrar`, `enviar_whatsapp`.
+**Permisos** (`permisos.config.js`, módulo Asistencia, órdenes 12-18):
+`asistencia.actividades_sugeridas.ver`, `crear`, `editar`, `cancelar`, `registrar`, `enviar_whatsapp`,
+`informe` (mig 117: resumen por cargo + Excel del informe; se da solo a quien prepara pagos).
 La mig 116 repuntó las claves viejas `asistencia.sabados_extra.*` (INSERT nuevas → UPDATE
 `permisos_rol_v2` + `permisos_usuario_override` → DELETE viejas) y subió `roles.version` en todos los
 roles: **todos los usuarios deben volver a iniciar sesión** tras el deploy.
@@ -716,7 +717,20 @@ roles: **todos los usuarios deben volver a iniciar sesión** tras el deploy.
 **Concurrencia:** las 4 transiciones (`crearLista`, `editarLista`, `registrarAsistencia`, `cancelar`)
 usan `SELECT ... FOR UPDATE` dentro de transacción.
 
-**Excel:** no aparece en `generarExcel`.
+**Informe de asistencia (mig 117):**
+- `GET /api/actividades-sugeridas/resumen-semana?semana=` → `{ semana, semana_label,
+  semanas_disponibles, listas, obras, total_asistieron, por_cargo[] }` (gate `…ver`; sin `semana`
+  usa la última con asistencia registrada).
+- `GET /api/actividades-sugeridas/informe-excel?semana=` → xlsx de dos hojas ("Por cargo",
+  "Por obra"), gate `…informe`. Solo listas `realizada` + filas `asistio`; excluye obras de prueba,
+  incluye finalizadas.
+- ⚠️ **Las rutas estáticas van declaradas ANTES de `GET /:id`** en
+  `actividades-sugeridas.routes.js`; si se agregan abajo, Express las captura como `:id` y
+  responden 400 "ID inválido". Hay test anti-drift.
+- El `LIMIT` de `semanasConAsistencia` va interpolado (saneado a 1..52), no como placeholder:
+  mysql2 lo bindea como string y MariaDB lo rechaza (§ 6).
+
+**Excel de nómina:** el módulo no aparece en `generarExcel` (asistencia diaria).
 
 **Migraciones relevantes:**
 - `038_trabajo_extraordinario_sabado.sql` — tablas iniciales (nombres antiguos).
