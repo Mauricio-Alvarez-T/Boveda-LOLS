@@ -21,7 +21,7 @@ const MAESTRO_PERMISOS = [
     // jefatura 2026-09-21, mig 116). Claves nuevas: las viejas se repuntaron en la migración.
     ['asistencia.actividades_sugeridas.ver',             'Asistencia', 'Ver actividades sugeridas',                     'Ver las listas de trabajadores en actividades sugeridas', 12],
     ['asistencia.actividades_sugeridas.crear',           'Asistencia', 'Crear lista de actividades sugeridas',          'Crear listas de trabajadores en actividades sugeridas (por obra y semana)', 13],
-    ['asistencia.actividades_sugeridas.editar',          'Asistencia', 'Editar lista de actividades sugeridas',         'Editar listas en estado "citada"', 14],
+    ['asistencia.actividades_sugeridas.editar',          'Asistencia', 'Editar lista de actividades sugeridas',         'Editar una lista mientras no se registre la asistencia', 14],
     ['asistencia.actividades_sugeridas.cancelar',        'Asistencia', 'Cancelar lista de actividades sugeridas',       'Cancelar listas de trabajadores en actividades sugeridas', 15],
     ['asistencia.actividades_sugeridas.registrar',       'Asistencia', 'Registrar asistencia a actividades sugeridas', 'Marcar quién asistió a las actividades sugeridas', 16],
     ['asistencia.actividades_sugeridas.enviar_whatsapp', 'Asistencia', 'Enviar lista por WhatsApp',                     'Compartir la lista o su asistencia por WhatsApp', 17],

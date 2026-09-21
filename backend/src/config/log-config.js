@@ -96,6 +96,21 @@ const SOLICITUD_INGRESO_RESOLVER = {
     ],
 };
 
+/**
+ * "Semana lun 28/09 – vie 02/10" desde el lunes de la semana ('YYYY-MM-DD' o ISO).
+ * Espejo en JS del labelExpr SQL de `actividades-sugeridas`: el historial debe mostrar
+ * el mismo texto haya venido del body (CREATE) o de la tabla (UPDATE/DELETE).
+ */
+function labelSemana(valor) {
+    const iso = String(valor || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+    const lunes = new Date(iso + 'T12:00:00');
+    if (Number.isNaN(lunes.getTime())) return null;
+    const viernes = new Date(lunes); viernes.setDate(viernes.getDate() + 4);
+    const dm = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return `Semana lun ${dm(lunes)} – vie ${dm(viernes)}`;
+}
+
 const ENTIDAD_RESOLVERS = {
     'solicitudes-ingreso': SOLICITUD_INGRESO_RESOLVER,
     solicitudes_ingreso: SOLICITUD_INGRESO_RESOLVER,
@@ -191,13 +206,16 @@ const ENTIDAD_RESOLVERS = {
         bodyKeys: ['nombre'],
     },
     // Lista de trabajadores en actividades sugeridas (mig 116): la lista se identifica
-    // por obra + semana (lunes). Los logs anteriores al rename conservan su label ya guardado.
+    // por obra + semana (lunes). El label usa el MISMO rango lun–vie que la UI, tanto en
+    // el CREATE (desde el body, `labelSemana`) como en UPDATE/DELETE (desde la BD, SQL);
+    // si no coincidieran, el historial mezclaría formatos para la misma lista.
+    // Los logs anteriores al rename conservan el label que ya tenían guardado.
     'actividades-sugeridas': {
         tipo: 'actividad_sugerida',
         tabla: 'actividades_sugeridas',
-        labelExpr: "CONCAT('Semana del ', DATE_FORMAT(semana, '%d-%m-%Y'))",
+        labelExpr: "CONCAT('Semana lun ', DATE_FORMAT(semana, '%d/%m'), ' – vie ', DATE_FORMAT(DATE_ADD(semana, INTERVAL 4 DAY), '%d/%m'))",
         bodyKeys: [
-            (b) => b.semana ? `Semana del ${b.semana}` : null,
+            (b) => labelSemana(b.semana),
         ],
     },
     'facturas-inventario': {

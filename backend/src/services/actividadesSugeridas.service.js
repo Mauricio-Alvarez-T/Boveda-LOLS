@@ -111,6 +111,10 @@ const actividadesSugeridasService = {
      *
      * Usa LEFT JOIN + GROUP BY (sin subqueries correlacionadas N+1) y filtra
      * por rango plano (BETWEEN) para que idx_semana sea utilizable.
+     *
+     * `total_citados` cuenta TODAS las filas del detalle: al cancelar una lista sus
+     * filas pasan a estado 'cancelado' y, si se excluyeran, la tarjeta mostraría
+     * "0 en lista" para una lista que sí tuvo gente (QA 2026-09-21).
      */
     async listar({ obra_id, mes, anio }) {
         const conds = ['o.es_prueba = 0', 'o.finalizada = 0']; // excluir obras de prueba y finalizadas
@@ -132,7 +136,7 @@ const actividadesSugeridasService = {
                 s.observaciones_globales, s.creado_por, s.created_at,
                 o.nombre AS obra_nombre,
                 u.nombre AS creado_por_nombre,
-                COUNT(DISTINCT CASE WHEN t.estado != 'cancelado' THEN t.id END)              AS total_citados,
+                COUNT(DISTINCT t.id)                                                         AS total_citados,
                 COUNT(DISTINCT CASE WHEN t.estado = 'asistio'   THEN t.id END)               AS total_asistio,
                 COUNT(DISTINCT CASE WHEN t.estado = 'no_asistio' THEN t.id END)              AS total_no_asistio
             FROM actividades_sugeridas s
@@ -265,7 +269,7 @@ const actividadesSugeridasService = {
 
     /**
      * Edita la lista: reemplaza trabajadores y observaciones.
-     * Solo permitido en estado 'citada' (la semana no se edita).
+     * Solo permitido en estado 'citada' = "Creada" en la UI (la semana no se edita).
      *
      * Concurrencia: SELECT ... FOR UPDATE sobre la fila evita que dos editores
      * entren simultáneamente (uno editando mientras otro registra asistencia).
@@ -285,7 +289,7 @@ const actividadesSugeridasService = {
             );
             if (headers.length === 0) throw err404('Lista no encontrada');
             if (headers[0].estado !== 'citada') {
-                throw err409('Solo se pueden editar listas en estado "citada"');
+                throw err409('Solo se puede editar una lista mientras no se registre la asistencia');
             }
 
             await validarObraYTrabajadores(conn, headers[0].obra_id, trabajadores);
