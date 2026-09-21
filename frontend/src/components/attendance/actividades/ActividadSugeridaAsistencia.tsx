@@ -6,16 +6,17 @@ import { StatusBadge } from '../../ui/StatusBadge';
 import { Chip } from '../../ui/Chip';
 import { cn } from '../../../utils/cn';
 import { flagOn } from '../../../utils/flags';
+import { fmtSemana } from '../../../utils/semanas';
 import { useAuth } from '../../../context/AuthContext';
 import { useObra } from '../../../context/ObraContext';
-import { useSabadosExtra } from '../../../hooks/attendance/useSabadosExtra';
+import { useActividadesSugeridas } from '../../../hooks/attendance/useActividadesSugeridas';
 import { prepareAndShareWithToast } from '../../../utils/whatsappShare';
-import { buildCitacionMessage, buildAsistenciaMessage, fmtFechaCorta } from './sabadosWhatsApp';
+import { buildListaMessage, buildAsistenciaMessage } from './actividadesWhatsApp';
 import AddFromOtherObraModal from './AddFromOtherObraModal';
 import type { Trabajador } from '../../../types/entities';
 
 interface Props {
-    sabadoId: number;
+    actividadId: number;
     onBack: () => void;
 }
 
@@ -33,34 +34,34 @@ interface RowState {
     cargo_nombre: string | null;
     asistio: boolean;
     observacion: string;
-    citado: boolean;                   // 1 si vino de la citación, 0 si fue agregado el día
+    citado: boolean;                   // 1 si venía en la lista, 0 si se agregó al registrar
     obra_origen_id: number | null;
 }
 
 /**
- * Vista del día sábado: muestra los citados, permite marcar asistencia
- * (solo asistió/no asistió — sin horas, jefatura 2026-08-17), agregar
- * no-citados que llegaron, y enviar mensajes WhatsApp.
+ * Detalle de una lista: muestra a los trabajadores, permite marcar asistencia
+ * (solo asistió/no asistió — sin horas, jefatura 2026-08-17), agregar a los
+ * que no venían en la lista, y enviar mensajes WhatsApp.
  *
- * Default: todos los citados llegan pre-marcados como "Asistió" (decisión del
- * usuario en plan, optimiza el caso común "todos vinieron").
+ * Default: todos llegan pre-marcados como "Asistió" (optimiza el caso común
+ * "todos vinieron").
  */
-const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
+const ActividadSugeridaAsistencia: React.FC<Props> = ({ actividadId, onBack }) => {
     const { hasPermission } = useAuth();
     const { obras } = useObra();
-    const { fetchDetalle, registrarAsistencia, cancelar, current, loading } = useSabadosExtra();
+    const { fetchDetalle, registrarAsistencia, cancelar, current, loading } = useActividadesSugeridas();
     const [rows, setRows] = useState<Record<number, RowState>>({});
     const [observacionesGlobales, setObservacionesGlobales] = useState('');
     const [showAddOther, setShowAddOther] = useState(false);
     const [saving, setSaving] = useState(false);
 
-    const canRegistrar = hasPermission('asistencia.sabados_extra.registrar');
-    const canCrear = hasPermission('asistencia.sabados_extra.crear');
-    const canShare = hasPermission('asistencia.sabados_extra.enviar_whatsapp');
+    const canRegistrar = hasPermission('asistencia.actividades_sugeridas.registrar');
+    const canCrear = hasPermission('asistencia.actividades_sugeridas.crear');
+    const canShare = hasPermission('asistencia.actividades_sugeridas.enviar_whatsapp');
 
     useEffect(() => {
-        fetchDetalle(sabadoId);
-    }, [sabadoId, fetchDetalle]);
+        fetchDetalle(actividadId);
+    }, [actividadId, fetchDetalle]);
 
     // Inicializar estado local cuando llega el detalle
     useEffect(() => {
@@ -68,7 +69,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
         const initial: Record<number, RowState> = {};
         (current.trabajadores || []).forEach(w => {
             const isCitada = current.estado === 'citada';
-            // Pre-marcar Asistió=true cuando aún está citada (modo "el día").
+            // Pre-marcar Asistió=true mientras la lista está recién creada.
             // Si ya está realizada, respetar el valor persistido.
             const asistio = isCitada
                 ? true
@@ -92,12 +93,6 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
     }, [current]);
 
     const allRowIds = useMemo(() => new Set(Object.keys(rows).map(k => Number(k))), [rows]);
-
-    // useCallback para que las filas memoizadas no re-rendericen al tipear en
-    // un input arbitrario. setRows es estable, así que sin deps.
-    const updateRow = useCallback((trabajadorId: number, patch: Partial<RowState>) => {
-        setRows(prev => ({ ...prev, [trabajadorId]: { ...prev[trabajadorId], ...patch } }));
-    }, []);
 
     const setAsistio = useCallback((trabajadorId: number, asistio: boolean) => {
         setRows(prev => ({ ...prev, [trabajadorId]: { ...prev[trabajadorId], asistio } }));
@@ -141,37 +136,37 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
             observacion: r.observacion || null,
         }));
 
-        const ok = await registrarAsistencia(sabadoId, {
+        const ok = await registrarAsistencia(actividadId, {
             observaciones_globales: observacionesGlobales || null,
             trabajadores,
         });
         setSaving(false);
 
-        if (ok) await fetchDetalle(sabadoId);
+        if (ok) await fetchDetalle(actividadId);
     };
 
     const handleCancelar = async () => {
-        if (!window.confirm('¿Cancelar esta citación? No se podrá deshacer.')) return;
-        const ok = await cancelar(sabadoId);
+        if (!window.confirm('¿Cancelar esta lista? No se podrá deshacer.')) return;
+        const ok = await cancelar(actividadId);
         if (ok) onBack();
     };
 
-    const handleShareCitacion = async () => {
+    const handleShareLista = async () => {
         if (!current || !canShare) return;
-        const text = buildCitacionMessage(current);
+        const text = buildListaMessage(current);
         await prepareAndShareWithToast({
             text,
-            title: `Citación ${current.obra_nombre}`,
-            toastId: 'sabados-share-citacion',
-            preparingMessage: 'Preparando citación...',
-            successMessage: '¡Citación lista!',
+            title: `Lista ${current.obra_nombre}`,
+            toastId: 'actividades-share-lista',
+            preparingMessage: 'Preparando la lista...',
+            successMessage: '¡Lista preparada!',
             successDescription: 'Pulsa el botón para enviarla por WhatsApp. El mensaje también está en tu portapapeles.',
         });
     };
 
     const handleShareAsistencia = async () => {
         if (!current || !canShare) return;
-        // Si está aún en estado citada, sugerir guardar antes
+        // Si la lista aún no se cerró, sugerir guardar antes
         if (current.estado === 'citada') {
             toast.info('Guarda la asistencia antes de enviarla por WhatsApp.');
             return;
@@ -180,7 +175,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
         await prepareAndShareWithToast({
             text,
             title: `Asistencia ${current.obra_nombre}`,
-            toastId: 'sabados-share-asistencia',
+            toastId: 'actividades-share-asistencia',
             preparingMessage: 'Preparando asistencia...',
             successMessage: '¡Asistencia lista!',
             successDescription: 'Pulsa el botón para enviarla por WhatsApp. El mensaje también está en tu portapapeles.',
@@ -209,7 +204,6 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
         );
     }
 
-    const fechaStr = fmtFechaCorta(current.fecha);
     const isCancelada = current.estado === 'cancelada';
     const isRealizada = current.estado === 'realizada';
     const totalAsistio = Object.values(rows).filter(r => r.asistio).length;
@@ -232,19 +226,19 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
             <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-lg font-black text-brand-dark">Sábado {fechaStr}</h2>
+                        <h2 className="text-lg font-black text-brand-dark">{fmtSemana(current.semana)}</h2>
                         <p className="text-xs text-muted-foreground font-semibold mt-0.5">
                             Obra {current.obra_nombre} · Solicitado por {current.creado_por_nombre || '—'}
                         </p>
                     </div>
-                    <StatusBadge domain="sabadoEstado" status={current.estado} showIcon />
+                    <StatusBadge domain="actividadEstado" status={current.estado} showIcon />
                 </div>
             </div>
 
             {/* Si está cancelada, no mostrar formulario de edición */}
             {isCancelada && (
                 <div className="bg-muted border border-border rounded-2xl p-6 text-center text-sm text-muted-foreground">
-                    Esta citación fue cancelada y no se puede modificar.
+                    Esta lista fue cancelada y no se puede modificar.
                 </div>
             )}
 
@@ -282,7 +276,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                 leftIcon={<Plus className="h-3.5 w-3.5" />}
                                 className="text-xs font-bold text-green-700 dark:text-green-300"
                             >
-                                Agregar trabajador no citado
+                                Agregar trabajador fuera de la lista
                             </Button>
                         )}
                     </div>
@@ -297,70 +291,68 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                     </span>
                                 </div>
                                 <div className="divide-y divide-border">
-                                    {items.map(({ trabajadorId, row }) => {
-                                        return (
-                                            <div key={trabajadorId} className="px-4 py-3 flex flex-wrap items-center gap-3">
-                                                <div className="flex-1 min-w-[160px]">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-sm font-bold text-brand-dark">
-                                                            {row.apellido_paterno}{row.apellido_materno ? ` ${row.apellido_materno}` : ''} {row.nombres}
-                                                        </span>
-                                                        {!row.citado && (
-                                                            <Chip tone="info" label="No citado" />
-                                                        )}
-                                                    </div>
-                                                    <div className="text-caption text-muted-foreground font-medium">
-                                                        {row.rut}
-                                                    </div>
+                                    {items.map(({ trabajadorId, row }) => (
+                                        <div key={trabajadorId} className="px-4 py-3 flex flex-wrap items-center gap-3">
+                                            <div className="flex-1 min-w-[160px]">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-bold text-brand-dark">
+                                                        {row.apellido_paterno}{row.apellido_materno ? ` ${row.apellido_materno}` : ''} {row.nombres}
+                                                    </span>
+                                                    {!row.citado && (
+                                                        <Chip tone="info" label="Fuera de la lista" />
+                                                    )}
                                                 </div>
-
-                                                {/* Toggle Asistió / No */}
-                                                <div className="flex gap-1 shrink-0">
-                                                    {/* eslint-disable-next-line no-restricted-syntax -- toggle segmentado Asistió/No con color de estado (emerald/red); Button no soporta el par segmentado */}
-                                                    <button
-                                                        type="button"
-                                                        aria-label={`${row.apellido_paterno} ${row.nombres}: marcar asistió`}
-                                                        onClick={() => setAsistio(trabajadorId, true)}
-                                                        disabled={!canRegistrar}
-                                                        className={cn(
-                                                            'px-3 h-9 text-label font-bold rounded-lg transition-all',
-                                                            row.asistio
-                                                                ? 'bg-emerald-700 text-white shadow'
-                                                                : 'bg-card border border-border text-muted-foreground'
-                                                        )}
-                                                    >
-                                                        Asistió
-                                                    </button>
-                                                    {/* eslint-disable-next-line no-restricted-syntax -- toggle segmentado Asistió/No con color de estado (emerald/red); Button no soporta el par segmentado */}
-                                                    <button
-                                                        type="button"
-                                                        aria-label={`${row.apellido_paterno} ${row.nombres}: marcar no asistió`}
-                                                        onClick={() => setAsistio(trabajadorId, false)}
-                                                        disabled={!canRegistrar}
-                                                        className={cn(
-                                                            'px-3 h-9 text-label font-bold rounded-lg transition-all',
-                                                            !row.asistio
-                                                                ? 'bg-red-600 text-white shadow'
-                                                                : 'bg-card border border-border text-muted-foreground'
-                                                        )}
-                                                    >
-                                                        No
-                                                    </button>
+                                                <div className="text-caption text-muted-foreground font-medium">
+                                                    {row.rut}
                                                 </div>
-
-                                                {/* Observación */}
-                                                <input
-                                                    type="text"
-                                                    placeholder="Nota..."
-                                                    aria-label={`Observación para ${row.apellido_paterno} ${row.nombres}`}
-                                                    value={row.observacion}
-                                                    onChange={e => setObsRow(trabajadorId, e.target.value)}
-                                                    disabled={!canRegistrar}
-                                                    className="flex-1 min-w-[120px] h-9 px-3 bg-card border border-border rounded-lg text-sm font-medium focus:outline-none focus:border-brand-primary disabled:opacity-60"
-                                                />
                                             </div>
-                                        );
-                                    })}
+
+                                            {/* Toggle Asistió / No */}
+                                            <div className="flex gap-1 shrink-0">
+                                                {/* eslint-disable-next-line no-restricted-syntax -- toggle segmentado Asistió/No con color de estado (emerald/red); Button no soporta el par segmentado */}
+                                                <button
+                                                    type="button"
+                                                    aria-label={`${row.apellido_paterno} ${row.nombres}: marcar asistió`}
+                                                    onClick={() => setAsistio(trabajadorId, true)}
+                                                    disabled={!canRegistrar}
+                                                    className={cn(
+                                                        'px-3 h-9 text-label font-bold rounded-lg transition-all',
+                                                        row.asistio
+                                                            ? 'bg-emerald-700 text-white shadow'
+                                                            : 'bg-card border border-border text-muted-foreground'
+                                                    )}
+                                                >
+                                                    Asistió
+                                                </button>
+                                                {/* eslint-disable-next-line no-restricted-syntax -- toggle segmentado Asistió/No con color de estado (emerald/red); Button no soporta el par segmentado */}
+                                                <button
+                                                    type="button"
+                                                    aria-label={`${row.apellido_paterno} ${row.nombres}: marcar no asistió`}
+                                                    onClick={() => setAsistio(trabajadorId, false)}
+                                                    disabled={!canRegistrar}
+                                                    className={cn(
+                                                        'px-3 h-9 text-label font-bold rounded-lg transition-all',
+                                                        !row.asistio
+                                                            ? 'bg-red-600 text-white shadow'
+                                                            : 'bg-card border border-border text-muted-foreground'
+                                                    )}
+                                                >
+                                                    No
+                                                </button>
+                                            </div>
+
+                                            {/* Observación */}
+                                            <input
+                                                type="text"
+                                                placeholder="Nota..."
+                                                aria-label={`Observación para ${row.apellido_paterno} ${row.nombres}`}
+                                                value={row.observacion}
+                                                onChange={e => setObsRow(trabajadorId, e.target.value)}
+                                                disabled={!canRegistrar}
+                                                className="flex-1 min-w-[120px] h-9 px-3 bg-card border border-border rounded-lg text-sm font-medium focus:outline-none focus:border-brand-primary disabled:opacity-60"
+                                            />
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         ))}
@@ -374,17 +366,17 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                 onClick={handleCancelar}
                                 leftIcon={<Ban className="h-4 w-4" />}
                             >
-                                Cancelar citación
+                                Cancelar lista
                             </Button>
                         )}
                         <div className="flex items-center gap-2 ml-auto">
                             {canShare && current.estado === 'citada' && (
                                 <Button
                                     variant="secondary"
-                                    onClick={handleShareCitacion}
+                                    onClick={handleShareLista}
                                     leftIcon={<MessageCircle className="h-4 w-4" />}
                                 >
-                                    Enviar citación
+                                    Enviar lista
                                 </Button>
                             )}
                             {canShare && isRealizada && (
@@ -425,4 +417,4 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
     );
 };
 
-export default SabadoExtraAsistencia;
+export default ActividadSugeridaAsistencia;

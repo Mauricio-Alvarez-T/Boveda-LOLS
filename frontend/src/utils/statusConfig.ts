@@ -14,6 +14,7 @@
  * cada página se migre (F2.2+) y se borren los duplicados.
  */
 
+import type { ActividadEstado } from '../types/actividadesSugeridas';
 import type { ElementType } from 'react';
 import {
     Clock, CheckCircle2, Truck, PackageOpen, PackageCheck, XCircle, Ban,
@@ -142,11 +143,11 @@ export const vehiculoRevisionConfig: StatusMap<VehiculoRevision> = {
     pendiente: { label: 'Pendiente', classes: AMBER },
 };
 
-/* ── Sábado Extra: estado de citación ───────────────────────────────── */
-export type SabadoEstado = 'citada' | 'realizada' | 'cancelada';
+/* ── Lista de actividades sugeridas: estado (ENUM interno citada/realizada/cancelada) ── */
+export type { ActividadEstado };
 
-export const sabadoEstadoConfig: StatusMap<SabadoEstado> = {
-    citada:    { label: 'Citada',    classes: AMBER,   icon: Clock },
+export const actividadEstadoConfig: StatusMap<ActividadEstado> = {
+    citada:    { label: 'Creada',    classes: AMBER,   icon: Clock },
     realizada: { label: 'Realizada', classes: GREEN,   icon: CheckCircle2 },
     cancelada: { label: 'Cancelada', classes: NEUTRAL, icon: Ban },
 };
@@ -170,7 +171,7 @@ export const statusDomains = {
     asistencia: asistenciaConfig,
     obra: obraEstadoConfig,
     vehiculoRevision: vehiculoRevisionConfig,
-    sabadoEstado: sabadoEstadoConfig,
+    actividadEstado: actividadEstadoConfig,
     solicitudIngresoEstado: solicitudIngresoEstadoConfig,
     documentoEstado: documentoEstadoConfig,
 } as const;

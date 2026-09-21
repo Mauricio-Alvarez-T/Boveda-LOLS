@@ -54,7 +54,7 @@ export function useTutorialSpotlight(
             //  - <header> global: AttendanceDailyTab inyecta sus acciones (Guardar, WhatsApp,
             //    Excel, Feriado, Repetir) al header de MainLayout vía useSetPageHeader → quedan
             //    FUERA del container; sin esto el spotlight no los encontraría.
-            //  - div.fixed.inset-0: overlays de <Modal> (portal a body) — Traslado/Período/Sábado.
+            //  - div.fixed.inset-0: overlays de <Modal> (portal a body) — Traslado/Período/Actividades.
             const scopes: HTMLElement[] = [
                 container,
                 ...Array.from(document.querySelectorAll<HTMLElement>('header')),

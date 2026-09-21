@@ -1,46 +1,46 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CheckSquare } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 import { useObra } from '../../../context/ObraContext';
 import { useSetPageHeader } from '../../../context/PageHeaderContext';
-import SabadosExtraList from './SabadosExtraList';
-import SabadoExtraForm from './SabadoExtraForm';
-import SabadoExtraAsistencia from './SabadoExtraAsistencia';
+import ActividadesSugeridasList from './ActividadesSugeridasList';
+import ActividadSugeridaForm from './ActividadSugeridaForm';
+import ActividadSugeridaAsistencia from './ActividadSugeridaAsistencia';
 
 type View = 'list' | 'create' | 'detail';
 
 /**
- * Container del tab "Sábados Extra".
- * Maneja la navegación interna entre 3 vistas:
- *   - list:   listado mensual de citaciones
- *   - create: form para crear nueva citación
- *   - detail: vista del día (marcar asistencia + WhatsApp)
+ * Container de la pestaña "Actividades sugeridas" (lista de trabajadores en
+ * actividades sugeridas, por obra y semana). Tres vistas internas:
+ *   - list:   listas del mes
+ *   - create: form para armar una lista nueva (semana + trabajadores)
+ *   - detail: la lista (marcar asistencia + WhatsApp)
  *
- * Usa query param `sabadoId` para deep-link al detalle.
+ * Usa el query param `actividadId` para deep-link al detalle.
  */
-const SabadosExtraTab: React.FC = () => {
+const ActividadesSugeridasTab: React.FC = () => {
     const { selectedObra } = useObra();
     const [searchParams, setSearchParams] = useSearchParams();
-    const sabadoIdParam = searchParams.get('sabadoId');
-    const sabadoId = sabadoIdParam ? Number(sabadoIdParam) : null;
+    const actividadIdParam = searchParams.get('actividadId');
+    const actividadId = actividadIdParam ? Number(actividadIdParam) : null;
 
-    const [view, setView] = useState<View>(sabadoId ? 'detail' : 'list');
+    const [view, setView] = useState<View>(actividadId ? 'detail' : 'list');
 
     // Sincronizar vista con query param
     useEffect(() => {
-        if (sabadoId && view !== 'detail') setView('detail');
-        if (!sabadoId && view === 'detail') setView('list');
-    }, [sabadoId, view]);
+        if (actividadId && view !== 'detail') setView('detail');
+        if (!actividadId && view === 'detail') setView('list');
+    }, [actividadId, view]);
 
-    // Header del tab (cuando no hay obra seleccionada igual mostramos algo)
+    // Header de la pestaña (cuando no hay obra seleccionada igual mostramos algo)
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-3 min-w-0">
             <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground shadow-sm border border-border shrink-0">
-                <CheckSquare className="h-5 w-5" />
+                <ClipboardList className="h-5 w-5" />
             </div>
             <div className="min-w-0">
                 <h1 className="text-sm font-black text-brand-dark tracking-tighter leading-tight uppercase">
-                    Sábado
+                    Actividades sugeridas
                 </h1>
                 <p className="text-caption text-muted-foreground font-bold truncate opacity-80">
                     {selectedObra ? selectedObra.nombre : 'Selecciona una obra'}
@@ -53,18 +53,18 @@ const SabadosExtraTab: React.FC = () => {
 
     const goToList = () => {
         setView('list');
-        searchParams.delete('sabadoId');
+        searchParams.delete('actividadId');
         setSearchParams(searchParams, { replace: true });
     };
 
     const goToDetail = (id: number) => {
-        searchParams.set('sabadoId', String(id));
+        searchParams.set('actividadId', String(id));
         setSearchParams(searchParams, { replace: true });
         setView('detail');
     };
 
     const goToCreate = () => {
-        searchParams.delete('sabadoId');
+        searchParams.delete('actividadId');
         setSearchParams(searchParams, { replace: true });
         setView('create');
     };
@@ -72,19 +72,19 @@ const SabadosExtraTab: React.FC = () => {
     return (
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-1">
             {view === 'list' && (
-                <SabadosExtraList onSelect={goToDetail} onCreate={goToCreate} />
+                <ActividadesSugeridasList onSelect={goToDetail} onCreate={goToCreate} />
             )}
             {view === 'create' && (
-                <SabadoExtraForm
+                <ActividadSugeridaForm
                     onCreated={(id) => goToDetail(id)}
                     onCancel={goToList}
                 />
             )}
-            {view === 'detail' && sabadoId && (
-                <SabadoExtraAsistencia sabadoId={sabadoId} onBack={goToList} />
+            {view === 'detail' && actividadId && (
+                <ActividadSugeridaAsistencia actividadId={actividadId} onBack={goToList} />
             )}
         </div>
     );
 };
 
-export default SabadosExtraTab;
+export default ActividadesSugeridasTab;

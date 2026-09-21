@@ -6,8 +6,11 @@
   (~95+ permisos; formato `[clave, módulo, nombre, descripción, orden]`).
 - Módulos: Asistencia, Trabajadores, Documentos, Reportes, Empresas, Obras, Cargos, Usuarios,
   Inventario (incl. 9 granulares de transferencias + 6 tabs), Financiero, Vehículos, Sistema.
-- El catálogo se **sincroniza en cada arranque/migrate** (`syncCatalogoEnArranque`): INSERT IGNORE
-  de claves nuevas. Agregar un permiso = agregarlo al array + correr migrate (o reiniciar).
+- El catálogo se **sincroniza al correr `migrate`/`maintenance`** (`syncCatalogoEnArranque`; NO en el
+  boot del backend): INSERT … ON DUPLICATE KEY UPDATE de nombre/descr/orden; nunca borra claves. Agregar
+  un permiso = agregarlo al array + migrate (el auto-migrate del deploy lo hace). Renombrar una clave =
+  migración con INSERT nuevas → UPDATE hijos → DELETE viejas → `roles.version + 1` (ver RUNBOOK § 6 y
+  mig 116 `actividades_sugeridas`).
 
 ## JWT y sesión
 

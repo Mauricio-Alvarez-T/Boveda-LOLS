@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { ArrowLeft, RotateCcw, Sparkles, CheckCircle2, MousePointerClick } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import AttendanceDailyTab from '../../attendance/AttendanceDailyTab';
-import SabadosExtraTab from '../../attendance/sabados/SabadosExtraTab';
+import ActividadesSugeridasTab from '../../attendance/actividades/ActividadesSugeridasTab';
 import { WorkerCalendarModal } from '../../attendance/WorkerCalendarModal';
 import type { Trabajador, EstadoAsistencia } from '../../../types/entities';
 import { AsistenciaSandbox } from './AsistenciaSandbox';
@@ -13,7 +13,7 @@ import { estadosDemo, trabajadoresDemo, obraDemo } from './asistenciaMockData';
 import type { JourneyDef } from '../journey/journeys';
 
 type Flujo = NonNullable<JourneyDef['asistenciaFlujo']>;
-type Pantalla = 'diaria' | 'sabados' | 'periodo';
+type Pantalla = 'diaria' | 'actividades' | 'periodo';
 
 interface FlujoConfig {
     pantalla: Pantalla;
@@ -110,16 +110,16 @@ const CONFIG: Record<Flujo, FlujoConfig> = {
             'Pulsaste "Confirmar Período" y todos esos días quedaron justificados.',
         ],
     },
-    sabado: {
-        pantalla: 'sabados',
-        labels: ['Nueva citación', 'Crear citación', 'Guardar asistencia'],
-        instruccion: 'Pulsa "Nueva citación". Elige una fecha que caiga en SÁBADO (otros días no se aceptan), marca a los trabajadores en la lista y pulsa "Crear citación". Después, en el detalle, puedes marcar su asistencia y pulsar "Guardar asistencia".',
-        accion: 'sabado-crear',
-        finTitulo: '¡Citación de sábado creada!',
+    actividades: {
+        pantalla: 'actividades',
+        labels: ['Nueva lista', 'Crear lista', 'Guardar asistencia'],
+        instruccion: 'Pulsa "Nueva lista". Elige la semana (la lista no fija un día), marca a los trabajadores y pulsa "Crear lista". Después, en el detalle, puedes marcar quién asistió y pulsar "Guardar asistencia".',
+        accion: 'actividad-crear',
+        finTitulo: '¡Lista de actividades sugeridas creada!',
         recap: [
-            'Pulsaste "Nueva citación".',
-            'Elegiste un sábado y marcaste a los trabajadores.',
-            'Creaste la citación. En el detalle puedes marcar la asistencia y guardarla.',
+            'Pulsaste "Nueva lista".',
+            'Elegiste la semana y marcaste a los trabajadores.',
+            'Creaste la lista. En el detalle puedes marcar la asistencia y guardarla.',
         ],
     },
 };
@@ -160,8 +160,8 @@ export const AsistenciaJourneyRunner: React.FC<{
 
     const pantalla = (() => {
         switch (cfg.pantalla) {
-            case 'sabados':
-                return <SabadosExtraTab />;
+            case 'actividades':
+                return <ActividadesSugeridasTab />;
             case 'periodo':
                 return (
                     <WorkerCalendarModal
@@ -175,7 +175,7 @@ export const AsistenciaJourneyRunner: React.FC<{
                 );
             case 'diaria':
             default:
-                return <AttendanceDailyTab onGoSabados={() => { /* sin navegación en el demo */ }} />;
+                return <AttendanceDailyTab onGoActividades={() => { /* sin navegación en el demo */ }} />;
         }
     })();
 

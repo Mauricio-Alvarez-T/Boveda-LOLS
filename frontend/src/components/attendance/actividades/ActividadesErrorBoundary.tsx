@@ -13,13 +13,13 @@ interface State {
 }
 
 /**
- * Error boundary específico para el tab "Sábados Extra".
+ * Error boundary de la pestaña "Actividades sugeridas".
  * Evita que un crash de renderizado deje toda la app en pantalla blanca:
  * captura el error y muestra una vista de fallback con botón de reintento.
  *
  * Logs el error a console.error para diagnóstico desde DevTools.
  */
-export class SabadosErrorBoundary extends React.Component<Props, State> {
+export class ActividadesErrorBoundary extends React.Component<Props, State> {
     constructor(props: Props) {
         super(props);
         this.state = { hasError: false, error: null };
@@ -31,7 +31,7 @@ export class SabadosErrorBoundary extends React.Component<Props, State> {
 
     componentDidCatch(error: Error, info: React.ErrorInfo) {
         // eslint-disable-next-line no-console
-        console.error('[SabadosExtra] error capturado:', error, info);
+        console.error('[ActividadesSugeridas] error capturado:', error, info);
     }
 
     handleReset = () => {
@@ -47,7 +47,7 @@ export class SabadosErrorBoundary extends React.Component<Props, State> {
                         <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-black text-red-900 dark:text-red-300 uppercase">Error en Sábados Extra</h3>
+                        <h3 className="text-sm font-black text-red-900 dark:text-red-300 uppercase">Error en Actividades sugeridas</h3>
                         <p className="text-xs text-red-800 dark:text-red-300 mt-1 font-medium">
                             {this.state.error?.message || 'Ocurrió un error inesperado.'}
                         </p>
@@ -70,4 +70,4 @@ export class SabadosErrorBoundary extends React.Component<Props, State> {
     }
 }
 
-export default SabadosErrorBoundary;
+export default ActividadesErrorBoundary;

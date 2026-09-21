@@ -1,64 +1,67 @@
 const db = require('../config/db');
 
 /**
- * Service: Sábados Extra (Trabajo Extraordinario)
+ * Service: Lista de trabajadores en actividades sugeridas
  *
- * Maneja citaciones y asistencia de trabajos extraordinarios en sábado.
- * Aislado del flujo de asistencia regular: usa tablas propias
- * (sabados_extra, sabados_extra_trabajadores) creadas en migración 038.
+ * Una LISTA agrupa, por obra y por SEMANA (lunes a viernes), a los trabajadores
+ * asignados a actividades sugeridas y después registra quién asistió. Se envía
+ * por WhatsApp desde el frontend. Aislado del flujo de asistencia regular: usa
+ * tablas propias (actividades_sugeridas, actividades_sugeridas_trabajadores —
+ * migraciones 038/040, renombradas en la 116).
+ *
+ * Decisión de jefatura (2026-09-21): la lista NO fija un día. La semana se
+ * identifica por su LUNES en la columna `semana` (DATE). Una lista por obra y
+ * semana.
  *
  * Flujo:
- *   1. POST   /sabados-extra              → crearCitacion
- *   2. PUT    /sabados-extra/:id/citacion  → editarCitacion (antes del día)
- *   3. PUT    /sabados-extra/:id/asistencia → registrarAsistencia (el día)
- *   4. DELETE /sabados-extra/:id           → cancelar (soft delete)
+ *   1. POST   /actividades-sugeridas                 → crearLista
+ *   2. PUT    /actividades-sugeridas/:id/lista       → editarLista (estado 'citada')
+ *   3. PUT    /actividades-sugeridas/:id/asistencia  → registrarAsistencia
+ *   4. DELETE /actividades-sugeridas/:id             → cancelar (soft delete)
  *
  * Auditoría (migración 040): todas las transiciones de estado usan
- * SELECT ... FOR UPDATE para prevenir race conditions, y la columna
- * `estado` en sabados_extra_trabajadores se mantiene sincronizada con
- * `asistio` para soportar soft delete sin perder histórico.
+ * SELECT ... FOR UPDATE para prevenir race conditions, y la columna `estado`
+ * del detalle se mantiene sincronizada con `asistio` para soportar soft delete
+ * sin perder histórico. Los valores del ENUM (citada/realizada/cancelada,
+ * citado/asistio/no_asistio/cancelado) se conservan; en la UI se rotulan
+ * Creada / Realizada / Cancelada.
  */
 
-const SATURDAY = 6; // Date.getDay(): dom=0, lun=1, ..., sab=6
+const MONDAY = 1; // Date.getDay(): dom=0, lun=1, ..., sab=6
 const ONE_YEAR_DAYS = 365;
-const MAX_TRABAJADORES_POR_CITACION = 500;
+const MAX_TRABAJADORES_POR_LISTA = 500;
 
-// Sin horas: jefatura 2026-08-17 — el sábado solo registra asistió/no asistió.
-// Las columnas horas_default/horas_trabajadas quedan muertas en BD (sin migración).
+// Sin horas (jefatura 2026-08-17): solo se registra asistió / no asistió.
+// Las columnas horas_default/horas_trabajadas quedan muertas en BD.
 
 function err400(message) { const e = new Error(message); e.statusCode = 400; return e; }
 function err404(message) { const e = new Error(message); e.statusCode = 404; return e; }
 function err409(message) { const e = new Error(message); e.statusCode = 409; return e; }
 
-/**
- * Valida que la fecha sea sábado, no esté en el pasado, ni más allá de 1 año.
- * Lanza 400 con mensaje específico.
- */
-function validarFechaSabado(fecha) {
-    const dateObj = new Date(fecha + 'T12:00:00');
-    if (Number.isNaN(dateObj.getTime())) throw err400('Fecha inválida');
-    if (dateObj.getDay() !== SATURDAY) throw err400('La fecha debe ser sábado');
-
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const dateOnly = new Date(fecha + 'T00:00:00');
-    if (dateOnly < today) throw err400('No se permite fecha pasada');
-
-    const max = new Date(today); max.setDate(max.getDate() + ONE_YEAR_DAYS);
-    if (dateOnly > max) throw err400('Fecha demasiado lejana (máx 1 año)');
+/** Lunes (00:00 local) de la semana que contiene `d`. */
+function lunesDeSemana(d) {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    return x;
 }
 
 /**
- * Verifica si la fecha coincide con un feriado activo. Si coincide y el
- * usuario no marcó `acepta_feriado`, lanza 409 — la UI debe pedir confirmación.
+ * Valida la semana de una lista: llega como su LUNES (YYYY-MM-DD),
+ * no puede ser anterior a la semana en curso (el viernes aún se puede crear la
+ * lista de esa misma semana) ni más allá de 1 año. Lanza 400 con mensaje específico.
  */
-async function validarFeriado(conn, fecha, aceptaFeriado) {
-    const [rows] = await conn.query(
-        'SELECT id, nombre FROM feriados WHERE fecha = ? AND activo = 1 LIMIT 1',
-        [fecha]
-    );
-    if (rows.length > 0 && !aceptaFeriado) {
-        throw err409(`El sábado ${fecha} coincide con feriado: ${rows[0].nombre}. Confirme con el flag acepta_feriado.`);
-    }
+function validarSemana(semana) {
+    const dateObj = new Date(semana + 'T12:00:00');
+    if (Number.isNaN(dateObj.getTime())) throw err400('Semana inválida');
+    if (dateObj.getDay() !== MONDAY) throw err400('La semana debe indicarse por su lunes');
+
+    const lunesActual = lunesDeSemana(new Date());
+    const semanaOnly = new Date(semana + 'T00:00:00');
+    if (semanaOnly < lunesActual) throw err400('No se permite una semana pasada');
+
+    const max = new Date(lunesActual); max.setDate(max.getDate() + ONE_YEAR_DAYS);
+    if (semanaOnly > max) throw err400('Semana demasiado lejana (máx 1 año)');
 }
 
 /**
@@ -71,7 +74,7 @@ async function validarObraYTrabajadores(conn, obra_id, trabajadores) {
         [obra_id]
     );
     if (obraRows.length === 0) throw err400('Obra no encontrada');
-    if (!obraRows[0].activa) throw err400('No se permite citar para una obra inactiva');
+    if (!obraRows[0].activa) throw err400('No se permite armar una lista para una obra inactiva');
 
     const ids = (trabajadores || []).map(t => t.trabajador_id).filter(Boolean);
     if (ids.length === 0) return;
@@ -91,15 +94,23 @@ async function validarObraYTrabajadores(conn, obra_id, trabajadores) {
     }
 }
 
-const sabadosExtraService = {
+function validarTrabajadoresLista(trabajadores) {
+    if (!Array.isArray(trabajadores) || trabajadores.length === 0) {
+        throw err400('La lista debe tener al menos 1 trabajador');
+    }
+    if (trabajadores.length > MAX_TRABAJADORES_POR_LISTA) {
+        throw err400(`Demasiados trabajadores (máx ${MAX_TRABAJADORES_POR_LISTA})`);
+    }
+}
+
+const actividadesSugeridasService = {
 
     /**
-     * Listado mensual de citaciones (filtro por obra opcional).
-     * Retorna info resumen + conteos para badges.
+     * Listado mensual (por el lunes de cada semana; filtro por obra opcional).
+     * Retorna resumen + conteos para badges.
      *
-     * Sprint 2 fix N+1: usa LEFT JOIN + GROUP BY en lugar de subqueries
-     * correlacionadas. Filtra por rango de fecha plano (BETWEEN) en vez de
-     * MONTH/YEAR para que el índice idx_fecha sea utilizable.
+     * Usa LEFT JOIN + GROUP BY (sin subqueries correlacionadas N+1) y filtra
+     * por rango plano (BETWEEN) para que idx_semana sea utilizable.
      */
     async listar({ obra_id, mes, anio }) {
         const conds = ['o.es_prueba = 0', 'o.finalizada = 0']; // excluir obras de prueba y finalizadas
@@ -110,27 +121,27 @@ const sabadosExtraService = {
             const desde = `${y}-${String(m).padStart(2, '0')}-01`;
             const hastaDate = new Date(y, m, 0); // último día del mes (m es 1-12)
             const hasta = `${y}-${String(m).padStart(2, '0')}-${String(hastaDate.getDate()).padStart(2, '0')}`;
-            conds.push('s.fecha BETWEEN ? AND ?');
+            conds.push('s.semana BETWEEN ? AND ?');
             params.push(desde, hasta);
         }
         const whereSql = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
         const [rows] = await db.query(`
             SELECT
-                s.id, s.obra_id, s.fecha, s.estado,
+                s.id, s.obra_id, s.semana, s.estado,
                 s.observaciones_globales, s.creado_por, s.created_at,
                 o.nombre AS obra_nombre,
                 u.nombre AS creado_por_nombre,
                 COUNT(DISTINCT CASE WHEN t.estado != 'cancelado' THEN t.id END)              AS total_citados,
                 COUNT(DISTINCT CASE WHEN t.estado = 'asistio'   THEN t.id END)               AS total_asistio,
                 COUNT(DISTINCT CASE WHEN t.estado = 'no_asistio' THEN t.id END)              AS total_no_asistio
-            FROM sabados_extra s
+            FROM actividades_sugeridas s
             JOIN obras o ON o.id = s.obra_id
             LEFT JOIN usuarios u ON u.id = s.creado_por
-            LEFT JOIN sabados_extra_trabajadores t ON t.sabado_id = s.id
+            LEFT JOIN actividades_sugeridas_trabajadores t ON t.actividad_id = s.id
             ${whereSql}
             GROUP BY s.id
-            ORDER BY s.fecha DESC, s.id DESC
+            ORDER BY s.semana DESC, s.id DESC
         `, params);
 
         return rows;
@@ -145,13 +156,13 @@ const sabadosExtraService = {
                 s.*,
                 o.nombre AS obra_nombre,
                 u.nombre AS creado_por_nombre
-            FROM sabados_extra s
+            FROM actividades_sugeridas s
             JOIN obras o ON o.id = s.obra_id
             LEFT JOIN usuarios u ON u.id = s.creado_por
             WHERE s.id = ?
         `, [id]);
 
-        if (headers.length === 0) throw err404('Citación no encontrada');
+        if (headers.length === 0) throw err404('Lista no encontrada');
 
         const cabecera = headers[0];
 
@@ -163,16 +174,16 @@ const sabadosExtraService = {
 
         const [trabajadores] = await db.query(`
             SELECT
-                t.id, t.sabado_id, t.trabajador_id, t.obra_origen_id,
+                t.id, t.actividad_id, t.trabajador_id, t.obra_origen_id,
                 t.citado, t.asistio, t.estado, t.observacion,
                 w.rut, w.nombres, w.apellido_paterno, w.apellido_materno,
                 w.cargo_id, c.nombre AS cargo_nombre,
                 oo.nombre AS obra_origen_nombre
-            FROM sabados_extra_trabajadores t
+            FROM actividades_sugeridas_trabajadores t
             JOIN trabajadores w ON w.id = t.trabajador_id
             LEFT JOIN cargos c ON c.id = w.cargo_id
             LEFT JOIN obras oo ON oo.id = t.obra_origen_id
-            WHERE t.sabado_id = ?
+            WHERE t.actividad_id = ?
             ORDER BY c.nombre, w.apellido_paterno, w.nombres
         `, [id]);
 
@@ -181,62 +192,54 @@ const sabadosExtraService = {
     },
 
     /**
-     * Crea una nueva citación con su lista inicial de trabajadores.
+     * Crea una lista nueva (obra + semana) con sus trabajadores.
      *
-     * Concurrencia: SELECT ... FOR UPDATE sobre la combinación (obra,fecha)
-     * dentro de la transacción evita que dos super-admins creen la misma
-     * citación simultáneamente. UNIQUE constraint sigue como red de seguridad
-     * (mapea ER_DUP_ENTRY a 409).
+     * Concurrencia: SELECT ... FOR UPDATE sobre (obra, semana) dentro de la
+     * transacción evita que dos usuarios creen la misma lista a la vez. La
+     * UNIQUE uniq_obra_semana sigue como red de seguridad (ER_DUP_ENTRY → 409).
      *
-     * Validaciones: fecha (sábado, no pasada, ≤ 1 año), feriado opt-in,
-     * obra activa, trabajadores activos, mínimo 1 trabajador, máximo 500.
+     * Validaciones: semana (lunes, no pasada, ≤ 1 año), obra activa,
+     * trabajadores activos, mínimo 1, máximo 500.
      */
-    async crearCitacion(payload, userId) {
-        const { obra_id, fecha, observaciones_globales, observaciones_por_cargo, trabajadores, acepta_feriado } = payload;
+    async crearLista(payload, userId) {
+        const { obra_id, semana, observaciones_globales, observaciones_por_cargo, trabajadores } = payload;
 
-        if (!obra_id || !fecha) throw err400('obra_id y fecha son requeridos');
-        validarFechaSabado(fecha);
-
-        if (!Array.isArray(trabajadores) || trabajadores.length === 0) {
-            throw err400('La citación debe tener al menos 1 trabajador');
-        }
-        if (trabajadores.length > MAX_TRABAJADORES_POR_CITACION) {
-            throw err400(`Demasiados trabajadores (máx ${MAX_TRABAJADORES_POR_CITACION})`);
-        }
+        if (!obra_id || !semana) throw err400('obra_id y semana son requeridos');
+        validarSemana(semana);
+        validarTrabajadoresLista(trabajadores);
 
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
 
-            // Lock pesimista contra (obra,fecha) para prevenir creaciones simultáneas
+            // Lock pesimista contra (obra, semana) para prevenir creaciones simultáneas
             await conn.query(
-                'SELECT id FROM sabados_extra WHERE obra_id = ? AND fecha = ? FOR UPDATE',
-                [obra_id, fecha]
+                'SELECT id FROM actividades_sugeridas WHERE obra_id = ? AND semana = ? FOR UPDATE',
+                [obra_id, semana]
             );
 
-            await validarFeriado(conn, fecha, acepta_feriado);
             await validarObraYTrabajadores(conn, obra_id, trabajadores);
 
             const obsJson = observaciones_por_cargo ? JSON.stringify(observaciones_por_cargo) : null;
             let insertResult;
             try {
                 [insertResult] = await conn.query(
-                    `INSERT INTO sabados_extra
-                        (obra_id, fecha, observaciones_globales, observaciones_por_cargo, estado, creado_por, actualizado_por)
+                    `INSERT INTO actividades_sugeridas
+                        (obra_id, semana, observaciones_globales, observaciones_por_cargo, estado, creado_por, actualizado_por)
                      VALUES (?, ?, ?, ?, 'citada', ?, ?)`,
-                    [obra_id, fecha, observaciones_globales || null, obsJson, userId, userId]
+                    [obra_id, semana, observaciones_globales || null, obsJson, userId, userId]
                 );
             } catch (errIns) {
                 if (errIns && errIns.code === 'ER_DUP_ENTRY') {
-                    throw err409('Ya existe una citación para esta obra y fecha');
+                    throw err409('Ya existe una lista para esta obra en esa semana');
                 }
                 throw errIns;
             }
 
-            const sabadoId = insertResult.insertId;
+            const actividadId = insertResult.insertId;
 
             const values = trabajadores.map(t => [
-                sabadoId,
+                actividadId,
                 t.trabajador_id,
                 t.obra_origen_id || null,
                 1,
@@ -244,14 +247,14 @@ const sabadosExtraService = {
                 userId,
             ]);
             await conn.query(
-                `INSERT INTO sabados_extra_trabajadores
-                    (sabado_id, trabajador_id, obra_origen_id, citado, estado, actualizado_por)
+                `INSERT INTO actividades_sugeridas_trabajadores
+                    (actividad_id, trabajador_id, obra_origen_id, citado, estado, actualizado_por)
                  VALUES ?`,
                 [values]
             );
 
             await conn.commit();
-            return { id: sabadoId };
+            return { id: actividadId };
         } catch (err) {
             await conn.rollback();
             throw err;
@@ -261,43 +264,35 @@ const sabadosExtraService = {
     },
 
     /**
-     * Edita citación: reemplaza la lista de trabajadores y observaciones.
-     * Solo permitido en estado 'citada'.
+     * Edita la lista: reemplaza trabajadores y observaciones.
+     * Solo permitido en estado 'citada' (la semana no se edita).
      *
-     * Concurrencia: SELECT ... FOR UPDATE sobre la fila evita que dos
-     * editores entren simultáneamente (uno editando mientras otro registra
-     * asistencia, por ejemplo).
+     * Concurrencia: SELECT ... FOR UPDATE sobre la fila evita que dos editores
+     * entren simultáneamente (uno editando mientras otro registra asistencia).
      */
-    async editarCitacion(id, payload, userId) {
-        const { observaciones_globales, observaciones_por_cargo, trabajadores, acepta_feriado } = payload;
+    async editarLista(id, payload, userId) {
+        const { observaciones_globales, observaciones_por_cargo, trabajadores } = payload;
 
-        if (!Array.isArray(trabajadores) || trabajadores.length === 0) {
-            throw err400('La citación debe tener al menos 1 trabajador');
-        }
-        if (trabajadores.length > MAX_TRABAJADORES_POR_CITACION) {
-            throw err400(`Demasiados trabajadores (máx ${MAX_TRABAJADORES_POR_CITACION})`);
-        }
+        validarTrabajadoresLista(trabajadores);
 
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
 
             const [headers] = await conn.query(
-                'SELECT estado, obra_id, fecha FROM sabados_extra WHERE id = ? FOR UPDATE',
+                'SELECT estado, obra_id, semana FROM actividades_sugeridas WHERE id = ? FOR UPDATE',
                 [id]
             );
-            if (headers.length === 0) throw err404('Citación no encontrada');
+            if (headers.length === 0) throw err404('Lista no encontrada');
             if (headers[0].estado !== 'citada') {
-                throw err409('Solo se pueden editar citaciones en estado "citada"');
+                throw err409('Solo se pueden editar listas en estado "citada"');
             }
 
-            // Re-valida feriado (opt-in) si la fecha sigue siendo feriado
-            await validarFeriado(conn, headers[0].fecha, acepta_feriado);
             await validarObraYTrabajadores(conn, headers[0].obra_id, trabajadores);
 
             const obsJson = observaciones_por_cargo ? JSON.stringify(observaciones_por_cargo) : null;
             await conn.query(
-                `UPDATE sabados_extra
+                `UPDATE actividades_sugeridas
                  SET observaciones_globales = ?, observaciones_por_cargo = ?, actualizado_por = ?
                  WHERE id = ?`,
                 [observaciones_globales || null, obsJson, userId, id]
@@ -305,12 +300,12 @@ const sabadosExtraService = {
 
             // Estrategia: eliminar todos los citados y reinsertar.
             // Como estado=='citada' garantizado, no hay datos de asistencia que perder.
-            await conn.query('DELETE FROM sabados_extra_trabajadores WHERE sabado_id = ?', [id]);
+            await conn.query('DELETE FROM actividades_sugeridas_trabajadores WHERE actividad_id = ?', [id]);
 
             const values = trabajadores.map(t => [id, t.trabajador_id, t.obra_origen_id || null, 1, 'citado', userId]);
             await conn.query(
-                `INSERT INTO sabados_extra_trabajadores
-                    (sabado_id, trabajador_id, obra_origen_id, citado, estado, actualizado_por)
+                `INSERT INTO actividades_sugeridas_trabajadores
+                    (actividad_id, trabajador_id, obra_origen_id, citado, estado, actualizado_por)
                  VALUES ?`,
                 [values]
             );
@@ -326,8 +321,8 @@ const sabadosExtraService = {
     },
 
     /**
-     * Registra asistencia el día sábado: marca asistio + observacion
-     * por trabajador. Acepta nuevos no-citados (citado=0).
+     * Registra asistencia: marca asistio + observacion por trabajador.
+     * Acepta trabajadores que no estaban en la lista (citado=0).
      * Cambia estado de 'citada' a 'realizada'.
      *
      * Concurrencia: SELECT ... FOR UPDATE sobre la cabecera evita que dos
@@ -343,17 +338,17 @@ const sabadosExtraService = {
             await conn.beginTransaction();
 
             const [headers] = await conn.query(
-                'SELECT estado FROM sabados_extra WHERE id = ? FOR UPDATE',
+                'SELECT estado FROM actividades_sugeridas WHERE id = ? FOR UPDATE',
                 [id]
             );
-            if (headers.length === 0) throw err404('Citación no encontrada');
+            if (headers.length === 0) throw err404('Lista no encontrada');
             if (headers[0].estado === 'cancelada') {
-                throw err409('No se puede registrar asistencia en una citación cancelada');
+                throw err409('No se puede registrar asistencia en una lista cancelada');
             }
 
             // Update cabecera
             await conn.query(
-                `UPDATE sabados_extra
+                `UPDATE actividades_sugeridas
                  SET observaciones_globales = ?,
                      estado = 'realizada', actualizado_por = ?
                  WHERE id = ?`,
@@ -362,7 +357,7 @@ const sabadosExtraService = {
 
             // Cargar trabajadores actuales para saber cuáles existen ya
             const [existing] = await conn.query(
-                'SELECT trabajador_id FROM sabados_extra_trabajadores WHERE sabado_id = ?',
+                'SELECT trabajador_id FROM actividades_sugeridas_trabajadores WHERE actividad_id = ?',
                 [id]
             );
             const existingSet = new Set(existing.map(r => r.trabajador_id));
@@ -376,9 +371,9 @@ const sabadosExtraService = {
 
                 if (existingSet.has(t.trabajador_id)) {
                     await conn.query(
-                        `UPDATE sabados_extra_trabajadores
+                        `UPDATE actividades_sugeridas_trabajadores
                          SET asistio = ?, observacion = ?, estado = ?, actualizado_por = ?
-                         WHERE sabado_id = ? AND trabajador_id = ?`,
+                         WHERE actividad_id = ? AND trabajador_id = ?`,
                         [
                             asistio,
                             t.observacion || null,
@@ -390,8 +385,8 @@ const sabadosExtraService = {
                     );
                 } else {
                     await conn.query(
-                        `INSERT INTO sabados_extra_trabajadores
-                            (sabado_id, trabajador_id, obra_origen_id, citado, asistio, observacion, estado, actualizado_por)
+                        `INSERT INTO actividades_sugeridas_trabajadores
+                            (actividad_id, trabajador_id, obra_origen_id, citado, asistio, observacion, estado, actualizado_por)
                          VALUES (?, ?, ?, 0, ?, ?, ?, ?)`,
                         [
                             id,
@@ -417,8 +412,8 @@ const sabadosExtraService = {
     },
 
     /**
-     * Soft delete: marca cabecera como 'cancelada' y trabajadores como
-     * 'cancelado'. Preserva auditoría completa (no DELETE).
+     * Soft delete: cabecera 'cancelada' y trabajadores 'cancelado'.
+     * Preserva auditoría completa (no DELETE).
      *
      * Concurrencia: SELECT ... FOR UPDATE evita doble cancelación o que
      * alguien edite/registre asistencia justo cuando otro cancela.
@@ -429,23 +424,23 @@ const sabadosExtraService = {
             await conn.beginTransaction();
 
             const [headers] = await conn.query(
-                'SELECT estado FROM sabados_extra WHERE id = ? FOR UPDATE',
+                'SELECT estado FROM actividades_sugeridas WHERE id = ? FOR UPDATE',
                 [id]
             );
-            if (headers.length === 0) throw err404('Citación no encontrada');
+            if (headers.length === 0) throw err404('Lista no encontrada');
             if (headers[0].estado === 'cancelada') {
                 await conn.commit();
                 return { id }; // idempotente
             }
 
             await conn.query(
-                `UPDATE sabados_extra SET estado = 'cancelada', actualizado_por = ? WHERE id = ?`,
+                `UPDATE actividades_sugeridas SET estado = 'cancelada', actualizado_por = ? WHERE id = ?`,
                 [userId, id]
             );
             await conn.query(
-                `UPDATE sabados_extra_trabajadores
+                `UPDATE actividades_sugeridas_trabajadores
                  SET estado = 'cancelado', actualizado_por = ?
-                 WHERE sabado_id = ? AND estado != 'cancelado'`,
+                 WHERE actividad_id = ? AND estado != 'cancelado'`,
                 [userId, id]
             );
 
@@ -460,5 +455,5 @@ const sabadosExtraService = {
     },
 };
 
-module.exports = sabadosExtraService;
-module.exports._internal = { validarFechaSabado, validarFeriado, validarObraYTrabajadores };
+module.exports = actividadesSugeridasService;
+module.exports._internal = { validarSemana, lunesDeSemana, validarObraYTrabajadores };

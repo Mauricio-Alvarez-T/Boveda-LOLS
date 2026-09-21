@@ -1,15 +1,15 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckSquare, CalendarDays } from 'lucide-react';
+import { CheckSquare, ClipboardList } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import AttendanceDailyTab from '../components/attendance/AttendanceDailyTab';
-import SabadosExtraTab from '../components/attendance/sabados/SabadosExtraTab';
-import SabadosErrorBoundary from '../components/attendance/sabados/SabadosErrorBoundary';
+import ActividadesSugeridasTab from '../components/attendance/actividades/ActividadesSugeridasTab';
+import ActividadesErrorBoundary from '../components/attendance/actividades/ActividadesErrorBoundary';
 
-type TabKey = 'diaria' | 'sabados';
+type TabKey = 'diaria' | 'actividades';
 
 interface TabDef {
     key: TabKey;
@@ -26,9 +26,9 @@ interface TabDef {
  *   - "Asistencia"  → toda la funcionalidad original (AttendanceDailyTab).
  *                     El Reporte Mensual vive en un botón compacto del header
  *                     (AttendanceHeaderActions), junto al filtro de empresa.
- *   - "Sábado"      → trabajo extraordinario en sábado (requiere permiso
- *                     asistencia.sabados_extra.ver y obra seleccionada para
- *                     crear/editar).
+ *   - "Actividades" → lista de trabajadores en actividades sugeridas, por obra y
+ *                     semana (requiere permiso asistencia.actividades_sugeridas.ver
+ *                     y obra seleccionada para crear/editar).
  *
  * La pestaña activa se persiste en query param `?tab=` para permitir
  * deep-link y recargar manteniendo el contexto.
@@ -38,11 +38,11 @@ const AttendancePage: React.FC = () => {
     const { selectedObra } = useObra();
     const [searchParams, setSearchParams] = useSearchParams();
     const rawTab = searchParams.get('tab') as TabKey | null;
-    const activeTab: TabKey = rawTab === 'sabados' ? rawTab : 'diaria';
+    const activeTab: TabKey = rawTab === 'actividades' ? rawTab : 'diaria';
 
     const setActiveTab = (t: TabKey) => {
-        // sabadoId solo aplica a tab sabados
-        if (t !== 'sabados') searchParams.delete('sabadoId');
+        // actividadId solo aplica a la pestaña de actividades
+        if (t !== 'actividades') searchParams.delete('actividadId');
         searchParams.set('tab', t);
         setSearchParams(searchParams, { replace: false });
     };
@@ -50,23 +50,23 @@ const AttendancePage: React.FC = () => {
     const tabs: TabDef[] = [
         { key: 'diaria', label: 'Asistencia', shortLabel: 'Asistencia', icon: CheckSquare, show: true },
         {
-            key: 'sabados',
-            label: 'Sábado',
-            shortLabel: 'Sábado',
-            icon: CalendarDays,
-            show: hasPermission('asistencia.sabados_extra.ver') && !!selectedObra,
+            key: 'actividades',
+            label: 'Actividades sugeridas',
+            shortLabel: 'Actividades',
+            icon: ClipboardList,
+            show: hasPermission('asistencia.actividades_sugeridas.ver') && !!selectedObra,
         },
     ];
     const visibleTabs = tabs.filter(t => t.show);
 
-    // Si la tab activa no es visible (ej: sabados sin permiso), forzar diaria
+    // Si la tab activa no es visible (ej: actividades sin permiso), forzar diaria
     const effectiveTab: TabKey = visibleTabs.find(t => t.key === activeTab)
         ? activeTab
         : 'diaria';
 
     return (
         <div className="flex flex-col flex-1 min-h-0 gap-2">
-            {/* Tab bar — solo en MÓVIL (en desktop el ícono de Sábados vive en AttendanceSummaryRow) */}
+            {/* Tab bar — solo en MÓVIL (en desktop el ícono de Actividades vive en AttendanceSummaryRow) */}
             {visibleTabs.length > 1 && (
                 <div className="md:hidden flex items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 overflow-x-auto scrollbar-none">
                     {visibleTabs.map(tab => {
@@ -106,17 +106,17 @@ const AttendancePage: React.FC = () => {
                 >
                     {effectiveTab === 'diaria' && (
                         <AttendanceDailyTab
-                            onGoSabados={
-                                visibleTabs.some(t => t.key === 'sabados')
-                                    ? () => setActiveTab('sabados')
+                            onGoActividades={
+                                visibleTabs.some(t => t.key === 'actividades')
+                                    ? () => setActiveTab('actividades')
                                     : undefined
                             }
                         />
                     )}
-                    {effectiveTab === 'sabados' && (
-                        <SabadosErrorBoundary>
-                            <SabadosExtraTab />
-                        </SabadosErrorBoundary>
+                    {effectiveTab === 'actividades' && (
+                        <ActividadesErrorBoundary>
+                            <ActividadesSugeridasTab />
+                        </ActividadesErrorBoundary>
                     )}
                 </motion.div>
             </AnimatePresence>

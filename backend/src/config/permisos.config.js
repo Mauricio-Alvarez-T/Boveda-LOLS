@@ -17,13 +17,15 @@ const MAESTRO_PERMISOS = [
     ['asistencia.horarios.ver',     'Asistencia', 'Ver Horarios',                'Ver la configuración de horarios laborales', 9],
     ['asistencia.horarios.editar',  'Asistencia', 'Editar Horarios',             'Modificar horarios laborales', 10],
     ['asistencia.tomar.global',     'Asistencia', 'Asistencia Global',           'Tomar asistencia de todas las obras simultáneamente', 11],
-    ['asistencia.sabados_extra.ver',           'Asistencia', 'Ver Sábados Extra',           'Ver el listado de citaciones de trabajo extraordinario en sábado', 12],
-    ['asistencia.sabados_extra.crear',         'Asistencia', 'Crear Citación Sábado',       'Crear citaciones de trabajo extraordinario en sábado', 13],
-    ['asistencia.sabados_extra.editar',        'Asistencia', 'Editar Citación Sábado',      'Editar citaciones de trabajo extraordinario en sábado en estado "citada"', 14],
-    ['asistencia.sabados_extra.cancelar',      'Asistencia', 'Cancelar Citación Sábado',    'Cancelar citaciones de trabajo extraordinario en sábado', 15],
-    ['asistencia.sabados_extra.registrar',     'Asistencia', 'Registrar Asistencia Sábado', 'Marcar asistencia y horas trabajadas el sábado', 16],
-    ['asistencia.sabados_extra.enviar_whatsapp','Asistencia','Enviar Sábado por WhatsApp',  'Compartir citación o asistencia de sábado por WhatsApp', 17],
-    ['asistencia.horas_extra.ver',  'Asistencia', '$ Ver Horas Extra',           'Asistencia → Vista Diaria y Exportación Excel: si está denegado, oculta las columnas "Horas Extra" y "Horas Sábado" (datos sensibles porque son insumo del cálculo de pago).', 18],
+    // Lista de trabajadores en actividades sugeridas (antes "sábados extra"; renombrado por
+    // jefatura 2026-09-21, mig 116). Claves nuevas: las viejas se repuntaron en la migración.
+    ['asistencia.actividades_sugeridas.ver',             'Asistencia', 'Ver actividades sugeridas',                     'Ver las listas de trabajadores en actividades sugeridas', 12],
+    ['asistencia.actividades_sugeridas.crear',           'Asistencia', 'Crear lista de actividades sugeridas',          'Crear listas de trabajadores en actividades sugeridas (por obra y semana)', 13],
+    ['asistencia.actividades_sugeridas.editar',          'Asistencia', 'Editar lista de actividades sugeridas',         'Editar listas en estado "citada"', 14],
+    ['asistencia.actividades_sugeridas.cancelar',        'Asistencia', 'Cancelar lista de actividades sugeridas',       'Cancelar listas de trabajadores en actividades sugeridas', 15],
+    ['asistencia.actividades_sugeridas.registrar',       'Asistencia', 'Registrar asistencia a actividades sugeridas', 'Marcar quién asistió a las actividades sugeridas', 16],
+    ['asistencia.actividades_sugeridas.enviar_whatsapp', 'Asistencia', 'Enviar lista por WhatsApp',                     'Compartir la lista o su asistencia por WhatsApp', 17],
+    ['asistencia.horas_extra.ver',  'Asistencia', '$ Ver Horas Extra',           'Asistencia → Vista Diaria y Exportación Excel: si está denegado, oculta la columna "Horas Extra" (dato sensible porque es insumo del cálculo de pago).', 18],
 
     // TRABAJADORES
     ['trabajadores.ver',            'Trabajadores', 'Ver Trabajadores',          'Ver la lista y fichas de trabajadores', 1],

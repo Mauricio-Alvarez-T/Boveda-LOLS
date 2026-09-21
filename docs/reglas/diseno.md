@@ -100,7 +100,7 @@ WhatsApp* conservan un tinte **verde persistente** (no gris-idle) por reconocibi
 porque en mobile no hay hover — análogo a las excepciones de encabezados verdes/tabs/toasts. Tokens
 de la escala `green` (ej. `bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300`),
 nunca hex. Aplicado en el detalle de transferencia (`TransferenciaActionsMenu`); patrón replicable a
-los WhatsApp de asistencia/sábados.
+los WhatsApp de asistencia/actividades sugeridas.
 
 ### CTAs destructivas y decoración (F2.9)
 - **CTA destructiva** (confirmar finiquito / depurar / borrar): `<Button

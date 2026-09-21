@@ -115,7 +115,7 @@ const DEPENDIENTES = [
     'log_asistencia',
     'asistencias',
     'periodos_ausencia',
-    'sabados_extra_trabajadores',
+    'actividades_sugeridas_trabajadores',
     // SET NULL en la FK ⇒ si no se borran explícitamente, sobreviven con PII:
     // trabajador_desvinculaciones guarda rut_normalized y nombre_snapshot (mig 113, a propósito),
     // y solicitudes_ingreso es una copia íntegra de la ficha, cuenta bancaria incluida.

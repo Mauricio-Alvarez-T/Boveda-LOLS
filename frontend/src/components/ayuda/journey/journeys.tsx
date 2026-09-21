@@ -35,7 +35,7 @@ export interface JourneyDef {
     /** Motor que recorre el journey. 'solicitudes' (default) = wizard+detalle; 'asistencia'/'vehiculos'/'consultas' = pantalla real en sandbox. */
     runner?: 'solicitudes' | 'asistencia' | 'vehiculos' | 'consultas';
     /** Flujo concreto del runner de Asistencia: define qué pantalla montar, qué botón resaltar, la instrucción y el recap (ver AsistenciaJourneyRunner). */
-    asistenciaFlujo?: 'diaria' | 'traslado' | 'feriado' | 'repetir' | 'export-excel' | 'whatsapp' | 'periodo' | 'sabado';
+    asistenciaFlujo?: 'diaria' | 'traslado' | 'feriado' | 'repetir' | 'export-excel' | 'whatsapp' | 'periodo' | 'actividades';
     /** Flujo concreto del runner de Vehículos (ver VehiculosJourneyRunner). */
     vehiculoFlujo?: 'registrar' | 'editar' | 'documento' | 'revision' | 'mantencion';
     /** Flujo concreto del runner de Gestiones (ver ConsultasJourneyRunner; la clave interna sigue siendo 'consultas'). */
@@ -209,10 +209,10 @@ export const JOURNEYS: JourneyDef[] = [
         estado: 'disponible', duracion: 'Interactivo · 2 min', runner: 'asistencia', asistenciaFlujo: 'repetir',
     },
     {
-        id: 'asistencia-sabado', modulo: 'Asistencia', icon: CalendarPlus,
-        titulo: 'Citar y registrar un sábado extra',
-        descripcion: 'Crear una citación de sábado, citar trabajadores y luego marcar su asistencia.',
-        estado: 'disponible', duracion: 'Interactivo · 4 min', runner: 'asistencia', asistenciaFlujo: 'sabado',
+        id: 'asistencia-actividades', modulo: 'Asistencia', icon: CalendarPlus,
+        titulo: 'Armar una lista de actividades sugeridas y registrar asistencia',
+        descripcion: 'Crear la lista de trabajadores en actividades sugeridas de una semana y luego marcar quién asistió.',
+        estado: 'disponible', duracion: 'Interactivo · 4 min', runner: 'asistencia', asistenciaFlujo: 'actividades',
     },
     {
         id: 'asistencia-excel', modulo: 'Asistencia', icon: FileSpreadsheet,

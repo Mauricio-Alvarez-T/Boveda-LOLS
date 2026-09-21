@@ -138,12 +138,12 @@ describe('saneoStaging — purga', () => {
         const db = {
             query: jest.fn(async (sql) => {
                 if (/SELECT ruta_archivo/.test(sql)) return [[]];
-                if (/sabados_extra_trabajadores/.test(sql)) { const e = new Error('no existe'); e.errno = 1146; throw e; }
+                if (/actividades_sugeridas_trabajadores/.test(sql)) { const e = new Error('no existe'); e.errno = 1146; throw e; }
                 return [{ affectedRows: 2 }];
             }),
         };
         const r = await saneo.purgar(db, { ids: [1] });
-        expect(r.borrados.sabados_extra_trabajadores).toBeNull();
+        expect(r.borrados.actividades_sugeridas_trabajadores).toBeNull();
         expect(r.borrados.trabajadores).toBe(2);
     });
 

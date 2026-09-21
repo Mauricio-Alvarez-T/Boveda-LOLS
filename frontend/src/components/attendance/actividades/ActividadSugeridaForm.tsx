@@ -2,36 +2,38 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Save, X, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../ui/Button';
-import { FieldError } from '../../ui/FieldError';
-import { cn } from '../../../utils/cn';
+import { Select } from '../../ui/Select';
 import api from '../../../services/api';
 import { useObra } from '../../../context/ObraContext';
-import { useSabadosExtra } from '../../../hooks/attendance/useSabadosExtra';
+import { useActividadesSugeridas } from '../../../hooks/attendance/useActividadesSugeridas';
+import { aIso, opcionesSemanas } from '../../../utils/semanas';
 import WorkerCheckList from './WorkerCheckList';
 import AddFromOtherObraModal from './AddFromOtherObraModal';
 import type { Trabajador } from '../../../types/entities';
 
 interface Props {
-    /** Llamada cuando la citación se creó OK; recibe el id para navegar al detalle */
+    /** Llamada cuando la lista se creó OK; recibe el id para navegar al detalle */
     onCreated: (id: number) => void;
     onCancel: () => void;
 }
 
 /**
- * Form para crear una citación nueva de Sábado Extra.
+ * Form para armar una lista nueva de trabajadores en actividades sugeridas.
  * Inputs:
- *   - fecha (validada como sábado)
+ *   - semana (selector: desde la semana en curso; valor = lunes YYYY-MM-DD).
+ *     Jefatura 2026-09-21: la lista NO fija un día.
  *   - obra anfitriona (del contexto, read-only)
  *   - selector de trabajadores (de la obra + opción "agregar de otra obra")
- *   - observaciones por cargo (1 input por cargo con seleccionados)
+ *   - actividad sugerida por cargo (1 input por cargo con seleccionados)
  *   - observación global (textarea)
- * Sin horas: jefatura 2026-08-17 — el sábado solo registra asistió/no asistió.
+ * Sin horas (jefatura 2026-08-17): solo se registra asistió / no asistió.
  */
-const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
+const ActividadSugeridaForm: React.FC<Props> = ({ onCreated, onCancel }) => {
     const { selectedObra, obras } = useObra();
-    const { crearCitacion } = useSabadosExtra();
+    const { crearLista } = useActividadesSugeridas();
 
-    const [fecha, setFecha] = useState<string>('');
+    const semanas = useMemo(() => opcionesSemanas(aIso(new Date())), []);
+    const [semana, setSemana] = useState<string>(semanas[0]?.value ?? '');
     const [observacionesGlobales, setObservacionesGlobales] = useState('');
     const [observacionesPorCargo, setObservacionesPorCargo] = useState<Record<string, string>>({});
     const [workers, setWorkers] = useState<Trabajador[]>([]);
@@ -66,15 +68,6 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
             .map(([id, nombre]) => ({ id: Number(id), nombre }))
             .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
     }, [allWorkers, selected]);
-
-    // Validación fecha sábado
-    const fechaError = useMemo(() => {
-        if (!fecha) return null;
-        const d = new Date(fecha + 'T12:00:00');
-        if (Number.isNaN(d.getTime())) return 'Fecha inválida';
-        if (d.getDay() !== 6) return 'La fecha debe ser sábado';
-        return null;
-    }, [fecha]);
 
     const toggleWorker = (id: number) => {
         setSelected(prev => {
@@ -112,12 +105,8 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
             toast.error('Selecciona una obra antes de continuar');
             return;
         }
-        if (fechaError) {
-            toast.error(fechaError);
-            return;
-        }
-        if (!fecha) {
-            toast.error('La fecha es requerida');
+        if (!semana) {
+            toast.error('Selecciona la semana');
             return;
         }
         if (selected.size === 0) {
@@ -132,43 +121,27 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                 obra_origen_id: w.obra_id,
             }));
 
-        // Solo guardar observaciones por cargo si tienen texto
+        // Solo guardar actividades por cargo si tienen texto
         const obsPorCargo: Record<string, string> = {};
         Object.entries(observacionesPorCargo).forEach(([k, v]) => {
             if (v && v.trim()) obsPorCargo[k] = v.trim();
         });
 
-        const basePayload = {
+        setSaving(true);
+        const result = await crearLista({
             obra_id: selectedObra.id,
-            fecha,
+            semana,
             observaciones_globales: observacionesGlobales.trim() || null,
             observaciones_por_cargo: Object.keys(obsPorCargo).length > 0 ? obsPorCargo : null,
             trabajadores,
-        };
-
-        setSaving(true);
-        let result = await crearCitacion(basePayload);
-
-        // Backend rechaza con 409 si la fecha cae en feriado y no se aceptó
-        // explícitamente. Pedir confirmación al usuario y reintentar con flag.
-        if (result && 'feriadoConflict' in result) {
-            const confirmar = window.confirm(
-                `${result.feriadoConflict}\n\n¿Deseas crear la citación de todos modos?`
-            );
-            if (confirmar) {
-                result = await crearCitacion({ ...basePayload, acepta_feriado: true });
-            } else {
-                result = null;
-            }
-        }
-
+        });
         setSaving(false);
 
         if (!result) return;
         if ('id' in result) {
             onCreated(result.id);
         } else if ('conflictExistingId' in result) {
-            // Hay conflict: abrir la existente
+            // Ya existe una lista para esa obra y semana: abrir la existente
             onCreated(result.conflictExistingId);
         }
     };
@@ -180,7 +153,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                 <div>
                     <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">Selecciona una obra</h3>
                     <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
-                        Para crear una citación de trabajo extraordinario debes tener una obra seleccionada en el header.
+                        Para armar una lista de trabajadores en actividades sugeridas debes tener una obra seleccionada en el header.
                     </p>
                 </div>
             </div>
@@ -189,22 +162,16 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
 
     return (
         <div className="flex flex-col gap-5">
-            {/* Cabecera (sin horas: jefatura 2026-08-17 — el sábado solo registra asistencia) */}
+            {/* Cabecera: semana + obra (sin horas: jefatura 2026-08-17) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
-                        Fecha (sábado)
-                    </label>
-                    <input
-                        type="date"
-                        value={fecha}
-                        onChange={e => setFecha(e.target.value)}
-                        className={cn(
-                            'w-full h-10 px-3 bg-card border rounded-xl text-sm font-medium focus:outline-none',
-                            fechaError ? 'border-red-400 focus:border-red-500' : 'border-border focus:border-brand-primary'
-                        )}
+                    <Select
+                        label="Semana"
+                        options={semanas}
+                        value={semana}
+                        onChange={e => setSemana(e.target.value)}
+                        helperText="La lista se asigna a una semana (lunes a viernes), no a un día."
                     />
-                    <FieldError message={fechaError} className="mt-1" />
                 </div>
                 <div>
                     <label className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
@@ -256,11 +223,11 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                 </button>
             </div>
 
-            {/* Observaciones por cargo (si hay seleccionados) */}
+            {/* Actividades sugeridas por cargo (si hay seleccionados) */}
             {cargosConSeleccion.length > 0 && (
                 <div>
                     <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-2">
-                        Trabajos a realizar (por cargo)
+                        Actividades sugeridas (por cargo)
                     </h3>
                     <p className="text-label text-muted-foreground mb-3">
                         Opcional. Lo que escribas acá aparecerá en el mensaje de WhatsApp agrupado por cargo.
@@ -273,7 +240,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                                 </label>
                                 <input
                                     type="text"
-                                    placeholder={`Trabajos para ${c.nombre.toLowerCase()}...`}
+                                    placeholder={`Actividades para ${c.nombre.toLowerCase()}...`}
                                     value={observacionesPorCargo[String(c.id)] || ''}
                                     onChange={e => setObservacionesPorCargo(prev => ({ ...prev, [String(c.id)]: e.target.value }))}
                                     className="w-full h-9 px-3 bg-card border border-border rounded-lg text-sm font-medium focus:outline-none focus:border-brand-primary"
@@ -306,10 +273,10 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                 <Button
                     variant="primary"
                     onClick={handleSave}
-                    disabled={saving || !!fechaError || !fecha || selected.size === 0}
+                    disabled={saving || !semana || selected.size === 0}
                     leftIcon={<Save className="h-4 w-4" />}
                 >
-                    {saving ? 'Guardando...' : 'Crear citación'}
+                    {saving ? 'Guardando...' : 'Crear lista'}
                 </Button>
             </div>
 
@@ -325,4 +292,4 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
     );
 };
 
-export default SabadoExtraForm;
+export default ActividadSugeridaForm;

@@ -21,9 +21,9 @@ const CASOS: Array<{ archivo: string; etiquetas: string[] }> = [
     { archivo: 'attendance/ui/AttendanceHeaderActions.tsx', etiquetas: ['Guardar', 'Marcar Feriado', 'Quitar Feriado', 'Repetir día anterior', 'Reporte Mensual', 'Compartir por WhatsApp'] },
     { archivo: 'attendance/TrasladoObraModal.tsx', etiquetas: ['Completar Traslado'] },
     { archivo: 'attendance/WorkerCalendarModal.tsx', etiquetas: ['Confirmar Período'] },
-    { archivo: 'attendance/sabados/SabadosExtraList.tsx', etiquetas: ['Nueva citación'] },
-    { archivo: 'attendance/sabados/SabadoExtraForm.tsx', etiquetas: ['Crear citación'] },
-    { archivo: 'attendance/sabados/SabadoExtraAsistencia.tsx', etiquetas: ['Guardar asistencia'] },
+    { archivo: 'attendance/actividades/ActividadesSugeridasList.tsx', etiquetas: ['Nueva lista'] },
+    { archivo: 'attendance/actividades/ActividadSugeridaForm.tsx', etiquetas: ['Crear lista'] },
+    { archivo: 'attendance/actividades/ActividadSugeridaAsistencia.tsx', etiquetas: ['Guardar asistencia'] },
     // Vehículos — página (lista/modal) y panel de documentos.
     { archivo: '../pages/Vehiculos.tsx', etiquetas: ['Nuevo vehículo', 'Editar vehículo', 'Guardar'] },
     { archivo: 'vehiculos/VehiculoDocumentos.tsx', etiquetas: ['Agregar', 'Subir documento', 'Guardar registro'] },

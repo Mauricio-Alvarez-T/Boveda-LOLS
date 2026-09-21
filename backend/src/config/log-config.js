@@ -190,12 +190,14 @@ const ENTIDAD_RESOLVERS = {
         labelExpr: 'nombre',
         bodyKeys: ['nombre'],
     },
-    'sabados-extra': {
-        tipo: 'sabado_extra',
-        tabla: 'sabados_extra',
-        labelExpr: "CONCAT('Sábado ', DATE_FORMAT(fecha, '%d-%m-%Y'))",
+    // Lista de trabajadores en actividades sugeridas (mig 116): la lista se identifica
+    // por obra + semana (lunes). Los logs anteriores al rename conservan su label ya guardado.
+    'actividades-sugeridas': {
+        tipo: 'actividad_sugerida',
+        tabla: 'actividades_sugeridas',
+        labelExpr: "CONCAT('Semana del ', DATE_FORMAT(semana, '%d-%m-%Y'))",
         bodyKeys: [
-            (b) => b.fecha ? `Sábado ${b.fecha}` : null,
+            (b) => b.semana ? `Semana del ${b.semana}` : null,
         ],
     },
     'facturas-inventario': {

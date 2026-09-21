@@ -6,7 +6,7 @@ Catálogo de TODAS las reglas de negocio de Bóveda LOLS, separadas por categor�
 
 | Categoría | Archivo | Qué cubre |
 |---|---|---|
-| Asistencia | [asistencia.md](asistencia.md) | Estados (A/F/JI/TO/V/LM/NAC/DF/MT/PSG), períodos, feriados, sábados extra, horas extra, Art. 160, traslados |
+| Asistencia | [asistencia.md](asistencia.md) | Estados (A/F/JI/TO/V/LM/NAC/DF/MT/PSG), períodos, feriados, listas de actividades sugeridas (semana), horas extra, Art. 160, traslados |
 | Inventario y Transferencias | [inventario-transferencias.md](inventario-transferencias.md) | State machine, 6 flujos, SoD, stock/régimen, recepción parcial, discrepancias, descuentos, facturación |
 | Obras y Bodegas | [obras-bodegas.md](obras-bodegas.md) | Flags (activa, es_prueba, finalizada, participa_*), cascadas, obras finalizadas |
 | RRHH y Trabajadores | [rrhh-trabajadores.md](rrhh-trabajadores.md) | Documentos obligatorios, vencimientos, empresas (+ representante legal), fiscalización, reporte semanal, ficha de ingreso digital, sueldo por cargo, desvinculación con causal, **documentos laborales generados en Word (kit de ingreso, amonestación, solicitud)** |

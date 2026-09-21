@@ -471,7 +471,7 @@ safeRoute('/api/trabajadores', './src/routes/trabajadores.routes', 'Trabajadores
 safeRoute('/api/solicitudes-ingreso', './src/routes/solicitudes-ingreso.routes', 'Solicitudes de Ingreso (ficha digital)');
 safeRoute('/api/documentos', './src/routes/documentos.routes', 'Documentos');
 safeRoute('/api/asistencias', './src/routes/asistencias.routes', 'Asistencias');
-safeRoute('/api/sabados-extra', './src/routes/sabados-extra.routes', 'Sábados Extra');
+safeRoute('/api/actividades-sugeridas', './src/routes/actividades-sugeridas.routes', 'Actividades Sugeridas');
 safeRoute('/api/fiscalizacion', './src/routes/fiscalizacion.routes', 'Fiscalización');
 safeRoute('/api/usuarios/me/email-config', './src/routes/email-config.routes', 'Email Config');
 safeRoute('/api/usuarios/me/plantillas', './src/routes/plantillas.routes', 'Plantillas Email');

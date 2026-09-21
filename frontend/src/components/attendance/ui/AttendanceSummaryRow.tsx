@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Users, BarChart3, Search, X, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Users, BarChart3, Search, X, ClipboardList } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
@@ -30,8 +30,8 @@ interface AttendanceSummaryRowProps {
     onStatusFilter: (estadoId: number | null) => void;
     searchQuery: string;
     setSearchQuery: (val: string) => void;
-    /** Callback para navegar al tab Sábados Extra. Si no se pasa, no se muestra el ícono. */
-    onGoSabados?: () => void;
+    /** Callback para ir a la pestaña Actividades sugeridas. Si no se pasa, no se muestra el ícono. */
+    onGoActividades?: () => void;
 }
 
 export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
@@ -44,7 +44,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
     onStatusFilter,
     searchQuery,
     setSearchQuery,
-    onGoSabados,
+    onGoActividades,
 }) => {
     const { resolvedTheme } = useTheme();
     const isDark = resolvedTheme === 'dark';
@@ -145,7 +145,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                 </div>
                             </div>
 
-                            {/* Buscador + ícono Sábados Extra */}
+                            {/* Buscador + ícono Actividades sugeridas */}
                             <div className="flex items-center gap-1.5 shrink-0">
                                 <div className="relative group">
                                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60 transition-colors group-focus-within:text-brand-primary pointer-events-none" />
@@ -166,14 +166,14 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                         />
                                     )}
                                 </div>
-                                {/* Ícono Sábados Extra — solo visible si el tab está disponible */}
-                                {onGoSabados && (
+                                {/* Ícono Actividades sugeridas — solo visible si la pestaña está disponible */}
+                                {onGoActividades && (
                                     <IconButton
-                                        onClick={onGoSabados}
-                                        aria-label="Sábados Extra"
-                                        title="Sábados Extra"
+                                        onClick={onGoActividades}
+                                        aria-label="Actividades sugeridas"
+                                        title="Actividades sugeridas"
                                         className="h-7 lg:h-8 w-7 lg:w-8 shrink-0 bg-card/50 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-muted-foreground hover:text-brand-primary hover:border-brand-primary/40"
-                                        icon={<CalendarDays className="h-3.5 w-3.5" />}
+                                        icon={<ClipboardList className="h-3.5 w-3.5" />}
                                     />
                                 )}
                             </div>

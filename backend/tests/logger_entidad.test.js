@@ -97,9 +97,9 @@ describe('resolveEntidad()', () => {
         expect(result.tipo).toBe('item');
     });
 
-    test('sabados-extra arma label desde fecha del body', async () => {
-        const result = await resolveEntidad('sabados-extra', null, { fecha: '2026-05-09' });
-        expect(result).toEqual({ tipo: 'sabado_extra', label: 'Sábado 2026-05-09' });
+    test('actividades-sugeridas arma label desde la semana del body', async () => {
+        const result = await resolveEntidad('actividades-sugeridas', null, { semana: '2026-05-11' });
+        expect(result).toEqual({ tipo: 'actividad_sugerida', label: 'Semana del 2026-05-11' });
     });
 
     test('transferencias usa el código del body en CREATE', async () => {
