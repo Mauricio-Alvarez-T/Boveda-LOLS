@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { ScrollText, Plus, Eye, Trash2, Loader2, X, Upload, FileText, Save, Bell, Pencil } from 'lucide-react';
+import { ScrollText, Plus, Eye, Trash2, Loader2, X, Upload, FileText, Save, Bell, Pencil, ExternalLink, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
@@ -9,6 +9,33 @@ import { compressImage } from '../../utils/compressImage';
 import { cn } from '../../utils/cn';
 import { EstadoVencimiento } from './EstadoVencimiento';
 import type { VehiculoDocumento, VehiculoDocumentoCategoria, VehiculoRevision, VehiculoMantencion } from '../../types/entities';
+
+/**
+ * ¿El navegador sabe pintar un PDF dentro de la página?
+ *
+ * Chrome en Android NO lo hace: ante un <iframe> con un PDF dibuja un recuadro
+ * gris con el identificador interno del blob y un botón "Abrir" suyo, sin el
+ * nombre del documento ni nada que ayude. Se detectó el 2026-09-15 revisando el
+ * formato móvil: los documentos que son FOTO se veían y el único que era PDF no,
+ * lo que parecía un problema del archivo y era del navegador.
+ *
+ * `navigator.pdfViewerEnabled` es el API estándar para preguntarlo y responde
+ * false justamente en el móvil. Donde no exista (navegadores viejos) se cae al
+ * ancho de ventana, que separa bien escritorio de teléfono.
+ */
+const navegadorMuestraPdf = (): boolean => {
+    const nav = navigator as Navigator & { pdfViewerEnabled?: boolean };
+    if (typeof nav.pdfViewerEnabled === 'boolean') return nav.pdfViewerEnabled;
+    return typeof window !== 'undefined' && window.innerWidth >= 768;
+};
+
+/** Tamaño legible para la ficha del documento (1 decimal desde 1 MB). */
+const formatearTamano = (bytes: number): string => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 // Tipos del apartado:
 //  · "file" → suben un archivo (foto/PDF) y, opcionalmente, fecha, vencimiento y
@@ -83,7 +110,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
     // Clave del archivo que se está abriendo ('doc_3', 'rev_7'…): los adjuntos ya
     // no son solo de documentos, así que un id numérico no alcanza para saber cuál.
     const [viewingId, setViewingId] = useState<string | null>(null);
-    const [viewer, setViewer] = useState<{ url: string; mime: string; name: string } | null>(null);
+    const [viewer, setViewer] = useState<{ url: string; mime: string; name: string; size: number } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const tipo = TIPOS.find(t => t.value === tipoValue)!;
@@ -284,8 +311,9 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                 webp: 'image/webp', gif: 'image/gif', pdf: 'application/pdf',
             };
             const mime = mimeByExt[ext] || res.headers['content-type'] || 'application/octet-stream';
-            const blobUrl = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
-            setViewer(prev => { if (prev) window.URL.revokeObjectURL(prev.url); return { url: blobUrl, mime, name: nombreArchivo }; });
+            const blob = new Blob([res.data], { type: mime });
+            const blobUrl = window.URL.createObjectURL(blob);
+            setViewer(prev => { if (prev) window.URL.revokeObjectURL(prev.url); return { url: blobUrl, mime, name: nombreArchivo, size: blob.size }; });
         } catch {
             toast.error('No se pudo abrir el documento');
         } finally { setViewingId(null); }
@@ -370,7 +398,22 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                                 preview ? (
                                     <div className="rounded-lg border border-border bg-card p-2 flex flex-col items-center gap-1">
                                         {file.type === 'application/pdf' ? (
-                                            <iframe src={preview} title="Vista previa" className="w-full h-64 rounded-md border border-border bg-white" />
+                                            /* Mismo caso que el visor: en móvil el iframe de PDF
+                                               solo pinta el recuadro gris del navegador. Ahí basta
+                                               con confirmar qué archivo se va a subir y cuánto pesa. */
+                                            navegadorMuestraPdf() ? (
+                                                <iframe src={preview} title="Vista previa" className="w-full h-64 rounded-md border border-border bg-white" />
+                                            ) : (
+                                                <div className="w-full rounded-md border border-border bg-background px-3 py-4 flex items-center gap-3">
+                                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+                                                        <FileText className="h-5 w-5 text-muted-foreground" />
+                                                    </span>
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-semibold text-foreground truncate" title={file.name}>{file.name}</p>
+                                                        <p className="text-micro text-muted-foreground">PDF · {formatearTamano(file.size)}</p>
+                                                    </div>
+                                                </div>
+                                            )
                                         ) : (
                                             <img src={preview} alt="Vista previa" className="max-h-48 w-auto rounded-md object-contain" />
                                         )}
@@ -609,8 +652,43 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                     <div className="flex-1 min-h-0 overflow-auto bg-muted/40 flex items-center justify-center">
                         {viewer.mime.startsWith('image/') ? (
                             <img src={viewer.url} alt={viewer.name} className="max-w-full max-h-[80vh] object-contain" />
-                        ) : (
+                        ) : navegadorMuestraPdf() ? (
                             <iframe src={viewer.url} title={viewer.name} className="w-full h-[80vh] border-0" />
+                        ) : (
+                            /* Móvil: el navegador no pinta PDF embebido. En vez de dejar que
+                               muestre su recuadro gris con el id del blob, se da una ficha con
+                               el nombre real del documento y los dos botones que sí funcionan. */
+                            <div className="flex flex-col items-center justify-center gap-4 px-6 py-12 text-center">
+                                <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+                                    <FileText className="h-8 w-8 text-muted-foreground" />
+                                </span>
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-foreground break-all">{viewer.name}</p>
+                                    {viewer.size > 0 && (
+                                        <p className="text-caption text-muted-foreground mt-1">{formatearTamano(viewer.size)}</p>
+                                    )}
+                                </div>
+                                <p className="text-caption text-muted-foreground max-w-xs">
+                                    Este teléfono no muestra los PDF dentro de la página. Ábrelo con el visor
+                                    del teléfono o descárgalo.
+                                </p>
+                                <div className="flex flex-wrap items-center justify-center gap-2">
+                                    <a href={viewer.url} target="_blank" rel="noopener noreferrer"
+                                        className={cn('inline-flex items-center justify-center gap-1.5 h-11 px-5 rounded-full',
+                                            'text-base font-medium transition-all duration-200 ease-apple',
+                                            'bg-brand-primary text-white shadow-sm hover:bg-[#027A3B]')}>
+                                        <ExternalLink className="h-4 w-4" />
+                                        Abrir
+                                    </a>
+                                    <a href={viewer.url} download={viewer.name}
+                                        className={cn('inline-flex items-center justify-center gap-1.5 h-11 px-5 rounded-full',
+                                            'text-base font-medium transition-all duration-200 ease-apple',
+                                            'bg-muted text-brand-dark hover:bg-border')}>
+                                        <Download className="h-4 w-4" />
+                                        Descargar
+                                    </a>
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>
