@@ -169,7 +169,7 @@ const TransferenciaDetail: React.FC<Props> = ({
 
         // Mecanismo de envío centralizado (copia al portapapeles + toast con
         // botón "ENVIAR AHORA" dentro del user-gesture + fallback). Vive en
-        // utils/whatsappShare.ts y lo reusan asistencia y sábados extra.
+        // utils/whatsappShare.ts y lo reusan asistencia y actividades sugeridas.
         await prepareAndShareWithToast({
             text,
             title: `Transferencia ${t.codigo}`,

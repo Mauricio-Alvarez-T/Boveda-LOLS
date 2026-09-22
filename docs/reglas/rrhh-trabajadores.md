@@ -15,7 +15,7 @@
 - `empresas.razon_social`; badges UI por empresa: LOLS / MAUA / PROV / DED
   (`utils/empresaTag.ts`, badge en asistencia diaria y consultas).
 
-## Fiscalización / Consultas
+## Fiscalización / Gestiones (UI; antes "Consultas" — URL y archivos conservan el nombre viejo)
 
 - Búsqueda avanzada (`fiscalizacion.service.js`): por obra, empresa, cargo, categoría de reporte,
   completitud (100% / con faltantes), ausentes, **aniversarios de 10 meses**
@@ -23,18 +23,132 @@
   ingreso** (`fecha_ingreso_desde`/`fecha_ingreso_hasta`, inclusivos, extremos opcionales —
   "ingresos del período", 2026-08-24). El rango tiene control propio en el FilterPanel
   (2 inputs date) y la card del trabajador muestra la fecha de ingreso (oculta en xs).
+- **Filtros de la ficha (2026-09-15)** — se agregaron tras investigar cómo lo resuelven los HRIS
+  (BambooHR, Workday, Personio, Factorial, Buk, Rankmi) y el software de construcción y prevención:
+  - `falta_dato` — **qué dato bloquea una gestión**, no un campo cualquiera: `contrato` (los 5 datos
+    personales que imprime el contrato), `pago` (sin cuenta RUT y sin banco/número no hay
+    transferencia) y `tallas` (sin talla no se compra el EPP). Lista blanca en un `Map`.
+    La etiqueta dice "faltan datos personales", **nunca "listo para emitir"**: el contrato exige
+    además representante de la empresa y sueldo del cargo, que no se pueden mirar desde este
+    endpoint sin romper el gate de `cargos.sueldo.ver`.
+  - `doc_tipo_falta` — a quién le falta **un** documento obligatorio concreto (`NOT EXISTS` por
+    `tipo_documento_id`). **Nunca por `td.codigo`**: los seis tipos obligatorios de producción son
+    de legado y tienen `codigo` NULL, así que filtrar por código sería ciego al histórico.
+  - `doc_vigencia` — `vencido` | `30` | `60` | `90`. **Vigencia ≠ completitud**: "¿está el papel?"
+    y "¿sirve el papel?" son dos preguntas. Cubre cualquier tipo con `dias_vigencia` configurado,
+    igual que las alertas del Inicio, que hasta ahora contaban vencidos sin tener a dónde llevar.
+  - `fecha_desvinc_desde`/`_hasta` — bajas del período; acota `finiquito`.
+  - `no_recontratar`, `finiquito=pendiente`, `solo_prueba` — atajos de un clic. Los dos primeros
+    cierran un hueco visible: la grilla ya pintaba esos badges y no dejaba preguntarlos.
+  - **Gate de permisos**: los filtros sobre columnas personales (`falta_dato` contrato/pago,
+    `no_recontratar`) se **ignoran en silencio** sin `trabajadores.ver`. Sin eso, filtrar sería un
+    oráculo para deducir el dato que `sanitizeTrabajadorPersonal` oculta en la respuesta.
+  - **Dónde va el código**: todo bloque `if` nuevo va entre el rango de fecha de ingreso y el
+    `ORDER BY`. Después del `ORDER BY` es SQL inválido; antes de los de fecha rompe los cuatro
+    tests de `fiscalizacion_filtros.test.js`, que comparan `params` con `toEqual` exacto.
+- **Dónde se muestran los filtros (2026-09-16): rail vertical, no banda horizontal.** La pantalla se lee
+  en vertical (una fila = un trabajador) y la página vive en un alto fijo, así que el panel horizontal
+  que había encima de la grilla le quitaba filas a la lista cada vez que se abría — con 12 controles,
+  unos 300px. Ahora el panel es una **columna hermana** de la grilla: abrirlo le quita **ancho**, nunca
+  alto. Tres presentaciones del **mismo** `FilterPanel`, elegidas con `useMediaQuery` y **nunca** con
+  `hidden md:block` (dos ramas CSS montan los controles dos veces, con `aria-label` duplicados — era el
+  bug que tenía la hoja móvil):
+  - **≥1280px** — `FiltrosRail` en modo `inline`: columna de 320px en flujo que empuja la tabla.
+  - **768–1279px** — el mismo rail en modo `overlay`, flotando sobre el área del módulo con backdrop.
+    A ese ancho quitarle 320px a la tabla la dejaría ilegible.
+  - **<768px** — la hoja de abajo de siempre, arrastrable.
+  Los 12 controles van en **cinco grupos plegables con contador** (`components/consultas/filtrosPanel.ts`,
+  puro y con test): Dónde trabaja · Situación · Papeles · Datos de la ficha · Fechas. Al montar se
+  despliegan los dos primeros **más el que traiga un deep-link** (la alerta "Documentos Vencidos" del
+  Inicio entra con `doc_vigencia` y su control tiene que verse). El estado abierto/cerrado del rail se
+  recuerda por usuario en `localStorage` (`boveda.gestiones.filtrosAbiertos.<userId>`), como la última
+  sección de `gestionesNav.ts`.
+  - **El contador del rail y los contadores por grupo NO son el mismo número, a propósito**:
+    `activeFilterCount` cuenta 17 cosas, cinco de las cuales no viven en el panel (la búsqueda y los
+    cuatro atajos). No hay que "cuadrarlos".
+  - El popover de `FilterSelect` se dibuja en un **portal con `position: fixed`**: dentro de un rail con
+    scroll propio, un `absolute` quedaba recortado a media lista. Cierra con click fuera, `Escape` y
+    cualquier scroll.
+- **El botón «Filtros» vive en la barra de la grilla, no en el header** (2026-09-16). Está en el extremo
+  izquierdo, que es el borde por el que sale el panel; con el rail `inline` abierto la grilla se corre a la
+  derecha y el botón viaja con ella, así que el movimiento cuenta de dónde salió. El icono es la señal:
+  `PanelLeftOpen` → `PanelLeftClose` cuando hay panel lateral, y `PanelBottomOpen`/`PanelBottomClose` en
+  teléfono, donde la hoja sube desde abajo y prometer un lateral sería mentir. Sin relleno verde (regla de
+  `diseno.md`): el estado se lee por el icono, el badge y el panel abierto. La limpieza de filtros vive en
+  el panel (y en el estado vacío de la grilla), no en el header.
+  **Orden de la barra**: botón de filtros · atajos · **conteo de resultados**. El conteo dio dos saltos el
+  2026-09-16: salió del extremo izquierdo para hacerle sitio al botón de filtros, pasó un rato en la cabecera
+  del panel, y terminó en el extremo derecho, en el hueco que dejó «Seleccionar todos» — eliminado porque el
+  dueño confirmó que no se usaba. El número es honesto: el endpoint no pagina (ignora `page`/`limit`), así que
+  coincide siempre con las filas en pantalla.
+  La selección múltiple sigue existiendo casilla por casilla, y con al menos una marcada la barra se convierte
+  en la de acciones masivas. Para actuar sobre **todo** el resultado del filtro —que es para lo que servía
+  «Seleccionar todos»— el header tiene **Enviar** y **Exportar**, que trabajan sin selección: el modal manda
+  `trabajador_ids` undefined y el backend arma el Excel con el filtro completo. Diferencia a tener presente:
+  sin ids seleccionados el correo va **sin el ZIP de documentos** (`fiscalizacion.routes.js`).
+  ⚠️ La etiqueta del botón no puede contener «trabajador» ni «crear»: el spotlight de los tutoriales busca
+  botones por substring (`useTutorialSpotlight.ts:44-49`) y le robaría el pulso al botón que resalta.
+- **Atajos** (`components/consultas/FiltrosRapidos.tsx`, rangos puros en `rangosFecha.ts` con test):
+  chips que viven **dentro de la barra de la cabecera de la grilla** (2026-09-16), en el hueco que esa barra
+  ya tenía vacío: así no gastan una fila propia del alto de la lista.
+  Una sola línea siempre, que se desliza en horizontal cuando no caben — Ingresos de este mes, Cumplen 10 meses, Finiquito pendiente,
+  No recontratar y Fichas de prueba. Los tres primeros **no tocan el backend**: reusan params que ya
+  existían. Los que fijan más de un filtro lo declaran en su tooltip (p. ej. "finiquito pendiente"
+  fuerza desvinculados de los últimos 60 días, porque con "Solo activos" saldría vacío).
+  Los rangos se calculan en hora **local**: con `toISOString()` un 30 de septiembre a las 23:30 en
+  Chile ya es 1 de octubre en UTC y "este mes" saltaría al siguiente.
+  El banner propio de "10 meses de contrato" se eliminó (2026-09-16): decía lo mismo que su chip, que
+  además se apaga con su ✕, y costaba una fila entera de la lista. El mes objetivo que fija la alerta
+  del Inicio vive ahora en el tooltip del chip.
+- **Saneamiento del endpoint (2026-09-15)**: `GET /fiscalizacion/trabajadores-avanzado` exige solo
+  `documentos.ver` y hace `SELECT t.*`; ahora pasa por `sanitizeTrabajadorPersonal` como el
+  quick-view (B1). Los agregados de documentación se re-adjuntan tras sanear: no son datos
+  personales y sin ellos la barra de completitud se vería en 0 %.
+- **Arreglos que entraron con la tanda**: `ausentes` usaba `toISOString()` (UTC) y entre las 21:00 y
+  medianoche consultaba el día siguiente → `CURDATE()`; `ausentes` no aplicaba la regla de **fila
+  vigente** y marcaba como ausente a un trasladado → desempate por `MAX(id)` del día; el conteo de
+  completitud de la grilla ahora descarta documentos vencidos, igual que la ficha; y las alertas
+  "Documentos Vencidos" y "Documentos por Vencer" del Inicio, que apuntaban a `?completitud=faltantes`
+  (otra pregunta) y a `/consultas` pelado, ahora aterrizan en `?doc_vigencia=`.
 - Excluye `es_prueba=1` por defecto (`?incluir_prueba=true` lo anula) y obras finalizadas.
 - Exportación Excel con fichas y documentos por trabajador. Con el filtro de ingreso
   activo, el export manda los ids visibles (el Excel de asistencia no entiende ese filtro).
-- La página Consultas es visible con `trabajadores.ver` **o** con cualquiera de los dos permisos
-  de la ficha de ingreso digital (`trabajadores.solicitud.crear` / `.aprobar`, 2026-09-07). Quien
-  solo puede solicitar (terreno) cae directo a la pestaña Solicitudes y la grilla de búsqueda no
-  se consulta (`useConsultasData(filters, enabled=false)` — evita el 403 del endpoint avanzado).
+- La página Gestiones es visible con `trabajadores.ver`, con cualquiera de los permisos de la ficha de
+  ingreso digital (`trabajadores.solicitud.crear` / `.aprobar`) o de documentos físicos
+  (`documentos.entrega.registrar` / `.portar`). La grilla solo consulta el endpoint avanzado cuando se
+  muestra (`useConsultasData(filters, enabled)` — evita el 403 y el costo desde las otras secciones).
+- **Portada y secciones (plan Gestiones B8, 2026-09-15)**: Gestiones tiene cuatro vistas —
+  `?tab=inicio` (portada "bento": saludo + fecha, tile hero verde Trabajadores con atajos a filtros,
+  tiles de contador Solicitudes (pendientes) y Documentos físicos (sin confirmar / en terreno / críticos),
+  y mosaico Crear con un cuadrado por acción; catálogo único en `crearItems.ts`), `trabajadores` (grilla),
+  `solicitudes`, `fisicos`. La URL es la fuente de verdad; la sección se resuelve en
+  `components/consultas/gestionesNav.ts` (`resolverSeccion`, con test): **tab explícito** válido y
+  permitido → **deep-link con filtros de la grilla** (`q`, `obra_id`, `completitud`, `aniversario10m`…) →
+  **lo último que usó esa persona** (`localStorage` `boveda.gestiones.ultimaSeccion.<userId>`, nunca
+  `inicio`; solo aplica a enlaces sin `tab`, p. ej. QuickActions o un favorito a `/consultas`) →
+  **portada** si tiene ≥ 2 secciones → la única sección. **El menú lateral «Gestiones» lleva SIEMPRE a la
+  portada** (`/consultas?tab=inicio`; ajuste 2026-09-15 tras probar con tres usuarios: con «lo último
+  usado» nadie encontraba cómo volver). Sin `tab` en la URL se hace un
+  `replace` con la sección resuelta (recarga y botón atrás deterministas). Con una sola sección
+  (portador puro, terreno puro) no hay portada, switcher ni título clickeable: se entra directo, como
+  antes. Dentro de una sección el header muestra un botón explícito **«← Gestiones»** (outline) que
+  vuelve a la portada y el nombre de la sección como título (el título clickeable anterior no se
+  reconocía como botón); el header NO muestra las otras secciones (se cambia desde la portada; decisión del dueño 2026-09-15) y
+  CREAR aparece solo en la grilla (Solicitudes y Documentos físicos traen su propio botón). "Limpiar
+  filtros" conserva `tab`. **Grilla** (`components/consultas/TrabajadoresGrilla.tsx`, rediseño 2026-09-15):
+  tabla con encabezados en desktop (Trabajador · Empresa/Obra · Cargo · Ingreso · Documentación · Acciones)
+  y tarjetas en móvil; clic en la fila abre la ficha, la casilla selecciona; con selección la cabecera se
+  vuelve barra de acciones masivas (Enviar por correo / Exportar); acciones por fila = Constancia, Editar,
+  Desvincular (activos) o Reactivar/Depurar (desvinculados); sin numeración ni barra de estado. Los tutoriales de Ayuda montan `<ConsultasPage seccionFija="trabajadores" />` (ignora URL y
+  memoria: el sandbox tiene permisos all-true y no controla la URL de /ayuda). Deep-links vigentes:
+  Bandeja `?completitud=faltantes`, Dashboard `?tab=solicitudes` / `?tab=fisicos`, QuickActions
+  `?tab=trabajadores`, badge del menú `?tab=solicitudes`.
 
-## Constancias
+## Constancias → Documentos laborales generados
 
-- Plantilla real LOLS: **Carta de Amonestación** (Word, sin IA); botón por fila en Consultas
-  (solo-icono con tooltip, fondo blanco glass). El Acta de Consentimiento fue eliminada.
+- La **Carta de Amonestación** ya no se arma en el navegador: desde el plan Gestiones B2 (mig 110) la
+  emite el servidor, queda en la ficha y exige permiso. Ver § Documentos laborales generados por Bóveda.
+  El Acta de Consentimiento fue eliminada.
 
 ## Reporte semanal RRHH por email
 
@@ -57,7 +171,13 @@
 - `es_prueba` heredado de la obra (ver obras-bodegas.md).
 - `categoria_reporte` ∈ {obra, operaciones, rotativo} (mig 008).
 - Datos financieros del trabajador gateados por `trabajadores.financiero.ver/editar`.
-- WorkerQuickView (ficha rápida): panel lateral desktop / bottom-sheet móvil.
+- WorkerQuickView (ficha rápida): panel lateral desktop / bottom-sheet móvil. **Rediseño 2026-09-15**:
+  cabecera fija con identidad (avatar, nombre, RUT, chip de desvinculado) + línea cargo · obra · empresa,
+  acciones arriba (**Editar** / **Asistencia**) y tres pestañas — **Resumen** (contrato, antigüedad con aviso
+  al llegar a 10 meses, asistencia registrada, contacto), **Documentos** (completitud, subidos, generados por
+  Bóveda y «Abrir bóveda») y **Datos** (ficha personal + lo que le falta al contrato, con contador ámbar).
+  Antigüedad y % de documentos salen de  (puro, con test). El tutorial
+  «ver documento» de Ayuda indica entrar a la pestaña Documentos.
 - **Creación de trabajador — dos caminos** (desde 2026-09-07):
   1. **Directa**: Consultas → CREAR → "Trabajador" (`trabajadores.crear`) → `WorkerForm` →
      `POST /api/trabajadores` (CRUD genérico de `index.js`; `beforeCreate` hereda `es_prueba` de la
@@ -69,6 +189,10 @@
   todas `NULL` (opcionales): `fecha_nacimiento DATE`, `estado_civil VARCHAR(30)`,
   `direccion VARCHAR(255)`, `comuna VARCHAR(100)`, `afp VARCHAR(60)`, `salud VARCHAR(60)`,
   `nacionalidad VARCHAR(60)`, `cargas_familiares TINYINT UNSIGNED` (`telefono` ya existía).
+  ⚠️ **Opcionales para EXISTIR como trabajador, obligatorios para EMITIR UN CONTRATO** (plan Gestiones
+  B2b, 2026-09-11): la primera cláusula imprime `nacionalidad`, `estado_civil`, `fecha_nacimiento`,
+  `direccion` y `comuna`, así que el contrato los exige. No es contradicción con la decisión del
+  2026-09-07 de dejarlos opcionales en la ficha de ingreso: terreno sigue sin estar obligado a llenarlos.
   Están en `allowedFields` del CRUD (`index.js`) → se **editan en `WorkerForm`** (sección "Datos
   personales", controles compartidos `workers/DatosPersonalesFields.tsx`) y se **ven en
   `WorkerQuickView`** (bloque "Datos personales", solo los que tienen valor; el teléfono sigue en
@@ -84,7 +208,7 @@
   degeneraba en `DELETE FROM trabajadores WHERE activo = 0` (hard-delete de finiquitados). Ahora
   el reciclaje solo corre cuando hay campo de búsqueda (`nombre`/`razon_social` — catálogos como
   cargos o empresas); sin él el error sigue al `errorHandler` → **409 "El registro ya existe
-  (dato duplicado)"**. Para recontratar a un finiquitado se **reactiva** el existente, no se crea
+  (dato duplicado)"**. Para recontratar a un finiquitado se **reactiva** el existente (desde 2026-09-11 con `PUT /:id/reactivar`, ver § Desvinculación con causal), no se crea
   otro. Detalle y diagnóstico en `docs/RUNBOOK.md § 6`.
 
 ## Solicitudes de ingreso (ficha digital) — 2026-09-07
@@ -114,9 +238,12 @@ rechazo con motivo obligatorio y visible al solicitante; **sin firma** de ningú
    refresco cada 5 min, `GET /pendientes/count` **solo con `solicitud.aprobar`**; sin permiso
    `pendientes = 0`).
 3. **Oficina** (`trabajadores.solicitud.aprobar`): Consultas → pestaña Solicitudes
-   (`?tab=solicitudes`, `SolicitudesIngresoPanel.tsx`; filtros Pendientes/Aprobadas/Rechazadas/
-   Todas, default Pendientes; fila = nombre, RUT, obra, cargo, fecha ingreso, solicitante, fecha
-   solicitud, chip de estado) → clic → `RevisarSolicitudModal.tsx`: la ficha llega **precargada y
+   (`?tab=solicitudes`, `SolicitudesIngresoPanel.tsx`; bandeja rediseñada 2026-09-15: carga TODO una vez
+   y filtra en cliente — pestañas Pendientes/Aprobadas/Rechazadas/Todas con contador, default Pendientes;
+   pendientes agrupadas por obra con antigüedad en días (≥2 ámbar, ≥5 rojo; `solicitudesLista.ts` + test);
+   fila = nombre, RUT, cargo, fecha ingreso, solicitante; «Revisar» con permiso de aprobar; resueltas
+   muestran quién y cuándo, y el motivo si fue rechazada; botón «Nuevo ingreso» propio del panel)
+   → clic → `RevisarSolicitudModal.tsx`: la ficha llega **precargada y
    editable** (todos los campos, incluido el RUT) + **Empresa obligatoria** + `categoria_reporte`
    (default `obra`) → **"Aprobar y crear trabajador"** (`PUT /:id/aprobar` con la ficha editada;
    toast "Trabajador creado: NOMBRE") o **"Rechazar"** (reutiliza `RechazarForm` de inventario;
@@ -227,6 +354,20 @@ Listado: pendientes primero, luego `fecha_solicitud DESC`.
   `SOLICITUD_INGRESO_RESOLVER` de `log-config.js` está registrado bajo las dos claves; label
   "nombres apellido (rut)"). Campos nuevos con rótulo en `LABEL_MAP`.
 
+### Después de aprobar (plan Gestiones B5 — 2026-09-14)
+
+- El modal **no se cierra** al aprobar: `RevisarSolicitudModal` desmonta el formulario (suelta el aviso de
+  "cambios sin guardar") y muestra **Trabajador creado** con dos botones, cada uno con SU permiso —
+  aprobar no implica ninguno de los dos: **Descargar ficha (Word)** [`documentos.laborales.descargar`]
+  (`GET /solicitudes-ingreso/:id/doc`, que emite la ficha si la emisión post-commit falló) y **Emitir kit
+  de ingreso** [`documentos.laborales.emitir`], que abre `EmitirKitModal` con el trabajador armado desde
+  la solicitud **aprobada** (`workerDesdeSolicitud`: las claves personales van presentes aunque sean null,
+  así el modal no vuelve a pedir la ficha —que exigiría `trabajadores.ver`— y detecta solo lo que falta
+  para el contrato). El padre (`SolicitudesIngresoPanel.onAprobado`) refresca lista, badge y grilla al
+  instante; "Cerrar" solo cierra. El kit también se puede emitir después desde la ficha.
+- La respuesta del PUT (`{ solicitud, trabajador_id, solicitud_documento_id }`) ahora sí se usa en el
+  front (`AprobacionResultado` en `solicitudIngresoSchema.ts`); antes se descartaba.
+
 ### Aislamiento de datos de prueba
 
 `GET /` y `GET /pendientes/count` **excluyen** las solicitudes cuya obra tiene `es_prueba = 1`
@@ -288,3 +429,348 @@ de `/:id`. Errores con el patrón del repo: `throw Object.assign(new Error(msg),
   `empresas.ver` + `obras.ver` + `cargos.ver`. Sin ellos la UI lo avisa explícitamente.
   Follow-up: endpoint `/solicitudes-ingreso/catalogos` gateado por los permisos propios.
 - Lista y badge consultan con `incluir_prueba=true` (paridad con la grilla de Consultas).
+
+## Sueldo por cargo (plan Gestiones B3, mig 111 — 2026-09-11)
+
+- Decisión del dueño: los parámetros de sueldo viven **solo por cargo** (sin monto propio por
+  trabajador) y **se imprimen en el contrato** (B5 congela en la metadata del documento el valor
+  vigente al emitir). Parámetros: `sueldo_base`, `bono_colacion`, `bono_movilizacion` (CLP enteros,
+  `INT UNSIGNED`: el pool no usa `decimalNumbers`), `observaciones`.
+- Tabla **`cargo_sueldos`** 1:1 con `cargos` (FK `ON DELETE RESTRICT`: el "reciclaje" de cargos del
+  CRUD genérico ya no puede borrar el historial → 409 vía `ER_ROW_IS_REFERENCED_2`). Los montos
+  NUNCA salen por `/api/cargos` (lo consume terreno con `cargos.ver`).
+- **`cargo_sueldos_historial`** append-only: una fila por cada cambio de algún monto (quién, cuándo).
+  Editar solo observaciones no genera historial.
+- API `/api/cargo-sueldos` (`routes/cargo-sueldos.routes.js`, `services/cargoSueldo.service.js`):
+  `GET /` [`cargos.sueldo.ver`] lista cargos activos con `sueldo` (o `null`); `GET /:cargoId`,
+  `GET /:cargoId/historial` [ver]; `PUT /:cargoId` [`cargos.sueldo.editar` + `validateBody` strip]
+  → transacción `FOR UPDATE` (404 si el cargo no existe) + `INSERT … ON DUPLICATE KEY UPDATE` +
+  historial si cambió un monto. Gates **exclusivos** (sin OR con `cargos.editar`). Degradación:
+  con la mig 111 pendiente (errno 1146) `GET /` devuelve los cargos con `sueldo: null`.
+- Permisos `cargos.sueldo.ver` / `cargos.sueldo.editar` (módulo **Cargos**, `sensible: 'financiero'`
+  solo en `permisosHierarchy.ts`; NO en `PERMISOS_FINANCIEROS`). La migración los crea y los da solo
+  al Super Administrador; **el dueño asigna a RRHH a mano** (Configuración → Roles + re-login).
+- Historial de Actividad: el logger global excluye `/api/cargo-sueldos` (el body trae montos); el
+  service registra un log manual `sueldo_cargo_actualizado` con cargo y `cambio_montos`, **sin cifras**;
+  `sueldo_base`/`bono_*` están en `EXCLUDED_KEYS`.
+- UI: Configuración → Cargos muestra la columna "Sueldo base" y el icono Banknote (solo con `.ver`);
+  `CargoSueldoModal` (3 `CurrencyInput`, total mensual, historial colapsable; solo lectura sin `.editar`).
+  Lógica pura en `cargoSueldoSchema.ts` (+ test).
+- Tests: `backend/tests/cargo_sueldos.test.js` (403 exclusivos, 400 de forma, 404, historial condicional,
+  rollback, log sin montos, fallback 1146, `/api/cargos` sin sueldo).
+
+## Desvinculación con causal e historial (plan Gestiones B4, mig 112 — 2026-09-11)
+
+- **Req. 7 del dueño**: la desvinculación exige **causal obligatoria** (catálogo cerrado en
+  `backend/src/config/causalesDesvinculacion.js`: art. 159/160/161 del Código del Trabajo + operativas
+  LOLS; `LEGADO` = bajas anteriores, no seleccionable), `detalle` obligatorio para art. 160,
+  NO_PRESENTACION, RENDIMIENTO y OTRO, y una marca **`no_recontratar`** (precargada según la causal).
+  Decisión del dueño 2026-09-10: la marca **solo advierte** (reactivar y la solicitud de ingreso muestran
+  causal/fecha; nadie queda bloqueado).
+- **Endpoints dedicados** (`routes/trabajadores.routes.js`, `services/desvinculacion.service.js`):
+  `PUT /:id/desvincular` [`trabajadores.eliminar`] `{fecha_desvinculacion, causal_codigo, detalle?, no_recontratar?}`
+  → transacción `FOR UPDATE` (404 / 409 `YA_DESVINCULADO` / 400 fecha < ingreso o > hoy+30 / 400 causal
+  sin detalle) → INSERT en `trabajador_desvinculaciones` (con `fecha_ingreso_periodo`) → UPDATE
+  `trabajadores` (`activo=0`, `fecha_desvinculacion`, `causal_desvinculacion`, `no_recontratar`) → cuenta
+  asistencias posteriores (se informan, no se tocan). `PUT /:id/reactivar` [`trabajadores.reactivar`]
+  `{quitar_marca_no_recontratar?}` → 409 `YA_ACTIVO`; `activo=1`, limpia fecha/causal, **conserva
+  `fecha_ingreso`** (7 validaciones dependen de ella) y la marca salvo pedido; cierra la fila del historial
+  (`reactivado_por/en`). `GET /:id/desvinculaciones` [eliminar OR reactivar] = historial con `detalle`.
+  `GET /catalogos/causales-desvinculacion` [auth] = catálogo (2 segmentos: el CRUD captura `/:id`).
+- **Gates reales**: hasta hoy `trabajadores.eliminar`/`.reactivar` solo se exigían en la UI y cualquiera con
+  `trabajadores.editar` desvinculaba con `PUT /:id {activo:false}`. Ahora `index.js` monta un guard ANTES
+  del CRUD: `PUT /:id` descarta `activo`/`fecha_desvinculacion` (ya no están en `allowedFields`) y responde
+  400 "recarga la página" si el body solo traía eso; `DELETE /:id` → 405.
+- **Visibilidad** (`desvinculacionService.modoSegunPermisos`): `detalle` es antecedente interno → solo
+  con `trabajadores.eliminar` o `.reactivar` (`/desvinculaciones` y, desde 2026-09-11 por decisión del
+  dueño, también los avisos de ambos check-rut: "Motivo registrado: …"); con `trabajadores.ver` (y siempre
+  en el check-rut de oficina, gate `trabajadores.crear`) modo `resumen` = causal/fecha/marca sin detalle;
+  el check-rut de solicitudes para terreno solo fecha, artículo y marca. El quick-view para `asistencia.ver`
+  no proyecta `causal_desvinculacion`/`no_recontratar` (allow-list de B1).
+- **Reporte semanal**: las bajas salen de `trabajador_desvinculaciones` (con columna Causal) con fallback a
+  `trabajadores.fecha_desvinculacion` si la mig 112 no corrió → reactivar ya no borra la baja del KPI.
+- **Depurar** (`DELETE /:id/depurar`): 409 si hay finiquito emitido o documentos generados por Bóveda.
+- **Finiquito (B5)**: la pantalla de éxito de `DesvincularModal` ofrece **Emitir finiquito** (gate
+  `documentos.laborales.emitir`) con la baja recién registrada en mano; también desde la ficha del
+  trabajador desvinculado. La fila del historial guarda `finiquito_documento_id` (el último emitido es el
+  vigente) y `DesvinculacionInfo` muestra "Finiquito emitido". Ver § Finiquito y contrato al aprobar.
+- **El antecedente sobrevive a la depuración (mig 113, decisión del dueño tras QA 2026-09-11)**: el
+  historial guarda `rut_normalized` + `nombre_snapshot` y la FK a trabajadores es `ON DELETE SET NULL`
+  (`trabajador_id = NULL` = ficha depurada). Ambos check-rut consultan `antecedentePorRut` cuando el RUT
+  no tiene ficha → "RUT disponible, pero…" con fecha/causal/marca (`trabajador_depurado: true`). Sigue
+  siendo solo un aviso. Terreno (solicitud) ve fecha/artículo/marca; con `trabajadores.ver` también el
+  nombre de la causal (`checkRut(rut, { conCausal })`).
+- **UI**: `DesvincularModal` (fecha, causal, detalle, marca; éxito con causal y aviso de asistencias
+  posteriores), `ReactivarModal` (última desvinculación + tarjeta roja si marcado + checkbox quitar marca),
+  `DesvinculacionInfo` en la ficha rápida, aviso en el check-rut de `WorkerForm`. Lógica pura en
+  `desvinculacionSchema.ts` (+ test). Logs: `trabajador_desvinculado` / `trabajador_reactivado` sin `detalle`.
+- Pendiente (§10.4 del plan): qué hacer con asistencias registradas después de la fecha de baja.
+
+## Documentos laborales generados por Bóveda (plan Gestiones B2, mig 110 — 2026-09-11)
+
+Requerimientos 2, 8 y 10 de RRHH: los documentos del ingreso los **emite el sistema**, quedan en la
+ficha del trabajador y su descarga o impresión es "solo oficina".
+
+- **Formato**: Word **editable**. Un `.doc` es HTML con cabecera MS Office — no hay conversión ni
+  librería nueva. `services/docGenerador.service.js` arma el HTML (`wrapHtml`, `encabezado`,
+  `bloqueFirmas`, `fmtCLP`, `fechaLarga`, `sinPuntoFinal`) y el buffer **con BOM UTF-8** (sin BOM Word
+  rompe los acentos). El endpoint de impresión devuelve el mismo HTML **sin BOM** (con BOM el iframe
+  del navegador cae en quirks mode). Logo: `backend/assets/logo-lols-wordmark.png` (450×198, se imprime
+  a 150×66) embebido como data URI; el `logo-lols-green.png` es el isotipo cuadrado y deformaría el
+  encabezado. La generación en el navegador (`utils/downloadWord.ts`, `ConstanciaModal.tsx`) se eliminó;
+  queda `utils/printHtml.ts` solo para imprimir lo que manda el servidor.
+- **Plantillas** (`backend/src/plantillas/documentos/`, mapa blanco `codigo → plantilla`): cada una
+  expone `codigo, version, titulo, requiere(ctx), nombreBase(ctx), build(ctx), metadata(ctx)`. Los textos
+  legales son DATO: RRHH los corrige ahí sin tocar lógica. Kit de ingreso = `CONTRATO`, `ODI_D40`,
+  `DAS`, `PTS_ALTURA`, `EPP_RECEPCION`, `RI_RECEPCION`; sueltos: `AMONESTACION`, `SOLICITUD_INGRESO` y
+  `FINIQUITO` (B5, ver sección propia). `requiere()` devuelve la lista de datos faltantes → 409 `DATOS_FALTANTES`
+  **antes** de escribir nada (un kit nunca queda a medias).
+- **Contrato**: plazo fijo con días editables (default 15), jornada, gratificación 25% con tope 4,75 IMM
+  y pago el día 05 como texto fijo; el **sueldo base se imprime en cifras y en letras**
+  (`utils/numeroALetras.js`) tomado de `cargo_sueldos` (mig 111) y queda congelado en `metadata`.
+  Sin representante legal de la empresa o sin sueldo del cargo → 409 con el dato que falta.
+- **Datos personales del trabajador: obligatorios para el contrato (B2b, tras QA del dueño 2026-09-11)**.
+  Antes, un trabajador con la ficha incompleta producía un contrato con **líneas de guiones** en
+  nacionalidad, estado civil, fecha de nacimiento y domicilio, y el hueco aparecía recién en el papel
+  firmado. Ahora `contrato.plantilla.requiere()` los exige (dirección y comuna **por separado**: con una
+  sola de las dos la cláusula imprimía medio domicilio) y el 409 `DATOS_FALTANTES` trae, además de la
+  lista legible, `campos_trabajador` con las claves de columna.
+  **El modal los pide ahí mismo**: `EmitirKitModal` muestra una caja ámbar con solo los campos que
+  faltan, hace `PUT /trabajadores/:id` con **únicamente lo completado** y recién entonces emite —
+  guardar primero, emitir después, para que nunca salga un contrato con datos que no quedaron en la
+  ficha. ⚠️ El payload **jamás** lleva `null`: el CRUD genérico descarta `undefined` pero conserva
+  `null`, así que un null borraría datos existentes (por eso este flujo NO usa `normalizarDatosPersonales`,
+  que sí los emite porque `WorkerForm` precarga la ficha completa). Sin `trabajadores.editar` la caja
+  sale en solo lectura y el contrato queda bloqueado; el resto del kit se emite igual.
+  El resto de las plantillas del kit (ODI, DAS, PTS altura, EPP, Reglamento Interno) **no** heredan el
+  requisito: no imprimen esos datos. La ficha rápida avisa los que faltan antes de llegar a emitir.
+- **La restricción vive en el TIPO**: `tipos_documento.codigo` (clave estable) + `restringido`. Un
+  contrato **escaneado** subido a un tipo restringido queda bajo el mismo gate. Los tipos del sistema
+  se crean con nombre "(Bóveda)" y `obligatorio = 0` (no alteran la completitud); no se pueden desactivar,
+  volver obligatorios ni eliminar desde Configuración (409 `TIPO_SISTEMA`), solo renombrar.
+- **Estados** (`documentos.estado`): `subido|generado → descargado → en_terreno → firmado` (B6, mig 114;
+  `entregado` de la mig 110 quedó sin uso). Excepción a "monótono": un documento devuelto sin firma o que el
+  portador no recibió vuelve a `descargado`. `fecha_descarga` guarda la PRIMERA descarga; **las alertas de B7
+  cuentan desde `fecha_generacion`**, así re-descargar no silencia el aviso.
+- **Permisos** (creados por la mig 110; el dueño los asigna a mano en Configuración → Roles + re-login):
+  `documentos.laborales.emitir` y `documentos.laborales.descargar`, ambos **exclusivos** (sin patrón OR).
+  `documentos.descargar` NO alcanza para un documento restringido: `GET /documentos/download/:id`
+  responde 403 `{error, required:['documentos.laborales.descargar']}`.
+- **Los dos empaquetadores excluyen siempre los restringidos**: el ZIP de la ficha
+  (`/documentos/download-all/:tid`, con header `X-Documentos-Omitidos: N`) y el ZIP que
+  `POST /fiscalizacion/enviar-excel` adjunta **por correo** (el cuerpo del correo indica cuántos se
+  omitieron). Sin esto, un permiso de reportes sacaría contratos de la empresa por email.
+- **`metadata` (snapshot con la remuneración) nunca sale por `documentos.ver`**: `getByTrabajador` y
+  `getVencidos` usan proyección explícita de columnas (nada de `d.*`) y `metadata` está en
+  `EXCLUDED_KEYS` del historial. Los logs de emisión/descarga son manuales y no llevan montos.
+- **API** (`/api/documentos-laborales`, `safeRoute`):
+  `GET /catalogo` (auth) · `GET /trabajador/:id` [documentos.ver] · `POST /emitir/:tid` y
+  `POST /kit-ingreso/:tid` [laborales.emitir] · `GET /:id/download` y `GET /:id/html` [laborales.descargar].
+  `GET /solicitudes-ingreso/:id/doc` [laborales.descargar]: solicitud **pendiente** → `.doc` al vuelo sin
+  persistir; **aprobada** → el documento guardado en la ficha del trabajador (se emite si faltara).
+  Al aprobar una solicitud la ficha se emite sola **post-commit**: si falla, se registra un `warn` y la
+  aprobación igual se completa (`solicitud_documento_id` en la respuesta).
+- **Subida de Word**: `upload.js` acepta `.doc/.docx` y `pdf.service.processFile` los guarda sin convertir
+  (no hay Office en cPanel). Flujo real: emitir → editar en Word → firmar → subir el escaneado o el
+  `.docx` al mismo tipo restringido; la versión emitida queda como evidencia de lo que generó el sistema.
+  Todos los nombres de archivo llevan sufijo `-HHmmss`: dos subidas del mismo trabajador el mismo día
+  ya no se pisan (bug latente que existía desde la mig 002).
+- **Degradación (D-I)**: si la mig 110 no corrió, cada lectura cae a la consulta legacy por errno 1054
+  (`getByTrabajador`, `getFilePath`, `marcarDescargado`, `zip.service`, tipos del sistema, empresas sin
+  representante). Emitir responde 409 `MIGRACION_PENDIENTE` en vez de un 500.
+- **UI**: `components/documents/` — `EmitirKitModal` (casillas por documento, fecha, días de plazo,
+  implementos de EPP, duración de la charla), `EmitirAmonestacionModal` (sucesor de `ConstanciaModal`),
+  `DocumentosGeneradosList` (en la ficha rápida, con estado y Descargar/Imprimir gateados) y la lógica
+  pura de `documentosLaborales.ts` (+ test). `utils/descargarArchivo.ts` centraliza la descarga: lee el
+  403 que viene como Blob y lo muestra con el nombre del permiso que falta (antes el GET fallaba mudo).
+  La lista de "Documentos Subidos" filtra `origen === 'subido'` y la completitud cuenta **tipos
+  obligatorios distintos** (`contarObligatorios`), así el kit generado no la infla.
+
+## Finiquito y contrato al aprobar (plan Gestiones B5 — 2026-09-14, sin migración)
+
+Requerimientos 3 y 6 de RRHH. Reusa las migraciones 110 (tipo `FINIQUITO`, restringido), 111 y 112
+(`trabajador_desvinculaciones.finiquito_documento_id`). El **contrato** ya se emite dentro del kit de
+ingreso (B2); B5 agrega el CTA tras aprobar (ver § Solicitudes → Después de aprobar) y el **finiquito**.
+
+- **Plantilla** `backend/src/plantillas/documentos/finiquito.plantilla.js` (`FINIQUITO` v1.0, "Finiquito de
+  Trabajador"), portada del molde en papel de LOLS/MAUA: comparecencia, cláusulas PRIMERO a CUARTO, cuadro
+  de haberes con **total en cifras y en letras**, cierre en **dos** ejemplares, declaración jurada **Ley
+  21.389** (retención judicial) y firmas empleador / trabajador (sin huella ni "recibí copia"). Texto legal =
+  DATO reemplazable. Registrada en `EMITIBLES` (nunca en `KIT_INGRESO`).
+- **Solo a desvinculados con baja vigente**: es el ÚNICO documento que exige `activo = 0`
+  (`emitir()` ramifica el guard: activo → 409 `TRABAJADOR_ACTIVO`; el kit y la amonestación siguen
+  rechazando al desvinculado). `ctx.desvinculacion` sale de `desvinculacionService.desvinculacionAbierta`
+  = la fila con `reactivado_en IS NULL` (**no** `ultimaDesvinculacion`, que devuelve también bajas ya
+  cerradas por una reactivación). Sin fila abierta → 409 `DATOS_FALTANTES` "baja vigente registrada en el
+  historial" (no manda a Desvincular: respondería `YA_DESVINCULADO`). Mig 112 pendiente (1146/1054) → 409
+  `MIGRACION_PENDIENTE` "Avisa a TI", distinguido a propósito del caso anterior (`estricta: true`).
+- **RRHH digita los montos; el sistema NO calcula** (v1, decisión §2b del plan): `haberes[]` (1..10 líneas
+  `{concepto, monto}`, CLP entero ≥ 0), `descuentos[]` opcional (≤ 10), total = haberes − descuentos
+  (409 si negativo **o si la suma de haberes es 0**: el estado inicial del modal no es un finiquito); el
+  total se imprime con `fmtCLP` y `montoEnLetras` **una sola vez** (el molde traía "Son:( pesos)" y habría
+  impreso "pesos pesos"). Los montos se aceptan solo como número o string de dígitos (`Number(true)` y
+  `Number('')` colarían 1 y 0). Ni indemnizaciones ni feriado proporcional: se agregan como líneas a mano.
+  `fecha_finiquito` (default hoy) debe ser ≥ fecha de la baja — se valida el valor **efectivo** que imprime
+  `build()`, default incluido, y el calendario real (no basta la forma AAAA-MM-DD); `lugar_firma` default
+  "Santiago".
+- **La causal impresa siempre tiene artículo**: se imprime `articulo_texto` del catálogo ("Artículo 159, N°
+  4 del Código del Trabajo"). Si la baja se registró con una causal **operativa LOLS o LEGADO** (sin
+  artículo), quien emite elige la causal legal en el modal (`causal_codigo`, solo del catálogo y con
+  artículo). Si la baja **ya tiene** causal legal, manda ella: un `causal_codigo` distinto responde 409
+  ("causal coherente con la baja") — el backend lo exige, no solo la UI. La registrada **no se pisa** nunca:
+  `metadata.desvinculacion` guarda `causal_registrada` y `causal_impresa`. El `detalle` interno de la
+  baja no se imprime ni entra en metadata.
+- **Enlace con la baja**: tras persistir, `vincularFiniquito(desvinculacion_id, documento_id)` estampa
+  `finiquito_documento_id` con `WHERE id = ? AND reactivado_en IS NULL` (si otro usuario reactivó al
+  trabajador entre la lectura y el UPDATE, la fila ya cerrada no recibe el enlace). El **último** emitido es
+  el vigente; una reemisión reemplaza el enlace y el documento anterior sigue en la ficha. Si el enlace falla
+  (fila cerrada/borrada, 1146, error de BD) el documento **ya existe**: se registra un `warn` y la respuesta
+  trae `enlazado: false` — un 500 acá haría reemitir un finiquito que sí quedó guardado. **La UI lo muestra**
+  (`avisoEnlaceFiniquito`: caja ámbar + toast de advertencia en el modal y en el éxito de Desvincular) porque
+  sin enlace la ficha seguiría ofreciendo "Finiquito" en vez de "Reemitir" y RRHH emitiría otro. Con el
+  enlace, `DELETE /:id/depurar` responde 409 `TIENE_FINIQUITO`.
+- **API**: el mismo `POST /documentos-laborales/emitir/:tid` [`documentos.laborales.emitir`] con
+  `{ codigo: 'FINIQUITO', fecha_finiquito?, lugar_firma?, haberes, descuentos?, causal_codigo? }`
+  (`validateBody` con `itemRules` por línea). Respuesta 201 `{ documento_id, nombre_archivo, tipo_codigo,
+  estado, desvinculacion_id, enlazado }`. Descarga/impresión por las rutas gateadas de B2; `metadata` lleva
+  montos → nunca sale por `documentos.ver`. Log manual `documento_emitido` **sin montos**.
+- **UI**: `components/documents/EmitirFiniquitoModal.tsx` (baja de la ficha o del resultado de desvincular;
+  si no la tiene la pide a `GET /trabajadores/:id/resumen`; líneas con `CurrencyInput`; total en vivo;
+  selector de causal legal solo cuando la registrada no tiene artículo; aviso si ya había finiquito
+  emitido; bloqueado si el trabajador está activo o no tiene baja). Se abre desde el éxito de
+  `DesvincularModal` y desde `DocumentosGeneradosList` (botón **Finiquito** / **Reemitir finiquito**,
+  visible solo con el trabajador desvinculado — condición inversa a Emitir kit / Amonestación). Cuando el
+  modal debe leer la baja del resumen (`trabajadores.ver`) y recibe 403, lo dice (no "sin baja"). Lógica
+  pura en `documentosLaborales.ts` (`conceptoDiasTrabajados`, `lineasValidas`, `totalFiniquito`,
+  `validarFiniquito`, `buildFiniquitoPayload`, `workerDesdeSolicitud`, `avisoEnlaceFiniquito`) y
+  `desvinculacionSchema.ts` (`bajaDesdeResultado`) + tests.
+- **Modales anidados** (kit dentro de la revisión de solicitud; finiquito dentro de desvincular): `ui/Modal`
+  lleva una pila de modales abiertos y **Escape cierra solo el de más arriba** — antes cada modal escuchaba
+  `keydown` y una sola tecla cerraba los dos (y desmontaba la pantalla de éxito del padre).
+- **Pendiente (§10.3 del plan)**: si RRHH quiere que el sistema calcule vacaciones proporcionales e
+  indemnizaciones, es un bloque aparte con vigencia histórica de sueldos.
+
+## Cadena de custodia de documentos físicos (plan Gestiones B6, mig 114 — 2026-09-14)
+
+
+### Cómo se llama cada cosa en pantalla (2026-09-16)
+
+El tablero se lee como un **mapa de ubicación**: contesta dónde están los papeles y quién los tiene, no en
+qué paso del trámite van. Los valores de base de datos **no cambian**; esta tabla es la capa de texto, y es
+la fuente única: si aparece un rótulo nuevo, va acá.
+
+| Valor en BD | En pantalla (corto / largo) |
+|---|---|
+| `documentos_lotes.estado = 'pendiente_retiro'` | «En oficina» / «En oficina, listos para retiro» |
+| `= 'en_terreno'` | «En terreno» |
+| `= 'cerrado'` | «Firmados» / «Firmados en oficina» |
+| `items.estado = 'pendiente'` | «Esperando retiro» |
+| `= 'retirado'` | «En terreno» |
+| `= 'devuelto_sin_firma'` | «Volvió sin firma» |
+| `= 'no_entregado'` | «Quedó en oficina» |
+
+**El carril «Firmados en oficina» no significa "todo salió bien".** La migración lo define como *nada queda
+en terreno*, y ahí caen también el lote que volvió entero sin firmas y el que el portador nunca retiró
+(`no_entregado`: nunca salió de la oficina). Se resolvió sin aguar el título: la **tarjeta** de esos lotes
+lleva un chip ámbar —«Volvió sin firmas» o «Nadie lo retiró»— calculado por `desenlaceLote()`
+(`components/documentos-fisicos/documentosFisicos.ts`, con test). Si alguna vez se renombra el carril,
+ese helper es el que hay que revisar.
+
+**Cabecera ≠ primer carril**: en la cabecera los documentos están impresos y **sin asignar** (no son de
+nadie); en el primer carril ya tienen **portador asignado** y esperan que pase a buscarlos. Los textos
+usan «sin asignar» vs «esperando retiro» justamente para no pisarse.
+
+**Palabras que se conservan**: «lote» (como folio: *Lote #41*), «portador» (en permisos y código; en
+pantalla se prefiere el nombre propio o «quién retira») y «retiro». **Salieron de la UI**: «armado»,
+«recepción» (el botón dice «Registrar lo que volvió») y «doble llave» (queda en los comentarios).
+
+Requerimiento 9 de RRHH, **rediseñado con el dueño tras el QA de B5**. El flujo real no es "entregar un
+documento al trabajador" sino una cadena de custodia con dos traspasos, ambos en la oficina central:
+RRHH (Matías) imprime → el **portador** autorizado (Jhoan Vásquez / Héctor Gómez) retira → el trabajador
+firma en la obra (papel) → el portador devuelve los firmados → RRHH recibe.
+
+- **Decisiones del dueño (2026-09-14)**: (1) RRHH declara en Bóveda qué entrega → el portador **confirma en
+  Bóveda** que lo recibió → al volver firmados RRHH **confirma la recepción**; (2) "listo para retirar" =
+  documento ya **descargado/impreso** (`estado = descargado`), sin paso "impreso" aparte; (3) entran **todos
+  los generados** por Bóveda; (4) constancia = **solo el registro** (sin firma digital ni acta); (5) la copia
+  firmada se **marca** recibida, no se sube; (6) **doble llave estricta**: RRHH no puede confirmar el retiro
+  por el portador (si se le olvida, el lote queda pendiente y B7 lo persigue); (7) sin guía de retiro en Word.
+- **El LOTE es la unidad** (`documentos_lotes` + `documentos_lotes_items`): RRHH no registra documento por
+  documento. Un lote = lo que imprimió hoy para un portador. Estados del lote: `pendiente_retiro` →
+  `en_terreno` (el portador confirmó) → `cerrado` (nada queda en terreno). Ítem: `pendiente` → `retirado` →
+  `firmado` | `devuelto_sin_firma`; `no_entregado` si el portador lo desmarcó al confirmar. Los dos últimos
+  liberan el documento (`lote_id = NULL`, vuelve a `descargado`) para llevarlo de nuevo. Un documento está
+  en **un solo lote abierto** a la vez (`documentos.lote_id`; FOR UPDATE al crear → 409
+  `DOCUMENTO_NO_DISPONIBLE` con la lista si otro RRHH se adelantó).
+- **Permisos**: `documentos.entrega.registrar` (RRHH: `GET /portadores`, `GET /disponibles`, `POST /`,
+  `PUT /:id/recepcion`, `DELETE /:id` anular solo `pendiente_retiro`) y **`documentos.entrega.portar`**
+  (portador: `GET /` y `GET /:id` **solo sus lotes**, `PUT /:id/confirmar-retiro` solo si el lote es suyo →
+  403 `LOTE_AJENO`). Ambos se CREAN en la mig 114 (catálogo + rol 1 + bump); el dueño asigna: registrar a
+  RRHH en Roles; portar por **override de usuario** a Jhoan y Héctor (Config → Usuarios), como Héctor con
+  aprobar. `GET /portadores` calcula el permiso efectivo en SQL (rol o grant, sin deny; rol 1 siempre).
+- **API** `/api/documentos-lotes` (`safeRoute`; segmentos literales antes de `/:id`). `POST /`
+  `{portador_id, documento_ids[], observacion?}` → 201 `{lote_id, portador_id, portador_nombre, n}`; 400
+  `PORTADOR_INVALIDO` (inactivo o sin portar). `PUT /:id/confirmar-retiro {documento_ids}` = los que SÍ
+  recibió (vacío = ninguno → lote cerrado). `PUT /:id/recepcion {firmados[], sin_firma[]}` parcial: el lote se
+  cierra cuando no queda ningún ítem `retirado`; 409 `LOTE_NO_EN_TERRENO` si el portador aún no confirmó.
+  `GET /pendientes/count` → `{por_confirmar, en_terreno, alcance: 'todos'|'propios'}` (badge + Bandeja).
+  `GET /documentos-laborales/trabajador/:id` agrega `lote_id, lote_estado, lote_retirado_en, portador_nombre,
+  fecha_firmado` (consulta aparte condicionada a `hasCols('documentos','lote_id')` para no tocar el fallback
+  de la mig 110).
+- **Degradación (D-I)**: sin la mig 114 las lecturas devuelven vacío/ceros y las escrituras 409
+  `MIGRACION_PENDIENTE`. Logs manuales `lote_creado` / `lote_retirado` / `lote_recepcion` / `lote_anulado`
+  con **conteos** (nunca nombres ni RUT de trabajadores); el logger global excluye `/api/documentos-lotes`.
+  Depurar un trabajador borra sus ítems (CASCADE); el lote queda como histórico.
+- **UI**: Gestiones → pestaña **Documentos físicos** (`?tab=fisicos`; el portador sin `trabajadores.ver` cae
+  ahí directo; Gestiones es visible para él en el menú). `DocumentosFisicosPanel` (rediseño 2026-09-15:
+  **tablero de custodia** con tres carriles en el orden del flujo —Por confirmar → En terreno → Cerrados—;
+  tarjeta = portador, N docs, resumen, qué pasó y hace cuánto, y la acción que le toca a quien mira
+  («Confirmar retiro» portador / «Registrar recepción» RRHH); RRHH ve arriba cuántos documentos impresos
+  esperan lote; móvil = un carril a la vez; `agruparLotesPorEstado`/`lineaTiempoLote` con test) · `NuevoLoteModal` (documentos impresos agrupados **obra → trabajador**
+  con casilla por trabajador —un kit de 6 = 1 clic—, buscador, filtro por obra, portador recordado en
+  `localStorage`) · `LoteDetalleModal` (portador + por confirmar: casillas pre-marcadas y **"Recibí estos
+  documentos"**, pensado para el celular; RRHH + en terreno: por documento Firmado / Sin firma / Sigue en
+  terreno con todo pre-marcado como firmado; RRHH + por confirmar: anular). Badge ámbar en el botón y grupo
+  "Documentos físicos" en la Bandeja del Día (`useLotesPendientes`, store de módulo). La ficha del trabajador
+  muestra "En terreno · con Jhoan desde …" y "Firmado …" en la lista de generados (`statusConfig` gana
+  `en_terreno` y `firmado`). Lógica pura en `documentos-fisicos/documentosFisicos.ts` (+ test).
+- **Velocidad neta**: RRHH 2 acciones por viaje (crear lote / registrar recepción), portador 1 tap, el
+  trabajador no toca nada. Los umbrales de alerta viven en B7 (sección siguiente).
+
+## Alertas de documentos sin firmar (plan Gestiones B7, mig 115 — 2026-09-15)
+
+Requerimiento 11 de RRHH: ver en el Inicio lo que lleva demasiado tiempo sin cerrar el ciclo de firma, con
+umbrales que RRHH ajusta sin tocar código. **Solo in-app** (Bandeja del Día + Gestiones → Documentos
+físicos); sin correo en v1 (un cron de email sería un follow-up con el patrón de avisos diarios, mig 084).
+
+- **Umbrales por categoría** (`documentos_alertas_config`, seed en la mig 115): `categoria` =
+  `tipos_documento.codigo` para los documentos (CONTRATO 3/10, ODI/DAS/PTS/EPP/RI 3/10, FINIQUITO 3/7,
+  AMONESTACION 3/10, SOLICITUD_INGRESO 5/15 **desactivada** porque no se firma en obra) más dos de lote:
+  `LOTE_SIN_CONFIRMAR` 1/3 y `LOTE_EN_TERRENO` 7/14. `dias_aviso` = ámbar, `dias_critico` = rojo, con
+  **crítico ≥ aviso** (regla cruzada en `beforeUpdate`: 400 `UMBRALES_INVERTIDOS`). Categorías fijas: la UI
+  solo edita etiqueta, días y activo (Configuración → Sistema & Correo → **Alertas de Documentos**, permiso
+  `sistema.alertas_documentos.gestionar`, creado en la mig 115 y asignado a mano).
+- **Qué cuenta**: documentos `origen = 'generado'`, activos, en estado `generado` (sin imprimir),
+  `descargado` (impreso: por retirar, o *por confirmar* si ya está en un lote pendiente) o `en_terreno`;
+  `firmado` sale del radar. Los días se cuentan desde **`fecha_generacion`** — nunca desde la descarga:
+  volver a imprimir no silencia el aviso (D-D de la mig 110). Trabajadores de prueba (`es_prueba = 1`) no
+  alertan. Los lotes cuentan desde `creado_en` (sin confirmar) o `retirado_en` (en terreno).
+- **API** `GET /api/documentos-alertas/pendientes` [`documentos.entrega.registrar`, `cacheControl(60)`] →
+  `{ total, criticos, por_tipo[], por_etapa{sin_imprimir, por_retirar, por_confirmar, en_terreno}, lotes{sin_confirmar,
+  en_terreno}{total, criticos, items[]}, items[] }`; `GET/PUT /api/documentos-alertas/config[/:id]`
+  [`sistema.alertas_documentos.gestionar`] (CRUD genérico acotado a listar/editar). Degradación: sin la mig
+  115/114/110 la respuesta es la estructura vacía (200), nunca 500.
+- **UI**: Bandeja del Día, grupo **Documentos físicos**: para RRHH una fila por tipo ("3 contratos de trabajo
+  sin firmar · 2 críticos"), tope de 4 tipos + "+N tipos más", y una fila por categoría de lote; crítico =
+  rojo. El portador (sin `registrar`) sigue viendo el contador simple de sus lotes por confirmar. En la
+  pestaña Documentos físicos, la franja **"Documentos sin firmar fuera de plazo"** (`AlertasDocumentosStrip`)
+  resume por etapa y, desplegada, lista trabajador · tipo · días · portador y los lotes atascados (con
+  "Abrir"). Store de módulo `useDocumentosAlertas` (gate `registrar`); lógica pura en
+  `documentos-fisicos/documentosAlertas.ts` (+ test).
+
+## Empresas: representante legal (mig 110)
+
+`empresas.representante_nombre` y `representante_rut` se editan en Configuración → Empresas y se
+imprimen en el contrato y el finiquito (en el finiquito, en la declaración jurada de la Ley 21.389). Sin
+ellos, emitir un contrato o un finiquito responde 409 con el dato que falta.
+En v1 solo LOLS y MAUA emiten (decisión del dueño 2026-09-11).

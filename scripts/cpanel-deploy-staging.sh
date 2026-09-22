@@ -31,6 +31,29 @@ BRANCH="deploy-staging"
 
 cd "$REPO_DIR"
 
+# --- lock global:begin — UNA pasada del cron a la vez (2026-09-16) ---
+# Los locks de heal-deps/auto-migrate/sanear son POR FUNCIÓN: el tick perdedor se salta esa
+# función pero SIGUE hasta la sección de deploy. Con npm ci o migrate cruzando ticks (timeout
+# 600 s cada uno, y el cron dispara cada 5 min) dos pasadas podían solaparse sobre el MISMO
+# clone: dos `git reset --hard` y dos rsync del mismo árbol, con archivos cambiando bajo el
+# rsync de la otra y un orden de escritura del docroot indefinido.
+# Cubre el script ENTERO y se libera con `trap EXIT` (también cuando `set -e` mata la pasada).
+# Stale a 60 min: por encima del peor caso real (npm ci 10' + migrate 10' + saneo 10' + rsyncs),
+# así que solo lo libera un SIGKILL o un reinicio del host, nunca una pasada viva.
+LOCK_GLOBAL="$REPO_DIR/.deploy.lock"
+if [ -d "$LOCK_GLOBAL" ] && [ -n "$(find "$LOCK_GLOBAL" -maxdepth 0 -mmin +60 2>/dev/null)" ]; then
+    echo "$(date '+%F %T') · lock global viejo (>60 min) — lo libero"
+    rmdir "$LOCK_GLOBAL" 2>/dev/null || true
+fi
+if ! mkdir "$LOCK_GLOBAL" 2>/dev/null; then
+    echo "$(date '+%F %T') · otra pasada en curso (lock global) — salto este tick"
+    exit 0
+fi
+# El trap se arma DESPUÉS de tomar el lock: armarlo antes haría que el tick perdedor borrara al
+# salir el lock del tick que sí lo tiene.
+trap 'rmdir "$LOCK_GLOBAL" 2>/dev/null || true' EXIT
+# --- lock global:end ---
+
 # --- heal:begin — Auto-reparación de Passenger (corre en CADA tick del cron) ---
 # Caída real 2026-08-24: al editar la app en Setup Node.js App, el panel reescribió
 # el api/.htaccess con "PassengerStartupFile server.js" (archivo que NO existe en el
@@ -350,21 +373,133 @@ run_auto_migrate() {
 run_auto_migrate || echo "$(date '+%F %T') · auto-migrate: falló (rc=$?) — no fatal"
 # --- auto-migrate:end ---
 
+# --- sanear-datos:begin — Datos ficticios en staging (PERMANENTE, 2026-09-15) ---
+# Staging es una web pública y llegó a tener trabajadores REALES (RUT, domicilio, salud, cuenta
+# bancaria) porque el único procedimiento para poblarlo era importar tablas de producción. Este
+# bloque es la red de seguridad: cada tick revisa que no haya trabajadores fuera del bloque de RUT
+# ficticios (44.000.000-44.000.999) y, si los hay, los purga junto con sus rastros (solicitudes,
+# desvinculaciones, logs, archivos de uploads) y apaga el correo saliente.
+#
+# Gracia de 48 h sobre created_at: lo que el dueño crea a mano mientras hace QA sobrevive la
+# sesión; una importación desde producción llega con created_at antiguo y cae igual.
+#
+# SOLO EXISTE EN EL SCRIPT DE STAGING. cpanel-deploy-prod.sh no lo tiene y no debe tenerlo.
+# El script además se niega a correr si DB_NAME es la base de producción o no dice test/staging/dev.
+# Mismo diseño defensivo que auto-migrate: lock, timeout, jamás tumba el deploy, y una línea por
+# HTTP en el docroot (datos-status.txt) para verificar sin SSH.
+run_sanear_datos() {
+    local ht="$FRONT_DEST/api/.htaccess"
+    if [ ! -f "$ht" ] && grep -q '^PassengerAppRoot' "$FRONT_DEST/.htaccess" 2>/dev/null; then
+        ht="$FRONT_DEST/.htaccess"
+    fi
+    [ -f "$ht" ] || return 0
+    local nb
+    nb="$(sed -n 's/^PassengerNodejs[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}[[:space:]]*$/\1/p' "$ht" | tail -n1)"
+    { [ -n "$nb" ] && [ -x "$nb" ] && [ -s "$nb" ]; } || return 0
+    { [ -f "$BACK_DEST/scripts/sanear_staging.js" ] && [ -d "$BACK_DEST/node_modules/mysql2" ]; } || return 0
+
+    local lock="$BACK_DEST/tmp/.sanear-datos.lock"
+    if [ -d "$lock" ] && [ -n "$(find "$lock" -maxdepth 0 -mmin +30 2>/dev/null)" ]; then
+        rmdir "$lock" 2>/dev/null || true
+    fi
+    if ! mkdir "$lock" 2>/dev/null; then
+        echo "$(date '+%F %T') · sanear-datos: otro tick en curso (lock) — salto"
+        return 0
+    fi
+
+    mkdir -p "$BACK_DEST/tmp"
+    local slog="$BACK_DEST/tmp/sanear-datos.log" rc=0 tmo=""
+    command -v timeout >/dev/null 2>&1 && tmo="timeout 600"
+    ( cd "$BACK_DEST" && SANEO_STAGING=1 $tmo "$nb" scripts/sanear_staging.js --aplicar --sembrar --auto ) > "$slog" 2>&1 || rc=$?
+    rmdir "$lock" 2>/dev/null || true
+
+    local resumen
+    resumen="$(grep -m1 '^RESUMEN' "$slog" 2>/dev/null | tr -d '\r' | sed 's/^RESUMEN · //')"
+    [ -n "$resumen" ] || resumen="sin resumen"
+    if [ "$rc" = "0" ]; then
+        echo "$(date '+%F %T') · sanear-datos: $resumen"
+        printf '%s · %s\n' "$(date '+%F %T')" "$resumen" > "$FRONT_DEST/datos-status.txt" 2>/dev/null || true
+    else
+        echo "$(date '+%F %T') · sanear-datos: falló (rc=$rc) — ver tmp/sanear-datos.log"
+        printf '%s · FALLO rc=%s — revisar tmp/sanear-datos.log del backend\n' "$(date '+%F %T')" "$rc" > "$FRONT_DEST/datos-status.txt" 2>/dev/null || true
+    fi
+    return 0
+}
+# Igual que auto-migrate: se llama en CADA tick, no solo cuando hay build nuevo. El bloque se
+# describe a sí mismo como "cada tick revisa", pero hasta el 2026-09-16 su única llamada estaba
+# DESPUÉS del `exit 0` de "sin cambios" → la red de seguridad corría solo en los ticks CON
+# deploy. Un fin de semana sin pushes dejaba datos reales importados a staging expuestos en una
+# web pública hasta el lunes. Con `--auto` y sin foráneos el script sale en una consulta.
+run_sanear_datos || echo "$(date '+%F %T') · sanear-datos: falló (rc=$?) — no fatal"
+# --- sanear-datos:end ---
+
+# --- helpers del deploy ---
+# rsync corre bajo `set -e`: cualquier rc≠0 aborta la pasada a mitad del docroot. rc=24
+# ("partial transfer due to vanished source files") es benigno — algo desapareció del ORIGEN
+# mientras copiaba — y con el lock global ya casi no puede pasar, pero tolerarlo evita que un
+# caso inofensivo deje el deploy por la mitad. Cualquier otro rc (23 = fallos de transferencia,
+# 12 = protocolo, …) sigue siendo FATAL a propósito: ahí el destino sí puede quedar mal, y lo
+# que queremos es que la pasada muera SIN escribir el testigo para que el próximo tick la rehaga.
+rsync_deploy() {
+    local rc=0
+    rsync "$@" || rc=$?
+    if [ "$rc" = "24" ]; then
+        echo "$(date '+%F %T') · rsync: rc=24 (archivos del origen desaparecieron) — tolerado"
+        return 0
+    fi
+    return "$rc"
+}
+
+# Una línea por HTTP con el build que REALMENTE está corriendo (hosting sin SSH):
+# https://test.boveda.lols.cl/deploy-status.txt. migrate-status.txt dice cómo fue la migración y
+# datos-status.txt cómo fue el saneo, pero ninguno decía QUÉ build hay desplegado. Se escribe
+# "EN CURSO" antes de tocar el docroot y "OK" al final: un "EN CURSO" con hora vieja es la señal
+# de una pasada que murió a mitad. El repo es público → el SHA y el asunto del commit no son
+# información sensible.
+estado_deploy() {
+    printf '%s · %s · %s %s · %s\n' \
+        "$(date '+%F %T')" "$1" "$BRANCH" "${2:0:7}" \
+        "$(git log -1 --format=%s "$2" 2>/dev/null || echo '-')" \
+        > "$FRONT_DEST/deploy-status.txt" 2>/dev/null || true
+}
+
 # 1) Traer lo último de la rama de build
 git fetch origin "$BRANCH" --quiet
-LOCAL="$(git rev-parse HEAD)"
 REMOTE="$(git rev-parse "origin/$BRANCH")"
 
-if [ "$LOCAL" = "$REMOTE" ]; then
-    echo "$(date '+%F %T') · sin cambios ($LOCAL) — nada que desplegar"
+# Lo que decide si hay algo que hacer es el TESTIGO del último deploy COMPLETO, no HEAD.
+# Antes se comparaba HEAD con origin, y a HEAD lo mueve el `git reset --hard` de abajo ANTES de
+# los rsync, las migraciones, el saneo y el restart. Si una pasada moría en ese tramo (un rsync
+# con rc≠0 bajo `set -e`, el proceso matado, el host reiniciado), HEAD ya estaba en el SHA nuevo
+# y TODOS los ticks siguientes caían en "sin cambios — nada que desplegar" PARA SIEMPRE: el
+# docroot podía quedar con frontend nuevo y backend/esquema viejos, y el cron lo reportaba como
+# desplegado. Solo lo sacaba un humano empujando otro commit.
+# El testigo se escribe recién al final de la pasada, así que una pasada incompleta se reintenta
+# sola al tick siguiente. Repetir es seguro: los rsync son idempotentes, migrate.js no re-aplica
+# lo que ya está en schema_migrations, el saneo con --auto no hace nada si no hay foráneos y el
+# restart es tocar un archivo.
+MARCA="$REPO_DIR/.deploy-ultimo-ok"
+DESPLEGADO="$(cat "$MARCA" 2>/dev/null || true)"
+
+if [ "$DESPLEGADO" = "$REMOTE" ]; then
+    echo "$(date '+%F %T') · sin cambios ($REMOTE) — nada que desplegar"
     exit 0
 fi
 
-echo "$(date '+%F %T') · desplegando $REMOTE (antes $LOCAL)"
+if [ "$(git rev-parse HEAD)" = "$REMOTE" ]; then
+    if [ -z "$DESPLEGADO" ]; then
+        echo "$(date '+%F %T') · primera pasada con testigo — redesplegando $REMOTE para partir de un estado conocido"
+    else
+        echo "$(date '+%F %T') · el árbol ya estaba en $REMOTE pero el deploy anterior no terminó — lo rehago"
+    fi
+fi
+
+echo "$(date '+%F %T') · desplegando $REMOTE (último completo: ${DESPLEGADO:-ninguno})"
 git reset --hard "origin/$BRANCH" --quiet
 
 # 2) Frontend: copiar dist prebuildeado → docroot de staging
 mkdir -p "$FRONT_DEST"
+estado_deploy "EN CURSO" "$REMOTE"
 if command -v rsync >/dev/null 2>&1; then
     # --delete para que el docroot espeje dist exactamente, PERO preservar lo que
     # NO pertenece al build del frontend y vive en el mismo docroot:
@@ -373,23 +508,29 @@ if command -v rsync >/dev/null 2>&1; then
     #   api/         → punto de montaje de Passenger del backend Node
     #                  (URL test.boveda.lols.cl/api) — borrarlo ROMPE la API
     #   migrate-status.txt → estado del último auto-migrate (lo escribe el bloque de arriba)
-    rsync -a --delete \
+    #   datos-status.txt   → estado del último saneo de datos ficticios (run_sanear_datos)
+    #   deploy-status.txt  → qué build está desplegado (estado_deploy) — se escribe ANTES de
+    #                        este rsync, así que sin el exclude el --delete lo borraría
+    rsync_deploy -a --delete \
         --exclude '.well-known/' \
         --exclude '.htaccess' \
         --exclude 'migrate-status.txt' \
+        --exclude 'datos-status.txt' \
+        --exclude 'deploy-status.txt' \
         --exclude 'api/' \
         "$REPO_DIR/frontend/dist/" "$FRONT_DEST/"
 else
     # Fallback sin rsync: limpiar y copiar, preservando .well-known (AutoSSL),
-    # .htaccess (routing del SPA) y api/ (mount de Passenger del backend).
-    find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.htaccess' ! -name 'migrate-status.txt' ! -name 'api' -exec rm -rf {} +
+    # .htaccess (routing del SPA), api/ (mount de Passenger del backend) y los tres
+    # *-status.txt que se publican por HTTP.
+    find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.htaccess' ! -name 'migrate-status.txt' ! -name 'datos-status.txt' ! -name 'deploy-status.txt' ! -name 'api' -exec rm -rf {} +
     cp -a "$REPO_DIR/frontend/dist/." "$FRONT_DEST/"
 fi
 
 # 3) Backend: copiar código (sin node_modules/tmp/uploads/.env — se preservan en destino)
 mkdir -p "$BACK_DEST"
 if command -v rsync >/dev/null 2>&1; then
-    rsync -a \
+    rsync_deploy -a \
         --exclude 'node_modules/' \
         --exclude 'tmp/' \
         --exclude 'uploads/' \
@@ -406,7 +547,7 @@ fi
 #     prefijo NNN activaría el guard anti-duplicados de migrate.js, bloqueando TODO
 #     el set). Espejar solo esta subcarpeta es seguro: ahí no viven datos.
 if command -v rsync >/dev/null 2>&1; then
-    rsync -a --delete "$REPO_DIR/backend/db/migrations/" "$BACK_DEST/db/migrations/"
+    rsync_deploy -a --delete "$REPO_DIR/backend/db/migrations/" "$BACK_DEST/db/migrations/"
 else
     rm -rf "$BACK_DEST/db/migrations"
     cp -a "$REPO_DIR/backend/db/migrations" "$BACK_DEST/db/"
@@ -415,9 +556,15 @@ fi
 # 3b) Migraciones del backend recién copiado — mismo tick del deploy (la llamada
 #     inicial de auto-migrate corrió ANTES del rsync, con la firma anterior).
 run_auto_migrate || echo "$(date '+%F %T') · auto-migrate: falló (rc=$?) — no fatal"
+run_sanear_datos || echo "$(date '+%F %T') · sanear-datos: falló (rc=$?) — no fatal"
 
 # 4) Reiniciar Passenger
 mkdir -p "$BACK_DEST/tmp"
 date > "$BACK_DEST/tmp/restart.txt"
+
+# 5) Testigo del deploy COMPLETO (ver el paso 1): recién ahora el próximo tick puede decir
+#    "sin cambios". Si la pasada murió antes de esta línea, el tick siguiente la rehace entera.
+printf '%s\n' "$REMOTE" > "$MARCA"
+estado_deploy "OK" "$REMOTE"
 
 echo "$(date '+%F %T') · deploy OK → $REMOTE"

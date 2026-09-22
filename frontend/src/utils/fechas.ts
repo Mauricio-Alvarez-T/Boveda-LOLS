@@ -2,7 +2,7 @@
  * Helpers centralizados para manejo de fechas en formato YYYY-MM-DD.
  *
  * Existencia: auditoría módulo Inventario Sprint 4 (Item 4.2). Antes había
- * 3+ definiciones duplicadas (sabadosWhatsApp.ts, FacturasTab.tsx,
+ * 3+ definiciones duplicadas (el WhatsApp de actividades sugeridas, FacturasTab.tsx,
  * TransferenciaDetail.tsx) cada una con su criterio. Centralizar acá garantiza
  * un único origen y evita bugs por timezone (toLocaleDateString aplica TZ del
  * navegador y puede mostrar el día anterior si la fecha viene en UTC).

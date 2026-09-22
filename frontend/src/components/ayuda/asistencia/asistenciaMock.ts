@@ -2,14 +2,14 @@ import MockAdapter from 'axios-mock-adapter';
 import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 import {
     estadosDemo, trabajadoresDemo, horariosDemo,
-    obraDemo2, registrosDiaPrevioDemo, periodosDemo, sabadosDemo, sabadoDetalleDemo,
+    obraDemo2, registrosDiaPrevioDemo, periodosDemo, actividadesDemo, actividadDetalleDemo,
 } from './asistenciaMockData';
 
 export interface AsistenciaMockOpts {
     /**
      * Se invoca cuando el usuario COMPLETA una acción dentro del demo. El `tipo`
      * identifica el flujo: 'guardar' | 'traslado' | 'feriado-crear' | 'feriado-quitar'
-     * | 'periodo-crear' | 'periodo-quitar' | 'sabado-crear' | 'sabado-asistencia'.
+     * | 'periodo-crear' | 'periodo-quitar' | 'actividad-crear' | 'actividad-asistencia'.
      * El runner decide qué acción completa cada tutorial.
      */
     onAccion?: (tipo: string) => void;
@@ -33,7 +33,7 @@ function fechaDe(config: AxiosRequestConfig): string | null {
  * Registra en la instancia `api` (axios) los endpoints de Asistencia con datos de
  * ejemplo; TODO lo demás pasa al backend real (`onNoMatch: 'passthrough'`).
  * Cubre los flujos: diaria, traslado de obra, feriado (con estado), repetir día,
- * exportar Excel/WhatsApp, justificar período y sábado extra.
+ * exportar Excel/WhatsApp, justificar período y lista de actividades sugeridas.
  * Extraído de AsistenciaSandbox para ser testeable sin React ni `services/api`.
  *
  * Devuelve el `MockAdapter` → el caller DEBE llamar `.restore()` al desmontar para
@@ -101,19 +101,19 @@ export function installAsistenciaMock(api: AxiosInstance, opts: AsistenciaMockOp
         return [200, { data: { message: 'Período eliminado' } }];
     });
 
-    // ── Sábado extra ──
-    mock.onGet(/\/sabados-extra\/\d+$/).reply(200, { data: sabadoDetalleDemo });
-    mock.onGet(/\/sabados-extra(\?|$)/).reply(200, { data: sabadosDemo });
-    mock.onPost(/\/sabados-extra$/).reply(() => {
-        accion('sabado-crear');
-        return [201, { data: { id: sabadoDetalleDemo.id } }];
+    // ── Lista de actividades sugeridas ──
+    mock.onGet(/\/actividades-sugeridas\/\d+$/).reply(200, { data: actividadDetalleDemo });
+    mock.onGet(/\/actividades-sugeridas(\?|$)/).reply(200, { data: actividadesDemo });
+    mock.onPost(/\/actividades-sugeridas$/).reply(() => {
+        accion('actividad-crear');
+        return [201, { data: { id: actividadDetalleDemo.id } }];
     });
-    mock.onPut(/\/sabados-extra\/\d+\/citacion$/).reply(200, { data: { message: 'ok' } });
-    mock.onPut(/\/sabados-extra\/\d+\/asistencia$/).reply(() => {
-        accion('sabado-asistencia');
+    mock.onPut(/\/actividades-sugeridas\/\d+\/lista$/).reply(200, { data: { message: 'ok' } });
+    mock.onPut(/\/actividades-sugeridas\/\d+\/asistencia$/).reply(() => {
+        accion('actividad-asistencia');
         return [200, { data: { message: 'ok' } }];
     });
-    mock.onDelete(/\/sabados-extra\/\d+$/).reply(200, { data: { message: 'ok' } });
+    mock.onDelete(/\/actividades-sugeridas\/\d+$/).reply(200, { data: { message: 'ok' } });
 
     // ── Exportar / compartir (devuelven algo válido; la descarga/copia es client-side) ──
     mock.onGet(/\/asistencias\/exportar\/excel/).reply(() => {

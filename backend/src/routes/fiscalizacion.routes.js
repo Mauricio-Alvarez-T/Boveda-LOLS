@@ -8,12 +8,26 @@ const emailService = require('../services/email.service');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger-structured');
+const { sanitizeTrabajadorPersonal } = require('../utils/sanitizeFinancialFields');
 
 // Advanced Search Endpoint
+// El gate es `documentos.ver`, más amplio que `trabajadores.ver`, y la consulta hace `SELECT t.*`:
+// sin sanitizar, la ficha completa (domicilio, AFP, salud, banco, número de cuenta, causal de baja)
+// viajaba al navegador de cualquiera que pudiera ver documentos. Misma allow-list que el quick-view.
 router.get('/trabajadores-avanzado', auth, checkPermission('documentos.ver'), async (req, res, next) => {
     try {
-        const result = await fiscalizacionService.searchTrabajadores(req.query);
-        res.json({ data: result });
+        const result = await fiscalizacionService.searchTrabajadores(req.query, req.user?.p);
+        // La allow-list del sanitizer solo cubre columnas de la tabla: los agregados de
+        // documentación se calculan acá y no son datos personales, así que se re-adjuntan
+        // (si no, la barra de completitud de la grilla se vería en 0 % sin trabajadores.ver).
+        res.json({
+            data: result.map(t => ({
+                ...sanitizeTrabajadorPersonal(t, req.user?.p),
+                docs_subidos: t.docs_subidos,
+                docs_totales: t.docs_totales,
+                docs_porcentaje: t.docs_porcentaje,
+            })),
+        });
     } catch (err) { next(err); }
 });
 
@@ -59,10 +73,11 @@ router.post('/enviar-excel', auth, checkPermission('reportes.enviar_email'), asy
         fs.writeFileSync(excelPath, buffer);
 
         let zipPath = null;
+        const zipStats = { omitidos: 0 };
         const workerIds = trabajador_ids || (filters.trabajador_id ? [filters.trabajador_id] : []);
         if (workerIds.length > 0) {
             try {
-                zipPath = await zipService.createZip(workerIds);
+                zipPath = await zipService.createZip(workerIds, zipStats);
             } catch (e) {
                 logger.error('Error generando ZIP de documentos', { err: e.message });
             }
@@ -79,7 +94,8 @@ router.post('/enviar-excel', auth, checkPermission('reportes.enviar_email'), asy
             fromPassword: credentials.password,
             to: destinatario_email,
             subject: asunto || 'Reporte de Personal y Documentación - Bóveda LOLS',
-            body: cuerpo || 'Adjunto el reporte y la documentación respaldatoria solicitada.',
+            body: (cuerpo || 'Adjunto el reporte y la documentación respaldatoria solicitada.')
+                + (zipStats.omitidos > 0 ? `\n\nNota: ${zipStats.omitidos} documento(s) laboral(es) restringido(s) (contratos, finiquitos, anexos) no se adjuntan por correo; se descargan desde Bóveda con el permiso correspondiente.` : ''),
             attachmentPaths
         });
 

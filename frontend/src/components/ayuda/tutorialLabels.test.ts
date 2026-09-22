@@ -21,15 +21,19 @@ const CASOS: Array<{ archivo: string; etiquetas: string[] }> = [
     { archivo: 'attendance/ui/AttendanceHeaderActions.tsx', etiquetas: ['Guardar', 'Marcar Feriado', 'Quitar Feriado', 'Repetir día anterior', 'Reporte Mensual', 'Compartir por WhatsApp'] },
     { archivo: 'attendance/TrasladoObraModal.tsx', etiquetas: ['Completar Traslado'] },
     { archivo: 'attendance/WorkerCalendarModal.tsx', etiquetas: ['Confirmar Período'] },
-    { archivo: 'attendance/sabados/SabadosExtraList.tsx', etiquetas: ['Nueva citación'] },
-    { archivo: 'attendance/sabados/SabadoExtraForm.tsx', etiquetas: ['Crear citación'] },
-    { archivo: 'attendance/sabados/SabadoExtraAsistencia.tsx', etiquetas: ['Guardar asistencia'] },
+    { archivo: 'attendance/actividades/ActividadesSugeridasList.tsx', etiquetas: ['Nueva lista'] },
+    { archivo: 'attendance/actividades/ActividadSugeridaForm.tsx', etiquetas: ['Crear lista'] },
+    { archivo: 'attendance/actividades/ActividadSugeridaAsistencia.tsx', etiquetas: ['Guardar asistencia'] },
     // Vehículos — página (lista/modal) y panel de documentos.
     { archivo: '../pages/Vehiculos.tsx', etiquetas: ['Nuevo vehículo', 'Editar vehículo', 'Guardar'] },
     { archivo: 'vehiculos/VehiculoDocumentos.tsx', etiquetas: ['Agregar', 'Subir documento', 'Guardar registro'] },
-    // Consultas — página (crear/editar/guardar) + CreatePanel + ficha del trabajador.
-    { archivo: '../pages/Consultas.tsx', etiquetas: ['CREAR', 'Guardar', 'Editar trabajador'] },
-    { archivo: 'consultas/CreatePanel.tsx', etiquetas: ['Trabajador'] },
+    // Gestiones (archivo pages/Consultas.tsx; rename solo de etiqueta 2026-09-11) — página + CreatePanel + ficha.
+
+    { archivo: '../pages/Consultas.tsx', etiquetas: ['Gestiones', 'CREAR', 'Guardar'] },
+    { archivo: 'consultas/TrabajadoresGrilla.tsx', etiquetas: ['Editar trabajador'] },
+
+    { archivo: 'layout/Sidebar.tsx', etiquetas: ["label: 'Gestiones'"] },
+    { archivo: 'consultas/crearItems.ts', etiquetas: ['Trabajador', 'Nuevo ingreso'] },
     { archivo: 'workers/WorkerQuickView.tsx', etiquetas: ['Ver documento'] },
 ];
 

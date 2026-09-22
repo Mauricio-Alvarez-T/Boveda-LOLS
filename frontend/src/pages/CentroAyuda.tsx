@@ -10,6 +10,7 @@ import { AsistenciaJourneyRunner } from '../components/ayuda/asistencia/Asistenc
 import { VehiculosJourneyRunner } from '../components/ayuda/vehiculos/VehiculosJourneyRunner';
 import { ConsultasJourneyRunner } from '../components/ayuda/consultas/ConsultasJourneyRunner';
 import { JOURNEYS, type JourneyDef } from '../components/ayuda/journey/journeys';
+import { textoBusqueda } from '../components/ayuda/journey/buscarJourneys';
 import { useTutorialProgreso } from '../hooks/ayuda/useTutorialProgreso';
 
 /**
@@ -107,10 +108,7 @@ const CentroAyuda: React.FC = () => {
         const q = query.trim().toLowerCase();
         return JOURNEYS.filter(j => {
             if (cat && j.modulo !== cat) return false;
-            if (q) {
-                const hay = `${j.titulo} ${j.descripcion} ${j.modulo}`.toLowerCase();
-                if (!hay.includes(q)) return false;
-            }
+            if (q && !textoBusqueda(j).includes(q)) return false;
             return true;
         });
     }, [query, cat]);

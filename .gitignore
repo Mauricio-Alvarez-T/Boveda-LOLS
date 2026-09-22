@@ -21,3 +21,7 @@ backend/generate_import_sql.js
 backend/workers.json
 git_history.txt
 git_history_utf8.txt
+
+# Documentos de trabajadores (PDF/TXT con RUT). Repo PUBLICO: nunca versionar. El servidor los preserva
+# fuera del deploy (rsync --exclude uploads/ en scripts/cpanel-deploy-*.sh). Des-versionados 2026-09-11.
+backend/uploads/

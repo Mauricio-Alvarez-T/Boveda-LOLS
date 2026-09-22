@@ -50,4 +50,18 @@ Se resolvieron los siguientes puntos críticos:
 
 ---
 
-*Última actualización: Abril 2026*
+## 🏷️ Drift de nombres — módulo "Gestiones" (2026-09-11)
+*   **Problema**: el módulo que el usuario ve como **Gestiones** (antes "Consultas", antes "Nómina & Reportes", antes "Fiscalización") conserva sus identificadores históricos: URL `/consultas` (7 deep-links construidos en `backend/src/services/dashboard.service.js`), archivos `pages/Consultas.tsx`, `components/consultas/`, `hooks/consultas/`, `components/ayuda/consultas/`, backend `fiscalizacion.routes.js`/`fiscalizacion.service.js`, permisos `reportes.*`/`documentos.*`, sección `consultas` de `permisosHierarchy.ts` y runner `'consultas'` de tutoriales.
+*   **Decisión (plan Gestiones, B0)**: rename SOLO de etiqueta visible + nombres de permisos (se resincronizan al arrancar) + alias de búsqueda en Ayuda (`buscarJourneys.ts`). Precedentes del repo: 33a9fcb (Discrepancias→Diferencias) y 59fd108 (Fiscalización→Nómina & Reportes). Cambiar URL/archivos rompería bookmarks, el acople FE/BE del dashboard y `tutorialLabels.test.ts` (lee componentes por path).
+*   **Deuda**: si algún día se cambia la URL, agregar `<Route path="consultas">` → `<Navigate to={"/gestiones" + location.search}>` (Navigate NO conserva el query string) y actualizar las 7 rutas de `dashboard.service.js` en el MISMO release.
+
+---
+
+## 🧹 Lint del frontend fuera de CI (2026-09-11)
+*   **Estado**: `cd frontend && npm run lint` reporta **318 errores + 36 warnings** preexistentes (`no-explicit-any`, `no-unused-vars`, `react-hooks/exhaustive-deps`, "Compilation Skipped" del compilador React). Las reglas del design system (`docs/reglas/diseno.md`) sí están en 0.
+*   **Consecuencia**: el job `frontend-tests` de `.github/workflows/backend-tests.yml` (agregado en B1 del plan Gestiones) corre solo `npm test`; `npm run lint` es gate MANUAL sobre los archivos tocados (comparar con `git stash`/rama base para no heredar rojos).
+*   **Meta**: barrido por módulo hasta 0 errores y luego `npm run lint` en el job.
+
+---
+
+*Última actualización: Septiembre 2026*

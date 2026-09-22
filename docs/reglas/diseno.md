@@ -100,7 +100,7 @@ WhatsApp* conservan un tinte **verde persistente** (no gris-idle) por reconocibi
 porque en mobile no hay hover — análogo a las excepciones de encabezados verdes/tabs/toasts. Tokens
 de la escala `green` (ej. `bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300`),
 nunca hex. Aplicado en el detalle de transferencia (`TransferenciaActionsMenu`); patrón replicable a
-los WhatsApp de asistencia/sábados.
+los WhatsApp de asistencia/actividades sugeridas.
 
 ### CTAs destructivas y decoración (F2.9)
 - **CTA destructiva** (confirmar finiquito / depurar / borrar): `<Button
@@ -226,3 +226,100 @@ Principios y reglas concretas:
 
 **Referencia canónica del look:** `frontend/src/pages/Login.tsx` (hero a pantalla
 dividida) — úsalo como ancla al migrar otras pantallas en F5.
+
+---
+
+## 8. Paneles laterales y filtros (2026-09-16)
+
+1. **Los filtros de una lista larga van en un rail vertical, no en una banda horizontal.** Una pantalla
+   de datos se lee en vertical: cada fila es un registro. Si el panel de filtros se abre **encima** de la
+   lista dentro de un contenedor de alto fijo, no la desplaza: le quita filas justo cuando el usuario
+   quiere ver el resultado de lo que está filtrando. El rail le quita **ancho**, que sobra.
+   (Coincide con Baymard, Pencil & Paper y Helios: el sidebar escala en vertical, persiste mientras se
+   recorre el resultado y no esconde tipos de filtro detrás de un "ver más".)
+   Implementación de referencia: `components/consultas/FiltrosRail.tsx` + `FilterPanel.tsx`.
+2. **Tres presentaciones del mismo panel, por ancho:** ≥1280 columna en flujo que empuja el contenido ·
+   768–1279 la misma columna flotando sobre él, con backdrop · <768 hoja inferior arrastrable.
+3. **Elegir la presentación con `useMediaQuery` (`hooks/useMediaQuery.ts`), NUNCA con
+   `hidden md:block` / `md:hidden`.** Las dos ramas CSS montan los hijos **dos veces** en el DOM: ids de
+   formulario duplicados (el caso de `ui/Modal.tsx`) o `aria-label` duplicados (el caso de los filtros).
+4. **Más de ~8 controles → grupos plegables con contador**, con los grupos más usados abiertos y los que
+   traen un valor por deep-link desplegados solos. La estructura y el conteo van en un `.ts` puro con
+   test (el jest del front solo corre `*.test.ts` sin JSX).
+5. **Un popover dentro de un contenedor con scroll va en portal con `position: fixed`.** Un `absolute`
+   queda recortado por el `overflow` del panel. Cierra con click fuera, `Escape` y scroll.
+6. **Filtrado instantáneo** (sin botón "Aplicar") mientras el conjunto sea chico. "Limpiar" siempre
+   visible en la cabecera del panel cuando haya algo puesto. El debounce que pedía esta regla vale para
+   los controles que van al servidor; el buscador de texto **no lo lleva** — ver la regla 13.
+7. **El disparador vive donde ocurre el efecto.** El botón que abre un panel lateral va pegado al borde
+   por el que el panel aparece, no en el header global: si el panel entra por la izquierda de una tabla,
+   el botón va en el extremo izquierdo de la cabecera de esa tabla. Referencia:
+   `components/consultas/BotonFiltros.tsx`.
+8. **Nada de morph con `layoutId` desde un control que vive dentro de un contenedor `overflow-hidden`
+   hacia un panel que está fuera de él**: al cerrar, el elemento arranca con el tamaño del panel y esa
+   misma card lo rebana durante casi toda la animación. Lo que sí funciona es una **estela** que barre
+   hacia el borde por donde entra el panel — ahí el recorte juega a favor: la estela se mete por la
+   ranura y el panel toma la posta.
+9. **Nunca animar `width`/`height`/`margin` de un contenedor que comparte fila con una tabla grande.**
+   Cada frame obliga al navegador a rehacer el layout, y una tabla de ancho automático vuelve a medir
+   todas las celdas de todas las filas: con 40 filas ya se nota el tirón, con 250 es inusable. El panel
+   toma su ancho **de una vez** (un solo reflow) y lo que se anima es `transform`/`opacity`. Por la misma
+   razón, nada de `backdrop-blur` sobre una tabla mientras algo se mueve encima.
+10. **Una lista flotante nunca se cierra por «un scroll cualquiera».** `scroll` no burbujea, pero un
+    listener en `window` con `capture: true` **sí** recibe el de la propia lista, así que cerrar ahí la
+    vuelve inusable: un tic de rueda y desaparece (pasó el 2026-09-16 con `FilterSelect`). El handler
+    debe: (1) ignorar el scroll originado dentro del popover; (2) ante el de un ancestro, **reposicionar**
+    —amortiguado con `requestAnimationFrame`, como `useTutorialSpotlight`— en vez de cerrar; (3) cerrar
+    solo si el disparador salió de la pantalla. Y la lista lleva `overscroll-contain`, para que al llegar
+    al final la rueda no siga scrolleando lo de atrás.
+    **Nada de esto se vuelve a escribir a mano:** el cableado es `hooks/usePosicionFlotante.ts` y la
+    aritmética `components/ui/popoverPos.ts` (puro, con test). El hook devuelve `disparadorRef`,
+    `flotanteRef` (el que deja ignorar el scroll propio), `estilo` y `medir()`; se llama `medir()` en el
+    mismo handler que abre, **antes** del `setOpen(true)`, porque medir dentro de un efecto es un
+    `setState` en efecto y además parpadea. La variante (`'lista'` / `'hoja'` / `'tooltip'`) elige qué
+    parte del cálculo llega al `style`: un menú que ya fija su ancho por CSS —los de asistencia son
+    `fixed left-3 right-3` en mobile— pide `'hoja'` y recibe solo la vertical, porque un `left`/`width`
+    en línea pisaría esas clases. (2026-09-16: los menús móviles de asistencia y el tooltip de
+    `StockBadge` medían una vez al abrir y se quedaban clavados al viewport al scrollear.)
+11. **La animación no puede mentir sobre la dirección.** El icono dice de dónde viene el panel
+   (`PanelLeftOpen`/`PanelLeftClose` para un lateral, `SlidersHorizontal` para una hoja inferior) y el
+   panel se despliega **desde el borde del disparador**: un panel en flujo que anima su ancho debe anclar
+   su contenido al lado que toca el botón (`justify-end` cuando el botón queda a la derecha del panel),
+   o se revelará por el lado contrario y el gesto se leerá al revés. Con `prefers-reduced-motion`, solo
+   fundido (`useReducedMotion`, precedente en `ui/Modal.tsx`).
+12. **El listener que cierra un menú va gateado por «abierto», y vive en `hooks/useCierreExterno.ts`.**
+    Registrarlo con deps `[]` —como hacían `ObraSelector`, `NotificationBell` y el overflow del header de
+    asistencia— significa que cada `mousedown` y cada `touchstart` de la aplicación entera, en cualquier
+    pantalla y con todo cerrado, entra al handler y dispara un `setOpen(false)` inútil. El hook no
+    registra nada mientras `abierto` sea falso. Dos detalles que se pagan caro si se reimplementan: un
+    popover **en portal no cuelga del ancla**, así que hay que pasarle el ref del flotante en `extras` o
+    el menú se cerrará al tocar sus propias opciones (de ahí `hooks/cierreExterno.ts`, puro y con test); y
+    `alCerrar` es un callback libre, no un `setOpen`, porque hay menús que al cerrarse pliegan además su
+    detalle (la campana). Un menú `absolute` dentro de un `relative` necesita **solo** este hook, no el
+    de colocación.
+13. **Un buscador que filtra una lista ya cargada no va al servidor, y el debounce no es lo que arregla
+    que se pierdan letras.** (2026-09-17, Gestiones → Trabajadores.) Con menos de ~1.000 registros y un
+    índice pre-normalizado, filtrar cuesta microsegundos: pedirle al servidor una vez por tecla solo
+    agrega latencia, y un debounce agrega más. Lo que sí traba el input es el **render**. Tres reglas:
+    - **El texto vive en el componente del input.** Nunca en un estado de arriba que se lo reinyecte —y
+      muchísimo menos viajando por un contexto que lo guarda **desde un efecto**, como hace
+      `PageHeaderContext`: ahí el `value` llega un ciclo de render tarde, React le devuelve al nodo DOM
+      el valor viejo al cerrar el evento y las pulsaciones rápidas se pierden. Ese fue el bug exacto de
+      Gestiones, y por eso `BuscadorTrabajadores` es dueño de su texto y publica hacia arriba. Para
+      resetearlo desde afuera se le cambia la `key`; pasarle el valor lo devolvería al principio. Y el
+      valor inicial entra como **getter estable**, no como string: un buscador que vive en el header
+      **se desmonta** al salir de la sección o al cruzar el breakpoint, y si al volver leyera un valor
+      viejo, la caja aparecería vacía sobre una lista filtrada. El getter es además lo que permite que
+      el elemento no dependa del texto y el header no se recomponga por tecla.
+    - **Lo que se deriva del texto usa el valor diferido, no el inmediato** — la lista, el contador de
+      filtros activos, los ids de exportación. Si alguno usa el inmediato, cambia en el render urgente
+      y esa sola prop distinta basta para que la lista memoizada se renderice igual.
+    - **`useDeferredValue` y `React.memo` van juntos o no van.** El primero baja de prioridad el render
+      de la lista; el segundo permite que la lista se lo salte. Uno sin el otro no hace nada. React
+      Compiler **no** está instalado en este repo y, aunque lo estuviera, no reemplaza al primero.
+    - **La aritmética del match vive en un `.ts` puro con test** (`utils/busquedaTrabajadores.ts`, usado
+      por Asistencia y por Gestiones): normalizar con `NFD` una sola vez al cargar, no por tecla; el RUT
+      indexado en sus tres escrituras; multi-token con AND; y la empresa por **alias**, no por substring.
+      Nada de librerías de fuzzy: sobre un RUT, dos dígitos distintos están a una edición de distancia.
+
+    Por encima de ~2.000 registros esto deja de aplicar y hay que volver al servidor con paginación.

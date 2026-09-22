@@ -71,11 +71,16 @@ const moduloLabels: Record<string, string> = {
     trabajadores: 'Trabajadores', usuarios: 'Usuarios', empresas: 'Empresas',
     obras: 'Obras', cargos: 'Cargos', 'tipos-ausencia': 'Tipos de ausencia',
     'estados-asistencia': 'Estados de asistencia', bodegas: 'Bodegas',
-    'sabados-extra': 'Sábados extra', documentos: 'Documentos',
+    'actividades-sugeridas': 'Actividades sugeridas',
+    // Slug histórico del mismo módulo (filas de logs_actividad anteriores a la mig 116).
+    'sabados-extra': 'Actividades sugeridas',
+    documentos: 'Documentos',
     vehiculos: 'Vehículos', 'empresas-vehiculos': 'Empresas de flota',
     conductores: 'Conductores', feriados: 'Feriados', roles: 'Roles',
     'bombas-hormigon': 'Bombas de hormigón', sistema: 'Sistema',
     'facturas-inventario': 'Facturas',
+    // Sin esta entrada el Historial mostraba «Documentos lotes» (prettify del slug).
+    'documentos-lotes': 'Documentos físicos',
 };
 
 /** Verbo legible por acción (para encabezados del detalle). */

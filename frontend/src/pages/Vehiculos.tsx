@@ -596,7 +596,7 @@ const VehiculosPage: React.FC = () => {
                     fila abre este panel, así que el lápiz de la fila sobraba (y competía
                     con el clic). Sigue respetando el permiso vehiculos.editar. */}
                 {hasPermission('vehiculos.editar') && (
-                    <Button type="button" variant="outline" size="sm" className="shrink-0"
+                    <Button type="button" variant="outline" size="sm" className="shrink-0" aria-label="Editar vehículo" title="Editar vehículo"
                         onClick={() => { setEditVehiculo(selected); setModalVehiculo(true); }}>
                         <Edit2 className="h-4 w-4 mr-1.5" />
                         Editar

@@ -101,22 +101,50 @@ mes calendario (deduplicadas por día):
 Consumo: dashboard (top 20) y **aviso en el WhatsApp diario** ("⚠️ VERIFICAR ASISTENCIA" con las
 fechas DD/MM/YYYY) vía `GET /asistencias/alertas/:obraId?mes&anio` (permiso `asistencia.ver`).
 
-## Sábados extra (`sabados_extra`, mig 040+)
+## Lista de trabajadores en actividades sugeridas (`actividades_sugeridas`, mig 038/040/116)
 
-- Flujo: **citada → asistio/no_asistio** (registro) → cancelable (soft-delete `estado='cancelado'`).
-- **SIN horas (jefatura 2026-08-17)**: el sábado solo registra asistió/no asistió +
-  observación. Las columnas `horas_default`/`horas_trabajadas` quedan muertas en BD (sin
-  migración); no hay inputs de horas ni aparecen en mensajes ni reportes. (La columna
-  Excel "SÁB EXTRA (h)" ya se había eliminado en 671afc9, 2026-05-20.)
-- Solo sábados (getDay=6), no pasado, máx 1 año adelante (`sabadosExtra.service.js`).
-- Si coincide con feriado activo → 409; UI confirma con `acepta_feriado=true`.
-- Concurrencia: `SELECT ... FOR UPDATE` en transiciones.
-- No se permite citar para obra inactiva.
-- 6 permisos granulares (ver/crear/editar/cancelar/registrar/enviar_whatsapp).
-- **WhatsApp (citación y asistencia)**: la tarea de cada rubro va DEBAJO de su grupo
-  (`_Tarea: …_` bajo el header del cargo, desde `observaciones_por_cargo`); la
-  observación global se mantiene al final si existe. Builders en
-  `frontend/src/components/attendance/sabados/sabadosWhatsApp.ts` (+ tests `.test.ts`).
+Antes "Sábados extra". **Jefatura 2026-09-21: eliminar toda referencia a que los trabajos
+extraordinarios sean "trabajos de los días sábados".** Renombrado completo (tablas, ruta API,
+claves de permiso, archivos) en la migración 116.
+
+- Qué es: una **lista** de trabajadores, por obra, asignados a actividades sugeridas; se envía
+  por WhatsApp y luego se registra quién asistió. Aislada de la asistencia diaria.
+- **Semana, no día.** La lista se asigna a una semana **lunes a viernes** identificada por su
+  lunes en la columna `semana` (DATE). El selector del form ofrece semanas desde la en curso
+  (`utils/semanas.ts`: `opcionesSemanas`, `fmtSemana` → "Semana lun 21/09 – vie 25/09"). Fines de
+  semana descartados. Las listas históricas (fechas de sábado) migraron al lunes de su semana.
+- Validación (`actividadesSugeridas.service.js` → `validarSemana`): debe ser lunes; no anterior
+  al lunes de la semana en curso (el viernes aún se puede armar la de esa semana); máx. 1 año.
+  **Sin cruce con feriados** (una semana no "coincide" con un feriado).
+- **Una lista por obra y semana** (UNIQUE `uniq_obra_semana` + `SELECT … FOR UPDATE`); 409 "Ya
+  existe una lista para esta obra en esa semana" → la UI abre la existente.
+- Flujo/estados (ENUM interno intacto): `citada` (UI "Creada") → `realizada` (registro) →
+  `cancelada` (soft-delete; detalle `cancelado`). Solo se edita en `citada`; la semana no se edita.
+- **SIN horas (jefatura 2026-08-17)**: solo asistió/no asistió + observación. Columnas
+  `horas_default`/`horas_trabajadas` muertas en BD.
+- No se permite armar listas para obra inactiva ni con trabajadores finiquitados; 1..500.
+- Permisos: `asistencia.actividades_sugeridas.{ver,crear,editar,cancelar,registrar,enviar_whatsapp}`
+  (las claves `asistencia.sabados_extra.*` se repuntaron en la mig 116; **re-login general**
+  vía `roles.version + 1`).
+- **WhatsApp (lista y asistencia)**: cabecera `*Lista de trabajadores en actividades sugeridas*` +
+  `Semana lun dd/mm – vie dd/mm — Obra X`; la actividad de cada rubro va DEBAJO de su grupo
+  (`_Actividad: …_` desde `observaciones_por_cargo`); observación global al final; sin emojis.
+  Builders puros en `frontend/src/components/attendance/actividades/actividadesWhatsApp.ts`
+  (+ tests). UI: pestaña "Actividades" en Asistencia (`?tab=actividades&actividadId=`), botones
+  "Nueva lista" / "Crear lista" / "Guardar asistencia" (los resalta el tutorial de Ayuda).
+- Historial de actividad: las filas anteriores conservan `modulo='sabados-extra'`; el frontend
+  las rotula "Actividades sugeridas" (`logNormalizer.ts`).
+- **Informe de asistencia (mig 117, 2026-09-21).** Permiso propio
+  `asistencia.actividades_sugeridas.informe` (Paula prepara pagos por cargo). Dos endpoints:
+  `GET /resumen-semana?semana=` (gate `…ver`) devuelve `por_cargo`, totales y las semanas con
+  asistencia; `GET /informe-excel?semana=` (gate `…informe`) entrega el Excel de **dos hojas**:
+  "Por cargo" (todos los que asistieron agrupados por cargo) y "Por obra" (obra → cargo →
+  trabajadores), columnas N°/apellidos/nombres/RUT/cargo/obra/observación, total por grupo y
+  general. **Solo listas `realizada` y filas `asistio`**; excluye obras de prueba e **incluye**
+  finalizadas (es historial de pago). Sin montos (pendiente). La semana por defecto es la última
+  con asistencia; se elige con un selector. Se ve en **Inicio** (widget `ActividadesSemana`) y en
+  **Gestiones** (botón "Informe actividades" → modal con el mismo bloque). Etiqueta de semana
+  compartida en `backend/src/utils/semana.js` y `frontend/src/utils/semanas.ts`.
 
 ## Excel de nómina — pago base 30 días (mes comercial)
 

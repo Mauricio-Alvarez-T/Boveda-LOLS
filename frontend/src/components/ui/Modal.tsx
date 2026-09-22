@@ -1,4 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+
+/**
+ * Pila de modales abiertos (a nivel de módulo). Con modales ANIDADOS — kit de ingreso dentro de la revisión
+ * de una solicitud, finiquito dentro de desvincular — Escape debe cerrar SOLO el de más arriba: antes cada
+ * Modal escuchaba keydown por su cuenta y una sola tecla cerraba los dos (y desmontaba la pantalla de éxito).
+ */
+const modalesAbiertos: symbol[] = [];
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -25,6 +32,10 @@ interface ModalProps {
      * visibilidad responsive si quiere mostrarlo solo en desktop/móvil.
      */
     headerAction?: React.ReactNode;
+    /** Subtítulo bajo el título: de quién / de qué trata el modal (nombre · RUT, portador…). */
+    description?: React.ReactNode;
+    /** Icono del dominio en una baldosa verde suave a la izquierda del título. */
+    icon?: React.ElementType;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -35,7 +46,9 @@ export const Modal: React.FC<ModalProps> = ({
     footer,
     size = 'md',
     noBodyPadding = false,
-    headerAction
+    headerAction,
+    description,
+    icon: Icon,
 }) => {
     // ⚠️ Render condicional móvil/desktop (NO ambos a la vez).
     // Antes se renderizaban los dos bloques y se ocultaba uno con `md:hidden` /
@@ -79,14 +92,22 @@ export const Modal: React.FC<ModalProps> = ({
     };
 
     // Cierre con tecla Escape (accesibilidad). Reusa handleClose para respetar
-    // el confirm de cambios sin guardar.
+    // el confirm de cambios sin guardar. Solo responde el modal más alto de la pila.
+    const idModal = useRef<symbol | null>(null);
     useEffect(() => {
         if (!isOpen) return;
+        const id = Symbol('modal');
+        idModal.current = id;
+        modalesAbiertos.push(id);
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') handleClose();
+            if (e.key === 'Escape' && modalesAbiertos[modalesAbiertos.length - 1] === id) handleClose();
         };
         window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
+        return () => {
+            window.removeEventListener('keydown', onKey);
+            const i = modalesAbiertos.indexOf(id);
+            if (i >= 0) modalesAbiertos.splice(i, 1);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
@@ -141,8 +162,14 @@ export const Modal: React.FC<ModalProps> = ({
                         )}
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between px-6 py-5 border-b border-border gap-3">
-                            <h3 className="text-lg font-semibold text-brand-dark truncate pr-2">{title}</h3>
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-border gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                                {Icon && <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10"><Icon className="h-5 w-5 text-brand-primary" /></span>}
+                                <div className="min-w-0">
+                                    <h3 className="text-lg font-semibold text-brand-dark truncate pr-2 leading-tight">{title}</h3>
+                                    {description && <p className="text-caption text-muted-foreground truncate pr-2 mt-0.5">{description}</p>}
+                                </div>
+                            </div>
                             <div className="flex items-center gap-3 shrink-0">
                                 {headerAction}
                                 <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-8 w-8 text-muted-foreground hover:text-brand-dark shrink-0">
@@ -204,8 +231,14 @@ export const Modal: React.FC<ModalProps> = ({
                             <div className="pt-3 pb-2 flex justify-center" onClick={handleClose}>
                                 <div className="w-12 h-1.5 rounded-full bg-muted" />
                             </div>
-                            <div className="flex items-center justify-between px-5 pb-4 pt-1">
-                                <h3 className="text-lg font-bold text-brand-dark truncate pr-10">{title}</h3>
+                            <div className="flex items-center justify-between px-5 pb-4 pt-1 gap-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    {Icon && <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10"><Icon className="h-5 w-5 text-brand-primary" /></span>}
+                                    <div className="min-w-0">
+                                        <h3 className="text-lg font-bold text-brand-dark truncate leading-tight">{title}</h3>
+                                        {description && <p className="text-caption text-muted-foreground truncate mt-0.5">{description}</p>}
+                                    </div>
+                                </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                     {headerAction}
                                     {/* eslint-disable-next-line no-restricted-syntax -- interno de primitiva: cierre sheet móvil */}

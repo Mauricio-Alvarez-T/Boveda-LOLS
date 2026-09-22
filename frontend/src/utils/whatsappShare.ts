@@ -2,7 +2,7 @@ import { toast } from 'sonner';
 
 /**
  * Helpers para compartir mensajes vía WhatsApp.
- * Centralizado para reuso entre asistencia, transferencias inventario y sábados extra.
+ * Centralizado para reuso entre asistencia, transferencias inventario y actividades sugeridas.
  *
  * Estrategia robusta de compartir:
  * 1. Copia el mensaje al portapapeles (respaldo si el redirect URL corrompe emojis SMP).

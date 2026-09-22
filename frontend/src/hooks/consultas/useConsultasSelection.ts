@@ -1,15 +1,14 @@
 import { useState, useCallback } from 'react';
 
-export const useConsultasSelection = (workersLength: number, workersIds: number[]) => {
+/**
+ * Selección de trabajadores para las acciones masivas de la grilla (Enviar por correo / Exportar).
+ *
+ * Se selecciona casilla por casilla: el «Seleccionar todos» se retiró el 2026-09-16 porque no se usaba
+ * (el dueño lo confirmó). Para actuar sobre TODO el resultado del filtro están los botones del header,
+ * que trabajan sin selección; por eso este hook ya no necesita saber cuántos trabajadores hay ni cuáles.
+ */
+export const useConsultasSelection = () => {
     const [selectedWorkers, setSelectedWorkers] = useState<Set<number>>(new Set());
-
-    const handleSelectAll = useCallback(() => {
-        if (selectedWorkers.size === workersLength && workersLength > 0) {
-            setSelectedWorkers(new Set());
-        } else {
-            setSelectedWorkers(new Set(workersIds));
-        }
-    }, [selectedWorkers.size, workersLength, workersIds]);
 
     const handleSelectWorker = useCallback((id: number) => {
         setSelectedWorkers(prev => {
@@ -27,7 +26,6 @@ export const useConsultasSelection = (workersLength: number, workersIds: number[
     return {
         selectedWorkers,
         setSelectedWorkers,
-        handleSelectAll,
         handleSelectWorker,
         clearSelection
     };

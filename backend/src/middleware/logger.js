@@ -244,6 +244,22 @@ const activityLogger = async (req, res, next) => {
             // Excluir queries de solo lectura que usan POST (ej. KPIs con arreglos grandes)
             if (req.originalUrl.match(/\/(kpi|exportar|enviar|download)/i)) return;
 
+            // Sueldos por cargo (mig 111): el body trae montos y este módulo no está en validModulos
+            // (se volcaría el body completo al detalle). El service registra un log manual sin cifras.
+            if (/^\/api\/cargo-sueldos(\/|$)/.test(req.originalUrl.split('?')[0])) return;
+
+            // Desvincular / reactivar (mig 112): el service registra un log manual con causal y sin
+            // `detalle` (antecedente interno). El log global solo duplicaría un UPDATE sin diff.
+            if (/^\/api\/trabajadores\/\d+\/(desvincular|reactivar)$/.test(req.originalUrl.split('?')[0])) return;
+
+            // Documentos laborales generados (mig 110): el body puede traer datos de la carta y la
+            // respuesta ids; el service registra documento_emitido / documento_descargado sin montos.
+            if (/^\/api\/documentos-laborales(\/|$)/.test(req.originalUrl.split('?')[0])) return;
+            if (/^\/api\/solicitudes-ingreso\/\d+\/doc$/.test(req.originalUrl.split('?')[0])) return;
+            // Custodia de documentos físicos (mig 114): el service loguea lote_creado / lote_retirado /
+            // lote_recepcion / lote_anulado con conteos; el log global solo duplicaría listas de ids.
+            if (/^\/api\/documentos-lotes(\/|$)/.test(req.originalUrl.split('?')[0])) return;
+
             try {
                 const usuario_id = req.user ? req.user.id : null;
                 const ip = req.ip || req.connection.remoteAddress;

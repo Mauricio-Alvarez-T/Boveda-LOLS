@@ -17,13 +17,16 @@ const MAESTRO_PERMISOS = [
     ['asistencia.horarios.ver',     'Asistencia', 'Ver Horarios',                'Ver la configuración de horarios laborales', 9],
     ['asistencia.horarios.editar',  'Asistencia', 'Editar Horarios',             'Modificar horarios laborales', 10],
     ['asistencia.tomar.global',     'Asistencia', 'Asistencia Global',           'Tomar asistencia de todas las obras simultáneamente', 11],
-    ['asistencia.sabados_extra.ver',           'Asistencia', 'Ver Sábados Extra',           'Ver el listado de citaciones de trabajo extraordinario en sábado', 12],
-    ['asistencia.sabados_extra.crear',         'Asistencia', 'Crear Citación Sábado',       'Crear citaciones de trabajo extraordinario en sábado', 13],
-    ['asistencia.sabados_extra.editar',        'Asistencia', 'Editar Citación Sábado',      'Editar citaciones de trabajo extraordinario en sábado en estado "citada"', 14],
-    ['asistencia.sabados_extra.cancelar',      'Asistencia', 'Cancelar Citación Sábado',    'Cancelar citaciones de trabajo extraordinario en sábado', 15],
-    ['asistencia.sabados_extra.registrar',     'Asistencia', 'Registrar Asistencia Sábado', 'Marcar asistencia y horas trabajadas el sábado', 16],
-    ['asistencia.sabados_extra.enviar_whatsapp','Asistencia','Enviar Sábado por WhatsApp',  'Compartir citación o asistencia de sábado por WhatsApp', 17],
-    ['asistencia.horas_extra.ver',  'Asistencia', '$ Ver Horas Extra',           'Asistencia → Vista Diaria y Exportación Excel: si está denegado, oculta las columnas "Horas Extra" y "Horas Sábado" (datos sensibles porque son insumo del cálculo de pago).', 18],
+    // Lista de trabajadores en actividades sugeridas (antes "sábados extra"; renombrado por
+    // jefatura 2026-09-21, mig 116). Claves nuevas: las viejas se repuntaron en la migración.
+    ['asistencia.actividades_sugeridas.ver',             'Asistencia', 'Ver actividades sugeridas',                     'Ver las listas de trabajadores en actividades sugeridas', 12],
+    ['asistencia.actividades_sugeridas.crear',           'Asistencia', 'Crear lista de actividades sugeridas',          'Crear listas de trabajadores en actividades sugeridas (por obra y semana)', 13],
+    ['asistencia.actividades_sugeridas.editar',          'Asistencia', 'Editar lista de actividades sugeridas',         'Editar una lista mientras no se registre la asistencia', 14],
+    ['asistencia.actividades_sugeridas.cancelar',        'Asistencia', 'Cancelar lista de actividades sugeridas',       'Cancelar listas de trabajadores en actividades sugeridas', 15],
+    ['asistencia.actividades_sugeridas.registrar',       'Asistencia', 'Registrar asistencia a actividades sugeridas', 'Marcar quién asistió a las actividades sugeridas', 16],
+    ['asistencia.actividades_sugeridas.enviar_whatsapp', 'Asistencia', 'Enviar lista por WhatsApp',                     'Compartir la lista o su asistencia por WhatsApp', 17],
+    ['asistencia.actividades_sugeridas.informe',          'Asistencia', 'Descargar informe de actividades sugeridas',     'Ver el resumen por cargo y descargar el Excel (por cargo / por obra) de quiénes asistieron en una semana', 18],
+    ['asistencia.horas_extra.ver',  'Asistencia', '$ Ver Horas Extra',           'Asistencia → Vista Diaria y Exportación Excel: si está denegado, oculta la columna "Horas Extra" (dato sensible porque es insumo del cálculo de pago).', 18],
 
     // TRABAJADORES
     ['trabajadores.ver',            'Trabajadores', 'Ver Trabajadores',          'Ver la lista y fichas de trabajadores', 1],
@@ -35,17 +38,25 @@ const MAESTRO_PERMISOS = [
     ['trabajadores.financiero.ver', 'Trabajadores', '$ Ver Datos Financieros',   'Trabajadores → Ficha del Trabajador: si está denegado, oculta la sección de sueldo base, anticipos y descuentos. (Campos en desarrollo — aún no implementados en la UI.)', 7],
     ['trabajadores.financiero.editar','Trabajadores','$ Editar Datos Financieros','Trabajadores → Ficha del Trabajador: si está denegado, los campos de sueldo, anticipos y descuentos aparecen como solo lectura. Requiere también "Ver Datos Financieros". (Campos en desarrollo.)', 8],
     // Ficha de ingreso digital (mig 108): terreno solicita, oficina aprueba.
-    ['trabajadores.solicitud.crear',  'Trabajadores', 'Solicitar Ingreso de Trabajador',          'Consultas → botón "Nuevo ingreso": permite llenar la ficha de ingreso digital (solicitud) de un trabajador nuevo SIN necesidad de "Crear Trabajador". La solicitud queda pendiente hasta que oficina la apruebe. Pensado para supervisores / prevencionistas en terreno.', 9],
-    ['trabajadores.solicitud.aprobar','Trabajadores', 'Aprobar / Rechazar Solicitudes de Ingreso', 'Consultas → Solicitudes: permite revisar las fichas de ingreso pendientes, corregirlas, asignar la empresa y aprobarlas (crea el trabajador) o rechazarlas con motivo. Habilita el contador de pendientes en el menú.', 10],
+    ['trabajadores.solicitud.crear',  'Trabajadores', 'Solicitar Ingreso de Trabajador',          'Gestiones → botón "Nuevo ingreso": permite llenar la ficha de ingreso digital (solicitud) de un trabajador nuevo SIN necesidad de "Crear Trabajador". La solicitud queda pendiente hasta que oficina la apruebe. Pensado para supervisores / prevencionistas en terreno.', 9],
+    ['trabajadores.solicitud.aprobar','Trabajadores', 'Aprobar / Rechazar Solicitudes de Ingreso', 'Gestiones → Solicitudes: permite revisar las fichas de ingreso pendientes, corregirlas, asignar la empresa y aprobarlas (crea el trabajador) o rechazarlas con motivo. Habilita el contador de pendientes en el menú.', 10],
 
     // DOCUMENTOS
     ['documentos.ver',              'Documentos', 'Ver Documentos',              'Ver la documentación de los trabajadores', 1],
     ['documentos.subir',            'Documentos', 'Subir Documentos',            'Cargar archivos de documentación', 2],
     ['documentos.descargar',        'Documentos', 'Descargar Documentos',        'Descargar archivos individuales o en ZIP', 3],
     ['documentos.eliminar',         'Documentos', 'Eliminar Documentos',         'Eliminar archivos de documentación', 4],
+    // Documentos laborales generados por Bóveda (plan Gestiones B2/B6, migs 110/113). Pre-registrados
+    // en B1 para que el catálogo/hierarchy no se editen en paralelo; se asignan a roles en su bloque.
+    ['documentos.laborales.emitir',    'Documentos', 'Emitir Documentos Laborales',                 'Gestiones → ficha del trabajador: emitir contrato, kit de ingreso, finiquito y carta de amonestación generados por Bóveda.', 5],
+    ['documentos.laborales.descargar', 'Documentos', '⚠️ Descargar / Imprimir Documentos Laborales', 'Descargar o imprimir contratos, finiquitos y anexos laborales — solo oficina (RRHH, TI, administración). Incluye ver la remuneración impresa en el contrato.', 6],
+    // Custodia de documentos físicos por lotes (plan Gestiones B6, mig 114): RRHH arma lotes y recibe firmados;
+    // el portador (encargado de obra) confirma el retiro de SUS lotes. Mismo texto que la mig 114.
+    ['documentos.entrega.registrar',   'Documentos', 'Registrar Entrega Física (RRHH)',             'Gestiones → Documentos físicos: armar lotes de documentos impresos para un portador, recibir los firmados que vuelven y anular lotes sin retirar. Habilita el grupo "Documentos físicos" del Inicio.', 7],
+    ['documentos.entrega.portar',      'Documentos', 'Portar Documentos Físicos',                   'Confirmar en Bóveda el retiro de MIS lotes de documentos impresos (encargado de obra que los lleva a firmar). Solo ve sus propios lotes.', 8],
 
-    // REPORTES (Consultas)
-    ['reportes.ver',                'Reportes', 'Ver Consultas',                 'Acceder a la sección de Consultas', 1],
+    // REPORTES (Gestiones — antes Consultas)
+    ['reportes.ver',                'Reportes', 'Ver Gestiones',                 'Acceder a la sección de Gestiones (antes Consultas)', 1],
     ['reportes.exportar',           'Reportes', 'Exportar Reporte',              'Descargar reportes en Excel', 2],
     ['reportes.enviar_email',       'Reportes', 'Enviar por Email',              'Enviar reportes por correo electrónico', 3],
 
@@ -60,13 +71,17 @@ const MAESTRO_PERMISOS = [
     ['obras.crear',                 'Obras', 'Crear Obra',                       'Registrar nuevas obras', 2],
     ['obras.editar',                'Obras', 'Editar Obra',                      'Modificar datos de obras', 3],
     ['obras.eliminar',              'Obras', 'Eliminar Obra',                    'Eliminar obras', 4],
-    ['obras.finalizar',             'Obras', 'Finalizar/Reactivar Obra',         'Marcar una obra como concluida (la saca de asistencia/consultas/inventario/selectores) o reactivarla. Acción de alto impacto.', 5],
+    ['obras.finalizar',             'Obras', 'Finalizar/Reactivar Obra',         'Marcar una obra como concluida (la saca de asistencia/gestiones/inventario/selectores) o reactivarla. Acción de alto impacto.', 5],
 
     // CONFIGURACIÓN: CARGOS
     ['cargos.ver',                  'Cargos', 'Ver Cargos',                      'Ver el catálogo de cargos', 1],
     ['cargos.crear',                'Cargos', 'Crear Cargo',                     'Registrar nuevos cargos', 2],
     ['cargos.editar',               'Cargos', 'Editar Cargo',                    'Modificar cargos', 3],
     ['cargos.eliminar',             'Cargos', 'Eliminar Cargo',                  'Eliminar cargos', 4],
+    // Parámetros de sueldo por cargo (plan Gestiones B3, mig 111). $ pero NO en PERMISOS_FINANCIEROS
+    // (esa lista es solo inventario); la marca visual vive en permisosHierarchy.ts.
+    ['cargos.sueldo.ver',           'Cargos', '$ Ver Parámetros de Sueldo',      'Configuración → Cargos: ver sueldo base, colación y movilización por cargo.', 5],
+    ['cargos.sueldo.editar',        'Cargos', '$ Editar Parámetros de Sueldo',   'Configuración → Cargos: modificar los parámetros de sueldo del cargo (queda historial). Requiere también "Ver Parámetros de Sueldo".', 6],
 
     // CONFIGURACIÓN: CONDUCTORES
     ['conductores.ver',             'Conductores', 'Ver Conductores',           'Ver el catálogo de conductores', 1],
@@ -146,6 +161,7 @@ const MAESTRO_PERMISOS = [
     ['sistema.tipos_ausencia.gestionar', 'Sistema', 'Gestionar Tipos Ausencia',   'Crear y editar tipos de ausencia', 6],
     ['sistema.reportes.gestionar',   'Sistema', 'Gestionar Reportes Automáticos', 'Gestionar destinatarios y enviar prueba del reporte semanal RRHH', 7],
     ['sistema.avisos.gestionar',     'Sistema', 'Gestionar Avisos',                'Configurar el resumen diario de novedades (categorías, umbrales, destinatarios) y enviar prueba', 8],
+    ['sistema.alertas_documentos.gestionar', 'Sistema', 'Configurar Alertas de Documentos', 'Configuración → Alertas de Documentos: días de aviso y crítico por tipo de documento laboral sin firmar y por lote de custodia (plan Gestiones B7). Solo in-app: Bandeja del Día y Documentos físicos.', 9],
 
     // VEHÍCULOS
     ['vehiculos.ver',      'Vehículos', 'Ver Vehículos',       'Acceso al módulo de vehículos: listado, detalle, seguros, revisiones y mantenciones', 1],

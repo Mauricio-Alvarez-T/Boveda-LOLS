@@ -68,7 +68,11 @@ Si alguna vez necesitas recrear el entorno de staging desde cero:
      started"). Caída real 2026-08-24: ambos entornos abajo por editar la app con ese valor guardado.
 4. **Crear `.env`** en `/home/lolscl/test-boveda/.env` con las variables requeridas (ver sección 5).
 5. **Run NPM Install** desde la interfaz de cPanel y luego **Restart**.
-6. **Importar datos** de producción (usuarios, roles, permisos) si la BD está vacía.
+6. **Poblar la BD**: importar de producción **solo** `usuarios`, `roles`, `permisos_catalogo` y
+   `permisos_rol_v2` (para poder entrar). Los datos operativos se **siembran ficticios**, nunca se
+   copian: `SANEO_STAGING=1 <NODE> scripts/sanear_staging.js --aplicar --sembrar` (ver § 19).
+   ⛔ NUNCA importar `trabajadores`, `solicitudes_ingreso`, `documentos` ni `asistencias` de
+   producción: son datos de personas reales (RUT, domicilio, salud, cuenta bancaria).
 
 > ⚠️ Las credenciales de BD y JWT_SECRET de staging no se almacenan en el repositorio. Consultar con el administrador del servidor.
 
@@ -103,8 +107,10 @@ main     →  GitHub Actions  →  Producción  (boveda.lols.cl)
      ```
      cd /home/lolscl/deploy-staging && git fetch -q origin deploy-staging && git checkout -q -f origin/deploy-staging -- scripts/cpanel-deploy-staging.sh 2>/dev/null; HOME=/home/lolscl GIT_TERMINAL_PROMPT=0 /bin/bash /home/lolscl/deploy-staging/scripts/cpanel-deploy-staging.sh >> /home/lolscl/deploy-staging.log 2>&1
      ```
-   - El script (`scripts/cpanel-deploy-staging.sh`) hace `git fetch && reset --hard origin/deploy-staging`, copia `frontend/dist`→docroot (`rsync --delete` excluyendo `.well-known/`, `.htaccess` y **`api/`**) y `backend/`→`/test-boveda/` (excluye node_modules/tmp/uploads/.env) y toca `tmp/restart.txt`. Idempotente.
-   - Verificar: `tail ~/deploy-staging.log` → `… · deploy OK → <sha>`.
+   - El script (`scripts/cpanel-deploy-staging.sh`) hace `git fetch && reset --hard origin/deploy-staging`, copia `frontend/dist`→docroot (`rsync --delete` excluyendo `.well-known/`, `.htaccess`, los `*-status.txt` y **`api/`**) y `backend/`→`/test-boveda/` (excluye node_modules/tmp/uploads/.env) y toca `tmp/restart.txt`. Idempotente.
+   - **Un solo tick a la vez** (2026-09-16): lock global `~/deploy-staging/.deploy.lock`, tomado al entrar y liberado con `trap EXIT`. Los locks anteriores eran POR FUNCIÓN (heal-deps / auto-migrate / saneo) y el tick perdedor seguía igual hasta la sección de deploy.
+   - **Lo que decide si hay algo que desplegar es el TESTIGO, no HEAD** (2026-09-16): `~/deploy-staging/.deploy-ultimo-ok` guarda el SHA del último deploy COMPLETO y se escribe al FINAL de la pasada. Una pasada que muere a mitad se rehace sola al tick siguiente en vez de quedar declarada "sin cambios" para siempre (§ 6).
+   - Verificar: `tail ~/deploy-staging.log` → `… · deploy OK → <sha>`; o **sin SSH, por HTTP**: `https://test.boveda.lols.cl/deploy-status.txt` → `<fecha> · OK · deploy-staging <sha> · <asunto del build>`. Un `EN CURSO` con hora vieja = la pasada murió a mitad.
 
 > ⚠️ **`api/` en el docroot de staging** (`…/test.boveda.lols.cl/api/`) es el **mount de Passenger** del
 > backend (su `.htaccess` enruta `/api` → Node `test-boveda`). El deploy lo **excluye** del
@@ -426,6 +432,13 @@ Estos fallbacks evitan que `env-validator.js` lance excepción al importar el ap
 
 | Error | Causa | Solución |
 |---|---|---|
+| El log del cron repite `sin cambios — nada que desplegar` tick tras tick, pero el sitio quedó a medias (frontend nuevo con backend/esquema viejos) | **Ventana absorbente del cron** (defecto hasta 2026-09-16). El script hace `git reset --hard origin/deploy-*` ANTES de los rsync, las migraciones, el saneo y el restart, y decidía "¿hay algo que hacer?" comparando **HEAD** con origin. Si la pasada moría en ese tramo (un rsync con rc≠0 bajo `set -e`, el proceso matado, el host reiniciado), HEAD ya estaba en el SHA nuevo → TODOS los ticks siguientes decían "sin cambios" PARA SIEMPRE y el cron lo reportaba como desplegado. Solo lo sacaba un humano empujando otro commit. | Ya no pasa: la decisión la toma el **testigo** `~/deploy-staging/.deploy-ultimo-ok` (`~/deploy-prod/…` en prod), que se escribe recién al terminar la pasada completa; una pasada incompleta se rehace sola al tick siguiente (todo ese tramo es idempotente). Diagnóstico por HTTP: `https://test.boveda.lols.cl/deploy-status.txt` — si dice `EN CURSO` con hora vieja, la pasada murió ahí; el detalle está en `~/deploy-staging.log`. Forzar un redeploy a mano = borrar el testigo (File Manager → `/home/lolscl/deploy-staging/.deploy-ultimo-ok`). |
+| Un `Run workflow` a mano de `Deploy Staging to cPanel` deja staging corriendo el árbol de **main** (o `Deploy … to cPanel` desde develop deja prod corriendo código sin release) | **Dispatch cruzado de rama** (defecto hasta 2026-09-16). El desplegable de "Run workflow" viene preseleccionado con la rama por DEFECTO (`main`) y `workflow_dispatch` no restringía el ref: el run compilaba ESE árbol y lo empujaba a `deploy-staging` con `push -f`. El cron lo bajaba (despliega por **DESIGUALDAD** de SHA, no por ancestría), el `rsync --delete` de `db/migrations` borraba del servidor las migraciones que main no tiene, y — como el propio `cpanel-deploy-staging.sh` **VIAJA EN esa rama** — staging pasaba a correr el script de main, es decir sin `run_sanear_datos`: la purga de trabajadores REALES (RUT, domicilio, salud, cuenta bancaria) de una web pública. Dos runs verdes y ninguna señal. | Prevención 2026-09-16: **guarda de rama** como primer paso de los DOS workflows (`if: github.ref != 'refs/heads/develop'` / `'refs/heads/main'` → `exit 1`, antes del checkout), y el grupo de `concurrency` de un ref inválido pasa a ser único por run para que ese intento no cancele el deploy legítimo en curso. El `workflow_dispatch` se mantiene (es el único republicado manual cuando el run de un push falla) pero solo desde la rama correcta. **Ojo:** en un dispatch GitHub usa el workflow **del ref elegido** → la guarda protege del todo recién cuando `main` también la tiene. Si ya pasó: revisar `db/migrations` en el servidor y `datos-status.txt`, y republicar desde `develop`. |
+| `datos-status.txt` de staging con hora de hace días y datos de personas reales visibles en test.boveda.lols.cl | Hasta 2026-09-16 `run_sanear_datos` se llamaba SOLO después del `exit 0` de "sin cambios": la red de seguridad corría únicamente en los ticks CON deploy, aunque su propio comentario decía "cada tick revisa". Un fin de semana sin pushes dejaba datos importados de producción expuestos hasta el lunes. | Ya corre en CADA tick, igual que auto-migrate (con `--auto` y sin foráneos sale en una consulta). Verificar en `https://test.boveda.lols.cl/datos-status.txt`: la hora debe ser de los últimos 5 min. |
+| `PUT /api/trabajadores/:id` responde 400 "La desvinculación cambió: recarga la página" | Pestaña de Gestiones anterior al 2026-09-11 mandando `{activo:false, fecha_desvinculacion}` al CRUD genérico. Desde la mig 112 la desvinculación/reactivación viven en `PUT /:id/desvincular` y `/:id/reactivar` (causal + historial); `activo`/`fecha_desvinculacion` salieron de `allowedFields` y un guard en index.js los descarta. | Recargar la app (Ctrl+F5). Si un integrador usaba el PUT genérico, migrar a los endpoints dedicados. |
+| `migrate-status.txt` dice FALLO pero el backend nuevo ya está arriba | El deploy (`scripts/cpanel-deploy-*.sh`) hace rsync → auto-migrate (NO fatal) → `tmp/restart.txt` incondicional: Passenger reinicia con el código nuevo sobre el esquema viejo hasta el reintento del cron. | Detener el QA. Leer `tmp/migrate-auto.log`. Forward-fix (nueva migración N+1; NUNCA editar una aplicada). El código que lee columnas/tablas nuevas debe degradar (`utils/schema.js` `existingCols`, o try/catch errno 1054/1146) — regla D-I del plan Gestiones. |
+| Subida de documentos del trabajador → 500 `Cannot read properties of undefined (reading 'path')` | `documentos.routes.js` pasaba los argumentos cruzados a `documentoService.upload(trabajadorId, file, tipoDocumentoId, userId)` y leía `tipo_id` (el front manda `tipo_documento_id`). Corregido 2026-09-11 (B1) + `tests/documentos.test.js`. | Si reaparece: comparar la firma del service con la llamada de la ruta; el test fija el orden. |
+| Datos bancarios/dirección de un trabajador visibles para un usuario de terreno | `GET /trabajadores/:id/quick-view` devolvía `SELECT t.*` con solo `auth`. Desde B1: gate `trabajadores.ver` OR `asistencia.ver` + allow-list `CAMPOS_TRABAJADOR_OPERATIVOS`. | Columnas operativas nuevas → agregarlas a la allow-list en `utils/sanitizeFinancialFields.js`; las sensibles quedan fuera solas. |
 | Backends caídos con la página HTML de Passenger ("Web application could not be started") — en uno o ambos entornos | El proceso Node no logra ARRANCAR (no es un bug de endpoint): deps/node_modules/venv, .env, binario de Node o MySQL al boot. | Seguir el playbook de métodos de diagnóstico: **`docs/incidentes/2026-08-24_caida_backends.md`** (índice señal→método: forma del error, aislar código vs infra, mapa síntoma→etapa del boot, forense de restore, canal cron cuando el panel no ejecuta). |
 | `errno 150 — Cannot add foreign key constraint` | Tabla referenciada no existe. Bootstrap saltó su migración. | Correr `npm run migrate:fix-prod` o equivalente. |
 | `errno 1050 — Table already exists` | Migración no idempotente / se re-ejecutó. | Usar `CREATE TABLE IF NOT EXISTS`. Si es error del fix script: tolerado automáticamente. |
@@ -433,6 +446,7 @@ Estos fallbacks evitan que `env-validator.js` lance excepción al importar el ap
 | `Timeout (control socket)` en deploy | FTP-Deploy-Action escaneó directorio grande (logs/tmp/uploads). | Solución ya aplicada: usar `lftp mirror --only-newer` con excludes. Si reaparece: verificar que `tmp/` y `uploads/` sigan en la lista de exclusión del workflow. |
 | Tests fallan con `row.fecha.toISOString is not a function` | Mock de DB no incluye `obra_id` o `fecha`, lookup key del batch pre-fetch no matchea. | Agregar `obra_id` y `fecha` al objeto del mock para que la key `"workerId_obraId_fecha"` funcione. |
 | `Backend Tests CI` rojo en commits que **no tocan backend**, después de agregar un caso a un feature existente | `toThrow(/...literal.../)` en algún test quedó acoplado al mensaje exacto. Cuando se suma un 2.º caso al feature (ej: nuevo `tipo_flujo` válido), el mensaje pluraliza ("flujo" → "flujos") y el regex literal ya no matchea. El CI corre `npm test` completo en **cada** push a `develop`/`main` sin importar qué se tocó → frontends quedan en rojo por culpa ajena. | Hacer regex tolerante a las variaciones razonables del mensaje: `flujos?` (opcional `s`), `[^.]*` para frases descriptivas, anclar solo en el sustantivo único. Ejemplo real (`3f90a39`): `/solo permitidos en flujo de solicitud/` → `/solo permitidos en flujos? de solicitud/`. Regla: al escribir `toThrow(...)`, asumir que el mensaje **va a cambiar** y matchear solo lo distintivo. |
+| `Deploy Staging/Prod to cPanel` **rojo** con `! [remote rejected] HEAD -> deploy-staging (cannot lock ref ...: is at X but expected Y)`, mientras OTRO run del mismo commit salió verde | Un solo `git push` llegó a GitHub como **dos eventos** → dos runs del mismo workflow para el mismo SHA (pasó con `afcbf20` el 2026-09-16: cuatro runs, dos de cada workflow). Los dos compilan lo mismo y pelean por publicar la rama de build; el segundo pierde la transacción de la ref. El `git push -f` **no** evita esto: el force salva el non-fast-forward, no la carrera (el servidor compara la ref contra el valor que vio al abrir el push). El deploy en sí no está roto: el ganador ya publicó el build. | Verificar el estado REAL antes de tocar nada: `git ls-remote origin deploy-staging` + `gh api repos/<owner>/<repo>/commits/deploy-staging --jq .commit.message` (debe decir `dist de <sha>`) y que el sitio sirva el bundle nuevo. Prevención aplicada (2026-09-16): `concurrency` en los DOS workflows de deploy, con la llave puesta en la **rama de destino** (`group: publicar-deploy-staging` / `publicar-deploy-prod`), no en `github.ref` — el recurso en disputa es la rama de build, así que un `workflow_dispatch` desde otra rama cae en el mismo grupo en vez de correr en paralelo. `cancel-in-progress: true`: el run más nuevo manda y el build superado nunca se publica. **No se puso en `Backend Tests CI`**: ahí cancelar cuesta veredictos (un push solo-docs dentro del minuto siguiente cancelaría los tests del commit de código, que quedaría sin check y nadie lo frena — no hay branch protection). Dos contrapartidas que hay que conocer: (1) queda un solo candidato a publicar, así que si ese run falla no se publica nada y el cron dirá "sin cambios" — hay que volver a empujar; (2) los runs cancelados salen en **gris** y **NO se deben re-ejecutar**: el paso de publicación es un `push -f` sin guarda y un re-run de un run viejo rebobina la rama de build a un dist anterior (el cron despliega por desigualdad, no por ancestría, y el propio `cpanel-deploy-*.sh` viaja en esa rama). |
 | `npm run migrate` reporta **"No hay migraciones pendientes"** pero la API tira `Unknown column 'X' in 'SET'` justo en la columna que la última migración debía agregar | El runner confía en `schema_migrations`. Si esa tabla quedó con la migración nueva pre-registrada (snapshot de DB, import desde otra env, fix-prod corrido en exceso, o ejecución parcial anterior), el SQL nunca se ejecuta pero el archivo se considera "aplicado". Es una variante moderna del bootstrap-skip ya documentado en § 3.3 — la diferencia es que aquí afecta una migración nueva, no las históricas. | Crear un fix script idempotente para esa migración (patrón: `scripts/fix_<scope>.js`), que (a) ejecute el SQL tolerando `errno 1060 — Duplicate column name` o `errno 1050 — Table exists`, (b) verifique vía `information_schema` que el cambio quedó aplicado, (c) actualice `schema_migrations` con el `duration_ms` real. Exponerlo en `package.json` como `migrate:fix-<scope>`. Ejemplo real: `migrate:fix-bodega-responsable` (mig 060). |
 | Correo (prueba/reporte) rechazado con **`550 No Such User Here`** | La **dirección destino no existe** como buzón. En cPanel, lols.cl está hospedado local → Exim intenta entrega LOCAL y rechaza cualquier `@lols.cl` sin cuenta/forwarder real. NO es MAIL_* ni SMTP (el rechazo ocurre en RCPT, ya autenticado). "Probarme a mí" (sin dirección tipeada) envía a **`req.user.email`** = tu email de LOGIN (`usuarios.email`), no a `email_corporativo`. | Usar una dirección entregable: tipear el email en el input de "Probarme a mí", o corregir el suscriptor/tu email de login a un buzón real (`alvarez@lols.cl`), o crear el buzón faltante en cPanel → Email Accounts. Diagnóstico: `npm run reporte-doctor -- --probe <email>` (envío real que expone el 550; `verify()` solo NO lo detecta). |
 | Reporte Semanal RRHH: **faltas infladas** (ej. 952 faltas para ~200 trabajadores, patrón Lun-Vie) | El query filtraba `estados_asistencia.codigo = 'A'`, pero **`A` = "Asiste" (PRESENTE)**, no ausente. La falta injustificada real es **`codigo = 'F'`** (fuente de verdad: `asistencia.service.getAlertasFaltas`, dashboard Art.160, seed en `production_schema.sql`/mig 006). Contaba presencias como faltas. | Filtrar `es.codigo = 'F' AND es.activo = 1` en las queries de faltas (`faltasRows` + `faltasMesRows` de `reporteSemanal.service.js`). Regla: para "faltas" SIEMPRE usar `'F'`, nunca `'A'`. |
@@ -450,10 +464,11 @@ Estos fallbacks evitan que `env-validator.js` lance excepción al importar el ap
 | Aparece un **`0` suelto** en la UI (junto a un nombre, RUT, badge, contador…) que no corresponde a ningún dato | Render condicional JSX `{valor && <Componente/>}` donde `valor` es el **número `0`**. React renderiza `false`/`null`/`undefined` como nada, pero imprime `0` (y `NaN`) como texto literal. Pasa típico con flags `BOOLEAN`/`TINYINT` de MySQL, que llegan como `0`/`1` (número), aunque el tipo TS diga `boolean`. Caso real: badge `{worker.es_prueba && <Badge/>}` con `es_prueba = 0` pintaba un `0` al lado del RUT en cada fila de Consultas y en la tabla de Obras. | Coercer a booleano real antes del `&&`: `{!!valor && <X/>}` o ternario `{valor ? <X/> : null}`. Regla general: **nunca uses un número crudo a la izquierda de `&&` en JSX.** Aplica a cualquier conteo (`{lista.length && ...}` → `{lista.length > 0 && ...}`) o flag numérico. |
 | `npx tsc --noEmit` local pasa (exit 0) pero el **build de CI falla con errores TS** (`Deploy Staging` rojo con `error TS2339` etc.) | El `tsconfig.json` del frontend es **"solution style"**: solo tiene `references` (a `tsconfig.app.json` / `tsconfig.node.json`) y ningún archivo propio → `tsc --noEmit` sobre él **no chequea NADA** y siempre sale 0 (falso verde). El build real corre `tsc -b && vite build` (script `build`), que sí compila los proyectos referenciados y encuentra los errores. Caso real: `selectedEmpresa?.id` sobre un union con literal `'vendidos'` pasó el check local y reventó en CI. | Usar **`npx tsc -b`** (o `npm run build`) como type-check local pre-push — es lo mismo que corre CI. Nunca confiar en `tsc --noEmit` con tsconfig de solo-references. CLAUDE.md § Pre-Deploy Checks ya está corregido. |
 | Un `<CrudTable>` lista bien pero **Eliminar/Editar dan `404`** (DevTools: `DELETE /api/.../<base>/<id>` apunta a una ruta inexistente, ej. `/usuarios/roles/list/3`) | `CrudTable` (`components/ui/CrudTable.tsx`) usa **un único prop `endpoint`** para todo: GET lista (`${endpoint}?...`) **y** mutaciones (`${endpoint}/${id}` en delete, `${endpoint}/export`). Si a `endpoint` le pasas un path que **no es el recurso REST base** —p.ej. un alias de solo-lista como `/usuarios/roles/list`— el GET funciona pero el DELETE arma `/usuarios/roles/list/3`, que no existe → 404. Caso real: tab Roles en Settings. | El `endpoint` del `CrudTable` debe ser **siempre el recurso REST base** (`/usuarios/roles`), no un alias de listado. El backend ya expone ahí `GET` (lista paginada), `POST`, `PUT/:id` y `DELETE/:id` vía `createCrudRoutes`. Los alias tipo `/roles/list` son solo para dropdowns. **Bonus soft-delete:** si el borrado es soft (`activo=0`), el `crudService` necesita `useSoftDelete: true` para que el listado filtre activos por defecto; sin eso el registro "borrado" sigue apareciendo y parece que no se eliminó. |
-| Migración de permisos falla con **`errno 1452 — Cannot add or update a child row: a foreign key constraint fails`** al asignar un permiso a un rol, o el permiso nuevo "no aparece" en el modal de Roles | `permisos_rol_v2.permiso_clave` tiene **FK a `permisos_catalogo.clave`** (PK compuesta `(rol_id, permiso_clave)`). El catálogo se puebla solo al arrancar el backend (`permisos.service.syncCatalogoEnArranque`), así que una migración que **solo** hace `INSERT INTO permisos_rol_v2` revienta si corre ANTES del deploy que trae la clave nueva en `permisos.config.js`. Al revés (deploy primero) funciona, pero deja el orden de operaciones acoplado a la suerte. | En la migración, **insertar primero en `permisos_catalogo`** (INSERT IGNORE — `clave` es UNIQUE) y después en `permisos_rol_v2`; así la migración es autosuficiente en cualquier orden. El arranque igual refresca nombre/descripción/orden desde el config, que sigue siendo la fuente de verdad. Ejemplo: `098_permisos_bombas_granulares.sql`. **Y después de correr migrate: los permisos viven en el JWT** → el usuario del rol afectado debe **cerrar sesión y volver a entrar** (un `UPDATE roles SET version` por SQL NO sirve: `version.service.js` cachea las versiones en memoria y solo las relee al reiniciar). |
+| Migración de permisos falla con **`errno 1452 — Cannot add or update a child row: a foreign key constraint fails`** al asignar un permiso a un rol, o el permiso nuevo "no aparece" en el modal de Roles | `permisos_rol_v2.permiso_clave` tiene **FK a `permisos_catalogo.clave`** (PK compuesta `(rol_id, permiso_clave)`). El catálogo se sincroniza en `migrate`/`maintenance` — NO en el boot del backend (`permisos.service.syncCatalogoEnArranque`), así que una migración que **solo** hace `INSERT INTO permisos_rol_v2` revienta si corre ANTES del deploy que trae la clave nueva en `permisos.config.js`. Al revés (deploy primero) funciona, pero deja el orden de operaciones acoplado a la suerte. | En la migración, **insertar primero en `permisos_catalogo`** (INSERT IGNORE — `clave` es UNIQUE) y después en `permisos_rol_v2`; así la migración es autosuficiente en cualquier orden. El arranque igual refresca nombre/descripción/orden desde el config, que sigue siendo la fuente de verdad. Ejemplo: `098_permisos_bombas_granulares.sql`. **Y después de correr migrate: los permisos viven en el JWT** → el usuario del rol afectado debe **cerrar sesión y volver a entrar** (un `UPDATE roles SET version` por SQL NO sirve: `version.service.js` cachea las versiones en memoria y solo las relee al reiniciar). |
+| Hay que **renombrar una clave de permiso** (ej. `asistencia.sabados_extra.*` → `asistencia.actividades_sugeridas.*`, mig 116) | `permisos_rol_v2.permiso_clave` y `permisos_usuario_override.permiso_clave` tienen FK a `permisos_catalogo.clave` **ON DELETE CASCADE sin ON UPDATE** → un `UPDATE permisos_catalogo SET clave` falla, y un `DELETE` previo borra en cascada las marcas de los roles. Además las claves viajan congeladas en el JWT `p` (8h). | Orden fijo en la migración: `INSERT IGNORE permisos_catalogo` (nuevas) → `UPDATE IGNORE permisos_rol_v2` y `UPDATE IGNORE permisos_usuario_override` old→new → `DELETE FROM permisos_catalogo WHERE clave LIKE 'old.%'` → `UPDATE roles SET version = version + 1` (todos los roles: re-login general; el auto-migrate reinicia Passenger y `versionService` relee). Actualizar `permisos.config.js`, `permisosHierarchy.ts`, `checkPermission(...)` de las rutas y `hasPermission(...)` del frontend en el mismo commit. Precedente: `trabajadores.purgar → depurar` en `scripts/migrate.js`. |
 | Tras limpiar un worktree de Claude en Windows, `npm test`/`tsc` fallan con **`Cannot find module 'jest'`** (o `axios-mock-adapter`, etc.) y `node_modules` del repo PRINCIPAL aparece **vacío** | Los worktrees usan **junctions NTFS** (`New-Item -ItemType Junction`) de `node_modules` apuntando al repo principal. `git worktree remove --force` suele fallar por file-locks de Windows y el fallback `rm -rf <worktree>` (Git Bash) **sigue la junction y borra el CONTENIDO del `node_modules` real**, no solo el link. Caso real (2026-08-07): cleanup del worktree `historico-solicitudes` vació `backend/node_modules` y `frontend/node_modules` del repo principal; se notó recién al crear el siguiente worktree. | **Orden de limpieza obligatorio: eliminar las junctions ANTES del `rm -rf`.** PowerShell: `(Get-Item "$wt\backend\node_modules").Delete()` (o `cmd /c rmdir "$wt\backend\node_modules"` — rmdir sobre junction borra solo el link) para backend y frontend, LUEGO `git worktree remove --force` + `rm -rf`. Recuperación si ya pasó: `npm ci` en backend/ y frontend/ del repo principal (lockfiles intactos). Verificación post-cleanup: `Test-Path <repo>\backend\node_modules\jest` debe seguir `True`. |
 | `GET /api/<recurso>?page=1&limit=20` tira **500** `You have an error in your SQL syntax ... near ''20' OFFSET 0'` (o `'100'`) — pero **con los defaults SÍ funciona** | `page`/`limit` llegan de `req.query` como **STRING** y se bindean crudos en `LIMIT ? OFFSET ?`. mysql2 bindea el string literal (`LIMIT '20'`) y MariaDB lo rechaza. `offset` sobrevive porque `(page-1)*limit` lo coerce a número vía aritmética; `limit` queda string → el 500. No se dispara con los defaults numéricos del destructuring (`page = 1, limit = 20`), por eso la UI —que no manda `page`/`limit`— nunca lo notó; cualquier cliente/página que los pase por query rompe la lista entera. Detectado en QA rol bodeguero (staging). Caso real (`cf55f7e`): `transferencia.service.getAll` + `getMisSolicitudes`. | Castear a entero **antes** de armar el SQL. Helper compartido `utils/pagination.normalizePagination(query, defaultLimit, maxLimit)`: `Number(...)`, `Math.trunc`, clamp `limit` ∈ [1,200] y `page` ≥ 1, fallback al default si NaN/negativo. **Regla: todo `page`/`limit` de `req.query` se castea + clampa antes de tocar `LIMIT ? OFFSET ?` — nunca bindear el valor crudo.** Ya lo usan `transferencia`, `bomba-hormigon`, `discrepancia` y `factura-inventario` (fixes `cf55f7e` + `2df3afb`); `inventario.service` y `logs.routes` casteaban aparte desde antes. Test: `getAll({ page:'1', limit:'20' })` debe bindear **números**, no strings. |
-| Botones del header global (Guardar/WhatsApp) **no reciben clicks** a ~950-1000px de viewport — se pintan bien, pero el click no dispara nada (`document.elementFromPoint` sobre el botón devuelve el `<p>` del título; `button.click()` programático SÍ funciona) | **Cadena `min-w-0` rota en el título inyectado del header.** El contenedor del título en `MainLayout` es `flex-1 min-w-0`, pero si la RAÍZ del título que inyecta la página vía `useSetPageHeader` es un flex item **sin `min-w-0`**, su `min-width: auto` = min-content → no encoge bajo el ancho de su texto. El bloque entero desborda el contenedor `flex-1` (sin clip) y el `<p>` con `truncate` queda **transparente encima** de los botones de acciones, robando el hit-testing. El `truncate` no opera porque el eslabón roto está más arriba en la cadena. Caso real (QA staging, `e50f4f3`): título de /asistencia (`AttendanceDailyTab`) pisaba Guardar/WhatsApp. | **Todo flex item entre el contenedor `flex-1 min-w-0` y el elemento con `truncate` necesita `min-w-0`** — es el análogo horizontal de la cadena `min-h-0` del § 7. Fix `e50f4f3`: `min-w-0` en la raíz del título de `AttendanceDailyTab`, `SabadosExtraTab` y `useStandardHeader` (`PageHeader.tsx`), + `overflow-hidden` **defensivo** en el contenedor del título de `MainLayout` (ningún título futuro puede extenderse sobre las acciones aunque inyecte markup sin `min-w-0`). Diagnóstico rápido: `document.elementFromPoint(x, y)` sobre el centro del botón — si devuelve un nodo del título, es esta cadena. |
+| Botones del header global (Guardar/WhatsApp) **no reciben clicks** a ~950-1000px de viewport — se pintan bien, pero el click no dispara nada (`document.elementFromPoint` sobre el botón devuelve el `<p>` del título; `button.click()` programático SÍ funciona) | **Cadena `min-w-0` rota en el título inyectado del header.** El contenedor del título en `MainLayout` es `flex-1 min-w-0`, pero si la RAÍZ del título que inyecta la página vía `useSetPageHeader` es un flex item **sin `min-w-0`**, su `min-width: auto` = min-content → no encoge bajo el ancho de su texto. El bloque entero desborda el contenedor `flex-1` (sin clip) y el `<p>` con `truncate` queda **transparente encima** de los botones de acciones, robando el hit-testing. El `truncate` no opera porque el eslabón roto está más arriba en la cadena. Caso real (QA staging, `e50f4f3`): título de /asistencia (`AttendanceDailyTab`) pisaba Guardar/WhatsApp. | **Todo flex item entre el contenedor `flex-1 min-w-0` y el elemento con `truncate` necesita `min-w-0`** — es el análogo horizontal de la cadena `min-h-0` del § 7. Fix `e50f4f3`: `min-w-0` en la raíz del título de `AttendanceDailyTab`, `ActividadesSugeridasTab` y `useStandardHeader` (`PageHeader.tsx`), + `overflow-hidden` **defensivo** en el contenedor del título de `MainLayout` (ningún título futuro puede extenderse sobre las acciones aunque inyecte markup sin `min-w-0`). Diagnóstico rápido: `document.elementFromPoint(x, y)` sobre el centro del botón — si devuelve un nodo del título, es esta cadena. |
 | **Token de descarga pública = escalada de privilegios (token confusion).** Un endpoint que emite un JWT "de descarga/link público" firmado con el **mismo `JWT_SECRET`** que los tokens de sesión, y que **firma `req.query` completo** sin whitelist, permite a un usuario con permiso mínimo pedir `?p=usuarios.crear&rol_id=<suyo>&rv=<suyo>` y recibir un JWT con permisos arbitrarios → usado como `Authorization: Bearer` autentica como sesión con esos permisos (24h). Caso real (QA asistencia, hallazgo P0): `asistencia.generatePublicReportToken` firmaba `req.query` entero; `middleware/auth.js` confiaba en `decoded.p`/`rol_id`/`rv` sin distinguir el tipo de token. | **Defensa en profundidad, sin secreto/env nuevos:** (1) **whitelist** — el emisor firma SÓLO los campos que el consumidor necesita (aquí los 8 de reporte), nunca `p`/`rol_id`/`rv`/`id`; por sí sola ya inutiliza el token como sesión (sin `rv` → `auth.js` da 401). (2) **claim de tipo** — firmar el token no-sesión con `typ:'public-report'`; el validador del consumidor exige ese `typ`, y `auth.js` (sesión) rechaza `if (decoded.typ && decoded.typ!=='session') → 401`. Añadir `typ:'session'` al login NO deslogea (tokens viejos sin `typ` se aceptan; los de descarga se rechazan como Bearer). Regla: **todo token firmado con `JWT_SECRET` que NO sea de sesión lleva su propio `typ` y el middleware de sesión lo rechaza; nunca firmar `req.query` crudo.** Tests: token con `p`/`rol_id` inyectados → payload NO los contiene; token de descarga como Bearer → 401. |
 | cPanel → **Run JS script** muere con **`FileNotFoundError: ~/nodevenv/<app>/20/bin/npm`** (o "[object Object]") antes de ejecutar nada — no se puede correr `migrate` ni ningún script desde el panel | El **Selector de cPanel lanza TODOS los scripts con el npm del venv**, binario que el restore del hosting (2026-08-24) no devolvió. No es problema del código ni del `package.json`: el panel falla antes de leer nada. Un venv recreado a futuro puede arreglarlo, pero no depender de eso. | **No usar el panel para migrar: el cron de deploy migra solo** (bloque `auto-migrate` en `scripts/cpanel-deploy-*.sh`, § 3.2, desde 2026-08-27) — detecta `.sql` nuevos tras cada deploy, corre `node scripts/migrate.js` con el node del `.htaccess` (sin npm), reintenta cada 30 min si falla y publica el resultado en `https://<host>/migrate-status.txt`. Si se necesita un script arbitrario (no-migración), el patrón es el mismo: bloque temporal en el cron de deploy (ejemplos históricos: `heal-deps`, `migrate-once` `aee3aef`). |
 | **Gate de dato financiero omitido en una ruta que reusa un generador compartido.** `asistencia.generarExcel(query, {incluirHorasExtra})` blanquea la columna Horas Extra según el permiso `asistencia.horas_extra.ver`, pero **el default era `true`** y las rutas que llamaban sin el 2º arg (link público `/d/:token`, `fiscalizacion/enviar-excel`) emitían el Excel con HE poblada — a un tercero anónimo por WhatsApp / email. | **El default de un generador con dato sensible debe ser FAIL-SAFE** (`incluirHorasExtra === true` explícito; ausencia = ocultar), para que cualquier ruta nueva que olvide el flag no filtre. Cada ruta HTTP pasa el flag EXPLÍCITO: link anónimo → `false` fijo (nunca datos de pago); rutas autenticadas → `(req.user?.p||[]).includes('asistencia.horas_extra.ver')`. Regla: dato de pago **nunca** viaja por un link público compartible. |
@@ -663,43 +678,74 @@ Esta tabla resume **cómo se elimina cada entidad del módulo Inventario** y por
 
 ---
 
-## 12.2. Sábados Extra (Trabajo Extraordinario)
+## 12.2. Lista de trabajadores en actividades sugeridas (antes "Sábados Extra")
 
-**Qué es:** registro de citaciones de personal para trabajos en sábado fuera de la jornada regular. Aislado del flujo de asistencia diaria — no toca la tabla `asistencias` ni los reportes lun-vie estándar. **SIN horas (jefatura 2026-08-17):** solo se registra asistió/no asistió + observación; las columnas `horas_default`/`horas_trabajadas` quedan muertas en BD.
+**Qué es:** lista de trabajadores, por obra y **semana (lunes a viernes)**, asignados a actividades
+sugeridas; se envía por WhatsApp y después se registra quién asistió. Aislado del flujo de asistencia
+diaria — no toca `asistencias` ni los reportes. **Jefatura 2026-09-21:** sin referencia alguna a
+"trabajos de los días sábados" → renombrado completo en la migración 116. **SIN horas (jefatura
+2026-08-17):** solo asistió/no asistió + observación; `horas_default`/`horas_trabajadas` quedan muertas.
 
-**Tablas (migración 038 + 040):**
-- `sabados_extra`: cabecera. 1 fila por `(obra_id, fecha)`. Estados `citada` / `realizada` / `cancelada`. Audit con `creado_por` y `actualizado_por`.
-- `sabados_extra_trabajadores`: detalle. N filas por sábado. Columna `estado` ∈ {`citado`, `asistio`, `no_asistio`, `cancelado`} agregada en migración 040 para soft delete que preserva auditoría.
+**Tablas (mig 038 + 040, renombradas en 116):**
+- `actividades_sugeridas`: cabecera. 1 fila por `(obra_id, semana)` (`uniq_obra_semana`); `semana` =
+  lunes de la semana (DATE). Estados `citada` (UI "Creada") / `realizada` / `cancelada`. Audit con
+  `creado_por` y `actualizado_por`.
+- `actividades_sugeridas_trabajadores`: detalle (`actividad_id`). `estado` ∈ {`citado`, `asistio`,
+  `no_asistio`, `cancelado`} para soft delete con auditoría.
 
-**Permisos** (`permisos.config.js`, módulo Asistencia, órdenes 12-17):
-- `asistencia.sabados_extra.ver`, `crear`, `editar`, `cancelar`, `registrar`, `enviar_whatsapp` (granular). La migración 040 hace backfill: roles que tenían `crear` reciben `editar` y `cancelar` automáticamente.
+**Ruta y archivos:** `/api/actividades-sugeridas` (`routes/actividades-sugeridas.routes.js`,
+`services/actividadesSugeridas.service.js`); frontend `components/attendance/actividades/*`,
+`hooks/attendance/useActividadesSugeridas.ts`, `types/actividadesSugeridas.ts`, `utils/semanas.ts`.
+Log de actividad: `log-config.js` clave `actividades-sugeridas` (label "Semana del dd-mm-YYYY").
+
+**Permisos** (`permisos.config.js`, módulo Asistencia, órdenes 12-18):
+`asistencia.actividades_sugeridas.ver`, `crear`, `editar`, `cancelar`, `registrar`, `enviar_whatsapp`,
+`informe` (mig 117: resumen por cargo + Excel del informe; se da solo a quien prepara pagos).
+La mig 116 repuntó las claves viejas `asistencia.sabados_extra.*` (INSERT nuevas → UPDATE
+`permisos_rol_v2` + `permisos_usuario_override` → DELETE viejas) y subió `roles.version` en todos los
+roles: **todos los usuarios deben volver a iniciar sesión** tras el deploy.
 
 **Restricciones operativas:**
-- 1 citación por `(obra, fecha)` (UNIQUE constraint + `SELECT FOR UPDATE` en backend).
-- Solo sábados (`Date.getDay() === 6`).
-- No fechas pasadas. No fechas más de 1 año adelante.
-- Si la fecha cae en feriado activo → backend responde 409 con mensaje de feriado. La UI debe pedir confirmación y reintentar con `acepta_feriado: true`.
-- Trabajadores deben estar activos y no finiquitados (`fecha_desvinculacion IS NULL`).
-- Obra debe estar activa.
-- Mínimo 1 trabajador, máximo 500 por citación.
+- 1 lista por `(obra, semana)`; 409 → la UI abre la existente.
+- `semana` debe ser **lunes**; no anterior al lunes de la semana en curso; máx. 1 año adelante.
+  No hay validación de feriados (se eliminó con el paso a semana).
+- Trabajadores activos y no finiquitados; obra activa; 1..500 trabajadores.
 
-**Cancelación (soft delete):**
-- `UPDATE sabados_extra SET estado = 'cancelada'` + `UPDATE sabados_extra_trabajadores SET estado = 'cancelado'` (no DELETE). La auditoría completa (quién creó, quién canceló, lista original de citados) queda preservada para reportes históricos.
+**Cancelación (soft delete):** `UPDATE actividades_sugeridas SET estado='cancelada'` +
+`UPDATE actividades_sugeridas_trabajadores SET estado='cancelado'` (no DELETE).
 
-**Concurrencia:**
-- Las 4 transiciones de estado (`crearCitacion`, `editarCitacion`, `registrarAsistencia`, `cancelar`) usan `SELECT ... FOR UPDATE` dentro de transacción para prevenir condiciones de carrera (dos super-admins creando/cancelando simultáneamente).
+**Concurrencia:** las 4 transiciones (`crearLista`, `editarLista`, `registrarAsistencia`, `cancelar`)
+usan `SELECT ... FOR UPDATE` dentro de transacción.
 
-**Excel:** los sábados extra NO aparecen en `generarExcel` (la columna "SÁB EXTRA (h)"
-se eliminó en 671afc9, 2026-05-20; esta sección la describía desactualizada).
+**Informe de asistencia (mig 117):**
+- `GET /api/actividades-sugeridas/resumen-semana?semana=` → `{ semana, semana_label,
+  semanas_disponibles, listas, obras, total_asistieron, por_cargo[] }` (gate `…ver`; sin `semana`
+  usa la última con asistencia registrada).
+- `GET /api/actividades-sugeridas/informe-excel?semana=` → xlsx de dos hojas ("Por cargo",
+  "Por obra"), gate `…informe`. Solo listas `realizada` + filas `asistio`; excluye obras de prueba,
+  incluye finalizadas.
+- ⚠️ **Las rutas estáticas van declaradas ANTES de `GET /:id`** en
+  `actividades-sugeridas.routes.js`; si se agregan abajo, Express las captura como `:id` y
+  responden 400 "ID inválido". Hay test anti-drift.
+- El `LIMIT` de `semanasConAsistencia` va interpolado (saneado a 1..52), no como placeholder:
+  mysql2 lo bindea como string y MariaDB lo rechaza (§ 6).
+
+**Excel de nómina:** el módulo no aparece en `generarExcel` (asistencia diaria).
 
 **Migraciones relevantes:**
-- `038_trabajo_extraordinario_sabado.sql` — tablas iniciales.
-- `040_sabados_extra_audit_y_estado.sql` — columna `estado` en detalle, `actualizado_por`, backfill desde `asistio`, permisos granulares.
+- `038_trabajo_extraordinario_sabado.sql` — tablas iniciales (nombres antiguos).
+- `040_sabados_extra_audit_y_estado.sql` — `estado` en detalle, `actualizado_por`, permisos granulares.
+- `116_actividades_sugeridas.sql` — RENAME de tablas/columnas/índices/FKs (guardas information_schema
+  + PREPARE, primera migración con RENAME del repo), sábados históricos → lunes de su semana
+  (`DATE_SUB(semana, INTERVAL WEEKDAY(semana) DAY)`), repunte de permisos, `roles.version + 1`.
 
 **Errores comunes:**
-- _"errno 150"_ al aplicar 040: revisa que las FKs sean `INT` signed (no UNSIGNED) — `usuarios.id` usa INT signed.
-- _"hooks order violation #310"_: nunca poner `useEffect`/`useMemo` después de `if (loading) return …` en componentes de sábados extra. Movido y verificado en commit `bf14d72`.
-- _409 sin razón obvia_: revisa si el sábado coincide con feriado o si ya hay citación activa para esa `(obra,fecha)`.
+- _"errno 150"_: FKs `INT` signed (no UNSIGNED) — `usuarios.id` usa INT signed.
+- _"hooks order violation #310"_: nunca poner `useEffect`/`useMemo` después de `if (loading) return …`
+  en los componentes del módulo.
+- _409 sin razón obvia_: ya hay una lista activa para esa `(obra, semana)`.
+- _"La semana debe indicarse por su lunes"_: el cliente mandó una fecha que no es lunes; el selector
+  del form siempre manda el lunes (`opcionesSemanas`).
 
 ---
 
@@ -1125,14 +1171,14 @@ permanece visible en superficies de **administración** para poder revertir el a
 - **Obras:** Configuración → Organización → Obras → editar → checkbox "🧪 Obra de prueba".
   Aislar una obra **arrastra en cascada** a todos sus trabajadores (`es_prueba=1`);
   des-aislarla los revierte.
-- **Trabajadores:** formulario de trabajador (módulo Asistencia / Consultas) → checkbox
+- **Trabajadores:** formulario de trabajador (módulo Asistencia / Gestiones) → checkbox
   "🧪 Trabajador de prueba". También se pueden aislar individualmente.
 
 ### 18.2 Arquitectura del filtro
 - **Default-exclude + opt-in:** el CRUD genérico (`crud.service.js`) recibe la opción
   `testFlagColumn: 'es_prueba'` (solo en rutas obras y trabajadores). `getAll` excluye
   por defecto; las superficies de gestión pasan `?incluir_prueba=true` para verlos
-  (tabla Obras en Settings, búsqueda de Consultas, selector de obra en WorkerForm).
+  (tabla Obras en Settings, búsqueda de Gestiones, selector de obra en WorkerForm).
 - **Queries raw:** ~60 sitios en services llevan el filtro **co-locado junto al
   `activa=1`/`activo=1` existente**. Regla: INNER JOIN/FROM → `AND alias.es_prueba = 0`;
   LEFT JOIN con FK nullable (obra puede ser bodega) → forma **NULL-safe**
@@ -1159,6 +1205,105 @@ Cualquier query **nueva** que liste/agregue obras o trabajadores debe recordar e
 `es_prueba`. Auditar con: `grep -rn "activa = 1\|activo = 1" backend/src/services` y
 confirmar que cada LIST/AGGREGATE tenga el `es_prueba` co-locado. Omitirlo = fuga de
 datos de prueba a un reporte.
+
+---
+
+## 19. Datos ficticios en staging (saneo) — 2026-09-15
+
+### El problema
+
+`test.boveda.lols.cl` es una web pública con login y llegó a tener **trabajadores reales**: RUT,
+domicilio, fecha de nacimiento, AFP, **salud**, **cuenta bancaria**, imágenes de cédula y causal de
+desvinculación. Entraron por el único procedimiento que había para poblar staging: importar tablas
+de producción por phpMyAdmin (`§ 1` paso 6 y `TROUBLESHOOTING.md`, ambos ya corregidos).
+
+Producción es el lugar legítimo para esos datos. Staging no.
+
+### La regla
+
+> Un trabajador de staging es legítimo **si y solo si** su RUT está en el bloque ficticio
+> **44.000.000 – 44.000.999**.
+
+Ese tramo no está asignado a personas (Chile va por ~28 millones) ni a empresas (60 millones en
+adelante), y los RUT que genera el sembrado son **válidos por módulo 11**, así que el QA de los
+flujos que validan RUT funciona igual.
+
+**No se usa `es_prueba`** (§ 18) a propósito: esa bandera es aislamiento de *presentación* — una
+fila marcada desaparece de reportes, KPIs, asistencia y selectores. Marcar staging entero dejaría el
+QA sin datos que mirar. Lo sembrado va con `es_prueba = 0`.
+
+### Qué hace el saneo
+
+`backend/scripts/sanear_staging.js` (núcleo en `src/services/saneoStaging|saneoSiembra|saneoArchivos`):
+
+1. **Purga** los trabajadores fuera del bloque y todo lo que cuelga de ellos: documentos, lotes de
+   custodia, asistencias, períodos de ausencia, listas de actividades sugeridas, y —explícitamente, porque su FK es
+   `SET NULL` y sobrevivirían con PII— `trabajador_desvinculaciones` (guarda `rut_normalized` y
+   `nombre_snapshot`) y `solicitudes_ingreso` (copia íntegra de la ficha, cuenta bancaria incluida).
+2. **Borra los archivos**: la carpeta `uploads/<trabajadorId>/` completa, más las huérfanas. Los
+   nombres de archivo **llevan el RUT** (`pdf.service.js`), así que borrar solo las filas no basta.
+3. **Limpia rastros**: `logs_actividad` entero (`entidad_label` lleva nombres y `detalle` el body
+   completo del request, con IP), y los nombres de persona de `obras.encargado_nombre`,
+   `empresas.representante_*`, `bodegas.responsable_nombre` y `conductores.nombre`.
+4. **Apaga el correo saliente**: vacía `reportes_suscriptores` y `avisos_suscriptores`, anula
+   `vehiculo_*.email_alerta` y `usuarios.email_password_enc` (la clave AES del correo corporativo).
+   Sin esto, los cron de staging (§ 4.1) le escriben a personas reales. **No toca `usuarios.email`
+   ni `password_hash`: el login sigue funcionando.**
+5. **Siembra** (con `--sembrar`): 3 empresas, 4 obras, 10 cargos, ~40 trabajadores con ficha
+   completa e ingresos escalonados, asistencia de los últimos 30 días y 2 documentos por trabajador
+   con un **archivo marcador** real (PDF mínimo válido / `.doc` de Word) para que "Ver documento",
+   descargar e imprimir funcionen.
+
+### Las tres guardas
+
+El script se niega a correr salvo que se cumplan **todas**:
+
+1. `DB_NAME` **no** es `lolscl_boveda` (la base de producción).
+2. `DB_NAME` contiene `test`, `staging` o `dev`.
+3. Escribir exige el flag `--aplicar` **y** la variable `SANEO_STAGING=1`.
+
+Si alguna falla → `exit 1` sin tocar ninguna tabla. **Sin flags el default es dry-run**: informa y
+no escribe. Si el nombre real de la base de staging no casa con el patrón, el script se niega: es el
+fail-safe correcto, no un bug.
+
+### Cómo correrlo a mano (no hay SSH)
+
+cPanel → Cron Jobs → Add New Cron Job, una sola vez, y después borrar la entrada:
+
+```
+cd ~/test-boveda && <NODE> scripts/sanear_staging.js >> ~/saneo.log 2>&1          # ver qué haría
+cd ~/test-boveda && SANEO_STAGING=1 <NODE> scripts/sanear_staging.js --aplicar --sembrar >> ~/saneo.log 2>&1
+```
+
+`<NODE>` sale de cPanel → Setup Node.js App (p. ej. `/home/lolscl/nodevenv/test-boveda/20/bin/node`).
+Alias locales: `npm run sanear-staging-dry` y `npm run sanear-staging`.
+
+### Red de seguridad automática
+
+`scripts/cpanel-deploy-staging.sh` trae el bloque `sanear-datos` (calcado de `auto-migrate`: mismo
+lock, mismo timeout, jamás tumba el deploy). Corre en cada tick tras el rsync y publica una línea
+verificable por HTTP en **`https://test.boveda.lols.cl/datos-status.txt`**:
+
+```
+2026-09-15 18:20:01 · OK · 0 foráneos · 40 ficticios
+2026-09-15 18:25:03 · LIMPIEZA · 137 purgados · 0 sembrados · 0 foráneos
+```
+
+⚠️ **`cpanel-deploy-prod.sh` NO tiene este bloque y no debe tenerlo.**
+
+### Gracia de 48 horas (leer antes de hacer QA)
+
+La red de seguridad ignora los trabajadores creados en las últimas **48 h**: lo que crees a mano
+mientras pruebas sobrevive la sesión. Pasado ese plazo, si su RUT no está en el bloque ficticio, el
+deploy lo purga. Una importación desde producción llega con `created_at` antiguo y cae de inmediato.
+
+**Si necesitas que un trabajador de prueba sobreviva, créalo con un RUT del bloque 44.000.xxx.**
+
+### Franja de entorno
+
+El frontend de staging muestra una franja ámbar "Entorno de pruebas · los datos son ficticios".
+Se enciende con `VITE_ENTORNO=staging` en el build (paso del workflow `deploy-cpanel-staging.yml`);
+producción no define la variable y no renderiza nada.
 
 ---
 

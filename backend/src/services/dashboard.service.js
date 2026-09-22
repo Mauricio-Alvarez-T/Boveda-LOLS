@@ -86,7 +86,8 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         const [noDocWorkers] = await pool.query(
             `SELECT COUNT(t.id) as count 
              FROM trabajadores t 
-             LEFT JOIN documentos d ON t.id = d.trabajador_id AND d.activo = 1
+             LEFT JOIN (documentos d JOIN tipos_documento td ON td.id = d.tipo_documento_id AND td.obligatorio = 1)
+                    ON t.id = d.trabajador_id AND d.activo = 1
              WHERE t.activo = 1 AND t.es_prueba = 0 AND d.id IS NULL ${obraFilter}`,
             params
         );
@@ -113,7 +114,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                 titulo: 'Documentos Vencidos',
                 mensaje: `Hay ${expired[0].count} documentos caducados que requieren atención inmediata.`,
                 count: expired[0].count,
-                ruta: '/consultas?completitud=faltantes'
+                ruta: '/consultas?tab=trabajadores&doc_vigencia=vencido'
             });
         }
         if (expiringSoon[0].count > 0) {
@@ -122,7 +123,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                 titulo: 'Documentos por Vencer',
                 mensaje: `${expiringSoon[0].count} documentos vencen en los próximos 7 días.`,
                 count: expiringSoon[0].count,
-                ruta: '/consultas'
+                ruta: '/consultas?tab=trabajadores&doc_vigencia=30'
             });
         }
         if (noDocWorkers[0].count > 0) {

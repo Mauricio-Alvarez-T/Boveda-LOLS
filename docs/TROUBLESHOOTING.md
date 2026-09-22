@@ -166,6 +166,11 @@ location.reload();
 3. Importar en la BD del entorno afectado
 4. **Alternativa:** Ejecutar el seed/migration del backend si existe
 
+> ⚠️ **Solo esas cuatro tablas.** NUNCA importar `trabajadores`, `solicitudes_ingreso`,
+> `documentos` ni `asistencias` de producción a staging: son datos de personas reales (RUT,
+> domicilio, salud, cuenta bancaria). Para poblar staging con datos de prueba, ver
+> `RUNBOOK.md § 19`. Si ya se importaron, el saneo del deploy los purga en el siguiente tick.
+
 ---
 
 ### Error: Base de Datos Vacía
@@ -174,7 +179,14 @@ location.reload();
 
 **Causa:** La base de datos no tiene datos semilla.
 
-**Solución:** Exportar tablas maestras de producción (obras, cargos, empresas, trabajadores) e importar en el entorno afectado.
+**Solución (staging):** sembrar datos **ficticios**, no copiar producción:
+```
+cd ~/test-boveda && SANEO_STAGING=1 <NODE> scripts/sanear_staging.js --aplicar --sembrar
+```
+Crea empresas, obras, cargos, ~40 trabajadores con RUT del bloque ficticio, asistencia de 30 días y
+documentos con archivo. Ver `RUNBOOK.md § 19`.
+
+**Solución (producción):** es el origen del dato; si está vacía, restaurar respaldo. Nunca al revés.
 
 ---
 

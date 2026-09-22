@@ -37,14 +37,14 @@ import type { Trabajador, Asistencia } from '../../types/entities';
  * Tab "Asistencia Diaria" — contiene toda la funcionalidad original de la
  * página Attendance.tsx antes del refactor a tabs (commit 03c1a7d). Sin
  * cambios funcionales: solo se relocó como sub-componente para permitir
- * la coexistencia con el tab "Sábados Extra".
+ * la coexistencia con la pestaña "Actividades sugeridas".
  */
 interface DailyTabProps {
-    /** Si se pasa, muestra el ícono de Sábados Extra en la barra de búsqueda. */
-    onGoSabados?: () => void;
+    /** Si se pasa, muestra el ícono de Actividades sugeridas en la barra de búsqueda. */
+    onGoActividades?: () => void;
 }
 
-const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
+const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
     const { selectedObra, obras, setSelectedObra } = useObra();
     // Picker propio de Asistencia: solo obras con participa_asistencia (mig 075).
     const obrasAsistencia = useMemo(() => obras.filter(o => !flagOff(o.participa_asistencia)), [obras]);
@@ -377,7 +377,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                         onStatusFilter={setStatusFilter}
                         searchQuery={searchQuery}
                         setSearchQuery={setSearchQuery}
-                        onGoSabados={onGoSabados}
+                        onGoActividades={onGoActividades}
                     />
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar bg-muted/80 p-2 md:p-4 flex flex-col gap-2 relative">

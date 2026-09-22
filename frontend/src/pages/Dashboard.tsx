@@ -17,6 +17,10 @@ import VehicleExpiries from '../components/dashboard/widgets/VehicleExpiries';
 import BandejaDelDia, { type PendingTask, type BandejaItem } from '../components/dashboard/widgets/BandejaDelDia';
 import { useVencimientosVehiculos } from '../hooks/useVencimientosVehiculos';
 import { useSolicitudesIngreso } from '../hooks/useSolicitudesIngreso';
+import { useLotesPendientes } from '../hooks/useLotesPendientes';
+import { filasBandejaLotes } from '../components/documentos-fisicos/documentosFisicos';
+import { useDocumentosAlertas } from '../hooks/useDocumentosAlertas';
+import { filasBandejaAlertas } from '../components/documentos-fisicos/documentosAlertas';
 import { textoVencimiento, etiquetaVencimiento } from '../utils/vencimientos';
 import type { DashboardAlerta } from '../hooks/inventario/useDashboardEjecutivo';
 import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
@@ -24,6 +28,7 @@ import AbsencesToday from '../components/dashboard/widgets/AbsencesToday';
 import QuickActions from '../components/dashboard/widgets/QuickActions';
 import AbsenceAlerts, { type TrabajadorConAlerta } from '../components/dashboard/widgets/AbsenceAlerts';
 import ObraRanking from '../components/dashboard/widgets/ObraRanking';
+import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
 
 // ─── Types ───
 interface DocExpiryItem {
@@ -107,6 +112,9 @@ const Dashboard: React.FC = () => {
 
     const permisos = user?.permisos ?? [];
     const canInventario = permisos.includes('inventario.ver');
+    // El WidgetRegistry solo expresa permisos de 2 niveles (modulo.accion), así que este
+    // widget se gatea directo con la clave granular (mismo criterio que canInventario).
+    const canActividades = permisos.includes('asistencia.actividades_sugeridas.ver');
 
     // Solicitudes de ingreso pendientes (ficha digital): mismo store que el badge de
     // Consultas. Una sola fila-resumen, solo para quien aprueba y solo si hay algo.
@@ -122,6 +130,18 @@ const Dashboard: React.FC = () => {
             ruta: '/consultas?tab=solicitudes',
         }];
     }, [canAprobarSolicitudes, solicitudes.pendientes]);
+    // Documentos físicos (B6): mismo store que el botón de Gestiones. El backend ya recorta el alcance
+    // (portador: sus lotes; RRHH: todos); sin permiso el hook devuelve null y no hay filas.
+    const lotes = useLotesPendientes();
+    // B7: RRHH ve lo que superó su UMBRAL (por tipo + lotes atascados, con críticos); el portador, que no tiene
+    // esas alertas, ve el contador simple de sus lotes por confirmar.
+    const alertasDocs = useDocumentosAlertas();
+    const canRegistrarEntregas = permisos.includes('documentos.entrega.registrar');
+    const documentosFisicosItems = useMemo((): BandejaItem[] => (
+        canRegistrarEntregas
+            ? filasBandejaAlertas(alertasDocs.alertas)
+            : filasBandejaLotes(lotes.pendientes).map(f => ({ ...f, ruta: '/consultas?tab=fisicos' }))
+    ), [canRegistrarEntregas, alertasDocs.alertas, lotes.pendientes]);
     const { visibleWidgets } = useDashboardLayout(user?.id ?? 0, permisos);
 
     // Widgets que el usuario puede ver (gating por permiso granular). El layout es
@@ -252,6 +272,15 @@ const Dashboard: React.FC = () => {
                 </div>
             )}
 
+            {/* Asistencia a actividades sugeridas de la semana (pedido dueño 2026-09-21):
+                cuántos de cada cargo asistieron + descarga del informe Excel. Trae sus
+                propios datos (tiene selector de semana), por eso no depende de `ready`. */}
+            {canActividades && (
+                <Panel>
+                    <ActividadesSemana />
+                </Panel>
+            )}
+
             {/* Zona principal: Bandeja del Día (izq) + Ausentes del Día (der, sticky) */}
             <div className={cn('grid grid-cols-1 gap-6 items-start', showAusentes && 'lg:grid-cols-[1.5fr_1fr]')}>
                 <Panel>
@@ -262,6 +291,7 @@ const Dashboard: React.FC = () => {
                             inventoryItems={invItems}
                             vehiculoItems={vehiculoItems}
                             solicitudItems={solicitudItems}
+                            documentosFisicosItems={documentosFisicosItems}
                             onNavigate={(route) => navigate(route)}
                         />
                         : <SkeletonText lines={6} />}

@@ -91,20 +91,19 @@ export const registrosDiaPrevioDemo = trabajadoresDemo.map(t => ({
 /** GET /asistencias/periodos → { data: periodosDemo } (sin períodos activos previos). */
 export const periodosDemo: unknown[] = [];
 
-/** GET /sabados-extra → { data: sabadosDemo } (sin citaciones este mes; se crea una en el tutorial). */
-export const sabadosDemo: unknown[] = [];
+/** GET /actividades-sugeridas → { data: actividadesDemo } (sin listas este mes; se crea una en el tutorial). */
+export const actividadesDemo: unknown[] = [];
 
 /**
- * GET /sabados-extra/:id → { data: sabadoDetalleDemo }. Detalle de una citación recién
- * creada con los 4 trabajadores demo citados (aún sin marcar asistencia).
+ * GET /actividades-sugeridas/:id → { data: actividadDetalleDemo }. Detalle de una lista
+ * recién creada con los 4 trabajadores demo (aún sin marcar asistencia).
  */
-export const sabadoDetalleDemo = {
+export const actividadDetalleDemo = {
     id: 7001,
     obra_id: OBRA_ID,
     obra_nombre: 'Obra de ejemplo',
-    fecha: '2026-01-10',          // un sábado de ejemplo
+    semana: '2026-01-12',         // lunes de la semana de ejemplo
     estado: 'citada' as const,
-    horas_default: 8,
     observaciones_globales: null,
     observaciones_por_cargo: null,
     creado_por: 0,
@@ -114,14 +113,13 @@ export const sabadoDetalleDemo = {
     updated_at: '2026-01-05T12:00:00.000Z',
     trabajadores: trabajadoresDemo.map(t => ({
         id: t.id,
-        sabado_id: 7001,
+        actividad_id: 7001,
         trabajador_id: t.id,
         obra_origen_id: OBRA_ID,
         obra_origen_nombre: 'Obra de ejemplo',
         citado: 1 as const,
         asistio: null,
         estado: 'citado' as const,
-        horas_trabajadas: null,
         observacion: null,
         rut: t.rut,
         nombres: t.nombres,

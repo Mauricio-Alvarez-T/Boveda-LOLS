@@ -12,7 +12,11 @@
 // Campos sensibles o ruidosos que jamás deben ir al log.
 const EXCLUDED_KEYS = new Set([
     'id', 'created_at', 'updated_at', 'password', 'password_hash',
-    'user_agent', 'token', 'refresh_token'
+    'user_agent', 'token', 'refresh_token',
+    // Montos de remuneración (plan Gestiones B3/B5): nunca al detalle del log (lo ve sistema.logs.ver).
+    'sueldo_base', 'bono_colacion', 'bono_movilizacion',
+    // Snapshot de emisión de documentos (mig 110): puede traer remuneración.
+    'metadata'
 ]);
 
 // Etiquetas humanas para keys técnicas (usadas en `buildResumen`).
@@ -40,7 +44,21 @@ const LABEL_MAP = {
     // Ficha de ingreso digital (mig 108): datos personales del trabajador.
     fecha_nacimiento: 'F. Nacimiento', estado_civil: 'Estado civil', comuna: 'Comuna',
     afp: 'AFP', salud: 'Salud', nacionalidad: 'Nacionalidad', cargas_familiares: 'Cargas familiares',
-    observaciones: 'Observaciones', motivo_rechazo: 'Motivo rechazo'
+    observaciones: 'Observaciones', motivo_rechazo: 'Motivo rechazo',
+    // Sueldo por cargo (mig 111).
+    evento: 'Evento', cargo: 'Cargo', cambio_montos: 'Cambió montos',
+    // Desvinculación con causal (mig 112).
+    fecha_desvinculacion: 'F. Desvinculación', causal_desvinculacion: 'Causal', causal_codigo: 'Causal', causal: 'Causal',
+    no_recontratar: 'No recontratar', tenia_marca_no_recontratar: 'Tenía marca', quitar_marca_no_recontratar: 'Quitar marca',
+    // Documentos laborales generados (mig 110).
+    origen: 'Origen', estado: 'Estado doc.', plantilla_version: 'Versión plantilla', fecha_generacion: 'F. Generación',
+    fecha_descarga: 'F. Descarga', solicitud_id: 'Solicitud', documentos: 'Documentos', dias_plazo: 'Plazo (días)',
+    representante_nombre: 'Representante legal', representante_rut: 'RUT representante',
+    // Custodia de documentos físicos (mig 114).
+    portador_id: 'Portador', lote_id: 'Lote', recibidos: 'Recibidos', no_entregados: 'No entregados',
+    firmados: 'Firmados', sin_firma: 'Sin firma', en_terreno: 'En terreno', liberados: 'Liberados',
+    // Alertas de documentos sin firmar (mig 115).
+    dias_aviso: 'Días aviso', dias_critico: 'Días crítico', etiqueta: 'Etiqueta', categoria: 'Categoría'
 };
 
 // Acciones consideradas "ruido" cuando el usuario sólo quiere ver cambios
@@ -78,6 +96,14 @@ const SOLICITUD_INGRESO_RESOLVER = {
     ],
 };
 
+/**
+ * Etiqueta de semana ("Semana lun 28/09 – vie 02/10"): la comparte el informe Excel y
+ * el servicio, y es el espejo en JS del labelExpr SQL de `actividades-sugeridas` — el
+ * historial debe mostrar el mismo texto haya venido del body (CREATE) o de la tabla
+ * (UPDATE/DELETE).
+ */
+const { labelSemana } = require('../utils/semana');
+
 const ENTIDAD_RESOLVERS = {
     'solicitudes-ingreso': SOLICITUD_INGRESO_RESOLVER,
     solicitudes_ingreso: SOLICITUD_INGRESO_RESOLVER,
@@ -107,6 +133,34 @@ const ENTIDAD_RESOLVERS = {
         tabla: 'cargos',
         labelExpr: 'nombre',
         bodyKeys: ['nombre'],
+    },
+    // /api/cargo-sueldos/:cargoId — item_id es el cargo (el log manual del service lo etiqueta).
+    'cargo-sueldos': {
+        tipo: 'cargo',
+        tabla: 'cargos',
+        labelExpr: 'nombre',
+        bodyKeys: ['cargo'],
+    },
+    // /api/documentos-laborales/:id — item_id es el documento (el log manual del service lo etiqueta).
+    'documentos-laborales': {
+        tipo: 'documento',
+        tabla: 'documentos',
+        labelExpr: 'nombre_archivo',
+        bodyKeys: ['resumen', 'tipo'],
+    },
+    // /api/documentos-lotes/:id — item_id es el lote de custodia (mig 114); el log manual trae `resumen`.
+    'documentos-lotes': {
+        tipo: 'lote_documentos',
+        tabla: 'documentos_lotes',
+        labelExpr: "CONCAT('Lote #', id)",
+        bodyKeys: ['resumen'],
+    },
+    // /api/documentos-alertas/config/:id — umbrales por categoría (mig 115); el logger global registra el PUT.
+    'documentos-alertas': {
+        tipo: 'alerta_documentos',
+        tabla: 'documentos_alertas_config',
+        labelExpr: 'etiqueta',
+        bodyKeys: ['etiqueta', 'categoria'],
     },
     usuarios: {
         tipo: 'usuario',
@@ -144,12 +198,17 @@ const ENTIDAD_RESOLVERS = {
         labelExpr: 'nombre',
         bodyKeys: ['nombre'],
     },
-    'sabados-extra': {
-        tipo: 'sabado_extra',
-        tabla: 'sabados_extra',
-        labelExpr: "CONCAT('Sábado ', DATE_FORMAT(fecha, '%d-%m-%Y'))",
+    // Lista de trabajadores en actividades sugeridas (mig 116): la lista se identifica
+    // por obra + semana (lunes). El label usa el MISMO rango lun–vie que la UI, tanto en
+    // el CREATE (desde el body, `labelSemana`) como en UPDATE/DELETE (desde la BD, SQL);
+    // si no coincidieran, el historial mezclaría formatos para la misma lista.
+    // Los logs anteriores al rename conservan el label que ya tenían guardado.
+    'actividades-sugeridas': {
+        tipo: 'actividad_sugerida',
+        tabla: 'actividades_sugeridas',
+        labelExpr: "CONCAT('Semana lun ', DATE_FORMAT(semana, '%d/%m'), ' – vie ', DATE_FORMAT(DATE_ADD(semana, INTERVAL 4 DAY), '%d/%m'))",
         bodyKeys: [
-            (b) => b.fecha ? `Sábado ${b.fecha}` : null,
+            (b) => labelSemana(b.semana),
         ],
     },
     'facturas-inventario': {

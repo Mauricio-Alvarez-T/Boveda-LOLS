@@ -6,6 +6,9 @@ export interface Empresa {
     direccion: string | null;
     telefono: string | null;
     activo: boolean;
+    /** Representante legal que firma contratos/finiquitos generados por Bóveda (mig 110). */
+    representante_nombre?: string | null;
+    representante_rut?: string | null;
 }
 
 export interface Obra {
@@ -52,6 +55,33 @@ export interface Cargo {
     activo: boolean;
 }
 
+/** Parámetros de sueldo vigentes de un cargo (mig 111; GET /cargo-sueldos). Montos CLP enteros. */
+export interface CargoSueldo {
+    id: number | null;
+    cargo_id: number;
+    cargo_nombre?: string;
+    sueldo_base: number;
+    bono_colacion: number;
+    bono_movilizacion: number;
+    observaciones: string | null;
+    actualizado_por: number | null;
+    actualizado_por_nombre?: string | null;
+    updated_at?: string | null;
+}
+
+/** Una fila por cambio de montos (append-only; GET /cargo-sueldos/:id/historial). */
+export interface CargoSueldoHistorial {
+    id: number;
+    cargo_id: number;
+    sueldo_base: number;
+    bono_colacion: number;
+    bono_movilizacion: number;
+    observaciones: string | null;
+    cambiado_por: number | null;
+    cambiado_por_nombre?: string | null;
+    cambiado_en: string;
+}
+
 export interface Conductor {
     id: number;
     nombre: string;
@@ -76,6 +106,10 @@ export interface Trabajador {
     carnet_dorso_url: string | null;
     fecha_ingreso: string | null;
     fecha_desvinculacion: string | null;
+    /** Causal de la baja vigente (código del catálogo, mig 112); null si activo. */
+    causal_desvinculacion?: string | null;
+    /** Marca de aviso al recontratar (solo advierte). */
+    no_recontratar?: boolean;
     categoria_reporte: 'obra' | 'operaciones' | 'rotativo';
     activo: boolean;
     /** Si TRUE, trabajador de prueba: aislado de reportes/dashboard/asistencia/consultas operativas. */
@@ -391,7 +425,16 @@ export interface TipoDocumento {
     dias_vigencia: number | null;
     obligatorio: boolean;
     activo: boolean;
+    /** Clave estable del sistema (plantilla Bóveda, mig 110); null = tipo manual. */
+    codigo?: string | null;
+    /** Descarga/impresión solo con documentos.laborales.descargar. */
+    restringido?: boolean | number;
 }
+
+/** Estado monótono de un documento (mig 110): subido|generado → descargado → entregado (B6). */
+/** `entregado` (mig 110) quedó sin uso: B6 lo reemplazó por en_terreno → firmado (mig 114). */
+export type DocumentoEstado = 'subido' | 'generado' | 'descargado' | 'entregado' | 'en_terreno' | 'firmado';
+export type DocumentoOrigen = 'subido' | 'generado';
 
 export interface Documento {
     id: number;
@@ -405,6 +448,23 @@ export interface Documento {
     fecha_vencimiento: string | null;
     subido_por: number;
     activo: boolean;
+    // Mig 110 (documentos generados por Bóveda). Ausentes si el backend aún no migró.
+    tipo_obligatorio?: boolean | number | null;
+    tipo_codigo?: string | null;
+    restringido?: boolean | number;
+    origen?: DocumentoOrigen;
+    estado?: DocumentoEstado;
+    generado_por?: number | null;
+    generado_por_nombre?: string | null;
+    fecha_generacion?: string | null;
+    fecha_descarga?: string | null;
+    plantilla_version?: string | null;
+    // Mig 114 (custodia de documentos físicos, B6). Solo en GET /documentos-laborales/trabajador/:id.
+    lote_id?: number | null;
+    lote_estado?: 'pendiente_retiro' | 'en_terreno' | 'cerrado' | null;
+    lote_retirado_en?: string | null;
+    portador_nombre?: string | null;
+    fecha_firmado?: string | null;
 }
 
 export interface EstadoAsistencia {

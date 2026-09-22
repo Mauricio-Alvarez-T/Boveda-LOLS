@@ -1,5 +1,10 @@
 # Roadmap — Auditoría completa del feature "Sábados Extra"
 
+> **2026-09-21 — documento histórico.** El módulo fue renombrado a **"Lista de trabajadores en
+> actividades sugeridas"** (`actividades_sugeridas`, mig 116) por decisión de jefatura y ya no fija
+> un día (se asigna a una semana lun–vie). Los nombres de tablas, rutas y permisos citados abajo
+> son los antiguos. Ver `docs/RUNBOOK.md § 12.2` y `docs/reglas/asistencia.md`.
+
 > **Estado actual:** Sprints 1, 2, 3 y 4 completados. Auditoría cerrada.
 > **Rama de trabajo:** `develop`
 > **Plan original:** `C:\Users\maatr\.claude\plans\regalon-necesito-contruir-una-sorted-diffie.md`

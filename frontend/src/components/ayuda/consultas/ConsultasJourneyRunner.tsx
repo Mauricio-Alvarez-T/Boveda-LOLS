@@ -34,12 +34,12 @@ const CONFIG: Record<Flujo, FlujoConfig> = {
     },
     'ver-doc': {
         labels: ['Ver documento'],
-        instruccion: 'Abre la ficha de un trabajador (clic en su nombre). En la sección de documentos, pulsa el ojo "Ver documento" de uno de ellos para abrirlo.',
+        instruccion: 'Abre la ficha de un trabajador (clic en su nombre). En la ficha, entra a la pestaña "Documentos" y pulsa el ojo "Ver documento" de uno de ellos.',
         accion: 'ver-doc',
         finTitulo: '¡Documento abierto!',
         recap: [
             'Abriste la ficha de un trabajador.',
-            'Pulsaste "Ver documento" en uno de sus documentos.',
+            'Entraste a la pestaña "Documentos" y pulsaste el ojo "Ver documento".',
             'El documento se abrió en una pestaña nueva.',
         ],
     },
@@ -117,7 +117,7 @@ export const ConsultasJourneyRunner: React.FC<{
             {/* Aviso sandbox */}
             <div className="flex items-center gap-2 rounded-xl border border-info/30 bg-info/5 px-3 py-2 text-caption text-brand-dark">
                 <Sparkles className="h-4 w-4 shrink-0 text-info" />
-                <span><span className="font-bold">Demostración interactiva.</span> Es la pantalla real de Consultas con datos de ejemplo — no afecta nada.</span>
+                <span><span className="font-bold">Demostración interactiva.</span> Es la pantalla real de Gestiones con datos de ejemplo — no afecta nada.</span>
             </div>
 
             {/* Instrucción */}
@@ -136,7 +136,8 @@ export const ConsultasJourneyRunner: React.FC<{
             <div ref={screenRef} className="rounded-2xl border border-border bg-card p-3 sm:p-4 min-h-[60vh] flex flex-col">
                 <SandboxBoundary key={nonce}>
                     <ConsultasSandbox onAccion={onAccion}>
-                        <ConsultasPage />
+                        {/* seccionFija: los tutoriales esperan la grilla + CREAR; sin esto (permisos all-true) caería en la portada. */}
+                        <ConsultasPage seccionFija="trabajadores" />
                     </ConsultasSandbox>
                 </SandboxBoundary>
             </div>

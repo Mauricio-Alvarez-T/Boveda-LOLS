@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2, XCircle, UserPlus, Clock, User, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, UserPlus, Clock, User, AlertTriangle, FileDown, PackageOpen } from 'lucide-react';
 
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
@@ -19,11 +19,16 @@ import { Button } from '../ui/Button';
 import { StatusBadge } from '../ui/StatusBadge';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import { showApiError } from '../../utils/toastUtils';
+import { descargarArchivo } from '../../utils/descargarArchivo';
+import { useAuth } from '../../context/AuthContext';
+import { IconButton } from '../ui/IconButton';
 import { RechazarForm } from '../inventario/transferencia-detail/RechazarForm';
 import { DatosPersonalesFields } from '../workers/DatosPersonalesFields';
+import { EmitirKitModal } from '../documents/EmitirKitModal';
+import { workerDesdeSolicitud, type DocumentoEmitido } from '../documents/documentosLaborales';
 import {
     aprobarSolicitudSchema, buildAprobarPayload, datosPersonalesDefaults, listarDatosPersonales,
-    CATEGORIA_REPORTE_OPTIONS, type AprobarSolicitudFormValues,
+    CATEGORIA_REPORTE_OPTIONS, type AprobarSolicitudFormValues, type AprobacionResultado,
 } from './solicitudIngresoSchema';
 
 export type SolicitudAccion = 'aprobada' | 'rechazada';
@@ -34,8 +39,13 @@ interface Props {
     onClose: () => void;
     /** `trabajadores.solicitud.aprobar`: sin él la ficha es solo lectura. */
     puedeAprobar: boolean;
-    /** Tras aprobar o rechazar: el padre cierra, refresca lista + badge (y la grilla si se creó el trabajador). */
+    /** Tras rechazar: el padre cierra y refresca lista + badge. */
     onResuelta: (accion: SolicitudAccion) => void;
+    /**
+     * Tras aprobar (plan Gestiones B5): el padre refresca lista, badge y grilla SIN cerrar — el modal
+     * muestra los siguientes pasos (descargar la ficha en Word, emitir el kit de ingreso).
+     */
+    onAprobado?: (r: AprobacionResultado) => void;
 }
 
 const nombreCompleto = (s: SolicitudIngreso) =>
@@ -117,8 +127,8 @@ const FichaSoloLectura: React.FC<{ s: SolicitudIngreso }> = ({ s }) => {
  * RechazarForm (motivo obligatorio). El bloque de rechazo vive FUERA del <form>
  * de aprobación: sus botones no declaran type y dispararían el submit.
  */
-const FormRevision: React.FC<{ s: SolicitudIngreso; onResuelta: (a: SolicitudAccion) => void; onClose: () => void }> =
-    ({ s, onResuelta, onClose }) => {
+const FormRevision: React.FC<{ s: SolicitudIngreso; onResuelta: (a: SolicitudAccion) => void; onAprobado: (r: AprobacionResultado) => void; onClose: () => void }> =
+    ({ s, onResuelta, onAprobado, onClose }) => {
         const [initializing, setInitializing] = useState(true);
         // Catálogos gateados por empresas.ver / obras.ver / cargos.ver: sin ellos, aviso explícito.
         const [errorCatalogos, setErrorCatalogos] = useState<string | null>(null);
@@ -180,9 +190,10 @@ const FormRevision: React.FC<{ s: SolicitudIngreso; onResuelta: (a: SolicitudAcc
         const onAprobar = async (data: AprobarSolicitudFormValues) => {
             setAprobando(true);
             try {
-                await api.put(`/solicitudes-ingreso/${s.id}/aprobar`, buildAprobarPayload(data));
+                const res = await api.put<{ data: AprobacionResultado }>(`/solicitudes-ingreso/${s.id}/aprobar`, buildAprobarPayload(data));
                 toast.success(`Trabajador creado: ${data.nombres.trim()} ${data.apellido_paterno.trim()}`);
-                onResuelta('aprobada');
+                // El padre desmonta este form (suelta el aviso de "cambios sin guardar") y muestra los siguientes pasos.
+                onAprobado(res.data.data);
             } catch (err) {
                 // 409 = ya no está pendiente o el RUT se creó entre medio; 400 = ficha incompleta.
                 showApiError(err, 'No se pudo aprobar la solicitud');
@@ -224,7 +235,7 @@ const FormRevision: React.FC<{ s: SolicitudIngreso; onResuelta: (a: SolicitudAcc
                         <p>{errorCatalogos}</p>
                     </div>
                     <div className="flex justify-end">
-                        <Button type="button" variant="outline" onClick={onClose}>Cerrar</Button>
+                        <Button type="button" variant="ghost" onClick={onClose}>Cerrar</Button>
                     </div>
                 </div>
             );
@@ -387,23 +398,130 @@ const FormRevision: React.FC<{ s: SolicitudIngreso; onResuelta: (a: SolicitudAcc
     };
 
 /**
+ * Pantalla de éxito tras aprobar (plan Gestiones B5): el trabajador ya existe, la ficha en Word quedó
+ * (o quedará al descargarla) en su ficha, y el kit de ingreso se puede emitir acá mismo. El kit reusa
+ * EmitirKitModal con el trabajador armado desde la solicitud aprobada (sin pedir la ficha de nuevo).
+ * Cada botón se gatea por su propio permiso: aprobar NO implica emitir ni descargar.
+ */
+const SolicitudAprobada: React.FC<{ r: AprobacionResultado; onCerrar: () => void }> = ({ r, onCerrar }) => {
+    const { hasPermission } = useAuth();
+    const puedeEmitir = hasPermission('documentos.laborales.emitir');
+    const puedeDescargar = hasPermission('documentos.laborales.descargar');
+    const [kitAbierto, setKitAbierto] = useState(false);
+    const [kitEmitido, setKitEmitido] = useState<DocumentoEmitido[] | null>(null);
+    const [descargando, setDescargando] = useState(false);
+    const s = r.solicitud;
+    // En estado: si el kit completa datos personales (PUT /trabajadores/:id) y luego falla por otra cosa,
+    // al reabrirlo no debe volver a pedirlos.
+    const [worker, setWorker] = useState(() => workerDesdeSolicitud(s, r.trabajador_id));
+
+    const descargar = async () => {
+        setDescargando(true);
+        try { await descargarArchivo(api, `/solicitudes-ingreso/${s.id}/doc`, { modo: 'download' }); }
+        finally { setDescargando(false); }
+    };
+
+    return (
+        <div className="space-y-4">
+            <Encabezado s={s} />
+            <div role="status" className="flex items-start gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-800 dark:border-green-800/60 dark:bg-green-500/10 dark:text-green-300">
+                <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
+                <div>
+                    <p className="font-bold">Trabajador creado en Bóveda</p>
+                    <p className="mt-0.5 text-xs opacity-90">
+                        {nombreCompleto(s)}{s.empresa_nombre ? ` · ${s.empresa_nombre}` : ''}.
+                        {r.solicitud_documento_id != null
+                            ? ' La ficha de solicitud quedó en Word en "Documentos laborales (Bóveda)" de su ficha.'
+                            : ' La ficha en Word no se pudo guardar automáticamente: se genera al pulsar "Descargar ficha (Word)".'}
+                    </p>
+                </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Siguiente paso</p>
+                {kitEmitido ? (
+                    <p className="text-sm text-brand-dark">
+                        <b>Kit de ingreso emitido</b> ({kitEmitido.length} {kitEmitido.length === 1 ? 'documento' : 'documentos'}). Descárgalo o imprímelo desde la ficha del trabajador.
+                    </p>
+                ) : (
+                    <p className="text-sm text-brand-dark">Emite el kit de ingreso (contrato, ODI, DAS, PTS en altura, EPP y Reglamento Interno) ahora o después desde la ficha del trabajador.</p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" leftIcon={<FileDown className="h-4 w-4" />} onClick={descargar} isLoading={descargando}
+                        disabled={!puedeDescargar} title={puedeDescargar ? 'Ficha de solicitud en Word' : 'Requiere "Descargar / Imprimir Documentos Laborales"'}>
+                        Descargar ficha (Word)
+                    </Button>
+                    <Button type="button" leftIcon={<PackageOpen className="h-4 w-4" />} onClick={() => setKitAbierto(true)}
+                        disabled={!puedeEmitir || !!kitEmitido} title={puedeEmitir ? undefined : 'Requiere "Emitir Documentos Laborales"'}>
+                        Emitir kit de ingreso
+                    </Button>
+                </div>
+            </div>
+
+            <div className="flex justify-end">
+                <Button type="button" variant={kitEmitido ? 'primary' : 'ghost'} onClick={onCerrar}>Cerrar</Button>
+            </div>
+
+            <EmitirKitModal isOpen={kitAbierto} onClose={() => setKitAbierto(false)} worker={worker} onEmitido={setKitEmitido}
+                onFichaActualizada={cambios => { if (cambios) setWorker(w => ({ ...w, ...cambios })); }} />
+        </div>
+    );
+};
+
+/**
  * Modal de una solicitud de ingreso. Con permiso de aprobar y estado pendiente
  * → formulario de revisión (aprobar / rechazar). En cualquier otro caso → ficha
- * en solo lectura con el estado y, si fue rechazada, el motivo.
+ * en solo lectura con el estado y, si fue rechazada, el motivo. Recién aprobada
+ * → pantalla de siguientes pasos (B5) hasta que el usuario cierra.
  */
-export const RevisarSolicitudModal: React.FC<Props> = ({ solicitud, onClose, puedeAprobar, onResuelta }) => {
+export const RevisarSolicitudModal: React.FC<Props> = ({ solicitud, onClose, puedeAprobar, onResuelta, onAprobado }) => {
     const editable = !!solicitud && puedeAprobar && solicitud.estado === 'pendiente';
+    const { hasPermission } = useAuth();
+    const [descargando, setDescargando] = useState(false);
+    // Resultado de la aprobación de ESTA solicitud (se limpia al cambiar de solicitud o cerrar).
+    const [aprobada, setAprobada] = useState<AprobacionResultado | null>(null);
+    const solicitudId = solicitud?.id ?? null;
+    useEffect(() => { setAprobada(null); }, [solicitudId]);
+    // Sin `onAprobado` (caller antiguo) se conserva el contrato anterior: onResuelta('aprobada') = cerrar y refrescar.
+    const handleAprobado = (r: AprobacionResultado) => {
+        if (!onAprobado) { onResuelta('aprobada'); return; }
+        setAprobada(r);
+        onAprobado(r);
+    };
+    // Ficha en Word (plan Gestiones B2): pendiente → al vuelo; aprobada → la guardada en la ficha del trabajador.
+    const puedeDescargarDoc = hasPermission('documentos.laborales.descargar');
+    const descargarDoc = async () => {
+        if (!solicitud) return;
+        setDescargando(true);
+        try { await descargarArchivo(api, `/solicitudes-ingreso/${solicitud.id}/doc`, { modo: 'download' }); }
+        finally { setDescargando(false); }
+    };
     return (
         <Modal
             isOpen={!!solicitud}
             onClose={onClose}
-            title={editable ? 'Revisar solicitud de ingreso' : 'Solicitud de ingreso'}
+            title={aprobada ? 'Solicitud aprobada' : editable ? 'Revisar solicitud de ingreso' : 'Solicitud de ingreso'}
+            icon={aprobada ? CheckCircle2 : UserPlus}
+            description={solicitud ? [`${solicitud.apellido_paterno} ${solicitud.apellido_materno || ''} ${solicitud.nombres}`.replace(/\s+/g, ' ').trim(), solicitud.rut, solicitud.obra_nombre].filter(Boolean).join(' · ') : undefined}
             size="lg"
+            headerAction={puedeDescargarDoc ? (
+                <IconButton
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Descargar ficha (Word)"
+                    title="Descargar ficha (Word)"
+                    disabled={descargando}
+                    onClick={descargarDoc}
+                    icon={descargando ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                />
+            ) : undefined}
         >
-            {solicitud && (editable
-                // key: un form nuevo por solicitud (defaults distintos).
-                ? <FormRevision key={solicitud.id} s={solicitud} onResuelta={onResuelta} onClose={onClose} />
-                : <FichaSoloLectura s={solicitud} />
+            {solicitud && (aprobada
+                ? <SolicitudAprobada r={aprobada} onCerrar={onClose} />
+                : editable
+                    // key: un form nuevo por solicitud (defaults distintos).
+                    ? <FormRevision key={solicitud.id} s={solicitud} onResuelta={onResuelta} onAprobado={handleAprobado} onClose={onClose} />
+                    : <FichaSoloLectura s={solicitud} />
             )}
         </Modal>
     );

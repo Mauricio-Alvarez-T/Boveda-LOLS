@@ -56,13 +56,13 @@ export const SECCIONES_META: Record<Seccion, SeccionMeta> = {
             'Períodos',
             'Horarios',
             'Feriados',
-            'Sábados Extra',
+            'Actividades sugeridas',
             'Exportación',
             'Datos Sensibles',
         ],
     },
     consultas: {
-        label: 'Consultas',
+        label: 'Gestiones',
         icon: '🔍',
         orden: 3,
         subseccionesOrden: ['Documentos', 'Reportes'],
@@ -117,12 +117,13 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'asistencia.feriado.gestionar':            { seccion: 'asistencia', subseccion: 'Feriados',         verbo: 'editar' },
     'asistencia.horarios.ver':                 { seccion: 'asistencia', subseccion: 'Horarios',         verbo: 'ver' },
     'asistencia.horarios.editar':              { seccion: 'asistencia', subseccion: 'Horarios',         verbo: 'editar' },
-    'asistencia.sabados_extra.ver':            { seccion: 'asistencia', subseccion: 'Sábados Extra',    verbo: 'ver' },
-    'asistencia.sabados_extra.crear':          { seccion: 'asistencia', subseccion: 'Sábados Extra',    verbo: 'crear' },
-    'asistencia.sabados_extra.editar':         { seccion: 'asistencia', subseccion: 'Sábados Extra',    verbo: 'editar' },
-    'asistencia.sabados_extra.cancelar':       { seccion: 'asistencia', subseccion: 'Sábados Extra',    verbo: 'eliminar' },
-    'asistencia.sabados_extra.registrar':      { seccion: 'asistencia', subseccion: 'Sábados Extra',    verbo: 'editar' },
-    'asistencia.sabados_extra.enviar_whatsapp':{ seccion: 'asistencia', subseccion: 'Sábados Extra',    verbo: 'enviar' },
+    'asistencia.actividades_sugeridas.ver':            { seccion: 'asistencia', subseccion: 'Actividades sugeridas', verbo: 'ver' },
+    'asistencia.actividades_sugeridas.crear':          { seccion: 'asistencia', subseccion: 'Actividades sugeridas', verbo: 'crear' },
+    'asistencia.actividades_sugeridas.editar':         { seccion: 'asistencia', subseccion: 'Actividades sugeridas', verbo: 'editar' },
+    'asistencia.actividades_sugeridas.cancelar':       { seccion: 'asistencia', subseccion: 'Actividades sugeridas', verbo: 'eliminar' },
+    'asistencia.actividades_sugeridas.registrar':      { seccion: 'asistencia', subseccion: 'Actividades sugeridas', verbo: 'editar' },
+    'asistencia.actividades_sugeridas.enviar_whatsapp':{ seccion: 'asistencia', subseccion: 'Actividades sugeridas', verbo: 'enviar' },
+    'asistencia.actividades_sugeridas.informe':        { seccion: 'asistencia', subseccion: 'Actividades sugeridas', verbo: 'exportar' },
     'asistencia.horas_extra.ver':              { seccion: 'asistencia', subseccion: 'Datos Sensibles',  verbo: 'ver', sensible: 'financiero' },
 
     // ─── CONSULTAS ─────────────────────────────────────────────────────────
@@ -130,6 +131,11 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'documentos.subir':                        { seccion: 'consultas', subseccion: 'Documentos', verbo: 'crear' },
     'documentos.descargar':                    { seccion: 'consultas', subseccion: 'Documentos', verbo: 'exportar' },
     'documentos.eliminar':                     { seccion: 'consultas', subseccion: 'Documentos', verbo: 'eliminar' },
+    // Documentos laborales generados (plan Gestiones B2/B6; pre-registrados en B1)
+    'documentos.laborales.emitir':             { seccion: 'consultas', subseccion: 'Documentos', verbo: 'crear' },
+    'documentos.laborales.descargar':          { seccion: 'consultas', subseccion: 'Documentos', verbo: 'exportar', sensible: 'critico' },
+    'documentos.entrega.registrar':            { seccion: 'consultas', subseccion: 'Documentos', verbo: 'editar' },
+    'documentos.entrega.portar':               { seccion: 'consultas', subseccion: 'Documentos', verbo: 'editar' },
     'reportes.ver':                            { seccion: 'consultas', subseccion: 'Reportes',   verbo: 'ver' },
     'reportes.exportar':                       { seccion: 'consultas', subseccion: 'Reportes',   verbo: 'exportar' },
     'reportes.enviar_email':                   { seccion: 'consultas', subseccion: 'Reportes',   verbo: 'enviar' },
@@ -224,6 +230,8 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'cargos.crear':                            { seccion: 'configuracion', subseccion: 'Cargos', verbo: 'crear' },
     'cargos.editar':                           { seccion: 'configuracion', subseccion: 'Cargos', verbo: 'editar' },
     'cargos.eliminar':                         { seccion: 'configuracion', subseccion: 'Cargos', verbo: 'eliminar' },
+    'cargos.sueldo.ver':                       { seccion: 'configuracion', subseccion: 'Cargos', verbo: 'ver',    sensible: 'financiero' },
+    'cargos.sueldo.editar':                    { seccion: 'configuracion', subseccion: 'Cargos', verbo: 'editar', sensible: 'financiero' },
 
     // Sistema (incluye ⚠️ críticos)
     'sistema.logs.ver':                        { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'ver' },
@@ -233,6 +241,8 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'sistema.estados.gestionar':               { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar', sensible: 'critico' },
     'sistema.tipos_ausencia.gestionar':        { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar' },
     'sistema.reportes.gestionar':              { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar' },
+    'sistema.avisos.gestionar':                { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar' },
+    'sistema.alertas_documentos.gestionar':    { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar' },
 };
 
 /** Sección por defecto cuando ninguna específica está activa. */

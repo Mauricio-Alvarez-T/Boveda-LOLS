@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, Users, CalendarClock, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../services/api';
 import { IconButton } from '../ui/IconButton';
+import { useCierreExterno } from '../../hooks/useCierreExterno';
 
 interface Worker10m {
     id: number;
@@ -26,7 +27,8 @@ export const NotificationBell: React.FC = () => {
     const [alerts, setAlerts] = useState<AlertItem[]>([]);
     const [open, setOpen] = useState(false);
     const [expanded10m, setExpanded10m] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
+    // `alCerrar` es un callback libre justamente por esto: acá además hay que plegar el detalle.
+    const ref = useCierreExterno({ abierto: open, alCerrar: () => { setOpen(false); setExpanded10m(false); } });
 
     useEffect(() => {
         const fetchAlerts = async () => {
@@ -43,24 +45,7 @@ export const NotificationBell: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // Close on outside click
-    useEffect(() => {
-        const handle = (e: MouseEvent | TouchEvent) => {
-            if (ref.current && !ref.current.contains(e.target as Node)) {
-                setOpen(false);
-                setExpanded10m(false);
-            }
-        };
-        document.addEventListener('mousedown', handle);
-        document.addEventListener('touchstart', handle);
-        return () => {
-            document.removeEventListener('mousedown', handle);
-            document.removeEventListener('touchstart', handle);
-        };
-    }, []);
-
     const totalCount = alerts.reduce((sum, a) => sum + a.count, 0);
-    const alert10m = alerts.find(a => a.titulo === '10 Meses de Contrato');
 
     const alertColorMap: Record<string, string> = {
         critical: '#FF3B30',

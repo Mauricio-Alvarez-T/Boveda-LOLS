@@ -18,6 +18,34 @@ on:
       - 'LICENSE'
   workflow_dispatch:
 
+# Un push puede llegar a GitHub como DOS eventos (pasó con afcbf20 el 2026-09-16: cuatro runs
+# para un solo `git push`). Los dos deploys compilan lo mismo y pelean por publicar la rama
+# `deploy-staging`; el que llega segundo muere con "cannot lock ref ... is at X but expected Y"
+# (el `push -f` no salva la carrera: el servidor rechaza la transacción si la ref se movió
+# mientras se empujaba) y deja el commit pintado en rojo sin que nada esté roto.
+#
+# La llave del grupo es la RAMA DE DESTINO, no `github.ref`: lo que se disputan los runs es
+# `deploy-staging`, y con la llave puesta en el ref de origen un `workflow_dispatch` desde otra
+# rama (el desplegable de "Run workflow" viene preseleccionado con `main`) caería en otro grupo,
+# correría en paralelo y volvería a chocar — publicando además el árbol de main en staging.
+#
+# `cancel-in-progress: true` porque acá el run más nuevo siempre manda: si a los 40 s de empujar
+# un commit malo se empuja el arreglo, el run del commit malo se cancela ANTES de publicar
+# (el push son los últimos segundos de un run de ~55 s) y el build superado nunca sale de GitHub.
+# Cancelar a mitad del push es inocuo: la actualización de la ref es atómica del lado del servidor.
+# Contrapartida asumida: solo queda UN candidato a publicar, así que si ese run falla no se publica
+# nada y el cron dirá "sin cambios" — hay que volver a empujar. Y los runs cancelados salen en gris:
+# NO re-ejecutar uno viejo, porque el paso de publicación es un `push -f` sin guarda y rebobinaría
+# la rama a un build anterior (ver la tabla de errores comunes del RUNBOOK).
+#
+# Un run con el ref EQUIVOCADO (ver la guarda de rama del job) no debe entrar a este grupo: si
+# entrara, lo primero que haría sería cancelar el deploy legítimo en curso y recién después
+# morir en la guarda — staging se quedaría sin publicar por un dispatch mal apuntado. Por eso
+# el ref inválido cae en un grupo propio y descartable (único por run) y muere solo.
+concurrency:
+  group: ${{ github.ref == 'refs/heads/develop' && 'publicar-deploy-staging' || format('deploy-staging-ref-invalido-{0}', github.run_id) }}
+  cancel-in-progress: true
+
 permissions:
   contents: write   # para publicar la rama deploy-staging con GITHUB_TOKEN
 
@@ -27,6 +55,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # GUARDA DE RAMA (2026-09-16). `workflow_dispatch` no restringe el ref, y el desplegable
+      # "Run workflow" de GitHub viene preseleccionado con la rama por DEFECTO (`main`): un
+      # "republicar staging a mano" dejando el desplegable como viene compilaba el árbol de
+      # PRODUCCIÓN y lo empujaba a `deploy-staging` con `push -f`. El cron lo bajaba (despliega
+      # por DESIGUALDAD de SHA, no por ancestría) y, como el propio `cpanel-deploy-staging.sh`
+      # VIAJA EN esa rama, staging pasaba a correr el script de main: sin `run_sanear_datos` —
+      # la purga de trabajadores REALES (RUT, domicilio, salud, cuenta bancaria) de una web
+      # pública — y con el `rsync --delete` de `db/migrations` borrando del servidor las
+      # migraciones que main no tiene. Dos runs verdes y ninguna señal para el dueño.
+      #
+      # Se MANTIENE `workflow_dispatch`: es el único modo de republicar a mano cuando el run de
+      # un push falla (contrapartida de `cancel-in-progress`). Pero solo desde `develop`, sin
+      # input de override: en los últimos 200 runs no hubo ni un solo dispatch, así que no hay
+      # un uso legítimo desde otra rama que romper, y "feature → staging" saltándose develop va
+      # contra el modelo de ramas (docs/reglas/infraestructura.md).
+      #
+      # OJO: en un `workflow_dispatch` GitHub usa el workflow DEL REF ELEGIDO. Esta guarda
+      # protege de verdad recién cuando `main` también la tiene (llega con el próximo release).
+      - name: 🛡️ Guarda de rama — staging solo se publica desde develop
+        if: github.ref != 'refs/heads/develop'
+        run: |
+          echo "::error title=Rama equivocada::Este workflow publica deploy-staging (test.boveda.lols.cl) y SOLO puede correr desde 'develop'. Vino de '${{ github.ref }}'. No se compiló ni publicó nada."
+          exit 1
+
       - name: 🚚 Obtener el código (historial completo para poder pushear rama)
         uses: actions/checkout@v4
         with:
@@ -44,6 +96,9 @@ jobs:
       - name: 🔨 Compilar Frontend (React)
         working-directory: ./frontend
         run: npm run build
+        env:
+          # Enciende la franja "Entorno de pruebas" del frontend (EntornoBanner). Producción no la define.
+          VITE_ENTORNO: staging
 
       - name: 🌿 Publicar dist + backend a la rama deploy-staging
         run: |

@@ -2,7 +2,7 @@
  * Ficha de ingreso digital — solicitudes de nuevo trabajador con aprobación.
  *
  * Flujo: terreno (`trabajadores.solicitud.crear`) crea una SOLICITUD desde
- * Consultas → oficina (`trabajadores.solicitud.aprobar`) la revisa, corrige,
+ * Gestiones → oficina (`trabajadores.solicitud.aprobar`) la revisa, corrige,
  * asigna la EMPRESA y la aprueba (crea el trabajador) o la rechaza con motivo
  * visible al solicitante. Sin SoD solicitante≠aprobador: un administrativo
  * puede crear y aprobar (decisión del dueño 2026-09-07).
@@ -15,7 +15,7 @@
  *
  * Aislamiento de datos de prueba (docs/reglas/obras-bodegas.md): los listados
  * y el contador excluyen solicitudes de obras `es_prueba=1` salvo
- * `?incluir_prueba=true`, igual que el CRUD de trabajadores en Consultas.
+ * `?incluir_prueba=true`, igual que el CRUD de trabajadores en Gestiones.
  * check-rut NO filtra: un duplicado es duplicado aunque sea de prueba.
  *
  * Errores: throw Object.assign(new Error(msg), { statusCode }) como el resto
@@ -24,6 +24,7 @@
 const db = require('../config/db');
 const { cleanRut, formatRut, validateRut } = require('../utils/rut');
 const { logManualActivity } = require('../middleware/logger');
+const desvinculacionService = require('./desvinculacion.service');
 const logger = require('../utils/logger-structured');
 
 const PERMISO_APROBAR = 'trabajadores.solicitud.aprobar';
@@ -235,13 +236,25 @@ const solicitudIngresoService = {
      * No exige RUT válido: con un RUT incompleto responde "no existe" para que
      * el front no muestre errores mientras se tipea.
      */
-    async checkRut(rut) {
+    async checkRut(rut, { conCausal = false, modo: modoOpt } = {}) {
         const cleaned = cleanRut(rut);
         const vacio = { existe_trabajador: false, trabajador: null, solicitud_pendiente: null };
         if (!cleaned) return vacio;
 
         const trabajador = await _buscarTrabajadorPorRut(db, cleaned);
         const pendiente = await _buscarPendientePorRut(db, cleaned);
+        // Finiquitado: terreno recibe fecha, artículo y marca (sin nombre de causal ni detalle) para
+        // el aviso ámbar/rojo; oficina (trabajadores.ver) ve la causal y quien desvincula
+        // (eliminar/reactivar) también el detalle interno. Solo advierte (decisión del dueño
+        // 2026-09-10). Va DESPUÉS de las dos consultas históricas para no alterar su orden.
+        const modo = modoOpt ?? (conCausal ? 'resumen' : 'terreno');
+        let ultima = null;
+        if (trabajador && !trabajador.activo) {
+            ultima = await desvinculacionService.ultimaDesvinculacion(trabajador.id, { modo });
+        } else if (!trabajador) {
+            // Mig 113: RUT de un trabajador DEPURADO → el antecedente se conserva por RUT.
+            ultima = await desvinculacionService.antecedentePorRut(cleaned, { modo });
+        }
 
         return {
             existe_trabajador: !!trabajador,
@@ -249,6 +262,7 @@ const solicitudIngresoService = {
                 ? { id: trabajador.id, nombre: nombreCompleto(trabajador), activo: !!trabajador.activo }
                 : null,
             solicitud_pendiente: pendiente ? { id: pendiente.id } : null,
+            ...(ultima ? { ultima_desvinculacion: ultima } : {}),
         };
     },
 
@@ -432,8 +446,18 @@ const solicitudIngresoService = {
         );
         logger.info('Solicitud de ingreso aprobada', { solicitudId: sid, trabajadorId, userId });
 
+        // Ficha de solicitud en Word → queda en la ficha del trabajador (plan Gestiones B2, mig 110).
+        // Post-commit y best-effort: la aprobación NUNCA falla por el documento.
+        let solicitudDocumentoId = null;
+        try {
+            const doc = await require('./documentosLaborales.service').solicitudDoc(sid, userId, req);
+            solicitudDocumentoId = doc.documento_id ?? null;
+        } catch (err) {
+            logger.warn('No se pudo emitir la ficha de solicitud en Word (la aprobación se completó)', { solicitudId: sid, err: err.message });
+        }
+
         const solicitud = await _getRow(sid);
-        return { solicitud, trabajador_id: trabajadorId };
+        return { solicitud, trabajador_id: trabajadorId, solicitud_documento_id: solicitudDocumentoId };
     },
 
     /**

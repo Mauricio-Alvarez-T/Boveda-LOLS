@@ -16,6 +16,7 @@
 import * as z from 'zod';
 import { validateRut } from '../../utils/rut';
 import { fmtFecha, normalizarFecha } from '../../utils/format';
+import type { SolicitudIngreso } from '../../types/entities';
 import { BANCO_CUENTA_RUT, TIPOS_CUENTA } from '../../config/catalogosPersonales';
 
 export const ESTADO_CIVIL_OPTIONS = [
@@ -220,4 +221,12 @@ export function listarDatosPersonales(src: DatosPersonalesApi | null | undefined
         out.push({ key, label: DATOS_PERSONALES_LABELS[key], value });
     }
     return out;
+}
+
+/** Respuesta de PUT /solicitudes-ingreso/:id/aprobar (data). `solicitud` es la fila ya aprobada, con las correcciones de la oficina. */
+export interface AprobacionResultado {
+    solicitud: SolicitudIngreso;
+    trabajador_id: number;
+    /** Ficha en Word emitida post-commit; null si esa emisión falló (GET /:id/doc la genera al descargar). */
+    solicitud_documento_id: number | null;
 }

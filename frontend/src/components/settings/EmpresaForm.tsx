@@ -18,6 +18,10 @@ const schema = z.object({
     razon_social: z.string().min(1, 'Razón social es requerida'),
     direccion: z.string().optional(),
     telefono: z.string().optional(),
+    // Mig 110: firma contratos y finiquitos generados por Bóveda (plan Gestiones B2). Opcionales:
+    // sin representante el backend responde 409 al emitir un contrato.
+    representante_nombre: z.string().max(150, 'Máximo 150 caracteres').optional(),
+    representante_rut: z.string().optional().refine(v => !v || validateRut(v), 'RUT inválido'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -38,6 +42,8 @@ export const EmpresaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel:
             razon_social: initialData?.razon_social || '',
             direccion: initialData?.direccion || '',
             telefono: initialData?.telefono || '',
+            representante_nombre: initialData?.representante_nombre || '',
+            representante_rut: initialData?.representante_rut || '',
         },
     });
 
@@ -83,6 +89,22 @@ export const EmpresaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel:
             <Input label="Razón Social" {...register('razon_social')} error={errors.razon_social?.message} placeholder="Constructora SpA" />
             <Input label="Dirección" {...register('direccion')} error={errors.direccion?.message} placeholder="Av. Principal 123" />
             <Input label="Teléfono" type="tel" inputMode="tel" {...register('telefono')} error={errors.telefono?.message} placeholder="+56 9 1234 5678" />
+            <div className="rounded-2xl border border-border bg-background p-4 space-y-3">
+                <div>
+                    <p className="text-sm font-semibold text-brand-dark">Representante legal</p>
+                    <p className="text-xs text-muted-foreground">Firma los contratos y finiquitos que Bóveda genera para esta empresa. Sin él no se pueden emitir.</p>
+                </div>
+                <Input label="Nombre" {...register('representante_nombre')} error={errors.representante_nombre?.message} placeholder="Luis Lazcano Silva" />
+                <Controller
+                    name="representante_rut"
+                    control={control}
+                    render={({ field: { onChange, value, ref } }) => (
+                        <Input ref={ref} label="RUT del representante" placeholder="7.907.220-6" error={errors.representante_rut?.message}
+                            value={value || ''} autoCapitalize="characters" autoCorrect="off" spellCheck={false}
+                            onChange={(e) => onChange(formatRut(e.target.value))} />
+                    )}
+                />
+            </div>
             {!hideActions && (
                 <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
                     <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />} className="w-full sm:w-auto">

@@ -6,8 +6,11 @@
   (~95+ permisos; formato `[clave, módulo, nombre, descripción, orden]`).
 - Módulos: Asistencia, Trabajadores, Documentos, Reportes, Empresas, Obras, Cargos, Usuarios,
   Inventario (incl. 9 granulares de transferencias + 6 tabs), Financiero, Vehículos, Sistema.
-- El catálogo se **sincroniza en cada arranque/migrate** (`syncCatalogoEnArranque`): INSERT IGNORE
-  de claves nuevas. Agregar un permiso = agregarlo al array + correr migrate (o reiniciar).
+- El catálogo se **sincroniza al correr `migrate`/`maintenance`** (`syncCatalogoEnArranque`; NO en el
+  boot del backend): INSERT … ON DUPLICATE KEY UPDATE de nombre/descr/orden; nunca borra claves. Agregar
+  un permiso = agregarlo al array + migrate (el auto-migrate del deploy lo hace). Renombrar una clave =
+  migración con INSERT nuevas → UPDATE hijos → DELETE viejas → `roles.version + 1` (ver RUNBOOK § 6 y
+  mig 116 `actividades_sugeridas`).
 
 ## JWT y sesión
 
@@ -26,6 +29,14 @@
   `inventario.resumen.ver_valores`, `asistencia.horas_extra.ver`,
   `trabajadores.financiero.ver/editar`.
 - Política: solo Super Admin (rol 1) los recibe automáticamente; al resto se asignan a mano.
+- `cargos.sueldo.ver/.editar` (mig 111, plan Gestiones B3) son $ pero viven en el módulo **Cargos** y
+  NO en `PERMISOS_FINANCIEROS` (lista exclusiva de inventario); gates exclusivos sin patrón OR; los montos
+  jamás entran a `logs_actividad` (exclusión en `logger.js` + `EXCLUDED_KEYS`). Ver rrhh-trabajadores.md.
+- `documentos.laborales.descargar` (mig 110, plan Gestiones B2) **implica ver la remuneración**: el
+  contrato que descarga o imprime trae el sueldo base impreso en cifras y en letras. Tratarlo como
+  permiso sensible aunque no esté en `PERMISOS_FINANCIEROS`. El snapshot `documentos.metadata` (que
+  congela ese monto) nunca sale por rutas con `documentos.ver`: proyección explícita de columnas +
+  `EXCLUDED_KEYS`. Ver rrhh-trabajadores.md § Documentos laborales generados por Bóveda.
 - **Doble defensa**: la UI oculta columnas/cards Y el backend **sanitiza el JSON**
   (`backend/src/utils/sanitizeFinancialFields.js`) — sin permiso, los montos no llegan ni por
   DevTools. El backend es la fuente de verdad.
@@ -39,6 +50,9 @@
   a los roles que ya tenían el genérico.
 - Caso vigente: `inventario.bombas.crear` / `inventario.bombas.editar` (mig 098) para que "En
   Terreno" programe hormigón sin poder editar stock/ítems. Ver reglas/bombas.md.
+- ⚠️ **Excepción deliberada**: `documentos.laborales.emitir` / `.descargar` y `cargos.sueldo.*` usan gate
+  **EXCLUSIVO** (un solo permiso, sin OR con el genérico del módulo). Son "solo oficina": heredarlos desde
+  `documentos.descargar` o `cargos.ver` daría acceso a contratos y remuneraciones a todo terreno.
 - ⚠️ Al asignar por migración: insertar primero en `permisos_catalogo` (hay FK desde
   `permisos_rol_v2.permiso_clave`) y avisar **re-login** — el token trae la lista de permisos.
 
@@ -57,10 +71,25 @@
 - `checkPermission(...claves)` (`src/middleware/rbac.js`): OR lógico sobre `req.user.p`.
 - Rate limiting (`src/middleware/rateLimiter.js`): general 1000 req/15min por usuario; login 10
   intentos/15min por IP. Helmet activo; CORS restringible por env.
-- `validateBody` actual NO stripea keys desconocidas — los servicios se defienden con
-  `allowedFields` whitelist (crud.service). **Fase 1 del plan v2 lo reemplaza por zod con strip.**
+- `validateBody(schema, { strip: true })` (`middleware/validateBody.js`, mini-DSL propio SIN zod — decisión
+  F1.3) descarta las claves no declaradas; los CRUD genéricos se defienden además con `allowedFields`
+  (crud.service). Schemas en `backend/src/schemas/`.
 - Gating en UI: `hasPermission()` del AuthContext (~250 usos inline; Fase 3 introduce
   `<RequirePermission>`).
+- **Errores enriquecidos (2026-09-11, plan Gestiones B1)**: `errorHandler` responde `{ error, code?, ...details }`
+  para 4xx cuando el service lanza `Object.assign(new Error(msg), { statusCode, code, details })`
+  (`code` = string propio, nunca `ER_*`; `details` nunca pisa `error`). Los 5xx solo exponen `{ error }`.
+  `ER_ROW_IS_REFERENCED_2` (FK RESTRICT) → 409 legible con `code`.
+- **Quick-view del trabajador** (`GET /trabajadores/:id/quick-view`): gate `trabajadores.ver` OR
+  `asistencia.ver`; sin `trabajadores.ver` la respuesta se recorta a la allow-list
+  `CAMPOS_TRABAJADOR_OPERATIVOS` (`utils/sanitizeFinancialFields.js`): nada de dirección, AFP, salud,
+  teléfono ni datos bancarios. Deny-by-default: una columna nueva de `trabajadores` no se filtra sola.
+- **Pre-registro de permisos (B1)**: las 6 claves de los bloques B2-B7 del plan Gestiones
+  (`documentos.laborales.emitir/.descargar`, `documentos.entrega.registrar`, `cargos.sueldo.ver/.editar`,
+  `sistema.alertas_documentos.gestionar`) ya están en `permisos.config.js` + `permisosHierarchy.ts` con
+  descripción "(Disponible próximamente)"; el catálogo las sincroniza al arrancar pero NINGÚN endpoint las
+  exige aún. Cada bloque quita el rótulo y asigna a roles por migración (catálogo → rol 1 → por nombre).
+  Guard: `backend/tests/permisos_hierarchy_sync.test.js` (toda clave del catálogo mapeada en la jerarquía).
 
 ## Reglas duras de seguridad (de sesiones)
 

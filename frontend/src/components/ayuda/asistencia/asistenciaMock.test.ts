@@ -36,13 +36,14 @@ describe('installAsistenciaMock', () => {
         const periodo = await ax.post('/asistencias/periodos', { trabajador_id: 1 });
         expect(periodo.data.data.dias_afectados).toBeGreaterThan(0);
 
-        await ax.get('/sabados-extra?mes=1&anio=2026');
-        const det = await ax.get('/sabados-extra/7001');
+        await ax.get('/actividades-sugeridas?mes=1&anio=2026');
+        const det = await ax.get('/actividades-sugeridas/7001');
         expect(det.data.data.trabajadores.length).toBeGreaterThan(0);
-        await ax.post('/sabados-extra', { obra_id: 9001 });
+        expect(det.data.data.semana).toBe('2026-01-12');
+        await ax.post('/actividades-sugeridas', { obra_id: 9001 });
 
         expect(acciones).toEqual(
-            expect.arrayContaining(['guardar', 'traslado', 'periodo-crear', 'sabado-crear']),
+            expect.arrayContaining(['guardar', 'traslado', 'periodo-crear', 'actividad-crear']),
         );
 
         mock.restore();

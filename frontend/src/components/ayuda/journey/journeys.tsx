@@ -15,6 +15,10 @@ import type { Origen, Destino } from '../../../utils/inferMovimiento';
 export interface JourneyDef {
     id: string;
     modulo: string;
+
+    /** Nombres ANTERIORES del módulo (p. ej. 'consultas' → hoy 'Gestiones'): el buscador de Ayuda los indexa (buscarJourneys.ts). */
+
+    alias?: string[];
     titulo: string;
     descripcion: string;
     icon: LucideIcon;
@@ -31,10 +35,10 @@ export interface JourneyDef {
     /** Motor que recorre el journey. 'solicitudes' (default) = wizard+detalle; 'asistencia'/'vehiculos'/'consultas' = pantalla real en sandbox. */
     runner?: 'solicitudes' | 'asistencia' | 'vehiculos' | 'consultas';
     /** Flujo concreto del runner de Asistencia: define qué pantalla montar, qué botón resaltar, la instrucción y el recap (ver AsistenciaJourneyRunner). */
-    asistenciaFlujo?: 'diaria' | 'traslado' | 'feriado' | 'repetir' | 'export-excel' | 'whatsapp' | 'periodo' | 'sabado';
+    asistenciaFlujo?: 'diaria' | 'traslado' | 'feriado' | 'repetir' | 'export-excel' | 'whatsapp' | 'periodo' | 'actividades';
     /** Flujo concreto del runner de Vehículos (ver VehiculosJourneyRunner). */
     vehiculoFlujo?: 'registrar' | 'editar' | 'documento' | 'revision' | 'mantencion';
-    /** Flujo concreto del runner de Consultas (ver ConsultasJourneyRunner). */
+    /** Flujo concreto del runner de Gestiones (ver ConsultasJourneyRunner; la clave interna sigue siendo 'consultas'). */
     consultaFlujo?: 'ver-trabajador' | 'ver-doc' | 'registrar' | 'editar';
     /** Textos de ayuda por fase del recorrido. */
     textos?: { crear: string; aprobar: string; recibir: string; fin: string };
@@ -205,10 +209,10 @@ export const JOURNEYS: JourneyDef[] = [
         estado: 'disponible', duracion: 'Interactivo · 2 min', runner: 'asistencia', asistenciaFlujo: 'repetir',
     },
     {
-        id: 'asistencia-sabado', modulo: 'Asistencia', icon: CalendarPlus,
-        titulo: 'Citar y registrar un sábado extra',
-        descripcion: 'Crear una citación de sábado, citar trabajadores y luego marcar su asistencia.',
-        estado: 'disponible', duracion: 'Interactivo · 4 min', runner: 'asistencia', asistenciaFlujo: 'sabado',
+        id: 'asistencia-actividades', modulo: 'Asistencia', icon: CalendarPlus,
+        titulo: 'Armar una lista de actividades sugeridas y registrar asistencia',
+        descripcion: 'Crear la lista de trabajadores en actividades sugeridas de una semana y luego marcar quién asistió.',
+        estado: 'disponible', duracion: 'Interactivo · 4 min', runner: 'asistencia', asistenciaFlujo: 'actividades',
     },
     {
         id: 'asistencia-excel', modulo: 'Asistencia', icon: FileSpreadsheet,
@@ -223,25 +227,25 @@ export const JOURNEYS: JourneyDef[] = [
         estado: 'disponible', duracion: 'Interactivo · 2 min', runner: 'asistencia', asistenciaFlujo: 'whatsapp',
     },
     {
-        id: 'consulta-trabajador', modulo: 'Consultas', icon: SearchCheck,
+        id: 'consulta-trabajador', modulo: 'Gestiones', alias: ['consultas'], icon: SearchCheck,
         titulo: 'Consultar un trabajador',
         descripcion: 'Buscar un trabajador y abrir su ficha (datos, contacto y documentación).',
         estado: 'disponible', duracion: 'Interactivo · 2 min', runner: 'consultas', consultaFlujo: 'ver-trabajador',
     },
     {
-        id: 'consulta-documento', modulo: 'Consultas', icon: FileText,
+        id: 'consulta-documento', modulo: 'Gestiones', alias: ['consultas'], icon: FileText,
         titulo: 'Ver los documentos de un trabajador',
         descripcion: 'Abrir la ficha de un trabajador y ver uno de sus documentos.',
         estado: 'disponible', duracion: 'Interactivo · 2 min', runner: 'consultas', consultaFlujo: 'ver-doc',
     },
     {
-        id: 'consulta-registrar', modulo: 'Consultas', icon: UserPlus,
+        id: 'consulta-registrar', modulo: 'Gestiones', alias: ['consultas'], icon: UserPlus,
         titulo: 'Registrar un trabajador',
         descripcion: 'Dar de alta un trabajador nuevo con sus datos, empresa, obra y cargo.',
         estado: 'disponible', duracion: 'Interactivo · 3 min', runner: 'consultas', consultaFlujo: 'registrar',
     },
     {
-        id: 'consulta-editar', modulo: 'Consultas', icon: UserPen,
+        id: 'consulta-editar', modulo: 'Gestiones', alias: ['consultas'], icon: UserPen,
         titulo: 'Editar un trabajador',
         descripcion: 'Actualizar los datos de un trabajador existente.',
         estado: 'disponible', duracion: 'Interactivo · 2 min', runner: 'consultas', consultaFlujo: 'editar',

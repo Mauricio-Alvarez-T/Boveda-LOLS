@@ -35,6 +35,13 @@ jest.mock('../src/middleware/logger', () => ({
     activityLogger: (req, res, next) => next(),
     resolveEntidad: jest.fn(),
 }));
+// B2 (mig 110): aprobar emite la ficha en Word post-commit (best-effort). Se mockea para que el
+// test siga siendo posicional sobre db.query; su propio comportamiento se prueba en
+// documentos_laborales.test.js.
+jest.mock('../src/services/documentosLaborales.service', () => ({
+    solicitudDoc: jest.fn().mockResolvedValue({ persistido: true, documento_id: 77, nombre_archivo: 'Solicitud_Ingreso_Soto_Ana.doc' }),
+    abrir: jest.fn(),
+}));
 
 const request = require('supertest');
 const app = require('../index');
@@ -195,7 +202,8 @@ describe('GET /api/solicitudes-ingreso/check-rut/:rut', () => {
 
         expect(res.status).toBe(200);
         expect(res.body.data).toEqual({ existe_trabajador: false, trabajador: null, solicitud_pendiente: null });
-        expect(db.query).toHaveBeenCalledTimes(2);
+        // trabajador + solicitud pendiente + antecedente por RUT (mig 113: ficha depurada con marca).
+        expect(db.query).toHaveBeenCalledTimes(3);
     });
 
     test('RUT sin dígitos (tipeo a medias): responde libre sin consultar la BD', async () => {
@@ -575,6 +583,10 @@ describe('PUT /api/solicitudes-ingreso/:id/aprobar', () => {
         expect(res.status).toBe(200);
         expect(res.body.data.trabajador_id).toBe(900);
         expect(res.body.data.solicitud).toMatchObject({ id: 41, estado: 'aprobada', trabajador_id: 900 });
+        // B2: la ficha Word se emitió post-commit y su id viaja en la respuesta.
+        expect(res.body.data.solicitud_documento_id).toBe(77);
+        const laborales = require('../src/services/documentosLaborales.service');
+        expect(laborales.solicitudDoc).toHaveBeenCalledWith(41, OFICINA_ID, expect.anything());
 
         // 1) lock pesimista de la solicitud
         const [lockSql, lockParams] = conn.query.mock.calls[0];
@@ -817,6 +829,9 @@ describe('PUT /api/solicitudes-ingreso/:id/aprobar', () => {
         const bloque = src.slice(src.indexOf("createCrudRoutes('trabajadores'"));
         const lista = bloque.match(/allowedFields:\s*\[([\s\S]*?)\]/)[1];
         const allowed = new Set([...lista.matchAll(/'([a-z_]+)'/g)].map(m => m[1]));
+        // `activo` salió de allowedFields en B4 (plan Gestiones, mig 112): el estado del contrato solo
+        // cambia por PUT /:id/desvincular y /:id/reactivar; el INSERT de aprobar lo fija en 1 a propósito.
+        allowed.add('activo');
         expect(allowed.size).toBeGreaterThan(10);
 
         const fuera = cols.filter(c => !allowed.has(c));

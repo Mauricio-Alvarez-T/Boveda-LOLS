@@ -1,9 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Save, MoreHorizontal, FileDown, CalendarRange, CopyPlus, Plus, Building2, Check, Eraser } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import RequirePermission from '../../auth/RequirePermission';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
 import { cn } from '../../../utils/cn';
+import { usePosicionFlotante } from '../../../hooks/usePosicionFlotante';
+import { useCierreExterno } from '../../../hooks/useCierreExterno';
 
 interface AttendanceHeaderActionsProps {
     handleShareWhatsApp: () => void;
@@ -282,15 +284,8 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
     selectedEmpresaId, setSelectedEmpresaId, availableEmpresas
 }) => {
     const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handler = (e: MouseEvent | TouchEvent) => {
-            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, []);
+    // Menú `absolute` dentro de un `relative`: no necesita colocación, solo cerrarse al tocar fuera.
+    const ref = useCierreExterno({ abierto: open, alCerrar: () => setOpen(false) });
 
     return (
         <div ref={ref} className="relative lg:hidden">
@@ -387,37 +382,14 @@ const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
     selectedEmpresaId, setSelectedEmpresaId, availableEmpresas
 }) => {
     const [open, setOpen] = useState(false);
-    const [popoverTop, setPopoverTop] = useState<number>(0);
-    const wrapperRef = useRef<HTMLDivElement>(null);
-    const buttonRef = useRef<HTMLButtonElement>(null);
-    const popoverRef = useRef<HTMLDivElement>(null);
+    const cerrar = () => setOpen(false);
 
-    // Click fuera cierra el popover. Listener en el doc, excluyendo el wrapper y el popover (que es portal-like, posición fixed).
-    useEffect(() => {
-        const handler = (e: MouseEvent | TouchEvent) => {
-            if (!open) return;
-            const target = e.target as Node;
-            const insideWrapper = wrapperRef.current?.contains(target);
-            const insidePopover = popoverRef.current?.contains(target);
-            if (!insideWrapper && !insidePopover) setOpen(false);
-        };
-        document.addEventListener('mousedown', handler);
-        document.addEventListener('touchstart', handler);
-        return () => {
-            document.removeEventListener('mousedown', handler);
-            document.removeEventListener('touchstart', handler);
-        };
-    }, [open]);
-
-    // Calcula la posición vertical del popover justo debajo del botón cada vez que se abre.
-    // Posición fixed con left/right fijos = el popover queda centrado horizontalmente
-    // respecto al viewport, sin depender de dónde caiga el botón en el header.
-    useEffect(() => {
-        if (open && buttonRef.current) {
-            const rect = buttonRef.current.getBoundingClientRect();
-            setPopoverTop(rect.bottom + 8); // 8px de separación
-        }
-    }, [open]);
+    // El popover es `fixed left-3 right-3`: el ancho lo pone el CSS (a propósito, en mobile ocupa el
+    // viewport) y de la aritmética solo se usa la vertical → variante 'hoja'. Antes el `top` se medía UNA
+    // vez al abrir y el menú se quedaba clavado al viewport mientras la página scrolleaba debajo.
+    const { disparadorRef: buttonRef, flotanteRef: popoverRef, estilo, medir } =
+        usePosicionFlotante<HTMLButtonElement>({ abierto: open, alCerrar: cerrar, variante: 'hoja', separacion: 8 });
+    const wrapperRef = useCierreExterno({ abierto: open, alCerrar: cerrar, extras: [popoverRef], escape: true });
 
     const hasActiveFilter = selectedEmpresaId !== null;
 
@@ -431,7 +403,7 @@ const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
             {/* eslint-disable-next-line no-restricted-syntax -- trigger "+" de popover con badge de filtro activo + ref de posición; IconButton (sin badge/ref) no aplica */}
             <button
                 ref={buttonRef}
-                onClick={() => setOpen(v => !v)}
+                onClick={() => { if (open) cerrar(); else { medir(); setOpen(true); } }}
                 className={cn(
                     "flex h-11 w-11 items-center justify-center rounded-xl border transition-all shrink-0 relative",
                     open
@@ -448,56 +420,55 @@ const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
                 )}
             </button>
 
-            {open && (
-                <>
-                    {/* Popover: position fixed con left/right pegados al viewport → centrado natural en mobile */}
-                    <div
-                        ref={popoverRef}
-                        style={{ top: popoverTop }}
-                        className="fixed left-3 right-3 bg-card rounded-2xl border border-border shadow-2xl z-[200] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 max-h-[70vh] flex flex-col"
-                    >
-                        <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 border-b border-border">
-                            <Building2 className="h-3.5 w-3.5 text-muted-foreground/60" />
-                            <label className="text-caption font-black uppercase text-muted-foreground/70 tracking-wider">Filtrar por empresa</label>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto py-1.5">
-                            {/* eslint-disable-next-line no-restricted-syntax -- opción de menú radio (left-align texto + check); Button centra y rompe el patrón */}
-                            <button
-                                onClick={() => handleSelect(null)}
-                                className={cn(
-                                    "w-full flex items-center justify-between gap-2 px-4 py-2.5 text-xs font-bold transition-colors",
-                                    selectedEmpresaId === null
-                                        ? "bg-brand-primary/10 text-brand-primary"
-                                        : "text-brand-dark hover:bg-background active:bg-background"
-                                )}
-                            >
-                                <span className="truncate text-left">Todas las empresas</span>
-                                {selectedEmpresaId === null && <Check className="h-4 w-4 shrink-0 text-brand-primary" />}
-                            </button>
-
-                            {availableEmpresas.map(emp => {
-                                const isActive = selectedEmpresaId === emp.id;
-                                return (
-                                    // eslint-disable-next-line no-restricted-syntax -- opción de menú radio (left-align texto + check); Button centra y rompe el patrón
-                                    <button
-                                        key={emp.id}
-                                        onClick={() => handleSelect(emp.id)}
-                                        className={cn(
-                                            "w-full flex items-center justify-between gap-2 px-4 py-2.5 text-xs font-bold transition-colors",
-                                            isActive
-                                                ? "bg-brand-primary/10 text-brand-primary"
-                                                : "text-brand-dark hover:bg-background active:bg-background"
-                                        )}
-                                    >
-                                        <span className="truncate text-left">{emp.nombre}</span>
-                                        {isActive && <Check className="h-4 w-4 shrink-0 text-brand-primary" />}
-                                    </button>
-                                );
-                            })}
-                        </div>
+            {open && estilo && (
+                /* Popover: position fixed con left/right pegados al viewport → centrado natural en mobile */
+                <div
+                    ref={popoverRef}
+                    style={estilo}
+                    className="fixed left-3 right-3 bg-card rounded-2xl border border-border shadow-2xl z-[200] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 max-h-[70vh] flex flex-col"
+                >
+                    <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 border-b border-border">
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground/60" />
+                        <label className="text-caption font-black uppercase text-muted-foreground/70 tracking-wider">Filtrar por empresa</label>
                     </div>
-                </>
+
+                    {/* `overscroll-contain`: al llegar al final la rueda no sigue scrolleando lo de atrás (regla §8.10). */}
+                    <div className="flex-1 overflow-y-auto overscroll-contain py-1.5">
+                        {/* eslint-disable-next-line no-restricted-syntax -- opción de menú radio (left-align texto + check); Button centra y rompe el patrón */}
+                        <button
+                            onClick={() => handleSelect(null)}
+                            className={cn(
+                                "w-full flex items-center justify-between gap-2 px-4 py-2.5 text-xs font-bold transition-colors",
+                                selectedEmpresaId === null
+                                    ? "bg-brand-primary/10 text-brand-primary"
+                                    : "text-brand-dark hover:bg-background active:bg-background"
+                            )}
+                        >
+                            <span className="truncate text-left">Todas las empresas</span>
+                            {selectedEmpresaId === null && <Check className="h-4 w-4 shrink-0 text-brand-primary" />}
+                        </button>
+
+                        {availableEmpresas.map(emp => {
+                            const isActive = selectedEmpresaId === emp.id;
+                            return (
+                                // eslint-disable-next-line no-restricted-syntax -- opción de menú radio (left-align texto + check); Button centra y rompe el patrón
+                                <button
+                                    key={emp.id}
+                                    onClick={() => handleSelect(emp.id)}
+                                    className={cn(
+                                        "w-full flex items-center justify-between gap-2 px-4 py-2.5 text-xs font-bold transition-colors",
+                                        isActive
+                                            ? "bg-brand-primary/10 text-brand-primary"
+                                            : "text-brand-dark hover:bg-background active:bg-background"
+                                    )}
+                                >
+                                    <span className="truncate text-left">{emp.nombre}</span>
+                                    {isActive && <Check className="h-4 w-4 shrink-0 text-brand-primary" />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
             )}
         </div>
     );
@@ -521,42 +492,21 @@ const MobileReportMenu: React.FC<MobileReportMenuProps> = ({
     reportMonth, reportYear, setReportMonth, setReportYear, handleExportExcel
 }) => {
     const [open, setOpen] = useState(false);
-    const [popoverTop, setPopoverTop] = useState<number>(0);
-    const wrapperRef = useRef<HTMLDivElement>(null);
-    const buttonRef = useRef<HTMLButtonElement>(null);
-    const popoverRef = useRef<HTMLDivElement>(null);
+    const cerrar = () => setOpen(false);
 
-    // Click fuera cierra el popover (mismo patrón que MobileFilterMenu; el
-    // popover es fixed, fuera del wrapper → se excluyen ambos del listener).
-    useEffect(() => {
-        const handler = (e: MouseEvent | TouchEvent) => {
-            if (!open) return;
-            const target = e.target as Node;
-            const insideWrapper = wrapperRef.current?.contains(target);
-            const insidePopover = popoverRef.current?.contains(target);
-            if (!insideWrapper && !insidePopover) setOpen(false);
-        };
-        document.addEventListener('mousedown', handler);
-        document.addEventListener('touchstart', handler);
-        return () => {
-            document.removeEventListener('mousedown', handler);
-            document.removeEventListener('touchstart', handler);
-        };
-    }, [open]);
-
-    useEffect(() => {
-        if (open && buttonRef.current) {
-            const rect = buttonRef.current.getBoundingClientRect();
-            setPopoverTop(rect.bottom + 8);
-        }
-    }, [open]);
+    // Mismo patrón que MobileFilterMenu: `fixed left-3 right-3` → solo la vertical (variante 'hoja').
+    // `altoMax` ≈ el alto real del panel mes/año + botón; solo decide si hay que voltear hacia arriba.
+    const { disparadorRef: buttonRef, flotanteRef: popoverRef, estilo, medir } = usePosicionFlotante<HTMLButtonElement>({
+        abierto: open, alCerrar: cerrar, variante: 'hoja', separacion: 8, altoMax: 260,
+    });
+    const wrapperRef = useCierreExterno({ abierto: open, alCerrar: cerrar, extras: [popoverRef], escape: true });
 
     return (
         <div ref={wrapperRef} className="relative md:hidden">
             {/* eslint-disable-next-line no-restricted-syntax -- trigger de popover con ref de posición (igual que MobileFilterMenu); IconButton no expone ref/estado */}
             <button
                 ref={buttonRef}
-                onClick={() => setOpen(v => !v)}
+                onClick={() => { if (open) cerrar(); else { medir(); setOpen(true); } }}
                 className={cn(
                     "flex h-11 w-11 items-center justify-center rounded-xl border transition-all shrink-0",
                     open
@@ -568,10 +518,10 @@ const MobileReportMenu: React.FC<MobileReportMenuProps> = ({
                 <FileDown className="h-4 w-4" />
             </button>
 
-            {open && (
+            {open && estilo && (
                 <div
                     ref={popoverRef}
-                    style={{ top: popoverTop }}
+                    style={estilo}
                     className="fixed left-3 right-3 bg-card rounded-2xl border border-border shadow-2xl z-[200] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
                 >
                     <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 border-b border-border">

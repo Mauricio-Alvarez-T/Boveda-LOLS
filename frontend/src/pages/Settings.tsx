@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     Settings,
     Building2,
@@ -16,6 +16,7 @@ import {
 import { motion } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 
 import { CrudTable } from '../components/ui/CrudTable';
 import type { ColumnDef } from '../components/ui/CrudTable';
@@ -23,7 +24,7 @@ import { IconButton } from '../components/ui/IconButton';
 import { Chip } from '../components/ui/Chip';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { fmtMoney } from '../utils/format';
-import type { Empresa, Obra, Cargo, Conductor, TipoDocumento, EstadoAsistencia, TipoAusencia, CategoriaInventario, Bodega, ItemInventario } from '../types/entities';
+import type { Empresa, Obra, Cargo, CargoSueldo, Conductor, TipoDocumento, EstadoAsistencia, TipoAusencia, CategoriaInventario, Bodega, ItemInventario } from '../types/entities';
 
 interface UserData {
     id: number;
@@ -61,7 +62,7 @@ import ChangePasswordForm from '../components/settings/ChangePasswordForm';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
 import { FeriadosPanel } from '../components/settings/FeriadosPanel';
-import { ShieldCheck, UserCog, Package, Warehouse, Wrench, Archive, Bell } from 'lucide-react';
+import { ShieldCheck, UserCog, Package, Warehouse, Wrench, Archive, Bell, Banknote, Lock, FileWarning } from 'lucide-react';
 import { FinalizarObraModal } from '../components/obras/FinalizarObraModal';
 import { ParticipaToggle } from '../components/settings/ParticipaToggle';
 import { CategoriaInventarioForm } from '../components/settings/CategoriaInventarioForm';
@@ -71,9 +72,11 @@ import PermisosRolPanel from '../components/settings/PermisosRolPanel';
 import PermisosUsuarioPanel from '../components/settings/PermisosUsuarioPanel';
 import ReporteSuscriptoresPanel from '../components/settings/ReporteSuscriptoresPanel';
 import AvisosPanel from '../components/settings/AvisosPanel';
+import AlertasDocumentosPanel from '../components/settings/AlertasDocumentosPanel';
+import { CargoSueldoModal } from '../components/settings/CargoSueldoModal';
 import { Modal } from '../components/ui/Modal';
 
-type TabKey = 'empresas' | 'obras' | 'cargos' | 'conductores' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'reportes_suscriptores' | 'avisos' | 'logs' | 'seguridad' | 'cat_inventario' | 'bodegas' | 'items_inventario';
+type TabKey = 'empresas' | 'obras' | 'cargos' | 'conductores' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'reportes_suscriptores' | 'avisos' | 'alertas_documentos' | 'logs' | 'seguridad' | 'cat_inventario' | 'bodegas' | 'items_inventario';
 
 interface TabDef {
     key: TabKey;
@@ -141,6 +144,7 @@ const tabGroups: TabGroup[] = [
             { key: 'plantillas', label: 'Plantillas Email', shortLabel: 'Plantillas', icon: FileText },
             { key: 'reportes_suscriptores', label: 'Reportes Automáticos', shortLabel: 'Reportes', icon: Mail },
             { key: 'avisos', label: 'Avisos de Novedades', shortLabel: 'Avisos', icon: Bell },
+            { key: 'alertas_documentos', label: 'Alertas de Documentos', shortLabel: 'Alertas doc.', icon: FileWarning },
             { key: 'logs', label: 'Historial de Actividad', shortLabel: 'Historial', icon: Clock },
             { key: 'seguridad', label: 'Seguridad', icon: Shield },
         ]
@@ -212,6 +216,16 @@ const tipoDocCols: ColumnDef<TipoDocumento>[] = [
         render: (v) => (
             <Chip tone={v ? 'warning' : 'neutral'} label={v ? 'Sí' : 'No'} className="text-caption" />
         ),
+    },
+    {
+        // Tipos del sistema (mig 110): los usa el motor de documentos Word. Solo lectura — el backend
+        // responde 409 si se intenta desactivarlos, volverlos obligatorios o eliminarlos.
+        key: 'codigo', label: 'Sistema',
+        render: (v: string | null) => (v
+            ? <span className="inline-flex items-center gap-1 text-caption font-bold uppercase tracking-wider text-muted-foreground" title={`Documento generado por Bóveda (${v}). Solo se puede renombrar.`}>
+                <Lock className="h-3 w-3" /> {v}
+            </span>
+            : <span className="text-caption text-muted-foreground">—</span>),
     },
 ];
 
@@ -307,6 +321,38 @@ const SettingsPage: React.FC = () => {
     // Nonce para remontar la CrudTable de bodegas tras togglear participación.
     const [bodegasNonce, setBodegasNonce] = useState(0);
     const [userPermsModal, setUserPermsModal] = useState<{ open: boolean; user: UserData | null }>({ open: false, user: null });
+
+    // Sueldo por cargo (plan Gestiones B3, mig 111): columna "Sueldo base" + acción Banknote solo con
+    // cargos.sueldo.ver. Los montos viven en /cargo-sueldos (tabla aparte); /cargos nunca los trae.
+    const puedeVerSueldo = hasPermission('cargos.sueldo.ver');
+    const [sueldos, setSueldos] = useState<Record<number, CargoSueldo>>({});
+    const [sueldoModal, setSueldoModal] = useState<{ open: boolean; cargo: Cargo | null }>({ open: false, cargo: null });
+    const cargarSueldos = useCallback(async () => {
+        if (!puedeVerSueldo) return;
+        try {
+            const res = await api.get('/cargo-sueldos');
+            const map: Record<number, CargoSueldo> = {};
+            (res.data.data as { cargo_id: number; sueldo: CargoSueldo | null }[]).forEach(r => { if (r.sueldo) map[r.cargo_id] = r.sueldo; });
+            setSueldos(map);
+        } catch {
+            // Sin permiso efectivo o migración pendiente: la columna muestra "—".
+        }
+    }, [puedeVerSueldo]);
+    // Diferido con setTimeout(0): evita la regla del React Compiler 'setState synchronously within an effect'
+    // y permite cancelar si el usuario cambia de pestaña antes de que responda.
+    useEffect(() => {
+        if (activeTab !== 'cargos') return;
+        const t = setTimeout(cargarSueldos, 0);
+        return () => clearTimeout(t);
+    }, [activeTab, cargarSueldos]);
+    const cargoColsConSueldo = useMemo<ColumnDef<Cargo>[]>(() => (puedeVerSueldo
+        ? [...cargoCols, {
+            key: 'sueldo_base', label: 'Sueldo base', hideOnMobile: true,
+            render: (_v: unknown, row: Cargo) => (sueldos[row.id]
+                ? <span className="font-medium text-brand-dark">{fmtMoney(sueldos[row.id].sueldo_base)}</span>
+                : <span className="text-muted-foreground">—</span>),
+        }]
+        : cargoCols), [puedeVerSueldo, sueldos]);
 
     // Find current active group for navigation
     const activeGroup = tabGroups.find(g => g.items.some(t => t.key === activeTab)) || tabGroups[0];
@@ -515,7 +561,7 @@ const SettingsPage: React.FC = () => {
                     {activeTab === 'cargos' && (
                         <CrudTable
                             endpoint="/cargos"
-                            columns={cargoCols}
+                            columns={cargoColsConSueldo}
                             entityName="Cargo"
                             entityNamePlural="Cargos"
                             FormComponent={CargoForm}
@@ -524,6 +570,15 @@ const SettingsPage: React.FC = () => {
                             canEdit={hasPermission('cargos.editar')}
                             canDelete={hasPermission('cargos.eliminar')}
                             canExport={false}
+                            renderActions={puedeVerSueldo ? (row) => (
+                                <IconButton
+                                    variant="ghost"
+                                    aria-label="Parámetros de sueldo"
+                                    title="Parámetros de sueldo"
+                                    onClick={() => setSueldoModal({ open: true, cargo: row })}
+                                    icon={<Banknote className="h-4 w-4" />}
+                                />
+                            ) : undefined}
                         />
                     )}
                     {activeTab === 'conductores' && (
@@ -668,6 +723,15 @@ const SettingsPage: React.FC = () => {
                             <AvisosPanel />
                         </div>
                     )}
+                    {activeTab === 'alertas_documentos' && (
+                        <div className="space-y-4">
+                            <div>
+                                <h3 className="text-base font-semibold text-brand-dark">Alertas de Documentos</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Días de aviso y crítico por tipo de documento laboral sin firmar y por lote de custodia (plan Gestiones B7). Aparecen en la Bandeja del Día y en Gestiones → Documentos físicos; no envían correo.</p>
+                            </div>
+                            <AlertasDocumentosPanel />
+                        </div>
+                    )}
                     {activeTab === 'logs' && (
                         <div className="space-y-4">
                             <div>
@@ -785,6 +849,13 @@ const SettingsPage: React.FC = () => {
                     />
                 )}
             </Modal>
+
+            <CargoSueldoModal
+                isOpen={sueldoModal.open}
+                cargo={sueldoModal.cargo}
+                onClose={() => setSueldoModal({ open: false, cargo: null })}
+                onSaved={cargarSueldos}
+            />
 
             <Modal
                 isOpen={userPermsModal.open}

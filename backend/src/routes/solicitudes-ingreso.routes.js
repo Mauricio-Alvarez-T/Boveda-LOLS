@@ -12,6 +12,7 @@
  * van ANTES de /:id para que Express no las tome como un id.
  */
 const router = require('express').Router();
+const desvinculacionService = require('../services/desvinculacion.service');
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const validateBody = require('../middleware/validateBody');
@@ -26,7 +27,8 @@ const APROBAR = 'trabajadores.solicitud.aprobar';
 // `trabajadores.crear`, que es el gate del check-rut del módulo Trabajadores.
 router.get('/check-rut/:rut', auth, checkPermission(CREAR), async (req, res, next) => {
     try {
-        const result = await service.checkRut(req.params.rut);
+        // Oficina (trabajadores.ver) ve el nombre de la causal; terreno solo fecha/artículo/marca.
+        const result = await service.checkRut(req.params.rut, { modo: desvinculacionService.modoSegunPermisos(req.user?.p) });
         res.json({ data: result });
     } catch (err) { next(err); }
 });
@@ -60,6 +62,24 @@ router.get('/:id', auth, checkPermission(CREAR, APROBAR), async (req, res, next)
     try {
         const result = await service.getById(req.params.id, req.user);
         res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// GET /api/solicitudes-ingreso/:id/doc — ficha en Word. Gate EXCLUSIVO documentos.laborales.descargar.
+// Aprobada → el documento persistido en la ficha del trabajador (se emite si faltara); pendiente o
+// rechazada → .doc al vuelo sin persistir. El activityLogger excluye esta ruta (log manual).
+router.get('/:id/doc', auth, checkPermission('documentos.laborales.descargar'), async (req, res, next) => {
+    try {
+        const laborales = require('../services/documentosLaborales.service');
+        const r = await laborales.solicitudDoc(req.params.id, req.user.id, req);
+        if (r.persistido) {
+            const info = await laborales.abrir(r.documento_id, req.user.id, req, { modo: 'download' });
+            res.type('application/msword');
+            return res.download(info.fullPath, info.fileName);
+        }
+        res.setHeader('Content-Type', 'application/msword');
+        res.setHeader('Content-Disposition', `attachment; filename="${r.nombre_archivo}"`);
+        res.send(require('../services/docGenerador.service').toDocBuffer(r.html));
     } catch (err) { next(err); }
 });
 

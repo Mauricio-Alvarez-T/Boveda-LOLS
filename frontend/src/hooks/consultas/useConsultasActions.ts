@@ -3,44 +3,35 @@ import api from '../../services/api';
 import { toast } from 'sonner';
 import type { Trabajador } from '../../types/entities';
 
-export type ModalType = 'form' | 'finiquito' | 'empresa' | 'obra' | 'cargo' | 'tipodoc' | 'depurar' | 'solicitud' | null;
+export type ModalType = 'form' | 'finiquito' | 'reactivar' | 'empresa' | 'obra' | 'cargo' | 'tipodoc' | 'depurar' | 'solicitud' | null;
 
+/**
+ * Acciones por fila de Gestiones. Desvincular y reactivar abren sus propios modales
+ * (DesvincularModal / ReactivarModal, plan Gestiones B4): el PUT genérico
+ * `/trabajadores/:id {activo, fecha_desvinculacion}` ya no existe — ahora hay endpoints
+ * dedicados con causal e historial (`/:id/desvincular`, `/:id/reactivar`).
+ */
 export const useConsultasActions = (onRefreshList: () => void) => {
     const [modalType, setModalType] = useState<ModalType>(null);
     const [selectedWorkerForAction, setSelectedWorkerForAction] = useState<Trabajador | null>(null);
     const [depurarConfirmationRut, setDepurarConfirmationRut] = useState('');
 
+    /** Abre el modal de desvinculación (fecha + causal obligatoria + detalle + marca). */
     const handleDelete = useCallback((worker: Trabajador) => {
         setSelectedWorkerForAction(worker);
         setModalType('finiquito');
     }, []);
 
-    const confirmFiniquito = useCallback((date: string) => {
-        if (!selectedWorkerForAction) return;
-        api.put(`/trabajadores/${selectedWorkerForAction.id}`, { activo: false, fecha_desvinculacion: date })
-            .then(() => {
-                toast.success("Trabajador desvinculado con éxito.");
-                setModalType(null);
-                onRefreshList();
-            })
-            .catch(err => {
-                console.error(err);
-                toast.error("Error al desvincular trabajador.");
-            });
-    }, [selectedWorkerForAction, onRefreshList]);
+    /** Abre el modal de reactivación (muestra la última desvinculación y la marca "no recontratar"). */
+    const handleReactivate = useCallback((worker: Trabajador) => {
+        setSelectedWorkerForAction(worker);
+        setModalType('reactivar');
+    }, []);
 
-    const handleReactivate = useCallback((id: number) => {
-        if (window.confirm("¿Estás seguro de que deseas reactivar a este trabajador?")) {
-            api.put(`/trabajadores/${id}`, { activo: true, fecha_desvinculacion: null })
-                .then(() => {
-                    toast.success("Trabajador reactivado con éxito.");
-                    onRefreshList();
-                })
-                .catch((err) => {
-                    console.error(err);
-                    toast.error("Error al reactivar trabajador.");
-                });
-        }
+    /** Cierre común tras desvincular/reactivar con éxito. */
+    const handleAccionCompletada = useCallback(() => {
+        setModalType(null);
+        onRefreshList();
     }, [onRefreshList]);
 
     const handleDepurar = useCallback((worker: Trabajador) => {
@@ -67,7 +58,7 @@ export const useConsultasActions = (onRefreshList: () => void) => {
     return {
         modalType, setModalType,
         selectedWorkerForAction, setSelectedWorkerForAction,
-        handleDelete, confirmFiniquito, handleReactivate,
+        handleDelete, handleReactivate, handleAccionCompletada,
         handleDepurar, confirmDepurar,
         depurarConfirmationRut, setDepurarConfirmationRut
     };

@@ -105,11 +105,26 @@ app.use('/api/auth', require('./src/routes/auth.routes'));
 const createCrudRoutes = require('./src/routes/crud.routes');
 
 try {
+  // representante_* (mig 110): firma contratos y finiquitos generados por Bóveda (plan Gestiones B2).
+  // Degradación D-I: el deploy reinicia el backend AUNQUE la migración falle, y EmpresaForm manda
+  // siempre ambos campos → sin este guard, crear/editar una empresa daría 500 "Unknown column".
+  // Los hooks corren después del filtro de whitelist y antes de armar el SQL.
+  const { hasCols } = require('./src/utils/schema');
+  const quitarRepresentanteSiFalta = async (safeData) => {
+    // Solo se paga la introspección cuando el body trae los campos nuevos.
+    if (safeData.representante_nombre === undefined && safeData.representante_rut === undefined) return;
+    if (!(await hasCols('empresas', 'representante_nombre', 'representante_rut'))) {
+      delete safeData.representante_nombre;
+      delete safeData.representante_rut;
+    }
+  };
   app.use('/api/empresas', createCrudRoutes('empresas', 'empresas', {
     searchFields: ['rut', 'razon_social'],
     useSoftDelete: true,
     orderBy: 'razon_social ASC',
-    allowedFields: ['rut', 'razon_social', 'direccion', 'telefono', 'email', 'activo']
+    allowedFields: ['rut', 'razon_social', 'direccion', 'telefono', 'email', 'activo', 'representante_nombre', 'representante_rut'],
+    beforeCreate: (safeData) => quitarRepresentanteSiFalta(safeData),
+    beforeUpdate: (_id, safeData) => quitarRepresentanteSiFalta(safeData),
   }));
   // ── Obras: opciones extraídas para reusar el service en el PUT con cascada ──
   const createCrudService = require('./src/services/crud.service');
@@ -294,6 +309,28 @@ try {
   app.use('/api/empresas-vehiculos', empresasVehiculosGuard);
   app.use('/api/empresas-vehiculos', createCrudRoutes('vehiculos', 'empresas_vehiculos', empresasVehiculosOptions));
 
+  // Guard del CRUD genérico de trabajadores (plan Gestiones B4): la desvinculación/reactivación
+  // viven en PUT /:id/desvincular y /:id/reactivar (causal + historial, gates reales). El PUT
+  // genérico ya no acepta activo/fecha_desvinculacion (tampoco están en allowedFields); si el body
+  // SOLO traía eso (pestaña vieja de Gestiones) se responde 400 explícito en vez del genérico.
+  // DELETE /:id (soft-delete sin fecha ni causal) → 405. Montado ANTES del CRUD: Express recorre en orden.
+  const trabajadoresGuardRouter = express.Router();
+  trabajadoresGuardRouter.delete('/:id', authMw, (req, res) => {
+    res.status(405).json({ error: 'Para desvincular usa PUT /api/trabajadores/:id/desvincular (con causal). El borrado directo no está permitido.' });
+  });
+  trabajadoresGuardRouter.put('/:id', (req, res, next) => {
+    if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
+      const traiaEstado = 'activo' in req.body || 'fecha_desvinculacion' in req.body;
+      delete req.body.activo;
+      delete req.body.fecha_desvinculacion;
+      if (traiaEstado && Object.keys(req.body).length === 0) {
+        return res.status(400).json({ error: 'La desvinculación cambió: recarga la página (Ctrl+F5) y usa el botón Desvincular / Reactivar.' });
+      }
+    }
+    next();
+  });
+  app.use('/api/trabajadores', trabajadoresGuardRouter);
+
   app.use('/api/trabajadores', createCrudRoutes('trabajadores', 'trabajadores', {
     searchFields: ['rut', 'nombres', 'apellido_paterno'],
     joins: 'LEFT JOIN empresas e ON trabajadores.empresa_id = e.id LEFT JOIN obras o ON trabajadores.obra_id = o.id LEFT JOIN cargos c ON trabajadores.cargo_id = c.id',
@@ -303,8 +340,8 @@ try {
     orderBy: 'trabajadores.apellido_paterno ASC, trabajadores.apellido_materno ASC, trabajadores.nombres ASC',
     allowedFields: [
       'rut', 'nombres', 'apellido_paterno', 'apellido_materno',
-      'fecha_ingreso', 'fecha_desvinculacion', 'email', 'telefono',
-      'cargo_id', 'obra_id', 'empresa_id', 'activo', 'categoria_reporte', 'es_prueba',
+      'fecha_ingreso', 'email', 'telefono', // fecha_desvinculacion y activo: solo vía /:id/desvincular y /:id/reactivar (B4)
+      'cargo_id', 'obra_id', 'empresa_id', 'categoria_reporte', 'es_prueba',
       'licencia_conducir', 'licencia_vencimiento',
       // Datos personales de la ficha de ingreso digital (mig 108) — editables en WorkerForm.
       'fecha_nacimiento', 'estado_civil', 'direccion', 'comuna',
@@ -434,7 +471,7 @@ safeRoute('/api/trabajadores', './src/routes/trabajadores.routes', 'Trabajadores
 safeRoute('/api/solicitudes-ingreso', './src/routes/solicitudes-ingreso.routes', 'Solicitudes de Ingreso (ficha digital)');
 safeRoute('/api/documentos', './src/routes/documentos.routes', 'Documentos');
 safeRoute('/api/asistencias', './src/routes/asistencias.routes', 'Asistencias');
-safeRoute('/api/sabados-extra', './src/routes/sabados-extra.routes', 'Sábados Extra');
+safeRoute('/api/actividades-sugeridas', './src/routes/actividades-sugeridas.routes', 'Actividades Sugeridas');
 safeRoute('/api/fiscalizacion', './src/routes/fiscalizacion.routes', 'Fiscalización');
 safeRoute('/api/usuarios/me/email-config', './src/routes/email-config.routes', 'Email Config');
 safeRoute('/api/usuarios/me/plantillas', './src/routes/plantillas.routes', 'Plantillas Email');
@@ -444,6 +481,10 @@ safeRoute('/api/config-horarios', './src/routes/config-horarios.routes', 'Config
 safeRoute('/api/logs', './src/routes/logs.routes', 'Logs');
 safeRoute('/api/reportes', './src/routes/reportes.routes', 'Reportes Suscriptores');
 safeRoute('/api/avisos', './src/routes/avisos.routes', 'Avisos (Resumen de Novedades)');
+safeRoute('/api/cargo-sueldos', './src/routes/cargo-sueldos.routes', 'Cargos — parámetros de sueldo ($, plan Gestiones B3)');
+safeRoute('/api/documentos-laborales', './src/routes/documentos-laborales.routes', 'Documentos laborales generados (Word, plan Gestiones B2)');
+safeRoute('/api/documentos-lotes', './src/routes/documentos-lotes.routes', 'Custodia de documentos físicos por lotes (plan Gestiones B6)');
+safeRoute('/api/documentos-alertas', './src/routes/documentos-alertas.routes', 'Alertas de documentos sin firmar (plan Gestiones B7)');
 safeRoute('/api/vehiculos', './src/routes/vehiculos.routes', 'Vehículos');
 safeRoute('/api/tutoriales-progreso', './src/routes/tutoriales.routes', 'Tutoriales (progreso Centro de ayuda)');
 

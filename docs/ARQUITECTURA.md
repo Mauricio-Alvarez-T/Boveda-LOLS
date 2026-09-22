@@ -35,6 +35,7 @@ hooks, helpers de formato locales.
 | Hosting/deploy | cPanel + Passenger + lftp (SIN CAMBIO) | restricción fija |
 | Backend TS | NO migrar; JSDoc donde aporte | costo/beneficio no paga en JS estable con 373 tests |
 | Reglas de negocio | `docs/reglas/` por dominio | mantenibles, referenciadas desde CLAUDE.md |
+| Canal WhatsApp | **Meta WhatsApp Business Cloud API (oficial), REST directo con `fetch` nativo; SIN SDK, SIN librerías no oficiales** | cPanel mata daemons y no permite Chromium → whatsapp-web.js/Baileys inviables y violan TOS (ban del número). Cloud API es HTTPS puro, encaja en el patrón cron-standalone existente (F7, decidido 2026-09-08) |
 
 ## Baseline (junio 2026) — medir progreso contra esto
 
@@ -80,14 +81,149 @@ hooks, helpers de formato locales.
   MasterDetailPage / TabbedPage / CrudSettingsPage; `<RequirePermission>`; Vitest+RTL (ui/ +
   asistencia diaria + aprobación transferencia + gating permisos).
 - [ ] **F4 — Monolitos** (requiere F1-F3): FE: TransferenciaDetail → `transferencias/`,
-  Consultas, Settings, AttendanceDailyTab, ResumenMensualTable. BE: asistencia.service →
+  Consultas (UI: Gestiones), Settings, AttendanceDailyTab, ResumenMensualTable. BE: asistencia.service →
   +excel+alertas; transferencia.service → +sod+stock; rutas inline → `src/routes/`. Regla: mover
   sin cambiar comportamiento, tests antes/después, un monolito por iteración.
-- [ ] **F5 — Pasada visual por apartado**: Dashboard → Asistencia → Consultas → Inventario (tab a
+- [ ] **F5 — Pasada visual por apartado**: Dashboard → Asistencia → Gestiones → Inventario (tab a
   tab) → Vehículos → Obras Finalizadas → Configuración. Incluye QA dark mode por tab y
   accesibilidad (≥44px, focus visible).
 - [ ] **F6 — Endurecimiento**: índices (logs_actividad.created_at), collation logs, evaluar
   password-reset, 2-3 tests integración con DB real, medición final vs baseline.
+- [ ] **F7 — Notificaciones WhatsApp** (feature transversal; **corre en paralelo a F3-F6**, no
+  depende de ellas). Detalle abajo.
+
+## F7 — Notificaciones WhatsApp (plan, 2026-09-08)
+
+### Objetivo
+Que Bóveda envíe mensajes WhatsApp de forma automática (avisos operativos a trabajadores y jefes de
+obra) reutilizando la infraestructura de alertas que ya existe por email (`alertas_vehiculos.js`,
+`avisos_diarios.js`, `reporte_semanal.js`). WhatsApp es un **segundo canal**, no reemplaza el email.
+
+### Proveedor y restricciones
+- **Meta WhatsApp Business Cloud API** (ver tabla de decisiones). Endpoint:
+  `POST https://graph.facebook.com/v21.0/{WSP_PHONE_ID}/messages`, header `Authorization: Bearer`.
+- Solo el sistema puede **iniciar** conversación con **plantillas aprobadas** por Meta (categoría
+  *Utility*). Texto libre solo dentro de las 24 h posteriores a un mensaje del destinatario.
+- Número dedicado (no puede estar registrado en la app WhatsApp normal). Token permanente de
+  **usuario de sistema** en Business Manager (el token de prueba dura 24 h; prohibido en prod).
+- Tier inicial 250 destinatarios únicos/día; sube automático con volumen y calidad. Suficiente
+  para LOLS (≈300 trabajadores, ≤1 aviso/semana c/u).
+- **Opt-in obligatorio** (política Meta + Ley 21.719): el trabajador debe aceptar recibir mensajes.
+  Se guarda evidencia en BD (`trabajadores.wsp_opt_in`, `wsp_opt_in_at`, `wsp_opt_in_origen`).
+- Costo estimado: Utility ≈ USD 0.03-0.05/msg Chile → ~1.200 msg/mes ≈ USD 40-60/mes. Sin fee fijo.
+- Versión API pineada en env (`WSP_API_VERSION=v21.0`); Meta la depreca a ~2 años → revisar anual.
+
+### Encaje en la arquitectura (mismas reglas que el resto)
+```
+services/whatsapp.service.js       → sendTemplate({to, template, vars, lang}), normalizarTelefono(),
+                                     registrarEnvio(); único punto que habla con Meta. SQL parametrizado.
+services/notificaciones.service.js → decide QUÉ avisar (vencimientos, dup cross-obra, resumen jefe obra);
+                                     canal-agnóstico: llama email.service y/o whatsapp.service.
+routes/whatsapp.routes.js          → GET /webhook (verificación Meta) + POST /webhook (estados/respuestas);
+                                     POST /api/wsp/prueba (permiso config.wsp_test) para "enviar prueba".
+scripts/notificaciones_wsp.js      → standalone para cron cPanel (patrón avisos_diarios.js: --dry, --to,
+                                     --fecha; abre/cierra su pool; exit 1 en error). SIN node-cron (RUNBOOK §4.1).
+schemas/whatsapp.schema.js         → validateBody propio para /prueba (NO zod).
+```
+- Sin dependencias nuevas: `fetch` nativo (Node 20), `crypto` para validar firma `X-Hub-Signature-256`
+  del webhook. Motivo: el deploy excluye `node_modules` (ver decisión validateBody).
+- Env nuevas (cPanel → Node App → Environment; NUNCA en repo): `WSP_TOKEN`, `WSP_PHONE_ID`,
+  `WSP_WABA_ID`, `WSP_VERIFY_TOKEN`, `WSP_APP_SECRET`, `WSP_API_VERSION`, `WSP_ENABLED` (kill switch,
+  `false` en staging por defecto → staging solo hace `--dry`).
+- Teléfonos: columna `telefono VARCHAR(20)` ya existe en trabajadores y usuarios. Meta exige E.164 sin
+  `+` (`569XXXXXXXX`). `normalizarTelefono()` acepta `+56 9 1234 5678`, `912345678`, `9-1234-5678`;
+  rechaza lo que no dé 11 dígitos con prefijo 569 (fijos 562 se aceptan pero no reciben WSP → excluir).
+
+### Modelo de datos (migración `103_whatsapp.sql`, idempotente)
+```sql
+ALTER TABLE trabajadores ADD COLUMN IF NOT EXISTS wsp_opt_in TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE trabajadores ADD COLUMN IF NOT EXISTS wsp_opt_in_at DATETIME NULL;
+ALTER TABLE trabajadores ADD COLUMN IF NOT EXISTS wsp_opt_in_origen VARCHAR(40) NULL; -- 'ficha','contrato','respuesta'
+
+CREATE TABLE IF NOT EXISTS mensajes_wsp (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  destinatario_tipo ENUM('trabajador','usuario') NOT NULL,
+  destinatario_id INT NOT NULL,
+  telefono VARCHAR(20) NOT NULL,             -- E.164 sin '+'
+  plantilla VARCHAR(80) NOT NULL,
+  variables JSON NULL,
+  evento VARCHAR(60) NOT NULL,               -- 'doc_vencimiento','dup_cross_obra','resumen_jefe_obra',...
+  evento_ref VARCHAR(120) NULL,              -- clave idempotencia (ej. 'doc:1234:2026-09-30')
+  wamid VARCHAR(120) NULL,                   -- id Meta
+  estado ENUM('encolado','enviado','entregado','leido','fallido','rechazado') NOT NULL DEFAULT 'encolado',
+  error_codigo VARCHAR(20) NULL,
+  error_detalle TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NULL,
+  UNIQUE KEY uq_evento_ref (evento_ref),     -- evita doble envío si el cron corre dos veces
+  KEY idx_wamid (wamid),
+  KEY idx_dest (destinatario_tipo, destinatario_id, created_at)
+);
+
+CREATE TABLE IF NOT EXISTS wsp_respuestas (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  telefono VARCHAR(20) NOT NULL,
+  wamid VARCHAR(120) NULL,
+  texto TEXT NULL,
+  contexto_wamid VARCHAR(120) NULL,          -- a qué mensaje nuestro responde
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_tel (telefono, created_at)
+);
+```
+Permisos nuevos en `permisos.config.js` (módulo `config`): `wsp_ver` (historial), `wsp_test`
+(enviar prueba), `wsp_config` (activar eventos). Re-login tras migrar (regla 5 del working agreement).
+
+### Eventos v1 (qué se manda y a quién)
+| Evento | Destinatario | Plantilla (Utility) | Disparo |
+|---|---|---|---|
+| Documento por vencer (7 y 1 día) | trabajador con opt-in | `doc_vencimiento`: «Hola {{1}}, tu {{2}} vence el {{3}}. Coordina renovación con RRHH LOLS.» | cron diario 08:00 |
+| Resumen diario de vencidos/faltantes por obra | jefe de obra (usuario) | `resumen_obra`: «{{1}}: {{2}} trabajadores con documentos vencidos y {{3}} sin asistencia registrada hoy. Detalle: {{4}}» | cron diario 17:30 |
+| Duplicado cross-obra detectado (FILA VIGENTE) | jefe de obra + RRHH | `dup_cross_obra` | cron diario, junto al resumen |
+| Alertas vehículos (ya existen por email) | responsable flota | `vehiculo_alerta` | reutiliza `alertas_vehiculos.js` → añade canal WSP |
+Fuera de v1: OTP/login, mensajes libres desde la UI, marketing. Se evalúan en F7.3.
+
+### Sub-fases
+- [ ] **F7.0 — Prueba de concepto (½ día, sin código en repo)**: crear app en developers.facebook.com,
+  número de prueba gratuito de Meta, enviar `hello_world` por curl al celular del dueño. Valida acceso
+  a Business Manager. **Gate**: mensaje recibido. Entregable humano: Business Manager de LOLS creado,
+  número dedicado definido (SIM o fijo), tarjeta cargada.
+- [ ] **F7.1 — Núcleo backend**: `whatsapp.service.js` (sendTemplate + normalizarTelefono +
+  registrarEnvio), migración 103, permisos, endpoint `/api/wsp/prueba`, kill switch `WSP_ENABLED`.
+  Tests con `fetch` mockeado (éxito, 4xx de Meta, teléfono inválido, idempotencia por `evento_ref`).
+  **Gate**: `npm test` verde + prueba real desde staging con `WSP_ENABLED=true` puntual al dueño.
+- [ ] **F7.2 — Webhook**: `GET/POST /webhook` con verificación `hub.verify_token` y firma HMAC
+  `X-Hub-Signature-256` (rechazar sin firma válida). Actualiza `mensajes_wsp.estado`; guarda
+  `wsp_respuestas`. Responder 200 siempre en <5 s (Meta reintenta si no). Registrar URL en la app Meta
+  (prod: `https://boveda.lols.cl/api/wsp/webhook`). **Gate**: estados `entregado`/`leido` llegan a BD.
+- [ ] **F7.3 — Eventos y cron**: `notificaciones.service.js` + `scripts/notificaciones_wsp.js`;
+  plantillas creadas y aprobadas en Meta (pedir aprobación al inicio de F7.1: demora horas-días);
+  cron cPanel `0 8 * * *` y `30 17 * * *` (mismo patrón que avisos diarios); throttle 10 msg/s con
+  reintento exponencial en 429/5xx (máx 3). Extender `alertas_vehiculos.js` al canal WSP.
+  **Gate**: 1 semana en prod con `--dry` comparado contra email; luego activar.
+- [ ] **F7.4 — UI**: en ficha trabajador: toggle opt-in + fecha/origen + teléfono validado (feedback
+  inline si no es móvil chileno); en Configuración: pestaña "WhatsApp" (estado credenciales sin
+  mostrar token, botón "enviar prueba", tabla historial `mensajes_wsp` con filtros, activar/desactivar
+  eventos). Sigue `docs/reglas/diseno.md` (Button/Chip/StatusBadge; estado del mensaje vía statusConfig).
+- [ ] **F7.5 — Cierre**: `docs/reglas/notificaciones.md` (eventos, plantillas, opt-in, límites),
+  RUNBOOK §4 (cron nuevo, rotación de token, qué hacer si Meta pausa una plantilla), CLAUDE.md puntero,
+  métricas: msgs/mes, % entregados, % fallidos, costo real vs estimado.
+
+### Riesgos y mitigaciones
+| Riesgo | Mitigación |
+|---|---|
+| Meta suspende cuenta/plantilla (calidad baja, reportes) | solo Utility, solo opt-in, textos cortos y esperados; email sigue como canal principal; `WSP_ENABLED=false` apaga todo sin deploy |
+| Doble envío si cron se ejecuta dos veces o falla a medias | `UNIQUE(evento_ref)` + estado `encolado→enviado` transaccional |
+| Token filtrado | solo en env cPanel; nunca en logs (logger enmascara `WSP_TOKEN`); rotación semestral documentada en RUNBOOK |
+| Teléfonos sucios en BD | `normalizarTelefono()` estricta + reporte `--dry` lista los inválidos antes de activar |
+| Datos personales a terceros (Meta) | mínimo necesario en variables (nombre, tipo doc, fecha); nunca RUT ni montos; cláusula en política de privacidad |
+| Deprecación de versión API | `WSP_API_VERSION` en env; revisión anual anotada en RUNBOOK |
+
+### Lo que debe entregar el humano antes de F7.1
+1. Acceso a **Meta Business Manager** de LOLS (o crearlo) con rol admin para quien configure.
+2. **Número dedicado** para WhatsApp Business (no usado en la app WhatsApp de ningún celular).
+3. **Método de pago** cargado en Business Manager.
+4. Texto de **opt-in** aprobado por RRHH (checkbox en ficha o cláusula de contrato).
+5. Lista definitiva de eventos v1 (la tabla de arriba es propuesta).
 
 ## Working agreement
 

@@ -126,7 +126,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                 />
 
                 <div className="space-y-2">
-                    <label className="text-base font-medium text-muted-foreground ml-1">Archivo (PDF, Imagen o TXT)</label>
+                    <label className="text-base font-medium text-muted-foreground ml-1">Archivo (PDF, imagen, TXT o Word)</label>
                     <div
                         className={`relative h-48 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-4 cursor-pointer
               ${file ? 'border-brand-primary bg-brand-primary/5' : 'border-border hover:border-brand-primary/50 hover:bg-background'}`}
@@ -135,7 +135,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                             type="file"
                             onChange={handleFileChange}
                             className="absolute inset-0 opacity-0 cursor-pointer"
-                            accept=".pdf,image/*,.txt"
+                            accept=".pdf,image/*,.txt,.doc,.docx"
                         />
 
                         {file ? (
@@ -165,10 +165,10 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                                 </div>
                                 <div>
                                     <p className="text-base font-medium text-brand-dark">Haz clic o arrastra un archivo</p>
-                                    <p className="text-sm text-muted-foreground text-center">PDF, PNG, JPG, TXT (Máx. 10MB) · las imágenes se comprimen a ≤ 500 KB</p>
+                                    <p className="text-sm text-muted-foreground text-center">PDF, PNG, JPG, TXT, DOC/DOCX (máx. 10 MB) · las imágenes se comprimen a ≤ 500 KB</p>
                                 </div>
                                 <p className="text-xs text-muted-foreground font-bold bg-muted px-3 py-1 rounded-full inline-block">
-                                    Auto-conversión a PDF activa
+                                    Imágenes y TXT se convierten a PDF; Word se guarda tal cual
                                 </p>
                             </div>
                         )}

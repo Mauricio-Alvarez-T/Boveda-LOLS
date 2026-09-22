@@ -97,9 +97,12 @@ describe('resolveEntidad()', () => {
         expect(result.tipo).toBe('item');
     });
 
-    test('sabados-extra arma label desde fecha del body', async () => {
-        const result = await resolveEntidad('sabados-extra', null, { fecha: '2026-05-09' });
-        expect(result).toEqual({ tipo: 'sabado_extra', label: 'Sábado 2026-05-09' });
+    test('actividades-sugeridas arma label de semana lun-vie desde el body (mismo formato que la UI)', async () => {
+        const result = await resolveEntidad('actividades-sugeridas', null, { semana: '2026-05-11' });
+        expect(result).toEqual({ tipo: 'actividad_sugerida', label: 'Semana lun 11/05 – vie 15/05' });
+        // ISO completo (algunos drivers devuelven la fecha con hora)
+        const conHora = await resolveEntidad('actividades-sugeridas', null, { semana: '2026-05-11T03:00:00.000Z' });
+        expect(conHora.label).toBe('Semana lun 11/05 – vie 15/05');
     });
 
     test('transferencias usa el código del body en CREATE', async () => {
