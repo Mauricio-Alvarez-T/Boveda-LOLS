@@ -1,7 +1,8 @@
 /**
  * Motor Word (plan Gestiones B2) — módulos PUROS, sin BD:
  *  - docGenerador: HTML con namespaces de Office, BOM en el archivo y sin BOM para imprimir,
- *    logo wordmark con la proporción del PNG (450×198 → 150×66), escape de HTML.
+ *    logo wordmark con la proporción del PNG (450×198 → 150×66) y logo por empleador (LOLS / MAUA),
+ *    escape de HTML.
  *  - numeroALetras: montos en letras para contrato/finiquito.
  *  - plantillas: requiere() detecta datos faltantes; build() imprime lo que debe y escapa lo que no.
  */
@@ -41,6 +42,36 @@ describe('docGenerador.service', () => {
         const uri = g.logoDataUri();
         expect(uri.startsWith('data:image/png;base64,')).toBe(true);
         expect(g.logoHtml()).toContain(`width="${g.LOGO_W}" height="${g.LOGO_H}"`);
+    });
+
+    test('logo por empleador: MAUA por RUT (con o sin formato) o razón social; el resto y sin empresa → LOLS', () => {
+        expect(g.logoDeEmpresa({ rut: '7.546.352-9', razon_social: 'cualquiera' })).toBe('MAUA');
+        expect(g.logoDeEmpresa({ rut: '75463529' })).toBe('MAUA');
+        expect(g.logoDeEmpresa({ rut: null, razon_social: 'Miguel Ángel Urrutia Aguilera' })).toBe('MAUA');
+        // RUT mal tipeado en la BD: el nombre completo del empleador lo rescata (así lo reconoce asistencia).
+        expect(g.logoDeEmpresa({ rut: '7.546.325-9', razon_social: 'MIGUEL ANGEL URRUTIA AGUILERA' })).toBe('MAUA');
+        // Un apellido suelto no basta: una sociedad relacionada no se lleva el logo de la persona natural.
+        expect(g.logoDeEmpresa({ rut: '76.111.111-1', razon_social: 'Inversiones Urrutia Aguilera SpA' })).toBe('LOLS');
+        expect(g.logoDeEmpresa({ rut: '77.085.560-8', razon_social: 'LOLS Empresas de Ingeniería Ltda.' })).toBe('LOLS');
+        expect(g.logoDeEmpresa({ rut: '76.000.000-0', razon_social: 'Dedalius' })).toBe('LOLS');
+        expect(g.logoDeEmpresa(null)).toBe('LOLS');
+        expect(g.logoHtml()).toContain('alt="LOLS INGENIERIA"');
+        const maua = g.logoHtml({ rut: '7.546.352-9' });
+        expect(maua).toContain('alt="MIGUEL ANGEL URRUTIA AGUILERA"');
+        expect(maua).toContain(`width="${g.LOGOS.MAUA.w}" height="${g.LOGOS.MAUA.h}"`);
+        expect(g.logoDataUri('MAUA')).not.toBe(g.logoDataUri('LOLS'));
+    });
+
+    test('logo MAUA: PNG 3× de su tamaño de impresión, con la proporción de la fuente SVG, y cabe en la celda del logo', () => {
+        const { path: p, w, h } = g.LOGOS.MAUA;
+        const png = fs.readFileSync(p);
+        expect(png.readUInt32BE(16)).toBe(w * 3);
+        expect(png.readUInt32BE(20)).toBe(h * 3);
+        const svg = fs.readFileSync(require('path').join(__dirname, '../assets/logo-maua.svg'), 'utf8');
+        const [, , vw, vh] = svg.match(/viewBox="([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)"/).slice(1).map(Number);
+        expect(Math.abs(w / h - vw / vh)).toBeLessThan(0.1);
+        expect(svg).not.toMatch(/<text|<image|font-family/); // contornos puros: no depende de fuentes instaladas
+        expect(w).toBeLessThanOrEqual(169); // 28% de la caja A4 (21cm − 2×2,5cm a 96dpi)
     });
 
     test('escapeHtml / oLinea / fechas / CLP', () => {
@@ -223,6 +254,29 @@ describe('plantillas de documentos', () => {
         expect(sinDatos).toContain('<b>RUT:</b> _______________');
         expect(sinDatos).not.toContain('<b>CARGO:</b> </p>');
         expect(p.MOTIVOS.length).toBeGreaterThanOrEqual(8);
+    });
+
+    test('cada documento imprime el logo de SU empleador: MAUA en todo el kit, amonestación y finiquito; LOLS en los de LOLS', () => {
+        const maua = { ...empresa, id: 2, rut: '7.546.352-9', razon_social: 'Miguel Ángel Urrutia Aguilera', representante_nombre: 'Miguel Ángel Urrutia Aguilera', representante_rut: '7.546.352-9' };
+        const ctxMaua = {
+            ...base, empresa: maua,
+            datos: { fecha_carta: '2026-09-11', motivo: 'Atraso', haberes: [{ concepto: 'Días trabajados', monto: 450000 }] },
+            desvinculacion: (() => {
+                const c = require('../src/config/causalesDesvinculacion').getCausal('VENCIMIENTO_PLAZO');
+                return { fecha_desvinculacion: '2026-09-10', fecha_ingreso_periodo: '2026-08-31', causal_codigo: c.codigo,
+                    causal: { codigo: c.codigo, nombre: c.nombre, articulo: c.articulo, inciso: c.inciso, articulo_texto: c.articulo_texto } };
+            })(),
+        };
+        const altMaua = 'alt="MIGUEL ANGEL URRUTIA AGUILERA"';
+        for (const codigo of [...KIT_INGRESO, 'AMONESTACION', 'FINIQUITO']) {
+            const p = getPlantilla(codigo);
+            const htmlMaua = p.build(ctxMaua);
+            expect({ codigo, maua: htmlMaua.includes(altMaua), lols: htmlMaua.includes('alt="LOLS INGENIERIA"') }).toEqual({ codigo, maua: true, lols: false });
+            const htmlLols = p.build({ ...ctxMaua, empresa });
+            expect({ codigo, lols: htmlLols.includes('alt="LOLS INGENIERIA"'), maua: htmlLols.includes(altMaua) }).toEqual({ codigo, lols: true, maua: false });
+        }
+        const sol = { id: 1, estado: 'pendiente', nombres: 'A', empresa_nombre: 'Miguel Ángel Urrutia Aguilera', empresa_rut: '7.546.352-9' };
+        expect(getPlantilla('SOLICITUD_INGRESO').build({ hoy: '2026-09-11', solicitud: sol, datos: {} })).toContain(altMaua);
     });
 
     test('SOLICITUD_INGRESO: imprime la ficha completa y el estado', () => {

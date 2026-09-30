@@ -139,7 +139,7 @@ function build(ctx) {
         `<tr><td width="70%">${esc(l.concepto)}</td><td width="30%" style="text-align:right">${resta ? '&minus; ' : ''}${esc(g.fmtCLP(l.monto))}</td></tr>`;
 
     return (
-        g.encabezado('FINIQUITO DE TRABAJADOR') +
+        g.encabezado('FINIQUITO DE TRABAJADOR', { empresa: ctx.empresa }) +
         `<p style="margin-top:12pt">En ${esc(lugarFirma(ctx))}, a ${esc(g.fechaLarga(fechaFiniquito(ctx)))}, entre <b>${razon}</b>, RUT ${esc(e.rut)}, ` +
         `con domicilio en ${esc(e.direccion)}, y don(ña) <b>${nombre}</b>, RUT ${esc(t.rut)}, se acuerda el siguiente finiquito:</p>` +
 

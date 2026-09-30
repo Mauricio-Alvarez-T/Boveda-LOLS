@@ -13,6 +13,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { cleanRut } = require('../utils/rut');
 
 const LOGO_PATH = path.join(__dirname, '../../assets/logo-lols-wordmark.png');
 /** Tamaño de impresión del wordmark (px CSS). El PNG es 450×198 = 3× para nitidez. */
@@ -21,19 +22,55 @@ const LOGO_H = 66;
 const LOGO_TEXT_FALLBACK = '<div style="font-size:13pt;font-weight:bold;color:#029E4D">LOLS INGENIERÍA</div>';
 const BOM = '﻿';
 
-let _logoCache;
-/** data:image/png;base64,… del wordmark ('' si el asset no está). Se lee una vez por proceso. */
-function logoDataUri() {
-    if (_logoCache === undefined) {
-        try { _logoCache = `data:image/png;base64,${fs.readFileSync(LOGO_PATH).toString('base64')}`; }
-        catch { _logoCache = ''; }
-    }
-    return _logoCache;
+/**
+ * Logo del EMPLEADOR que emite (2026-09-30). Emiten dos: LOLS Empresas de Ingeniería Ltda. y Miguel
+ * Ángel Urrutia Aguilera (persona natural, "MAUA"); cada contrato lleva el suyo, igual que los
+ * formatos en papel. Word no pinta SVG incrustado en un .doc HTML, así que se imprime un PNG 3×
+ * pre-renderizado (nunca se rasteriza en runtime: sharp + fuentes del cPanel). La fuente vectorial
+ * de MAUA vive al lado (`assets/logo-maua.svg`, trazada del logo oficial; el PNG sale de ahí).
+ * Cualquier otra empresa cae en LOLS, que es lo que se imprimía hasta hoy.
+ */
+const LOGOS = Object.freeze({
+    LOLS: { path: LOGO_PATH, w: LOGO_W, h: LOGO_H, alt: 'LOLS INGENIERIA', fallback: LOGO_TEXT_FALLBACK },
+    // PNG 504×105 = 3× de 168×35: la proporción del wordmark (≈4,8:1) a lo ancho de la celda del
+    // logo (28% de la caja A4 ≈ 169px), para no correr el título centrado.
+    MAUA: {
+        path: path.join(__dirname, '../../assets/logo-maua-wordmark.png'), w: 168, h: 35,
+        alt: 'MIGUEL ANGEL URRUTIA AGUILERA',
+        fallback: '<div style="font-size:11pt;font-weight:bold">MIGUEL ÁNGEL URRUTIA AGUILERA</div>',
+    },
+});
+const RUT_MAUA = '75463529';
+
+/**
+ * Clave de LOGOS para una empresa ({ rut, razon_social }): MAUA por RUT o por el nombre completo del
+ * empleador (así la identifica también el reporte de asistencia, y cubre un RUT mal tipeado en la BD).
+ * El nombre completo, no un apellido suelto, para no capturar una sociedad relacionada.
+ */
+function logoDeEmpresa(empresa) {
+    if (!empresa) return 'LOLS';
+    if (cleanRut(empresa.rut || '') === RUT_MAUA) return 'MAUA';
+    const razon = String(empresa.razon_social || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+    return /MIGUEL\s+ANGEL\s+URRUTIA\s+AGUILERA/.test(razon) ? 'MAUA' : 'LOLS';
 }
 
-function logoHtml() {
-    const uri = logoDataUri();
-    return uri ? `<img src="${uri}" width="${LOGO_W}" height="${LOGO_H}" alt="LOLS INGENIERIA"/>` : LOGO_TEXT_FALLBACK;
+const _logoCache = {};
+/** data:image/png;base64,… del logo ('' si el asset no está). Se lee una vez por proceso. */
+function logoDataUri(clave = 'LOLS') {
+    const logo = LOGOS[clave] || LOGOS.LOLS;
+    if (_logoCache[clave] === undefined) {
+        try { _logoCache[clave] = `data:image/png;base64,${fs.readFileSync(logo.path).toString('base64')}`; }
+        catch { _logoCache[clave] = ''; }
+    }
+    return _logoCache[clave];
+}
+
+/** <img> del logo del empleador (`empresa` = { rut, razon_social }; sin empresa → LOLS). */
+function logoHtml(empresa) {
+    const clave = logoDeEmpresa(empresa);
+    const logo = LOGOS[clave];
+    const uri = logoDataUri(clave);
+    return uri ? `<img src="${uri}" width="${logo.w}" height="${logo.h}" alt="${logo.alt}"/>` : logo.fallback;
 }
 
 function escapeHtml(s) {
@@ -104,11 +141,14 @@ function wrapHtml(titulo, body) {
     );
 }
 
-/** Encabezado estándar: logo a la izquierda, título centrado (y fecha opcional). */
-function encabezado(titulo, { fecha, subtitulo } = {}) {
+/**
+ * Encabezado estándar: logo del empleador a la izquierda, título centrado (y fecha opcional).
+ * `empresa` decide el logo (ver logoDeEmpresa); sin ella se imprime el de LOLS.
+ */
+function encabezado(titulo, { fecha, subtitulo, empresa } = {}) {
     return (
         '<table width="100%"><tr>' +
-        `<td width="28%" style="vertical-align:top">${logoHtml()}</td>` +
+        `<td width="28%" style="vertical-align:top">${logoHtml(empresa)}</td>` +
         '<td width="44%" style="text-align:center;vertical-align:top">' +
         '<div style="margin-top:20pt">' +
         `<div style="font-size:14pt;font-weight:bold">${escapeHtml(titulo)}</div>` +
@@ -178,8 +218,8 @@ function stamp(d = new Date()) {
 }
 
 module.exports = {
-    LOGO_W, LOGO_H, LOGO_PATH,
-    logoDataUri, logoHtml, escapeHtml, oLinea, sinPuntoFinal,
+    LOGO_W, LOGO_H, LOGO_PATH, LOGOS,
+    logoDataUri, logoHtml, logoDeEmpresa, escapeHtml, oLinea, sinPuntoFinal,
     fechaLarga, fechaCorta, fmtCLP, hoyYmd,
     wrapHtml, encabezado, bloqueFirmas, firmaTrabajador,
     toDocBuffer, sinBom, slug, stamp,

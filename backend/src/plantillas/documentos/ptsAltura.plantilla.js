@@ -5,7 +5,7 @@ function build(ctx) {
     const e = ctx.empresa, t = ctx.trabajador;
     const fecha = ctx.datos?.fecha_documento || ctx.hoy;
     return (
-        g.encabezado('PROCEDIMIENTO DE TRABAJO SEGURO', { subtitulo: 'EN ALTURA' }) +
+        g.encabezado('PROCEDIMIENTO DE TRABAJO SEGURO', { subtitulo: 'EN ALTURA', empresa: ctx.empresa }) +
         '<p style="margin-top:24pt">Cada vez que se ejecuten <b>TRABAJOS EN ALTURA</b> es obligación cumplir los siguientes pasos:</p>' +
         '<p><b>1.</b> El trabajador deberá subir afirmándose con ambas manos de la escala y, si es posible, amarrarse con una cola de vida utilizando un arnés. Una vez estabilizado, solicitará que le suban el material a instalar a través de una cuerda si existe demasiada altura.</p>' +
         '<p><b>2.</b> Si no fuese posible amarrarse con una cola de vida y equipo de arnés, se deberá utilizar un cuerpo de andamio, si el espacio lo permite.</p>' +

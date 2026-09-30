@@ -29,7 +29,7 @@ function build(ctx) {
     for (let i = 0; i < RIESGOS.length; i += 2) filas.push(filaRiesgos(RIESGOS[i], RIESGOS[i + 1]));
 
     return (
-        g.encabezado('OBLIGACIÓN DE INFORMAR LOS RIESGOS LABORALES', { subtitulo: 'DECRETO SUPREMO N° 44' }) +
+        g.encabezado('OBLIGACIÓN DE INFORMAR LOS RIESGOS LABORALES', { subtitulo: 'DECRETO SUPREMO N° 44', empresa: ctx.empresa }) +
         '<table width="100%" class="grid" style="margin-top:8pt">' +
         `<tr><td width="24%"><b>NOMBRE DEL TRABAJADOR</b></td><td width="43%">${esc(t.nombre)}</td><td width="13%"><b>CARGO</b></td><td width="20%">${esc(t.cargo_nombre || '')}</td></tr>` +
         `<tr><td><b>RUT</b></td><td>${esc(t.rut)}</td><td><b>DIVISIÓN</b></td><td>${esc(d.division || 'CONSTRUCCIÓN')}</td></tr>` +

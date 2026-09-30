@@ -517,7 +517,14 @@ ficha del trabajador y su descarga o impresión es "solo oficina".
   rompe los acentos). El endpoint de impresión devuelve el mismo HTML **sin BOM** (con BOM el iframe
   del navegador cae en quirks mode). Logo: `backend/assets/logo-lols-wordmark.png` (450×198, se imprime
   a 150×66) embebido como data URI; el `logo-lols-green.png` es el isotipo cuadrado y deformaría el
-  encabezado. La generación en el navegador (`utils/downloadWord.ts`, `ConstanciaModal.tsx`) se eliminó;
+  encabezado. **El logo es el del EMPLEADOR** (2026-09-30): `encabezado(titulo, { empresa })` lo elige con
+  `logoDeEmpresa()` — Miguel Ángel Urrutia Aguilera (MAUA, persona natural) por RUT `7.546.352-9` **o** por
+  su nombre completo (como lo reconoce el reporte de asistencia; cubre un RUT mal tipeado), y cualquier
+  otra empresa imprime el de LOLS. Toda plantilla nueva **debe** pasar `empresa: ctx.empresa` o saldrá con
+  el logo de LOLS. MAUA: fuente vectorial `assets/logo-maua.svg` (contornos puros, sin fuentes) y lo que
+  se imprime es `logo-maua-wordmark.png` (504×105 = 3× de 168×35, ancho justo de la celda del logo):
+  Word no pinta SVG incrustado en un `.doc` HTML y rasterizar en runtime depende de las fuentes del
+  cPanel. Si cambia el SVG, regenerar el PNG con sharp (el test fija que la proporción coincida). La generación en el navegador (`utils/downloadWord.ts`, `ConstanciaModal.tsx`) se eliminó;
   queda `utils/printHtml.ts` solo para imprimir lo que manda el servidor.
 - **Plantillas** (`backend/src/plantillas/documentos/`, mapa blanco `codigo → plantilla`): cada una
   expone `codigo, version, titulo, requiere(ctx), nombreBase(ctx), build(ctx), metadata(ctx)`. Los textos

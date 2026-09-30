@@ -36,7 +36,7 @@ function build(ctx) {
     else if (detalle) falta = `<p>${esc(detalle)}</p>`;
     else falta = '<p>_______________________________________________</p>'.repeat(4);
     return (
-        g.encabezado('CARTA DE AMONESTACIÓN', { fecha: d.fecha_carta }) +
+        g.encabezado('CARTA DE AMONESTACIÓN', { fecha: d.fecha_carta, empresa: ctx.empresa }) +
         `<p style="margin:14pt 0 0;text-align:left"><b>NOMBRE:</b> ${esc(t.nombre)}</p>` +
         // Sin dato va una línea, no el rótulo colgando: la carta se completa a mano y se firma en papel.
         `<p style="margin:0;text-align:left"><b>OBRA:</b> ${g.oLinea(t.obra_nombre, 30)}</p>` +

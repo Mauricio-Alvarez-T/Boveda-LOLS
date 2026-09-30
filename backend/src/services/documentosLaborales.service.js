@@ -35,7 +35,7 @@ const SELECT_TRABAJADOR_BASE = `
      WHERE t.id = ?`;
 
 const SELECT_SOLICITUD = `
-    SELECT s.*, c.nombre AS cargo_nombre, o.nombre AS obra_nombre, e.razon_social AS empresa_nombre,
+    SELECT s.*, c.nombre AS cargo_nombre, o.nombre AS obra_nombre, e.razon_social AS empresa_nombre, e.rut AS empresa_rut,
            us.nombre AS solicitante_nombre, ur.nombre AS resuelto_por_nombre
       FROM solicitudes_ingreso s
       LEFT JOIN cargos c ON c.id = s.cargo_id

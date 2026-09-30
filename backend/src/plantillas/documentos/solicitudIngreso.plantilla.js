@@ -24,7 +24,7 @@ function build(ctx) {
     const fechaRes = ymd(s.fecha_resolucion);
     const seccion = (t) => `<tr><td colspan="2" style="background:#eee"><b>${t}</b></td></tr>`;
     return (
-        g.encabezado('FICHA DE SOLICITUD DE INGRESO', { fecha: fechaSol }) +
+        g.encabezado('FICHA DE SOLICITUD DE INGRESO', { fecha: fechaSol, empresa: { rut: s.empresa_rut, razon_social: s.empresa_nombre } }) +
         `<p style="margin-top:10pt;text-align:left"><b>Solicitud N° ${s.id}</b> · Estado: ${g.escapeHtml(ESTADO[s.estado] || s.estado)}` +
         (s.solicitante_nombre ? ` · Solicitada por ${g.escapeHtml(s.solicitante_nombre)}` : '') +
         (fechaRes ? ` · Resuelta el ${g.escapeHtml(g.fechaCorta(fechaRes))}${s.resuelto_por_nombre ? ` por ${g.escapeHtml(s.resuelto_por_nombre)}` : ''}` : '') +

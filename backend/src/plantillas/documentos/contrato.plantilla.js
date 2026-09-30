@@ -68,7 +68,7 @@ function build(ctx) {
     const esc = g.escapeHtml;
 
     return (
-        g.encabezado('CONTRATO DE TRABAJO') +
+        g.encabezado('CONTRATO DE TRABAJO', { empresa: ctx.empresa }) +
         `<p style="margin-top:12pt">En Santiago, a ${esc(g.fechaLarga(fechaContrato))} entre <b>${esc(razon)}</b>, RUT: ${esc(e.rut)}, ` +
         `representada por don(ña) ${esc(e.representante_nombre)}${e.representante_rut ? `, RUT ${esc(e.representante_rut)}` : ''}, ` +
         `ambos con domicilio en ${esc(e.direccion)}, y don(ña) <b>${esc(t.nombre)}</b>, RUT ${esc(t.rut)}, ` +

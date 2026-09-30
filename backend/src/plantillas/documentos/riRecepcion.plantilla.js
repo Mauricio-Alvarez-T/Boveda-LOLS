@@ -5,7 +5,7 @@ function build(ctx) {
     const e = ctx.empresa, t = ctx.trabajador;
     const fecha = ctx.datos?.fecha_documento || ctx.hoy;
     return (
-        g.encabezado('RECEPCIÓN REGLAMENTO INTERNO') +
+        g.encabezado('RECEPCIÓN REGLAMENTO INTERNO', { empresa: ctx.empresa }) +
         `<p style="margin-top:40pt;text-align:center;font-weight:bold">EN ESTE ACTO CERTIFICO HABER RECIBIDO EL REGLAMENTO INTERNO DE ORDEN, HIGIENE Y SEGURIDAD DE ${g.escapeHtml(g.sinPuntoFinal(String(e.razon_social || '')).toUpperCase())}.</p>` +
         g.firmaTrabajador(t.nombre, t.rut, fecha)
     );

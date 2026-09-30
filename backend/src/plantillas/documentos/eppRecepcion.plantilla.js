@@ -18,7 +18,7 @@ function build(ctx) {
     const lis = items(ctx).map(i => `<li>${g.escapeHtml(i.toUpperCase())}</li>`).join('') +
         '<li>__________________________</li><li>__________________________</li>';
     return (
-        g.encabezado('RECEPCIÓN DE IMPLEMENTOS DE SEGURIDAD') +
+        g.encabezado('RECEPCIÓN DE IMPLEMENTOS DE SEGURIDAD', { empresa: ctx.empresa }) +
         `<p style="margin-top:24pt">Certifico haber recibido de <b>${razon}</b> los siguientes implementos de seguridad:</p>` +
         `<ul style="list-style:none;margin-left:24pt">${lis}</ul>` +
         `<p>Declaro además haber sido informado por mi empleador <b>${razon}</b> del correcto uso de cada uno de ellos y de la obligación de utilizarlos siempre.</p>` +
