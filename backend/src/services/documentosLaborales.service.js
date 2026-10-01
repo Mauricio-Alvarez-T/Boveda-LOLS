@@ -115,7 +115,7 @@ function _validar(plantilla, ctx) {
 }
 
 async function _persistir(plantilla, ctx, trabajadorId, userId, req) {
-    const html = g.wrapHtml(plantilla.titulo, plantilla.build(ctx));
+    const html = g.wrapHtml(plantilla.titulo, plantilla.build(ctx), plantilla.pagina);
     const doc = await documentoService.crearGenerado({
         trabajadorId,
         tipoCodigo: plantilla.codigo,
@@ -225,7 +225,7 @@ const documentosLaboralesService = {
             const existente = await documentoService.buscarGenerado(s.trabajador_id, 'SOLICITUD_INGRESO');
             if (existente) return { persistido: true, documento_id: existente.id, nombre_archivo: existente.nombre_archivo, trabajador_id: s.trabajador_id };
             if (!emitirSiFalta) throw httpError('La ficha de esta solicitud aún no fue emitida', 409);
-            const html = g.wrapHtml(plantilla.titulo, plantilla.build(ctx));
+            const html = g.wrapHtml(plantilla.titulo, plantilla.build(ctx), plantilla.pagina);
             const doc = await documentoService.crearGenerado({
                 trabajadorId: s.trabajador_id, tipoCodigo: 'SOLICITUD_INGRESO', html, userId,
                 metadata: plantilla.metadata(ctx), plantillaVersion: plantilla.version, nombreBase,
@@ -236,7 +236,7 @@ const documentosLaboralesService = {
             return { persistido: true, documento_id: doc.id, nombre_archivo: doc.nombre_archivo, trabajador_id: s.trabajador_id };
         }
         // Al vuelo (pendiente / rechazada): no queda en ninguna ficha.
-        const html = g.wrapHtml(plantilla.titulo, plantilla.build(ctx));
+        const html = g.wrapHtml(plantilla.titulo, plantilla.build(ctx), plantilla.pagina);
         await logManualActivity(userId, 'solicitudes_ingreso', 'UPDATE', String(sid),
             JSON.stringify({ evento: 'solicitud_descargada', estado: s.estado, resumen: `Ficha de la solicitud #${sid} (${s.estado}) descargada` }), req);
         return { persistido: false, nombre_archivo: `${nombreBase}_${g.stamp()}.doc`, html };

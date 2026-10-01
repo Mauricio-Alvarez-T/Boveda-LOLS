@@ -65,12 +65,17 @@ function logoDataUri(clave = 'LOLS') {
     return _logoCache[clave];
 }
 
-/** <img> del logo del empleador (`empresa` = { rut, razon_social }; sin empresa → LOLS). */
-function logoHtml(empresa) {
+/**
+ * <img> del logo del empleador (`empresa` = { rut, razon_social }; sin empresa → LOLS).
+ * `alto` (px) lo escala manteniendo la proporción — formatos densos como el ODI van más chicos.
+ */
+function logoHtml(empresa, { alto } = {}) {
     const clave = logoDeEmpresa(empresa);
     const logo = LOGOS[clave];
     const uri = logoDataUri(clave);
-    return uri ? `<img src="${uri}" width="${logo.w}" height="${logo.h}" alt="${logo.alt}"/>` : logo.fallback;
+    const h = alto || logo.h;
+    const w = alto ? Math.round(logo.w * (alto / logo.h)) : logo.w;
+    return uri ? `<img src="${uri}" width="${w}" height="${h}" alt="${logo.alt}"/>` : logo.fallback;
 }
 
 function escapeHtml(s) {
@@ -118,8 +123,27 @@ function hoyYmd(d = new Date()) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/**
+ * Página propia de una plantilla (opcional). Sin ella el documento es A4, márgenes de 2,5 cm y Times 12.
+ * Con ella Word recibe además una SECCIÓN con nombre (`@page WordSection1` + `div.WordSection1`): es la
+ * forma en que Word lee tamaño de papel y márgenes de un .doc HTML; el `@page` genérico es para el
+ * navegador (imprimir desde Bóveda). Se usa cuando el formato en papel ocupa una hoja exacta (ODI).
+ *   { papel: '21.59cm 27.94cm', margen: '0.5cm 1.5cm 0.4cm 1.5cm', fuente: "Tahoma, sans-serif",
+ *     tamano: '9pt', interlineado: 1.15 }
+ */
+const PAPEL_CARTA = '21.59cm 27.94cm';
+
 /** Documento completo listo para Word/impresora. `body` es el HTML interno de la plantilla. */
-function wrapHtml(titulo, body) {
+function wrapHtml(titulo, body, pagina) {
+    const pg = pagina || null;
+    const pageCss = pg
+        ? `@page { size: ${pg.papel}; margin: ${pg.margen}; }` +
+          `@page WordSection1 { size: ${pg.papel}; margin: ${pg.margen}; mso-header-margin: 0; mso-footer-margin: 0; mso-paper-source: 0; }` +
+          'div.WordSection1 { page: WordSection1; }'
+        : '@page { size: A4; margin: 2.5cm; }';
+    const bodyCss = pg
+        ? `body { font-family: ${pg.fuente}; font-size: ${pg.tamano}; color: #000; line-height: ${pg.interlineado}; }`
+        : "body { font-family: 'Times New Roman', serif; font-size: 12pt; color: #000; line-height: 1.5; }";
     return (
         '<!DOCTYPE html>' +
         '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
@@ -127,8 +151,8 @@ function wrapHtml(titulo, body) {
         'xmlns="http://www.w3.org/TR/REC-html40">' +
         `<head><meta charset="utf-8"><title>${escapeHtml(titulo)}</title>` +
         '<style>' +
-        '@page { size: A4; margin: 2.5cm; }' +
-        "body { font-family: 'Times New Roman', serif; font-size: 12pt; color: #000; line-height: 1.5; }" +
+        pageCss +
+        bodyCss +
         'h1 { font-size: 14pt; text-align: center; text-transform: uppercase; margin: 0 0 4pt; }' +
         'h2 { font-size: 12pt; text-align: center; font-weight: bold; margin: 0 0 16pt; }' +
         'p { margin: 0 0 10pt; text-align: justify; }' +
@@ -137,7 +161,7 @@ function wrapHtml(titulo, body) {
         '.grid td, .grid th { border: 1px solid #000; padding: 3pt 5pt; font-size: 10pt; }' +
         '.firmas td { text-align: center; }' +
         '.salto { page-break-before: always; }' +
-        `</style></head><body>${body}</body></html>`
+        `</style></head><body>${pg ? `<div class="WordSection1">${body}</div>` : body}</body></html>`
     );
 }
 
@@ -221,6 +245,6 @@ module.exports = {
     LOGO_W, LOGO_H, LOGO_PATH, LOGOS,
     logoDataUri, logoHtml, logoDeEmpresa, escapeHtml, oLinea, sinPuntoFinal,
     fechaLarga, fechaCorta, fmtCLP, hoyYmd,
-    wrapHtml, encabezado, bloqueFirmas, firmaTrabajador,
+    wrapHtml, PAPEL_CARTA, encabezado, bloqueFirmas, firmaTrabajador,
     toDocBuffer, sinBom, slug, stamp,
 };

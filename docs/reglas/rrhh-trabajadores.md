@@ -524,7 +524,15 @@ ficha del trabajador y su descarga o impresión es "solo oficina".
   el logo de LOLS. MAUA: fuente vectorial `assets/logo-maua.svg` (contornos puros, sin fuentes) y lo que
   se imprime es `logo-maua-wordmark.png` (504×105 = 3× de 168×35, ancho justo de la celda del logo):
   Word no pinta SVG incrustado en un `.doc` HTML y rasterizar en runtime depende de las fuentes del
-  cPanel. Si cambia el SVG, regenerar el PNG con sharp (el test fija que la proporción coincida). La generación en el navegador (`utils/downloadWord.ts`, `ConstanciaModal.tsx`) se eliminó;
+  cPanel. Si cambia el SVG, regenerar el PNG con sharp (el test fija que la proporción coincida).
+  **Página propia por plantilla** (2026-10-01): por defecto todo sale en A4, márgenes de 2,5 cm y Times 12; una
+  plantilla puede exportar `pagina` ({ papel, margen, fuente, tamano, interlineado }) y `wrapHtml` agrega una
+  sección con nombre (`@page WordSection1` + `div.WordSection1`), que es como Word lee papel y márgenes de un
+  .doc HTML. La usa el **ODI (DS 44), que va en UNA hoja carta** como el formato en papel (pedido de RRHH):
+  Tahoma, riesgos a 6 pt con viñetas «*» (no `<ul>`: Word les mete sangría), texto legal a 8,5 pt, tabla de
+  firmas con huella. Antes salía en 3 hojas. **Si se agrega texto o riesgos, verificar en Word que siga en
+  una hoja** (Word COM: vista de impresión + `Repaginate()` antes de `ComputeStatistics(2)` — sin repaginar
+  miente — o exportar a PDF y contar páginas). La generación en el navegador (`utils/downloadWord.ts`, `ConstanciaModal.tsx`) se eliminó;
   queda `utils/printHtml.ts` solo para imprimir lo que manda el servidor.
 - **Plantillas** (`backend/src/plantillas/documentos/`, mapa blanco `codigo → plantilla`): cada una
   expone `codigo, version, titulo, requiere(ctx), nombreBase(ctx), build(ctx), metadata(ctx)`. Los textos

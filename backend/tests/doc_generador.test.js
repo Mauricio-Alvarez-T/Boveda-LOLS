@@ -207,10 +207,36 @@ describe('plantillas de documentos', () => {
         expect(html).toContain('OBLIGACIÓN DE INFORMAR LOS RIESGOS LABORALES');
         expect(html).toContain('27.- LEY 20.096');
         expect(html).toContain('1.- TRABAJOS EN ALTURA');
-        expect(html).toContain('Edificio Central');
+        expect(html).toContain('EDIFICIO CENTRAL');   // datos en mayúsculas, como el papel
         expect(html).toContain('45 minutos');
         expect(html).toContain('Huella');
-        expect((html.match(/<li /g) || []).length).toBeGreaterThanOrEqual(60);
+        // Viñetas "*" como el papel (no listas: Word les mete sangría y espacio y la hoja se desborda).
+        expect((html.match(/>\* /g) || []).length).toBeGreaterThanOrEqual(60);
+        expect(html).not.toContain('<li');
+        // 26 y 27 comparten la celda derecha de la última fila (como el papel): 14 filas, no 13 + media.
+        expect(html).toMatch(/26\.- LEY DEL SACO[\s\S]*?27\.- LEY 20\.096[\s\S]*?<\/td><\/tr><\/table>/);
+    });
+
+    test('ODI_D40 1.1: UNA hoja carta como el formato en papel (márgenes mínimos, Tahoma), con el logo de su empleador', () => {
+        const p = getPlantilla('ODI_D40');
+        expect(p.version).toBe('1.1');
+        expect(p.pagina).toMatchObject({ papel: g.PAPEL_CARTA, fuente: expect.stringMatching(/^Tahoma/) });
+        const doc = g.wrapHtml(p.titulo, p.build(base), p.pagina);
+        // Word lee papel y márgenes de la sección con nombre; el @page genérico es para imprimir desde el navegador.
+        expect(doc).toContain(`@page WordSection1 { size: ${g.PAPEL_CARTA}; margin: ${p.pagina.margen};`);
+        expect(doc).toContain('div.WordSection1 { page: WordSection1; }');
+        expect(doc).toContain('<body><div class="WordSection1">');
+        expect(doc).toContain('font-family: Tahoma');
+        expect(doc).not.toContain('size: A4');
+        expect(doc).not.toContain('class="salto"');   // ningún salto de página
+        // Logo a 40px de alto con su proporción.
+        expect(doc).toContain(`width="${Math.round(g.LOGO_W * 40 / g.LOGO_H)}" height="40"`);
+        const maua = p.build({ ...base, empresa: { ...base.empresa, rut: '7.546.352-9' } });
+        expect(maua).toContain(`width="${Math.round(g.LOGOS.MAUA.w * 40 / g.LOGOS.MAUA.h)}" height="40"`);
+        // Los demás documentos siguen en la página estándar.
+        const contrato = g.wrapHtml('C', getPlantilla('CONTRATO').build(base), getPlantilla('CONTRATO').pagina);
+        expect(contrato).toContain('@page { size: A4; margin: 2.5cm; }');
+        expect(contrato).not.toContain('WordSection1');
     });
 
     test('DAS / PTS_ALTURA / RI_RECEPCION / EPP_RECEPCION: empleador y firma; EPP con lista default o editada', () => {
