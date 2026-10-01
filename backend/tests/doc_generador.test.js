@@ -294,6 +294,10 @@ describe('plantillas de documentos', () => {
         expect(html).toContain('Ana María Soto Ruiz');
         expect(html).toContain('Pedro Terreno');
         expect(html).toContain('&lt;script&gt;');
+        // Sin bloque de firmas al final (dueño, 2026-10-01).
+        expect(html).not.toContain('SOLICITANTE (TERRENO)');
+        expect(html).not.toContain('class="firmas"');
+        expect(html.trimEnd().endsWith('</table>')).toBe(true);
         expect(p.nombreBase({ solicitud })).toBe('Solicitud_Ingreso_Soto_Ana_Maria');
     });
 

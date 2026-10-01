@@ -47,14 +47,15 @@ function build(ctx) {
         fila('Banco', s.banco) + fila('Tipo de cuenta', s.tipo_cuenta) + fila('N° de cuenta', s.numero_cuenta) +
         seccion('OBSERVACIONES') +
         `<tr><td colspan="2">${g.escapeHtml(s.observaciones || '—')}</td></tr>` +
-        '</table>' +
-        g.bloqueFirmas({ titulo: 'SOLICITANTE (TERRENO)', lineas: [s.solicitante_nombre || ''] }, { titulo: 'ADMINISTRACIÓN', lineas: [s.resuelto_por_nombre || ''] }, { margenTop: 40 })
+        // Sin bloque de firmas (dueño, 2026-10-01): la ficha es un registro de lo que se pidió en
+        // terreno, no un documento que alguien firme; quién la pidió y quién la resolvió ya va arriba.
+        '</table>'
     );
 }
 
 module.exports = {
     codigo: 'SOLICITUD_INGRESO',
-    version: '1.0',
+    version: '1.1',
     titulo: 'Ficha de Solicitud de Ingreso',
     requiere: (ctx) => (ctx.solicitud ? [] : ['solicitud']),
     nombreBase: (ctx) => `Solicitud_Ingreso_${g.slug(ctx.solicitud.apellido_paterno)}_${g.slug(ctx.solicitud.nombres)}`,
