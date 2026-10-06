@@ -535,6 +535,11 @@ export interface PeriodoAusencia {
     fecha_inicio: string;
     fecha_fin: string;
     observacion: string | null;
+    /** Justificativo adjunto (foto o archivo). La ruta en disco nunca viaja: se descarga por endpoint. */
+    tiene_justificativo?: boolean;
+    justificativo_nombre?: string | null;
+    justificativo_mime?: string | null;
+    justificativo_tamano?: number | null;
     creado_por: number;
     nombres?: string;
     apellido_paterno?: string;

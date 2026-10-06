@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Loader2, Trash2, CalendarRange } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Trash2, CalendarRange, Paperclip } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import api from '../../services/api';
@@ -34,6 +34,35 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
     const [loading, setLoading] = useState(false);
     const [records, setRecords] = useState<Asistencia[]>([]);
     const [periodos, setPeriodos] = useState<PeriodoAusencia[]>([]);
+    const [abriendoJustificativoId, setAbriendoJustificativoId] = useState<number | null>(null);
+
+    // El archivo se sirve por endpoint autenticado: se baja como blob y se abre
+    // en una pestaña. La pestaña se abre ANTES del await para que el bloqueador
+    // de ventanas emergentes del celular no la mate.
+    const abrirJustificativo = async (p: PeriodoAusencia) => {
+        const ventana = window.open('', '_blank');
+        setAbriendoJustificativoId(p.id);
+        try {
+            const res = await api.get(`/asistencias/periodos/${p.id}/justificativo`, { responseType: 'blob' });
+            const mime = p.justificativo_mime || res.headers['content-type'] || 'application/octet-stream';
+            const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
+            if (ventana) {
+                ventana.location.href = url;
+            } else {
+                // Sin pestaña (bloqueada): descarga directa con el nombre real.
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = p.justificativo_nombre || 'justificativo';
+                a.click();
+            }
+            setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+        } catch {
+            ventana?.close();
+            toast.error('No se pudo abrir el justificativo');
+        } finally {
+            setAbriendoJustificativoId(null);
+        }
+    };
     const [holidays, setHolidays] = useState<Feriado[]>([]);
     const [selectionStart, setSelectionStart] = useState<string | null>(null);
     const [selectionEnd, setSelectionEnd] = useState<string | null>(null);
@@ -412,6 +441,25 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                         <span className="shrink-0 leading-none mt-0.5 text-xs">📝</span>
                                         <p className="leading-relaxed">{p.observacion}</p>
                                     </div>
+                                )}
+
+                                {p.tiene_justificativo && (
+                                    // eslint-disable-next-line no-restricted-syntax -- fila completa clicable con nombre de archivo truncado; Button no soporta este layout
+                                    <button
+                                        type="button"
+                                        onClick={() => abrirJustificativo(p)}
+                                        disabled={abriendoJustificativoId === p.id}
+                                        className="mt-1 w-full flex items-center gap-1.5 px-2 py-1.5 rounded-xl border border-border bg-card text-left hover:bg-muted transition-colors disabled:opacity-60"
+                                        title="Ver justificativo"
+                                    >
+                                        {abriendoJustificativoId === p.id
+                                            ? <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
+                                            : <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />}
+                                        <span className="text-label font-semibold text-brand-dark truncate flex-1 min-w-0">
+                                            {p.justificativo_nombre || 'Justificativo'}
+                                        </span>
+                                        <span className="text-micro text-muted-foreground shrink-0">Ver</span>
+                                    </button>
                                 )}
                             </div>
                         ))}

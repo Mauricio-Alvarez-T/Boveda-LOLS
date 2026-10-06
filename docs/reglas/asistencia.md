@@ -11,6 +11,7 @@ Cada estado tiene 2 flags con semántica DISTINTA:
 |---|---|---|---|---|
 | P/A* | Asiste | ✓ | ✓ | Presente normal |
 | F | Falta | ✗ | ✗ | **Injustificada** — alimenta Art. 160 |
+| FJ | Falta justificada | ✗ | ✗ | Mig 118. **NO** entra a Art. 160 ni al conteo de faltas (filtran `codigo='F'`). No paga el día; si jefatura decide pagarla, se cambia `cuenta_dia_trabajado` y nada más |
 | AT | Atraso (legacy) | ✓ | — | Absorbido por JI en UI/WhatsApp |
 | JI | Jornada Incompleta | ✓ | ✓ | Media jornada cuenta día completo |
 | LM | Licencia Médica | ✗ | ✗ | Paga ISAPRE/Mutual, no la empresa |
@@ -21,7 +22,7 @@ Cada estado tiene 2 flags con semántica DISTINTA:
 | DF | Defunción | ✗ | ✓ | Legal pagada (mig 065) |
 | MT | Matrimonio | ✗ | ✓ | Legal pagada (mig 065) |
 
-- En el WhatsApp diario se muestran fijos A/F/JI/TO/V/LM; NAC/DF/MT/PSG solo si >0
+- En el WhatsApp diario se muestran fijos A/F/JI/TO/V/LM; FJ/NAC/DF/MT/PSG solo si >0
   (`frontend/src/hooks/attendance/useAttendanceExport.ts`).
 
 ## Registro diario
@@ -185,6 +186,17 @@ Regla jefatura 2026-08-17: los pagos SIEMPRE se calculan base 30 — mes de 31 s
 ## Períodos de ausencia (`periodos_ausencia`, mig 012)
 
 - Rango `fecha_inicio`–`fecha_fin` con estado asociado; pre-llenan la asistencia diaria.
+- **Justificativo adjunto (mig 118, 2026-10-06).** Un archivo por período (foto o PDF, JPG/PNG/WEBP,
+  ≤10 MB) en `uploads/justificativos/<periodo_id>/`; columnas `justificativo_*` en
+  `periodos_ausencia`. La **ruta nunca sale al JSON** (`getPeriodos` la quita y expone
+  `tiene_justificativo`); se descarga por `GET /asistencias/periodos/:id/justificativo` (gate
+  `asistencia.periodo.ver`). Subir/reemplazar y quitar: `POST`/`DELETE` misma ruta, gate
+  `asistencia.periodo.crear` (quien asigna la falta adjunta su respaldo; sin permiso nuevo). Al
+  reemplazar se borra el archivo anterior del disco; al cancelar el período el archivo se conserva
+  (soft delete). El service acepta cualquier estado; **la UI ofrece el botón solo en F y FJ**
+  (`WorkerCalendarModal`: "Tomar foto" abre la cámara con `capture`, "Subir archivo" acepta
+  galería o PDF). El adjunto viaja en una **segunda llamada** tras crear el período: si falla, el
+  período queda igual y se avisa con `toast.warning`. Tests: `backend/tests/asistencia_justificativo.test.js`.
 - El WhatsApp diario enriquece las líneas de ausencia con el rango ("N días: ini → fin"); fallback
   "1 día: fecha" si el estado es de tipo período sin período registrado.
 

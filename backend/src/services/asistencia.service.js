@@ -3,6 +3,12 @@ const ExcelJS = require('exceljs');
 const { logManualActivity } = require('../middleware/logger');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger-structured');
+const fs = require('fs');
+const path = require('path');
+
+// Raíz de los adjuntos (justificativos de ausencia). La ruta en disco no sale
+// nunca al JSON: el frontend descarga por endpoint autenticado.
+const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 
 // ── Monkey patch: tamaño dinámico del cuadro de comentarios (.xlsx) ──
 // ExcelJS 4.4.0 hardcodea el shape VML de las notas en 97.8pt × 59.1pt
@@ -2589,7 +2595,11 @@ const asistenciaService = {
              ORDER BY p.fecha_inicio DESC`,
             params
         );
-        return rows;
+        // La ruta del archivo se queda en el servidor; afuera va solo si hay adjunto.
+        return rows.map(({ justificativo_ruta, ...p }) => ({
+            ...p,
+            tiene_justificativo: !!justificativo_ruta,
+        }));
     },
 
     /**
@@ -2651,6 +2661,116 @@ const asistenciaService = {
         } finally {
             connection.release();
         }
+    },
+
+    // ═══ JUSTIFICATIVO DE AUSENCIA (archivo adjunto al período) ═══
+
+    /**
+     * Adjunta (o reemplaza) el justificativo de un período: la foto del
+     * certificado, el comprobante, el PDF. Un archivo por período; si ya había
+     * uno, el anterior se borra del disco (best effort) para no acumular.
+     * El período debe existir y estar activo. No se restringe por estado: el
+     * botón en la UI aparece para F/FJ, pero una LM con su licencia escaneada
+     * es igual de legítima.
+     */
+    async adjuntarJustificativo(periodoId, file, userId, req) {
+        if (!file) throw Object.assign(new Error('No se recibió archivo'), { statusCode: 400 });
+
+        const [rows] = await db.query(
+            'SELECT id, activo, justificativo_ruta FROM periodos_ausencia WHERE id = ?',
+            [periodoId]
+        );
+        if (!rows.length) {
+            this._borrarArchivoSilencioso(file.path);
+            throw Object.assign(new Error('Período no encontrado'), { statusCode: 404 });
+        }
+        if (!rows[0].activo) {
+            this._borrarArchivoSilencioso(file.path);
+            throw Object.assign(new Error('El período está cancelado; no se le pueden adjuntar archivos'), { statusCode: 400 });
+        }
+
+        const rutaRelativa = path.relative(UPLOADS_DIR, file.path);
+        await db.query(
+            `UPDATE periodos_ausencia
+             SET justificativo_nombre = ?, justificativo_ruta = ?, justificativo_mime = ?,
+                 justificativo_tamano = ?, justificativo_subido_por = ?, justificativo_subido_en = NOW()
+             WHERE id = ?`,
+            [file.originalname, rutaRelativa, file.mimetype, file.size, userId, periodoId]
+        );
+
+        // El archivo anterior ya no lo referencia nadie.
+        if (rows[0].justificativo_ruta && rows[0].justificativo_ruta !== rutaRelativa) {
+            this._borrarArchivoSilencioso(path.join(UPLOADS_DIR, rows[0].justificativo_ruta));
+        }
+
+        try {
+            await logManualActivity(userId, 'periodos_ausencia', 'UPDATE', periodoId,
+                JSON.stringify({ resumen: `Justificativo adjuntado al período #${periodoId}: ${file.originalname}` }),
+                req
+            );
+        } catch (logErr) {
+            logger.error('Error registrando log de justificativo', { err: logErr.message });
+        }
+
+        return {
+            id: Number(periodoId),
+            justificativo_nombre: file.originalname,
+            justificativo_mime: file.mimetype,
+            justificativo_tamano: file.size,
+            tiene_justificativo: true,
+        };
+    },
+
+    /** Ruta en disco + nombre original, para `res.download`. 404 si no hay adjunto. */
+    async getJustificativoPath(periodoId) {
+        const [rows] = await db.query(
+            'SELECT justificativo_nombre, justificativo_ruta, justificativo_mime FROM periodos_ausencia WHERE id = ?',
+            [periodoId]
+        );
+        if (!rows.length) throw Object.assign(new Error('Período no encontrado'), { statusCode: 404 });
+        if (!rows[0].justificativo_ruta) {
+            throw Object.assign(new Error('El período no tiene justificativo adjunto'), { statusCode: 404 });
+        }
+        return {
+            fullPath: path.join(UPLOADS_DIR, rows[0].justificativo_ruta),
+            fileName: rows[0].justificativo_nombre || 'justificativo',
+            mime: rows[0].justificativo_mime || 'application/octet-stream',
+        };
+    },
+
+    /** Quita el adjunto del período (limpia columnas y borra el archivo). Idempotente. */
+    async quitarJustificativo(periodoId, userId, req) {
+        const [rows] = await db.query(
+            'SELECT justificativo_ruta, justificativo_nombre FROM periodos_ausencia WHERE id = ?',
+            [periodoId]
+        );
+        if (!rows.length) throw Object.assign(new Error('Período no encontrado'), { statusCode: 404 });
+        if (!rows[0].justificativo_ruta) return { id: Number(periodoId), tiene_justificativo: false };
+
+        await db.query(
+            `UPDATE periodos_ausencia
+             SET justificativo_nombre = NULL, justificativo_ruta = NULL, justificativo_mime = NULL,
+                 justificativo_tamano = NULL, justificativo_subido_por = NULL, justificativo_subido_en = NULL
+             WHERE id = ?`,
+            [periodoId]
+        );
+        this._borrarArchivoSilencioso(path.join(UPLOADS_DIR, rows[0].justificativo_ruta));
+
+        try {
+            await logManualActivity(userId, 'periodos_ausencia', 'UPDATE', periodoId,
+                JSON.stringify({ resumen: `Justificativo quitado del período #${periodoId}: ${rows[0].justificativo_nombre || ''}` }),
+                req
+            );
+        } catch (logErr) {
+            logger.error('Error registrando log de justificativo', { err: logErr.message });
+        }
+        return { id: Number(periodoId), tiene_justificativo: false };
+    },
+
+    /** Borra un archivo del disco sin reventar si ya no está: lo que importa es la BD. */
+    _borrarArchivoSilencioso(fullPath) {
+        if (!fullPath) return;
+        try { fs.unlinkSync(fullPath); } catch { /* ya no existe o no se pudo: no es error del usuario */ }
     },
 
     /**

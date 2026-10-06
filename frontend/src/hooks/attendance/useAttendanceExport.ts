@@ -111,7 +111,7 @@ export function useAttendanceExport({
         // (NAC/DF/MT mig 065 — RH pidió desglose individual, sin PL).
         const counts: Record<string, number> = {
             A: 0, F: 0, JI: 0, TO: 0, V: 0, LM: 0,
-            NAC: 0, DF: 0, MT: 0, PSG: 0,
+            NAC: 0, DF: 0, MT: 0, PSG: 0, FJ: 0,
         };
 
         currentWorkers.forEach(w => {
@@ -128,12 +128,13 @@ export function useAttendanceExport({
         });
 
         text += `Total: ${total}\n`;
-        // Mostrar siempre fijos. Códigos opcionales (NAC/DF/MT/PSG) solo si >0
+        // Mostrar siempre fijos. Códigos opcionales (FJ/NAC/DF/MT/PSG) solo si >0
         // para evitar contaminar mensaje con líneas en cero.
         ['A', 'F', 'JI', 'TO', 'V', 'LM'].forEach(c => {
             text += `${c}: ${counts[c].toString().padStart(2, '0')}\n`;
         });
-        ['NAC', 'DF', 'MT', 'PSG'].forEach(c => {
+        // FJ (falta justificada, mig 118) va aparte de F: no es la misma falta.
+        ['FJ', 'NAC', 'DF', 'MT', 'PSG'].forEach(c => {
             if (counts[c] > 0) {
                 text += `${c}: ${counts[c].toString().padStart(2, '0')}\n`;
             }

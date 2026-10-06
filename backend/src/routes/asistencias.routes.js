@@ -5,6 +5,7 @@ const asistenciaService = require('../services/asistencia.service');
 const logger = require('../utils/logger-structured');
 const validateBody = require('../middleware/validateBody');
 const asistenciaSchemas = require('../schemas/asistencias.schema');
+const uploadJustificativos = require('../middleware/upload-justificativos');
 
 /**
  * RUTAS DE EXPORTACIÓN (Poner arriba para evitar conflictos)
@@ -216,6 +217,31 @@ router.delete('/periodos/:id', auth, checkPermission('asistencia.periodo.elimina
     try {
         const result = await asistenciaService.cancelarPeriodo(req.params.id, req.user.id, req);
         res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// ═══ JUSTIFICATIVO DEL PERÍODO (foto o archivo) ═══
+// Misma gate que crear el período: quien asigna la falta adjunta su respaldo.
+// Multer escribe en uploads/justificativos/<id>/; el service valida el período
+// y, si no existe o está cancelado, borra lo recién subido.
+router.post('/periodos/:id/justificativo', auth, checkPermission('asistencia.periodo.crear'), uploadJustificativos.single('archivo'), async (req, res, next) => {
+    try {
+        const result = await asistenciaService.adjuntarJustificativo(req.params.id, req.file, req.user.id, req);
+        res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// Descarga autenticada (no estático público): son papeles del trabajador.
+router.get('/periodos/:id/justificativo', auth, checkPermission('asistencia.periodo.ver'), async (req, res, next) => {
+    try {
+        const { fullPath, fileName } = await asistenciaService.getJustificativoPath(req.params.id);
+        res.download(fullPath, fileName);
+    } catch (err) { next(err); }
+});
+
+router.delete('/periodos/:id/justificativo', auth, checkPermission('asistencia.periodo.crear'), async (req, res, next) => {
+    try {
+        res.json({ data: await asistenciaService.quitarJustificativo(req.params.id, req.user.id, req) });
     } catch (err) { next(err); }
 });
 
