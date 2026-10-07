@@ -11,7 +11,7 @@ Cada estado tiene 2 flags con semántica DISTINTA:
 |---|---|---|---|---|
 | P/A* | Asiste | ✓ | ✓ | Presente normal |
 | F | Falta | ✗ | ✗ | **Injustificada** — alimenta Art. 160 |
-| FJ | Falta justificada | ✗ | ✗ | Mig 118. **NO** entra a Art. 160 ni al conteo de faltas (filtran `codigo='F'`). No paga el día; si jefatura decide pagarla, se cambia `cuenta_dia_trabajado` y nada más |
+| FJ | Falta justificada | ✗ | ✗ | Mig 118. **NO** entra a Art. 160 ni al conteo de faltas (filtran `codigo='F'`). No paga el día; si jefatura decide pagarla, se cambia `cuenta_dia_trabajado` y nada más. **Mismo rojo que F** (mig 119, jefatura 07-10: "la sigla ya hace la diferencia") |
 | AT | Atraso (legacy) | ✓ | — | Absorbido por JI en UI/WhatsApp |
 | JI | Jornada Incompleta | ✓ | ✓ | Media jornada cuenta día completo |
 | LM | Licencia Médica | ✗ | ✗ | Paga ISAPRE/Mutual, no la empresa |
