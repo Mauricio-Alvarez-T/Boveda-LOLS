@@ -200,8 +200,12 @@ Regla jefatura 2026-08-17: los pagos SIEMPRE se calculan base 30 — mes de 31 s
   **comprimen** al subir (`compressImage`, objetivo 500 KB, igual que vehículos). El adjunto viaja en
   una **segunda llamada** tras crear el período: si falla, el período queda igual y se avisa con
   `toast.warning`. Los períodos con adjunto muestran un clip en "Resumen de períodos activos" que abre
-  el **visor en modal** (`JustificativoViewer`), no una pestaña: en el celular una pestaña con un blob
-  PDF se vuelve descarga sin nombre. Tests: `backend/tests/asistencia_justificativo.test.js`.
+  el **visor en modal** (`JustificativoViewer` → `ui/VisorAdjunto`), no una pestaña: en el celular una
+  pestaña con un blob PDF se vuelve descarga sin nombre. **El visor tiene zoom** (jefatura 07-10: ahí
+  van recetas y certificados con letra chica): botones +/−/ajustar, rueda, doble clic/doble toque y
+  pellizco (`touch-action: pan-x pan-y` para que el navegador no agrande la página entera); la vista
+  previa antes de confirmar también se abre en grande tocando la imagen o el botón "Ver más grande".
+  Tests: `backend/tests/asistencia_justificativo.test.js`.
 - El WhatsApp diario enriquece las líneas de ausencia con el rango ("N días: ini → fin"); fallback
   "1 día: fecha" si el estado es de tipo período sin período registrado.
 

@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
-import { Check, Loader2, AlertTriangle, CalendarRange, Camera, Upload, Paperclip, X, FileText } from 'lucide-react';
+import { VisorAdjunto } from '../ui/VisorAdjunto';
+import { Check, Loader2, AlertTriangle, CalendarRange, Camera, Upload, Paperclip, X, FileText, Maximize2 } from 'lucide-react';
 import WorkerCalendar from './WorkerCalendar';
 import api from '../../services/api';
 import { toast } from 'sonner';
@@ -43,6 +44,8 @@ export const WorkerCalendarModal: React.FC<Props> = ({
     const [justificativo, setJustificativo] = useState<File | null>(null);
     // Si la imagen elegida no se puede pintar (formato raro), se muestra la ficha en su lugar.
     const [previewRoto, setPreviewRoto] = useState(false);
+    // Vista previa en grande (visor con zoom): recetas y certificados tienen letra chica.
+    const [verGrande, setVerGrande] = useState(false);
     const camaraRef = useRef<HTMLInputElement>(null);
     const archivoRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
@@ -111,6 +114,11 @@ export const WorkerCalendarModal: React.FC<Props> = ({
             setPreviewRoto(false);
             setJustificativo(f);
         }
+    };
+
+    const quitarJustificativo = () => {
+        setVerGrande(false);
+        setJustificativo(null);
     };
 
     const refreshPeriods = () => {
@@ -338,12 +346,24 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                             {/* Vista previa: la foto tal cual se eligió; el PDF embebido donde el
                                                 navegador sabe pintarlo (en el celular, Chrome no) y una ficha donde no. */}
                                             {previewUrl && justificativo.type.startsWith('image/') && !previewRoto ? (
-                                                <img
-                                                    src={previewUrl}
-                                                    alt={`Vista previa de ${justificativo.name}`}
-                                                    onError={() => setPreviewRoto(true)}
-                                                    className="block w-full max-h-56 object-contain bg-muted/40"
-                                                />
+                                                // eslint-disable-next-line no-restricted-syntax -- la imagen entera es el disparador del visor; Button no envuelve media
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setVerGrande(true)}
+                                                    className="group relative block w-full cursor-zoom-in bg-muted/40"
+                                                    title="Ver más grande"
+                                                >
+                                                    <img
+                                                        src={previewUrl}
+                                                        alt={`Vista previa de ${justificativo.name}`}
+                                                        onError={() => setPreviewRoto(true)}
+                                                        className="block w-full max-h-56 object-contain"
+                                                    />
+                                                    <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-card/90 backdrop-blur border border-border px-2 py-1 text-micro font-semibold text-brand-dark shadow-sm">
+                                                        <Maximize2 className="h-3 w-3" />
+                                                        Ampliar
+                                                    </span>
+                                                </button>
                                             ) : previewUrl && justificativo.type === 'application/pdf' && navegadorMuestraPdf() ? (
                                                 <iframe
                                                     src={previewUrl}
@@ -368,9 +388,18 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                                         {justificativo.type === 'application/pdf' ? 'PDF' : 'Imagen'} · {formatearTamano(justificativo.size)}
                                                     </p>
                                                 </div>
+                                                {previewUrl && !previewRoto && (
+                                                    <IconButton
+                                                        size="sm"
+                                                        onClick={() => setVerGrande(true)}
+                                                        aria-label="Ver más grande"
+                                                        title="Ver más grande"
+                                                        icon={<Maximize2 className="h-3.5 w-3.5" />}
+                                                    />
+                                                )}
                                                 <IconButton
                                                     size="sm"
-                                                    onClick={() => setJustificativo(null)}
+                                                    onClick={quitarJustificativo}
                                                     aria-label="Quitar justificativo"
                                                     title="Quitar"
                                                     icon={<X className="h-3.5 w-3.5" />}
@@ -507,6 +536,17 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                     </div>
                 )}
             </div>
+
+            {verGrande && justificativo && previewUrl && (
+                <VisorAdjunto
+                    url={previewUrl}
+                    mime={justificativo.type}
+                    nombre={justificativo.name}
+                    size={justificativo.size}
+                    descripcion="Vista previa — todavía no se ha subido"
+                    onClose={() => setVerGrande(false)}
+                />
+            )}
         </Modal>
     );
 };
