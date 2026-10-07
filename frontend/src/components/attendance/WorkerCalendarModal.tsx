@@ -2,24 +2,18 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
-import { Check, Loader2, AlertTriangle, CalendarRange, Camera, Upload, Paperclip, X } from 'lucide-react';
+import { Check, Loader2, AlertTriangle, CalendarRange, Camera, Upload, Paperclip, X, FileText } from 'lucide-react';
 import WorkerCalendar from './WorkerCalendar';
 import api from '../../services/api';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import type { Trabajador, EstadoAsistencia, PeriodoAusencia } from '../../types/entities';
 import { empresaTag } from '../../utils/empresaTag';
+import { navegadorMuestraPdf, formatearTamano } from '../../utils/archivos';
+import { compressImage } from '../../utils/compressImage';
 
 /** Estados que llevan respaldo: la falta (para justificarla después) y la justificada. */
 const CODIGOS_CON_JUSTIFICATIVO = ['F', 'FJ'];
-
-/** Tamaño legible para el chip del archivo elegido. */
-const formatearTamano = (bytes: number): string => {
-    if (!bytes) return '';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
 
 interface Props {
     isOpen: boolean;
@@ -47,6 +41,8 @@ export const WorkerCalendarModal: React.FC<Props> = ({
     const [observacion, setObservacion] = useState('');
     // Justificativo (foto o archivo) que viaja DESPUÉS de crear el período, atado a su id.
     const [justificativo, setJustificativo] = useState<File | null>(null);
+    // Si la imagen elegida no se puede pintar (formato raro), se muestra la ficha en su lugar.
+    const [previewRoto, setPreviewRoto] = useState(false);
     const camaraRef = useRef<HTMLInputElement>(null);
     const archivoRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
@@ -102,11 +98,19 @@ export const WorkerCalendarModal: React.FC<Props> = ({
         }
     }, [isOpen]);
 
+    // URL local del archivo elegido, para verlo ANTES de confirmar. Se deriva del
+    // archivo y se libera cuando cambia o se quita.
+    const previewUrl = useMemo(() => (justificativo ? URL.createObjectURL(justificativo) : null), [justificativo]);
+    useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+
     const elegirJustificativo = (e: React.ChangeEvent<HTMLInputElement>) => {
         const f = e.target.files?.[0] || null;
         // Permitir volver a elegir el mismo archivo tras quitarlo.
         e.target.value = '';
-        if (f) setJustificativo(f);
+        if (f) {
+            setPreviewRoto(false);
+            setJustificativo(f);
+        }
     };
 
     const refreshPeriods = () => {
@@ -141,8 +145,11 @@ export const WorkerCalendarModal: React.FC<Props> = ({
             // El adjunto va en una segunda llamada, con el id recién creado. Si falla,
             // el período ya existe y vale: se avisa, no se deshace.
             if (justificativo && admiteJustificativo && data?.id) {
+                // Las fotos de cámara pesan 3–10 MB: se comprimen como los documentos de
+                // vehículos (PDF pasa sin tocar). Si la compresión falla, va el original.
+                const archivo = await compressImage(justificativo, { maxBytes: 500 * 1024 }).catch(() => justificativo);
                 const fd = new FormData();
-                fd.append('archivo', justificativo);
+                fd.append('archivo', archivo, archivo.name || justificativo.name);
                 try {
                     await api.post(`/asistencias/periodos/${data.id}/justificativo`, fd,
                         { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -327,23 +334,48 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                     <input ref={archivoRef} type="file" accept="image/*,application/pdf"
                                         className="hidden" onChange={elegirJustificativo} />
                                     {justificativo ? (
-                                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card">
-                                            <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-xs font-semibold text-brand-dark truncate" title={justificativo.name}>
-                                                    {justificativo.name}
-                                                </p>
-                                                <p className="text-micro text-muted-foreground">
-                                                    {justificativo.type === 'application/pdf' ? 'PDF' : 'Imagen'} · {formatearTamano(justificativo.size)}
-                                                </p>
+                                        <div className="rounded-xl border border-border bg-card overflow-hidden">
+                                            {/* Vista previa: la foto tal cual se eligió; el PDF embebido donde el
+                                                navegador sabe pintarlo (en el celular, Chrome no) y una ficha donde no. */}
+                                            {previewUrl && justificativo.type.startsWith('image/') && !previewRoto ? (
+                                                <img
+                                                    src={previewUrl}
+                                                    alt={`Vista previa de ${justificativo.name}`}
+                                                    onError={() => setPreviewRoto(true)}
+                                                    className="block w-full max-h-56 object-contain bg-muted/40"
+                                                />
+                                            ) : previewUrl && justificativo.type === 'application/pdf' && navegadorMuestraPdf() ? (
+                                                <iframe
+                                                    src={previewUrl}
+                                                    title={`Vista previa de ${justificativo.name}`}
+                                                    className="block w-full h-56 border-0 bg-white"
+                                                />
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center gap-1.5 h-28 bg-muted/40">
+                                                    <FileText className="h-7 w-7 text-muted-foreground" />
+                                                    <span className="text-micro text-muted-foreground">
+                                                        {justificativo.type === 'application/pdf' ? 'PDF listo para subir' : 'Sin vista previa'}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div className="flex items-center gap-2 px-3 py-2 border-t border-border">
+                                                <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-xs font-semibold text-brand-dark truncate" title={justificativo.name}>
+                                                        {justificativo.name}
+                                                    </p>
+                                                    <p className="text-micro text-muted-foreground">
+                                                        {justificativo.type === 'application/pdf' ? 'PDF' : 'Imagen'} · {formatearTamano(justificativo.size)}
+                                                    </p>
+                                                </div>
+                                                <IconButton
+                                                    size="sm"
+                                                    onClick={() => setJustificativo(null)}
+                                                    aria-label="Quitar justificativo"
+                                                    title="Quitar"
+                                                    icon={<X className="h-3.5 w-3.5" />}
+                                                />
                                             </div>
-                                            <IconButton
-                                                size="sm"
-                                                onClick={() => setJustificativo(null)}
-                                                aria-label="Quitar justificativo"
-                                                title="Quitar"
-                                                icon={<X className="h-3.5 w-3.5" />}
-                                            />
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-2 gap-2">
@@ -356,7 +388,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                         </div>
                                     )}
                                     <p className="mt-1.5 text-micro text-muted-foreground">
-                                        Foto o PDF, hasta 10 MB. Queda guardado junto al período.
+                                        Foto o PDF, hasta 10 MB. Las fotos se comprimen al subir; queda guardado junto al período.
                                     </p>
                                 </div>
                             )}

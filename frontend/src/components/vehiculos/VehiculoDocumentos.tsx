@@ -7,35 +7,12 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { compressImage } from '../../utils/compressImage';
 import { cn } from '../../utils/cn';
+import { navegadorMuestraPdf, formatearTamano } from '../../utils/archivos';
 import { EstadoVencimiento } from './EstadoVencimiento';
 import type { VehiculoDocumento, VehiculoDocumentoCategoria, VehiculoRevision, VehiculoMantencion } from '../../types/entities';
 
-/**
- * ¿El navegador sabe pintar un PDF dentro de la página?
- *
- * Chrome en Android NO lo hace: ante un <iframe> con un PDF dibuja un recuadro
- * gris con el identificador interno del blob y un botón "Abrir" suyo, sin el
- * nombre del documento ni nada que ayude. Se detectó el 2026-09-15 revisando el
- * formato móvil: los documentos que son FOTO se veían y el único que era PDF no,
- * lo que parecía un problema del archivo y era del navegador.
- *
- * `navigator.pdfViewerEnabled` es el API estándar para preguntarlo y responde
- * false justamente en el móvil. Donde no exista (navegadores viejos) se cae al
- * ancho de ventana, que separa bien escritorio de teléfono.
- */
-const navegadorMuestraPdf = (): boolean => {
-    const nav = navigator as Navigator & { pdfViewerEnabled?: boolean };
-    if (typeof nav.pdfViewerEnabled === 'boolean') return nav.pdfViewerEnabled;
-    return typeof window !== 'undefined' && window.innerWidth >= 768;
-};
-
-/** Tamaño legible para la ficha del documento (1 decimal desde 1 MB). */
-const formatearTamano = (bytes: number): string => {
-    if (!bytes) return '';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
+// navegadorMuestraPdf / formatearTamano viven en utils/archivos.ts: los usan
+// también los justificativos de asistencia, y los adjuntos se ven igual en todos lados.
 
 // Tipos del apartado:
 //  · "file" → suben un archivo (foto/PDF) y, opcionalmente, fecha, vencimiento y

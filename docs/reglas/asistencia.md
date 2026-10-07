@@ -195,8 +195,13 @@ Regla jefatura 2026-08-17: los pagos SIEMPRE se calculan base 30 — mes de 31 s
   reemplazar se borra el archivo anterior del disco; al cancelar el período el archivo se conserva
   (soft delete). El service acepta cualquier estado; **la UI ofrece el botón solo en F y FJ**
   (`WorkerCalendarModal`: "Tomar foto" abre la cámara con `capture`, "Subir archivo" acepta
-  galería o PDF). El adjunto viaja en una **segunda llamada** tras crear el período: si falla, el
-  período queda igual y se avisa con `toast.warning`. Tests: `backend/tests/asistencia_justificativo.test.js`.
+  galería o PDF). **Vista previa antes de confirmar** (imagen directa; PDF embebido donde el
+  navegador lo pinta, ficha donde no — `utils/archivos.ts`, compartido con vehículos); las fotos se
+  **comprimen** al subir (`compressImage`, objetivo 500 KB, igual que vehículos). El adjunto viaja en
+  una **segunda llamada** tras crear el período: si falla, el período queda igual y se avisa con
+  `toast.warning`. Los períodos con adjunto muestran un clip en "Resumen de períodos activos" que abre
+  el **visor en modal** (`JustificativoViewer`), no una pestaña: en el celular una pestaña con un blob
+  PDF se vuelve descarga sin nombre. Tests: `backend/tests/asistencia_justificativo.test.js`.
 - El WhatsApp diario enriquece las líneas de ausencia con el rango ("N días: ini → fin"); fallback
   "1 día: fecha" si el estado es de tipo período sin período registrado.
 

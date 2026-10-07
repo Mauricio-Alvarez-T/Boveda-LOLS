@@ -8,6 +8,7 @@ import type { Trabajador, EstadoAsistencia, Asistencia, PeriodoAusencia, Feriado
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { JustificativoViewer } from './JustificativoViewer';
 
 interface WorkerCalendarProps {
     worker: Trabajador;
@@ -34,35 +35,8 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
     const [loading, setLoading] = useState(false);
     const [records, setRecords] = useState<Asistencia[]>([]);
     const [periodos, setPeriodos] = useState<PeriodoAusencia[]>([]);
-    const [abriendoJustificativoId, setAbriendoJustificativoId] = useState<number | null>(null);
-
-    // El archivo se sirve por endpoint autenticado: se baja como blob y se abre
-    // en una pestaña. La pestaña se abre ANTES del await para que el bloqueador
-    // de ventanas emergentes del celular no la mate.
-    const abrirJustificativo = async (p: PeriodoAusencia) => {
-        const ventana = window.open('', '_blank');
-        setAbriendoJustificativoId(p.id);
-        try {
-            const res = await api.get(`/asistencias/periodos/${p.id}/justificativo`, { responseType: 'blob' });
-            const mime = p.justificativo_mime || res.headers['content-type'] || 'application/octet-stream';
-            const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
-            if (ventana) {
-                ventana.location.href = url;
-            } else {
-                // Sin pestaña (bloqueada): descarga directa con el nombre real.
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = p.justificativo_nombre || 'justificativo';
-                a.click();
-            }
-            setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
-        } catch {
-            ventana?.close();
-            toast.error('No se pudo abrir el justificativo');
-        } finally {
-            setAbriendoJustificativoId(null);
-        }
-    };
+    // Período cuyo justificativo se está viendo (visor en un modal encima, no una pestaña).
+    const [justificativoAbierto, setJustificativoAbierto] = useState<PeriodoAusencia | null>(null);
     const [holidays, setHolidays] = useState<Feriado[]>([]);
     const [selectionStart, setSelectionStart] = useState<string | null>(null);
     const [selectionEnd, setSelectionEnd] = useState<string | null>(null);
@@ -447,14 +421,11 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                     // eslint-disable-next-line no-restricted-syntax -- fila completa clicable con nombre de archivo truncado; Button no soporta este layout
                                     <button
                                         type="button"
-                                        onClick={() => abrirJustificativo(p)}
-                                        disabled={abriendoJustificativoId === p.id}
-                                        className="mt-1 w-full flex items-center gap-1.5 px-2 py-1.5 rounded-xl border border-border bg-card text-left hover:bg-muted transition-colors disabled:opacity-60"
+                                        onClick={() => setJustificativoAbierto(p)}
+                                        className="mt-1 w-full flex items-center gap-1.5 px-2 py-1.5 rounded-xl border border-border bg-card text-left hover:bg-muted transition-colors"
                                         title="Ver justificativo"
                                     >
-                                        {abriendoJustificativoId === p.id
-                                            ? <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
-                                            : <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />}
+                                        <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
                                         <span className="text-label font-semibold text-brand-dark truncate flex-1 min-w-0">
                                             {p.justificativo_nombre || 'Justificativo'}
                                         </span>
@@ -465,6 +436,10 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                         ))}
                     </div>
                 </div>
+            )}
+
+            {justificativoAbierto && (
+                <JustificativoViewer periodo={justificativoAbierto} onClose={() => setJustificativoAbierto(null)} />
             )}
         </div>
     );
