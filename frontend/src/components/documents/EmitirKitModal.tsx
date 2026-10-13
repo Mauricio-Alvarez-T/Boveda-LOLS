@@ -8,6 +8,11 @@
  * B2b: el contrato imprime nacionalidad, estado civil, fecha de nacimiento y domicilio del trabajador.
  * Si la ficha no los tiene, el modal los PIDE acá, los guarda en la ficha y recién entonces emite —
  * antes salían como líneas de guiones y el hueco aparecía en el papel firmado.
+ *
+ * Fecha de ingreso (2026-10-13): la cláusula 9 del contrato imprime la de la FICHA, no la "Fecha de
+ * los documentos". Con el contrato marcado se muestra editable acá y, si no coincide con la fecha de
+ * los documentos, se avisa (sin bloquear: firmar un día e ingresar otro es válido). Si se cambia, se
+ * guarda en la ficha antes de emitir, igual que los datos personales.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Printer, CheckCircle2, AlertTriangle, PackageOpen } from 'lucide-react';
@@ -24,6 +29,7 @@ import { cn } from '../../utils/cn';
 import {
     KIT_INGRESO, TITULOS, DIAS_PLAZO_DEFAULT, DURACION_CHARLA_DEFAULT, buildKitPayload, faltanDesdeError, hoyYmd, nombreDe,
     faltanDatosContrato, buildDatosPersonalesPayload, validarDatosContrato, camposFaltantesDesdeError,
+    fechaIngresoDe, avisoFechaIngreso,
     type CatalogoDocumentos, type DocumentoEmitido, type WorkerBasico, type CampoContrato,
 } from './documentosLaborales';
 import { abrirGenerado } from './abrirDocumentoGenerado';
@@ -63,6 +69,8 @@ export const EmitirKitModal: React.FC<Props> = ({ isOpen, onClose, worker, onEmi
     const [errores, setErrores] = useState<Partial<Record<CampoContrato, string>>>({});
     // El backend manda las claves que faltan en el 409: manda sobre lo que calculó el front.
     const [faltantesServidor, setFaltantesServidor] = useState<CampoContrato[] | null>(null);
+    // Fecha de ingreso que el usuario escribió. null = no la tocó (se muestra la de la ficha).
+    const [fechaIngresoEdit, setFechaIngresoEdit] = useState<string | null>(null);
     // `worker` puede ser null mientras el modal está cerrado; el efecto necesita un id estable.
     const workerId = worker?.id ?? null;
     // La ficha rápida pasa la fila completa. `undefined` = objeto parcial (otro caller): hay que pedirla.
@@ -72,7 +80,7 @@ export const EmitirKitModal: React.FC<Props> = ({ isOpen, onClose, worker, onEmi
         if (!isOpen) return;
         setMarcados([...KIT_INGRESO]); setFechaDocumento(hoyYmd()); setDiasPlazo(String(DIAS_PLAZO_DEFAULT));
         setDuracion(DURACION_CHARLA_DEFAULT); setFaltan(null); setEmitidos(null);
-        setDatos({}); setErrores({}); setFaltantesServidor(null); setFicha(null);
+        setDatos({}); setErrores({}); setFaltantesServidor(null); setFicha(null); setFechaIngresoEdit(null);
         api.get<{ data: CatalogoDocumentos }>('/documentos-laborales/catalogo')
             .then(r => {
                 const c = r.data?.data;
@@ -106,6 +114,11 @@ export const EmitirKitModal: React.FC<Props> = ({ isOpen, onClose, worker, onEmi
     // El servidor manda si ya respondió; si no, lo que dice la ficha que tenemos a mano.
     const faltanPersonales = faltantesServidor ?? faltanDatosContrato(ficha ?? worker);
     const pideDatos = conContrato && faltanPersonales.length > 0;
+    const ingresoFicha = fechaIngresoDe(ficha ?? worker);
+    const fechaIngreso = fechaIngresoEdit ?? ingresoFicha;
+    // Solo se guarda si el contrato va y la fecha realmente cambió (una fecha vacía no borra la de la ficha).
+    const cambiaIngreso = conContrato && puedeEditarTrabajador && !!fechaIngreso && fechaIngreso !== ingresoFicha;
+    const avisoIngreso = conContrato ? avisoFechaIngreso(fechaDocumento, fechaIngreso) : null;
     const setDato = (campo: CampoContrato, valor: string) => {
         setDatos(prev => ({ ...prev, [campo]: valor }));
         setErrores(prev => (prev[campo] ? { ...prev, [campo]: undefined } : prev));
@@ -132,11 +145,13 @@ export const EmitirKitModal: React.FC<Props> = ({ isOpen, onClose, worker, onEmi
         try {
             // Primero la ficha, después la emisión: así nunca se emite un contrato con datos que no
             // quedaron guardados. El payload lleva SOLO lo completado (un null borraría datos existentes).
-            const payload = pideDatos ? buildDatosPersonalesPayload(datos) : {};
+            const payload: Record<string, string> = pideDatos ? buildDatosPersonalesPayload(datos) : {};
+            if (cambiaIngreso) payload.fecha_ingreso = fechaIngreso;
             if (Object.keys(payload).length) {
                 await api.put(`/trabajadores/${worker.id}`, payload);
                 setFicha(prev => ({ ...(prev ?? worker), ...payload }));
                 setFaltantesServidor(null);
+                setFechaIngresoEdit(null);
                 onFichaActualizada?.(payload);   // la ficha ya cambió, aunque la emisión falle después
             }
             etapa = 'emision';
@@ -253,10 +268,24 @@ export const EmitirKitModal: React.FC<Props> = ({ isOpen, onClose, worker, onEmi
                                 <Input label="Plazo del contrato (días)" type="number" inputMode="numeric" min={1} max={365} value={diasPlazo}
                                     onChange={(e) => setDiasPlazo(e.target.value)} helperText="Plazo fijo. Default 15 días." />
                             )}
+                            {conContrato && (
+                                <Input label="Fecha de ingreso (ficha)" type="date" value={fechaIngreso}
+                                    onChange={(e) => setFechaIngresoEdit(e.target.value)}
+                                    disabled={!puedeEditarTrabajador}
+                                    helperText={puedeEditarTrabajador
+                                        ? 'La cláusula 9 del contrato usa esta fecha. Si la cambias, se guarda en la ficha.'
+                                        : 'La cláusula 9 del contrato usa esta fecha. Solo administración puede cambiarla.'} />
+                            )}
                             {conOdi && (
                                 <Input label="Duración de la charla ODI" value={duracion} onChange={(e) => setDuracion(e.target.value)} placeholder="30 minutos" />
                             )}
                         </div>
+                        {avisoIngreso && (
+                            <div role="status" className="flex items-start gap-2 rounded-2xl border border-warning/30 bg-warning/10 p-3 text-sm text-foreground">
+                                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-warning" />
+                                <p>{avisoIngreso}</p>
+                            </div>
+                        )}
                         {/* El contrato imprime estos datos: si la ficha no los tiene, se piden acá (B2b). */}
                         {pideDatos && (
                             <CompletarDatosContrato

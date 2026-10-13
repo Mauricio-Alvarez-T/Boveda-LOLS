@@ -559,6 +559,16 @@ ficha del trabajador y su descarga o impresión es "solo oficina".
   sale en solo lectura y el contrato queda bloqueado; el resto del kit se emite igual.
   El resto de las plantillas del kit (ODI, DAS, PTS altura, EPP, Reglamento Interno) **no** heredan el
   requisito: no imprimen esos datos. La ficha rápida avisa los que faltan antes de llegar a emitir.
+- **Dos fechas en el contrato (caso real 2026-10-13)**. El encabezado ("En Santiago, a …") imprime la
+  **Fecha de los documentos** del modal; la cláusula 9 ("ingresó al servicio el día …") imprime la
+  **fecha de ingreso de la ficha** (`trabajadores.fecha_ingreso`). Se movió un ingreso del 13 al 14 de
+  octubre, se re-emitió el kit cambiando solo la fecha de los documentos y el contrato salió con ambas
+  fechas. Desde entonces, con el contrato marcado, `EmitirKitModal` muestra **"Fecha de ingreso
+  (ficha)"** editable y, si no coincide con la fecha de los documentos, una caja ámbar que nombra las dos
+  (`avisoFechaIngreso`). **No bloquea**: firmar un día e ingresar otro es válido. Si se cambia, viaja en
+  el mismo `PUT /trabajadores/:id` que los datos personales, antes de emitir. Sin `trabajadores.editar`
+  el campo sale deshabilitado. ⚠️ Cambiar la fecha de ingreso NO toca la asistencia ya guardada: si se
+  marcó un día anterior al nuevo ingreso, hay que corregirlo en Asistencia.
 - **La restricción vive en el TIPO**: `tipos_documento.codigo` (clave estable) + `restringido`. Un
   contrato **escaneado** subido a un tipo restringido queda bajo el mismo gate. Los tipos del sistema
   se crean con nombre "(Bóveda)" y `obligatorio = 0` (no alteran la completitud); no se pueden desactivar,

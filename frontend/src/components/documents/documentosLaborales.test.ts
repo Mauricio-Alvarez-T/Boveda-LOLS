@@ -3,7 +3,7 @@ import {
     buildAmonestacionPayload, validarAmonestacion, faltanDesdeError, AMONESTACION_OTRO, hoyYmd,
     faltanDatosContrato, buildDatosPersonalesPayload, CAMPOS_CONTRATO, validarDatosContrato, camposFaltantesDesdeError,
     conceptoDiasTrabajados, lineasValidas, totalFiniquito, validarFiniquito, buildFiniquitoPayload, workerDesdeSolicitud,
-    avisoEnlaceFiniquito, MAX_LINEAS_FINIQUITO, LUGAR_FIRMA_DEFAULT,
+    avisoEnlaceFiniquito, MAX_LINEAS_FINIQUITO, LUGAR_FIRMA_DEFAULT, fechaIngresoDe, avisoFechaIngreso,
 } from './documentosLaborales';
 import type { SolicitudIngreso } from '../../types/entities';
 
@@ -175,5 +175,28 @@ describe('finiquito (plan Gestiones B5)', () => {
         expect(avisoEnlaceFiniquito({ tipo_codigo: 'FINIQUITO' })).toBeNull();
         expect(avisoEnlaceFiniquito({ tipo_codigo: 'AMONESTACION', enlazado: false })).toBeNull();
         expect(avisoEnlaceFiniquito(null)).toBeNull();
+    });
+});
+
+describe('kit de ingreso: fecha de ingreso vs fecha de los documentos (caso 2026-10-13)', () => {
+    it('fechaIngresoDe normaliza el ISO con hora que manda la API y tolera vacíos', () => {
+        expect(fechaIngresoDe({ fecha_ingreso: '2026-10-13T03:00:00.000Z' })).toBe('2026-10-13');
+        expect(fechaIngresoDe({ fecha_ingreso: '2026-10-14' })).toBe('2026-10-14');
+        expect(fechaIngresoDe({ fecha_ingreso: null })).toBe('');
+        expect(fechaIngresoDe(null)).toBe('');
+    });
+
+    it('avisa cuando el contrato saldría con dos fechas distintas, nombrando ambas', () => {
+        const aviso = avisoFechaIngreso('2026-10-14', '2026-10-13');
+        expect(aviso).toContain('se firmó el 14-10-2026');
+        expect(aviso).toContain('ingresó el 13-10-2026');
+        expect(aviso).toMatch(/corrígela antes de emitir/);
+    });
+
+    it('no avisa si coinciden o si falta alguna de las dos fechas', () => {
+        expect(avisoFechaIngreso('2026-10-14', '2026-10-14')).toBeNull();
+        expect(avisoFechaIngreso('2026-10-14', '')).toBeNull();
+        expect(avisoFechaIngreso('', '2026-10-14')).toBeNull();
+        expect(avisoFechaIngreso('14-10-2026', '2026-10-13')).toBeNull();
     });
 });

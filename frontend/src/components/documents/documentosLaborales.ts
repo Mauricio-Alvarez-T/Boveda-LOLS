@@ -4,6 +4,7 @@
  * Espejo de backend/src/plantillas/documentos (códigos) y schemas/documentosLaborales.schema.js.
  */
 import type { Documento, SolicitudIngreso } from '../../types/entities';
+import { fmtFechaCorta, normalizarFecha } from '../../utils/fechas';
 
 export const KIT_INGRESO = ['CONTRATO', 'ODI_D40', 'DAS', 'PTS_ALTURA', 'EPP_RECEPCION', 'RI_RECEPCION'] as const;
 export type CodigoKit = typeof KIT_INGRESO[number];
@@ -159,6 +160,8 @@ export interface WorkerBasico {
     fecha_nacimiento?: string | null;
     direccion?: string | null;
     comuna?: string | null;
+    // La cláusula 9 del contrato ("ingresó al servicio el día…") imprime esta fecha de la ficha.
+    fecha_ingreso?: string | null;
 }
 
 /** Claves de la ficha que el contrato necesita, en el orden en que salen impresas. */
@@ -235,6 +238,28 @@ export function camposFaltantesDesdeError(err: unknown): CampoContrato[] | null 
     if (!Array.isArray(campos) || !campos.length) return null;
     const validos = campos.filter((c): c is CampoContrato => (CAMPOS_CONTRATO as readonly string[]).includes(String(c)));
     return validos.length ? validos : null;
+}
+
+/** Fecha de ingreso de la ficha como YYYY-MM-DD ('' si no hay). La API la manda como ISO con hora. */
+export function fechaIngresoDe(w: Pick<WorkerBasico, 'fecha_ingreso'> | null | undefined): string {
+    return normalizarFecha(w?.fecha_ingreso);
+}
+
+/**
+ * Aviso del kit cuando la fecha de los documentos y la fecha de ingreso de la ficha no coinciden.
+ *
+ * El contrato las imprime por separado: el encabezado ("En Santiago, a …") usa la fecha de los
+ * documentos y la cláusula 9 ("ingresó al servicio el día …") usa la de la ficha. Caso real
+ * 2026-10-13: el ingreso se movió del 13 al 14, se cambió solo la fecha de los documentos y el
+ * contrato salió con las dos fechas. Pueden diferir a propósito (se firma un día y se entra otro),
+ * por eso es un aviso y no un bloqueo.
+ */
+export function avisoFechaIngreso(fechaDocumento: string, fechaIngreso: string): string | null {
+    const ymd = /^\d{4}-\d{2}-\d{2}$/;
+    if (!ymd.test(fechaDocumento || '') || !ymd.test(fechaIngreso || '')) return null;
+    if (fechaDocumento === fechaIngreso) return null;
+    return `El contrato dirá que se firmó el ${fmtFechaCorta(fechaDocumento)} y que el trabajador ingresó el ` +
+        `${fmtFechaCorta(fechaIngreso)}. Si la fecha de ingreso cambió, corrígela antes de emitir.`;
 }
 
 /** 'Pérez Soto Juan' — el orden con que RRHH lee los nombres. */
