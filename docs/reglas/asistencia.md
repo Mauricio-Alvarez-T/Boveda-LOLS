@@ -193,7 +193,8 @@ Regla jefatura 2026-08-17: los pagos SIEMPRE se calculan base 30 — mes de 31 s
   `asistencia.periodo.ver`). Subir/reemplazar y quitar: `POST`/`DELETE` misma ruta, gate
   `asistencia.periodo.crear` (quien asigna la falta adjunta su respaldo; sin permiso nuevo). Al
   reemplazar se borra el archivo anterior del disco; al cancelar el período el archivo se conserva
-  (soft delete). El service acepta cualquier estado; **la UI ofrece el botón solo en F y FJ**
+  (soft delete). El service acepta cualquier estado; **la UI ofrece el botón solo en FJ** (jefatura
+  13-10-2026: fuera de la Falta a secas — no se pidió; si aparece el papel, se cambia el estado a FJ)
   (`WorkerCalendarModal`: "Tomar foto" abre la cámara con `capture`, "Subir archivo" acepta
   galería o PDF). **Vista previa antes de confirmar** (imagen directa; PDF embebido donde el
   navegador lo pinta, ficha donde no — `utils/archivos.ts`, compartido con vehículos); las fotos se

@@ -13,8 +13,12 @@ import { empresaTag } from '../../utils/empresaTag';
 import { navegadorMuestraPdf, formatearTamano } from '../../utils/archivos';
 import { compressImage } from '../../utils/compressImage';
 
-/** Estados que llevan respaldo: la falta (para justificarla después) y la justificada. */
-const CODIGOS_CON_JUSTIFICATIVO = ['F', 'FJ'];
+/**
+ * Estados que llevan respaldo. Solo la Falta justificada: jefatura (13-10-2026)
+ * pidió sacar el adjunto de la Falta a secas — una falta sin justificar no tiene
+ * qué adjuntar; si aparece el papel, se cambia el estado a FJ y ahí se sube.
+ */
+const CODIGOS_CON_JUSTIFICATIVO = ['FJ'];
 
 interface Props {
     isOpen: boolean;

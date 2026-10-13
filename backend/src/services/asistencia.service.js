@@ -2670,7 +2670,7 @@ const asistenciaService = {
      * certificado, el comprobante, el PDF. Un archivo por período; si ya había
      * uno, el anterior se borra del disco (best effort) para no acumular.
      * El período debe existir y estar activo. No se restringe por estado: el
-     * botón en la UI aparece para F/FJ, pero una LM con su licencia escaneada
+     * botón en la UI aparece solo para FJ, pero una LM con su licencia escaneada
      * es igual de legítima.
      */
     async adjuntarJustificativo(periodoId, file, userId, req) {

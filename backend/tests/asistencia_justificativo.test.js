@@ -1,7 +1,7 @@
 /**
  * Tests del justificativo adjunto a un período de ausencia (mig 118).
  *
- * Pedido de RRHH 2026-10-06: al marcar Falta o Falta justificada poder subir la
+ * Pedido de RRHH 2026-10-06: al marcar Falta justificada poder subir la
  * foto o el archivo que la respalda. Lo que fijan:
  *   · las gates: subir/quitar = asistencia.periodo.crear, ver = asistencia.periodo.ver
  *     (sin permiso → 403 ANTES de que multer escriba nada),
