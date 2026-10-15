@@ -17,6 +17,7 @@ const VehiculosPage = lazyWithRetry(() => import('./pages/Vehiculos'));
 const ObrasFinalizadasPage = lazyWithRetry(() => import('./pages/ObrasFinalizadas'));
 const CentroAyudaPage = lazyWithRetry(() => import('./pages/CentroAyuda'));
 const SettingsPage = lazyWithRetry(() => import('./pages/Settings'));
+const IdeasPage = lazyWithRetry(() => import('./pages/Ideas'));
 
 const FullScreenSpinner: React.FC = () => (
   <div className="min-h-[100dvh] bg-background flex items-center justify-center">
@@ -62,6 +63,7 @@ const App: React.FC = () => {
             <Route path="obras-finalizadas" element={<ObrasFinalizadasPage />} />
             <Route path="ayuda" element={<CentroAyudaPage />} />
             <Route path="configuracion" element={<SettingsPage />} />
+            <Route path="ideas" element={<IdeasPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

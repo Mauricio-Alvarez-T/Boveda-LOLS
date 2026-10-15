@@ -243,6 +243,7 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'sistema.reportes.gestionar':              { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar' },
     'sistema.avisos.gestionar':                { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar' },
     'sistema.alertas_documentos.gestionar':    { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar' },
+    'ideas.revisar':                           { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar' },
 };
 
 /** Sección por defecto cuando ninguna específica está activa. */

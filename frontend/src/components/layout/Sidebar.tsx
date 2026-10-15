@@ -14,7 +14,9 @@ import {
     Package,
     Truck,
     Archive,
-    BookOpen
+    BookOpen,
+    Lightbulb,
+    Inbox
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
@@ -26,6 +28,8 @@ import { VencimientosPanel } from '../vehiculos/VencimientosPanel';
 import { VencimientosBadge } from '../vehiculos/VencimientosBadge';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { IconButton } from '../ui/IconButton';
+import { ProponerMejoraModal } from '../ideas/ProponerMejoraModal';
+import { useMisIdeasResumen, useIdeasPendientes } from '../../hooks/useIdeas';
 
 interface SidebarProps {
     isCollapsed: boolean;
@@ -45,6 +49,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
     // Solicitudes de ingreso pendientes (ficha digital): número en Gestiones; el clic
     // lleva a la pestaña de solicitudes. Solo cuenta para quien puede aprobar.
     const solicitudes = useSolicitudesIngreso();
+    // Ideas para Bóveda (mig 120): todos proponen desde el pie del menú; el punto avisa
+    // que una idea propia cambió de estado. Los revisores ven además la bandeja con su número.
+    const misIdeas = useMisIdeasResumen();
+    const ideasPendientes = useIdeasPendientes();
+    const [showIdeas, setShowIdeas] = React.useState(false);
 
     // Auto-close mobile drawer on route change
     React.useEffect(() => {
@@ -116,6 +125,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             label: 'Ayuda',
             path: '/ayuda',
             visible: true
+        },
+        {
+            icon: Inbox,
+            label: 'Ideas',
+            path: '/ideas',
+            visible: hasPermission('ideas.revisar'),
+            // Pendiente = ÁMBAR (por revisar, no es error).
+            badge: ideasPendientes.pendientes,
+            badgeUrgente: false,
+            badgeTitle: `${ideasPendientes.pendientes} idea${ideasPendientes.pendientes === 1 ? '' : 's'} por revisar`,
+            badgeAriaLabel: 'Ver ideas por revisar',
+            onBadgeClick: () => { setMobileOpen(false); navigate('/ideas'); },
         },
         {
             icon: Settings,
@@ -204,8 +225,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                 ))}
             </nav>
 
-            {/* Footer: tema + usuario */}
+            {/* Footer: proponer una mejora + tema + usuario */}
             <div className="p-3 border-t border-border space-y-3">
+                {(isMobile || !isCollapsed) ? (
+                    // eslint-disable-next-line no-restricted-syntax -- botón de pie de menú con ícono, texto y punto de novedad; Button no soporta el punto posicionado
+                    <button
+                        type="button"
+                        onClick={() => { setMobileOpen(false); setShowIdeas(true); }}
+                        className="relative w-full flex items-center gap-2.5 h-10 pl-[18px] pr-3 rounded-xl border border-border bg-card text-sm font-medium text-brand-dark hover:border-brand-primary hover:text-brand-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
+                        title={misIdeas.novedades > 0 ? 'Una de tus ideas tiene novedades' : 'Proponer una mejora para Bóveda'}
+                    >
+                        <Lightbulb className="h-4 w-4 shrink-0" />
+                        <span className="truncate">Proponer una mejora</span>
+                        {misIdeas.novedades > 0 && (
+                            <span className="ml-auto inline-flex items-center gap-1 text-micro font-bold text-amber-700 dark:text-amber-300">
+                                <span className="h-2 w-2 rounded-full bg-warning" />
+                                {misIdeas.novedades}
+                            </span>
+                        )}
+                    </button>
+                ) : (
+                    <div className="relative w-12 mx-auto">
+                        <IconButton
+                            variant="ghost"
+                            aria-label="Proponer una mejora"
+                            title="Proponer una mejora"
+                            onClick={() => setShowIdeas(true)}
+                            className="w-12"
+                            icon={<Lightbulb className="h-5 w-5" />}
+                        />
+                        {misIdeas.novedades > 0 && <span className="absolute top-1.5 right-2.5 h-2 w-2 rounded-full bg-warning pointer-events-none" />}
+                    </div>
+                )}
                 {(isMobile || !isCollapsed) && (
                     <div className="flex justify-center">
                         <ThemeToggle />
@@ -285,6 +336,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                     </>
                 )}
             </AnimatePresence>
+
+            {/* Ideas para Bóveda — también UNA vez, fuera de sidebarContent. Con novedades
+                abre directo en "Mis ideas". */}
+            <ProponerMejoraModal
+                isOpen={showIdeas}
+                onClose={() => setShowIdeas(false)}
+                pestanaInicial={misIdeas.novedades > 0 ? 'mias' : 'nueva'}
+            />
 
             {/* Panel de vencimientos — se renderiza UNA vez (fuera de sidebarContent,
                 que se monta dos veces: escritorio y drawer móvil). */}

@@ -875,3 +875,65 @@ export interface DiscrepanciaInventario {
     activo: boolean;
 }
 
+
+// ─── Ideas para Bóveda (mig 120, docs/reglas/ideas.md) ────────────────────────
+export type IdeaTipo = 'idea' | 'cuesta' | 'falla';
+export type IdeaEstado = 'pendiente' | 'aceptada' | 'desechada' | 'hecha';
+export type IdeaMotivo = 'preferencia' | 'ya_existe' | 'regla_negocio' | 'no_compensa' | 'duplicada';
+export type IdeaFrecuencia = 'diaria' | 'semanal' | 'ocasional';
+export type IdeaAlcance = 'solo_yo' | 'equipo' | 'obra' | 'todos';
+export type IdeaBeneficio = 'tiempo' | 'errores' | 'informacion' | 'otro';
+
+export interface Idea {
+    id: number;
+    usuario_id: number;
+    tipo: IdeaTipo;
+    /** idea/cuesta: qué cambiar · falla: qué estaba haciendo. */
+    resumen: string;
+    /** idea/cuesta: el problema de hoy · falla: qué pasó. */
+    detalle: string;
+    /** Solo falla: qué esperaba que pasara. */
+    esperado: string | null;
+    frecuencia: IdeaFrecuencia | null;
+    alcance: IdeaAlcance | null;
+    beneficio: IdeaBeneficio | null;
+    pantalla: string | null;
+    pantalla_nombre: string | null;
+    obra_id: number | null;
+    obra_nombre?: string | null;
+    dispositivo: 'movil' | 'escritorio' | null;
+    estado: IdeaEstado;
+    motivo: IdeaMotivo | null;
+    /** Lo que ve el autor en "Mis ideas". */
+    respuesta: string | null;
+    /** Solo revisores; el backend no la manda en "Mis ideas". */
+    nota_interna?: string | null;
+    revisor_nombre?: string | null;
+    revisado_en: string | null;
+    hecha_en: string | null;
+    created_at: string;
+    updated_at: string;
+    autor_nombre?: string;
+    autor_rol?: string | null;
+    autor_email?: string;
+    /** Mis ideas: hubo un cambio que el autor aún no ve. */
+    novedad?: boolean;
+}
+
+export interface IdeaHecha {
+    id: number;
+    tipo: IdeaTipo;
+    resumen: string;
+    respuesta: string | null;
+    hecha_en: string;
+    /** Crédito público: nombre de pila + inicial. */
+    autor: string;
+}
+
+export interface IdeasResumenBandeja {
+    pendiente: number;
+    aceptada: number;
+    desechada: number;
+    hecha: number;
+    pendiente_mas_antigua: string | null;
+}

@@ -487,6 +487,7 @@ safeRoute('/api/documentos-lotes', './src/routes/documentos-lotes.routes', 'Cust
 safeRoute('/api/documentos-alertas', './src/routes/documentos-alertas.routes', 'Alertas de documentos sin firmar (plan Gestiones B7)');
 safeRoute('/api/vehiculos', './src/routes/vehiculos.routes', 'Vehículos');
 safeRoute('/api/tutoriales-progreso', './src/routes/tutoriales.routes', 'Tutoriales (progreso Centro de ayuda)');
+safeRoute('/api/ideas', './src/routes/ideas.routes', 'Ideas para Bóveda (buzón de mejoras, mig 120)');
 
 // ============================================
 // Health Check & Dashboard
