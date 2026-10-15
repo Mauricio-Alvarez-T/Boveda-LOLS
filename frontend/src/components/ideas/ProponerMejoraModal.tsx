@@ -1,14 +1,18 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
     Lightbulb, MapPin, Building2, Smartphone, Monitor, CheckCircle2, ArrowLeft, Send, Loader2,
-    MessageSquareText, Sparkles, Inbox,
+    MessageSquareText, Sparkles, Inbox, Camera, ImagePlus, X, Maximize2,
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { Chip } from '../ui/Chip';
-import { Meta } from './Meta';
+import { Meta, EstadoPill } from './Meta';
+import { FotoIdea } from './FotoIdea';
+import { IconButton } from '../ui/IconButton';
+import { VisorAdjunto } from '../ui/VisorAdjunto';
+import { comprimirMiniatura, type Miniatura } from '../../utils/compressImage';
+import { formatearTamano } from '../../utils/archivos';
 import { EmptyState } from '../ui/EmptyState';
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
@@ -72,6 +76,25 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
     const [alcance, setAlcance] = useState<IdeaAlcance | null>(null);
     const [beneficio, setBeneficio] = useState<IdeaBeneficio | null>(null);
     const [enviando, setEnviando] = useState(false);
+    // Foto opcional (mig 121): se comprime acá mismo a ~5 KB; lo que se ve es lo que se manda.
+    const [foto, setFoto] = useState<Miniatura | null>(null);
+    const [comprimiendo, setComprimiendo] = useState(false);
+    const [verFoto, setVerFoto] = useState(false);
+    const camaraRef = useRef<HTMLInputElement>(null);
+    const galeriaRef = useRef<HTMLInputElement>(null);
+    const fotoUrl = useMemo(() => (foto ? URL.createObjectURL(foto.blob) : null), [foto]);
+    useEffect(() => () => { if (fotoUrl) URL.revokeObjectURL(fotoUrl); }, [fotoUrl]);
+
+    const elegirFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const f = e.target.files?.[0];
+        e.target.value = '';
+        if (!f) return;
+        setComprimiendo(true);
+        const mini = await comprimirMiniatura(f, { maxBytes: 5 * 1024 });
+        setComprimiendo(false);
+        if (!mini) { toast.error('No se pudo leer esa imagen. Prueba con otra foto o captura.'); return; }
+        setFoto(mini);
+    };
 
     // La pantalla desde donde se abrió: se fija al abrir, no cambia mientras se escribe.
     const [contexto, setContexto] = useState({ pantalla: '', pantallaNombre: '', dispositivo: 'escritorio' as 'movil' | 'escritorio' });
@@ -89,6 +112,7 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
     const reiniciar = () => {
         setPaso('tipo'); setTipo(null); setResumen(''); setDetalle(''); setEsperado('');
         setFrecuencia(null); setAlcance(null); setBeneficio(null);
+        setFoto(null); setVerFoto(false);
     };
     const cerrar = () => { onClose(); setTimeout(reiniciar, 250); };
 
@@ -126,6 +150,7 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
                 pantalla_nombre: contexto.pantallaNombre || undefined,
                 obra_id: selectedObra?.id || undefined,
                 dispositivo: contexto.dispositivo,
+                foto: foto?.dataUrl || undefined,
             });
             setPaso('enviada');
             resumenMias.refetch();
@@ -148,13 +173,20 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
             title="Ideas para Bóveda"
             description={<span>Se enviará con tu nombre: <strong className="text-brand-dark">{user?.nombre}</strong>{user?.rol ? ` · ${user.rol}` : ''}</span>}
             footer={pestana === 'nueva' && paso === 'form' ? (
-                <div className="flex items-center justify-between gap-3 w-full">
-                    <Button variant="ghost" size="sm" onClick={() => setPaso('tipo')} leftIcon={<ArrowLeft className="h-4 w-4" />}>
-                        Cambiar tipo
-                    </Button>
-                    <Button onClick={enviar} disabled={!completo || enviando} leftIcon={enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}>
-                        {esFalla ? 'Avisar' : 'Enviar idea'}
-                    </Button>
+                <div className="flex flex-col gap-2 w-full">
+                    {/* Lo que falta, junto al botón: en el celular el medidor queda fuera de la
+                        vista y un "Enviar" gris sin explicación no dice qué hacer. */}
+                    {!completo && siguienteFalta && (
+                        <p className="text-caption text-muted-foreground text-right">Para enviar, falta contarnos {siguienteFalta}.</p>
+                    )}
+                    <div className="flex items-center justify-between gap-3">
+                        <Button variant="ghost" size="sm" onClick={() => setPaso('tipo')} leftIcon={<ArrowLeft className="h-4 w-4" />}>
+                            Cambiar tipo
+                        </Button>
+                        <Button onClick={enviar} disabled={!completo || enviando} leftIcon={enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}>
+                            {esFalla ? 'Avisar' : 'Enviar idea'}
+                        </Button>
+                    </div>
                 </div>
             ) : undefined}
         >
@@ -194,7 +226,7 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
                 <div className="flex flex-col gap-5">
                     {/* Contexto que se manda solo */}
                     <div className="flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground">
-                        <span className="font-semibold uppercase tracking-wider mr-1">Se adjunta solo:</span>
+                        <span className="font-semibold uppercase tracking-wider mr-1">Se envía junto a tu idea:</span>
                         <Meta icon={<MapPin className="h-3 w-3" />}>{contexto.pantallaNombre || 'Bóveda'}</Meta>
                         {selectedObra && <Meta icon={<Building2 className="h-3 w-3" />}>{selectedObra.nombre}</Meta>}
                         <Meta icon={contexto.dispositivo === 'movil' ? <Smartphone className="h-3 w-3" /> : <Monitor className="h-3 w-3" />}>
@@ -239,7 +271,7 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
                     {paso === 'form' && tipo && (
                         <>
                             <div className="flex items-center gap-2">
-                                <Chip tone={TIPOS[tipo].tone} label={TIPOS[tipo].label} icon={React.createElement(TIPOS[tipo].icon, { className: 'h-3 w-3' })} />
+                                <Meta tono={tipo === 'falla' ? 'peligro' : 'neutro'} icon={React.createElement(TIPOS[tipo].icon, { className: 'h-3 w-3' })}>{TIPOS[tipo].label}</Meta>
                                 {esFalla && <span className="text-caption text-muted-foreground">Les llega al tiro por correo a Marcos y Mauricio.</span>}
                             </div>
 
@@ -319,6 +351,50 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
                                     </div>
                                 </>
                             )}
+
+                            {/* Pantallazo, opcional: lo que se ve explica más rápido que lo que se escribe */}
+                            <div>
+                                <p className={`${ETIQUETA} mb-0.5`}>Pantallazo <span className="font-normal normal-case tracking-normal">(opcional)</span></p>
+                                <p className="text-caption text-muted-foreground mb-2">
+                                    {tipo === 'falla'
+                                        ? 'De lo que salió mal o del mensaje de error.'
+                                        : tipo === 'idea'
+                                            ? 'De la pantalla donde te gustaría que estuviera lo nuevo.'
+                                            : 'De la parte que te cuesta o que no entiendes.'}
+                                </p>
+                                <input ref={camaraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={elegirFoto} />
+                                <input ref={galeriaRef} type="file" accept="image/*" className="hidden" onChange={elegirFoto} />
+                                {comprimiendo ? (
+                                    <div className="flex items-center gap-2 h-11 px-3 rounded-xl border border-border bg-background text-xs text-muted-foreground">
+                                        <Loader2 className="h-4 w-4 animate-spin" /> Achicando la foto…
+                                    </div>
+                                ) : foto && fotoUrl ? (
+                                    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-2">
+                                        {/* eslint-disable-next-line no-restricted-syntax -- la miniatura abre el visor; Button no envuelve media */}
+                                        <button type="button" onClick={() => setVerFoto(true)} title="Ver más grande"
+                                            className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-muted/40 cursor-zoom-in">
+                                            <img src={fotoUrl} alt="Foto que se va a enviar" className="h-full w-full object-cover" />
+                                            <Maximize2 className="absolute bottom-1 right-1 h-3 w-3 text-white drop-shadow" />
+                                        </button>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-semibold text-brand-dark">Se enviará así · {formatearTamano(foto.blob.size)}</p>
+                                            <p className="text-micro text-muted-foreground leading-snug">
+                                                Muy comprimida para no ocupar espacio: sirve para mostrar la pantalla, no para leer letra chica.
+                                            </p>
+                                        </div>
+                                        <IconButton size="sm" onClick={() => setFoto(null)} aria-label="Quitar foto" title="Quitar" icon={<X className="h-3.5 w-3.5" />} />
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Button variant="secondary" size="sm" onClick={() => camaraRef.current?.click()} leftIcon={<Camera className="h-4 w-4" />}>Tomar foto</Button>
+                                        <Button variant="secondary" size="sm" onClick={() => galeriaRef.current?.click()} leftIcon={<ImagePlus className="h-4 w-4" />}>Subir pantallazo</Button>
+                                    </div>
+                                )}
+                                {verFoto && foto && fotoUrl && (
+                                    <VisorAdjunto url={fotoUrl} mime={foto.blob.type} nombre="Foto de tu idea" size={foto.blob.size}
+                                        descripcion={`Vista previa — ${foto.ancho}×${foto.alto} px, todavía no se ha enviado`} onClose={() => setVerFoto(false)} />
+                                )}
+                            </div>
 
                             {/* Medidor: qué tan clara está la propuesta */}
                             <div className="rounded-card border border-border bg-background p-3.5">
@@ -430,12 +506,17 @@ const MisIdeas: React.FC<{ onProponer: () => void; onVistas: () => void }> = ({ 
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-start justify-between gap-2">
                                     <p className="text-sm font-semibold text-brand-dark leading-snug">{idea.resumen}</p>
-                                    <Chip tone={est.tone} label={est.labelAutor} className="shrink-0" />
+                                    <EstadoPill tone={est.tone}>{est.labelAutor}</EstadoPill>
                                 </div>
                                 <p className="text-caption text-muted-foreground mt-0.5">
                                     {idea.pantalla_nombre || 'Bóveda'} · {hace(idea.created_at)}
                                     {idea.novedad && <span className="ml-1.5 font-bold text-amber-700 dark:text-amber-300">· Novedad</span>}
                                 </p>
+                                {idea.tiene_foto && (
+                                    <div className="mt-2">
+                                        <FotoIdea ideaId={idea.id} resumen={idea.resumen} tamano={idea.foto_bytes} compacta />
+                                    </div>
+                                )}
 
                                 {/* Recorrido */}
                                 {idea.estado !== 'desechada' && (

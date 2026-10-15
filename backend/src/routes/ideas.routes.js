@@ -54,6 +54,16 @@ router.get('/', auth, checkPermission('ideas.revisar'), async (req, res, next) =
     } catch (e) { next(e); }
 });
 
+// Foto de la idea (mig 121): el autor o un revisor; la decisión la toma el service.
+router.get('/:id/foto', auth, async (req, res, next) => {
+    try {
+        const { buf, mime } = await svc.getFoto(Number(req.params.id), req.user);
+        res.set('Content-Type', mime);
+        res.set('Cache-Control', 'private, max-age=86400');
+        res.send(buf);
+    } catch (e) { next(e); }
+});
+
 router.patch('/:id', auth, checkPermission('ideas.revisar'), validateBody(schemas.revisar, { strip: true }), async (req, res, next) => {
     try { res.json({ data: await svc.revisar(Number(req.params.id), req.body, req.user.id, req) }); }
     catch (e) { next(e); }

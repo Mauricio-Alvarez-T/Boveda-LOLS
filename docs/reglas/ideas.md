@@ -17,7 +17,17 @@ y la revisan una a una cuando tienen tiempo.
 - **"Algo no funciona" (`falla`)** pide qué estaba haciendo, qué pasó y qué esperaba; no lleva
   señales. Avisa **al tiro por correo** a los revisores (`sendSystemEmail`, sin `await`: un SMTP
   caído nunca hace fallar el envío).
-- **Sin adjuntos** (decisión 14-10: no ocupar espacio). Solo texto, ~1–2 KB por idea.
+- **Foto opcional, miniatura de ~5 KB** (mig 121, Marcos 15-10: "tenemos poca memoria"; el 14-10 se
+  había decidido sin adjuntos por lo mismo). Se comprime **en el teléfono** antes de subir
+  (`comprimirMiniatura` en `utils/compressImage.ts`: busca el lado más grande que entre en 5 KB, WEBP o
+  JPEG — Safari no codifica WEBP —, y si no entra devuelve la más liviana). Viaja en el mismo POST como
+  data URL y se guarda en la fila (`ideas.foto` BLOB, `foto_mime`, `foto_bytes`), no en `uploads/`.
+  El servidor rechaza > **12 KB** (`IDEA_FOTO_PESADA`) y verifica la firma real de los bytes
+  (`IDEA_FOTO_FORMATO`). La foto **nunca** viaja en los listados (`tiene_foto`); se pide a
+  `GET /api/ideas/:id/foto`, solo autor o `ideas.revisar`. En una falla va **adjunta al correo**.
+  En el formulario se llama **"Pantallazo"** (de la parte que cuesta, de dónde iría lo nuevo, o del error)
+  y muestra la miniatura tal cual se enviará, con su peso y el aviso de que no sirve para
+  leer letra chica. 1.000 ideas con foto ≈ 5 MB de BD.
 - **Sin plazos.** Se revisan cuando hay tiempo; el autor ve el estado en "Mis ideas" y un punto de
   novedad en el menú cuando cambia.
 - **El jefe no participa dentro del sistema.** Si una idea necesita su visto bueno, se conversa por fuera.

@@ -27,6 +27,8 @@ export const navegadorMuestraPdf = (): boolean => {
 export const formatearTamano = (bytes: number): string => {
     if (!bytes) return '';
     if (bytes < 1024) return `${bytes} B`;
+    // Bajo 10 KB con un decimal: las miniaturas de Ideas (~5 KB) se distinguen de "5 KB" redondeado.
+    if (bytes < 10 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };

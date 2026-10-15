@@ -12,9 +12,38 @@ const emailService = require('./email.service');
  * a quién afecta y qué se ganaría.
  */
 
+const err = (statusCode, message, extra = {}) => Object.assign(new Error(message), { statusCode, ...extra });
+const limpio = v => (typeof v === 'string' ? v.trim() : v);
+const vacioANull = v => (v === '' || v === undefined ? null : v);
+
 /** Mínimos de largo: los mismos que muestra el formulario. */
 const MIN_RESUMEN = 10;
 const MIN_DETALLE = 40;
+
+/**
+ * Foto opcional (mig 121): miniatura comprimida en el cliente, meta ~5 KB. El servidor
+ * acepta hasta 12 KB como red de seguridad y verifica que los bytes sean de verdad la
+ * imagen que dice el data URL (no confiar en el prefijo).
+ */
+const MAX_FOTO_BYTES = 12 * 1024;
+const FOTO_RE = /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/;
+
+function leerFoto(dataUrl) {
+    if (!dataUrl) return null;
+    const m = FOTO_RE.exec(String(dataUrl));
+    if (!m) throw err(400, 'La foto tiene que ser una imagen (WEBP, JPG o PNG).', { code: 'IDEA_FOTO_FORMATO' });
+    const buf = Buffer.from(m[2], 'base64');
+    if (!buf.length) throw err(400, 'La foto llegó vacía.', { code: 'IDEA_FOTO_FORMATO' });
+    if (buf.length > MAX_FOTO_BYTES) {
+        throw err(400, `La foto pesa ${Math.ceil(buf.length / 1024)} KB y el máximo es ${MAX_FOTO_BYTES / 1024} KB.`, { code: 'IDEA_FOTO_PESADA' });
+    }
+    const esJpeg = buf[0] === 0xFF && buf[1] === 0xD8;
+    const esPng = buf[0] === 0x89 && buf.slice(1, 4).toString('latin1') === 'PNG';
+    const esWebp = buf.slice(0, 4).toString('latin1') === 'RIFF' && buf.slice(8, 12).toString('latin1') === 'WEBP';
+    const coincide = (m[1] === 'image/jpeg' && esJpeg) || (m[1] === 'image/png' && esPng) || (m[1] === 'image/webp' && esWebp);
+    if (!coincide) throw err(400, 'El archivo no es la imagen que dice ser.', { code: 'IDEA_FOTO_FORMATO' });
+    return { buf, mime: m[1] };
+}
 
 /** Transiciones permitidas. `hecha` y `desechada` se pueden reabrir por si fue un error. */
 const TRANSICIONES = {
@@ -26,9 +55,6 @@ const TRANSICIONES = {
 
 const ETIQUETA_TIPO = { idea: 'Tengo una idea', cuesta: 'Algo me cuesta', falla: 'Algo no funciona' };
 
-const err = (statusCode, message, extra = {}) => Object.assign(new Error(message), { statusCode, ...extra });
-const limpio = v => (typeof v === 'string' ? v.trim() : v);
-const vacioANull = v => (v === '' || v === undefined ? null : v);
 
 /**
  * Revisores efectivos de `ideas.revisar`: rol con la clave o grant por usuario, sin deny;
@@ -46,7 +72,11 @@ const SELECT_REVISORES = `
 
 /** Columnas para la bandeja de revisores (todo, incluida la nota interna). */
 const SELECT_BANDEJA = `
-    SELECT i.*,
+    SELECT i.id, i.usuario_id, i.tipo, i.resumen, i.detalle, i.esperado, i.frecuencia, i.alcance, i.beneficio,
+           i.pantalla, i.pantalla_nombre, i.obra_id, i.dispositivo, i.navegador,
+           i.estado, i.motivo, i.respuesta, i.nota_interna, i.revisado_por, i.revisado_en, i.hecha_en,
+           i.visto_por_autor, i.created_at, i.updated_at, i.foto_mime, i.foto_bytes,
+           (i.foto IS NOT NULL) AS tiene_foto,
            u.nombre AS autor_nombre, u.email AS autor_email, r.nombre AS autor_rol,
            o.nombre AS obra_nombre,
            rv.nombre AS revisor_nombre
@@ -59,12 +89,16 @@ const SELECT_BANDEJA = `
 /** Lo que ve el autor de su propia idea: sin nota interna ni datos del revisor más allá del nombre. */
 const aVistaAutor = (fila) => {
     const { nota_interna, navegador, revisado_por, ...resto } = fila;
-    return { ...resto, novedad: fila.visto_por_autor === 0 || fila.visto_por_autor === false };
+    return { ...resto, tiene_foto: !!fila.tiene_foto, novedad: fila.visto_por_autor === 0 || fila.visto_por_autor === false };
 };
+
+/** MySQL devuelve 0/1 para `tiene_foto`; afuera va como booleano. */
+const normalizar = (fila) => (fila ? { ...fila, tiene_foto: !!fila.tiene_foto } : fila);
 
 module.exports = {
     MIN_RESUMEN,
     MIN_DETALLE,
+    MAX_FOTO_BYTES,
     TRANSICIONES,
 
     /**
@@ -99,12 +133,13 @@ module.exports = {
             throw err(400, 'Marca cada cuánto te pasa, a quién afecta y qué ganaríamos.', { code: 'IDEA_FALTAN_SENALES' });
         }
 
+        const foto = leerFoto(data.foto);
         const navegador = String(req?.headers?.['user-agent'] || '').slice(0, 255) || null;
         const [res] = await db.query(
             `INSERT INTO ideas
              (usuario_id, tipo, resumen, detalle, esperado, frecuencia, alcance, beneficio,
-              pantalla, pantalla_nombre, obra_id, dispositivo, navegador)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              pantalla, pantalla_nombre, obra_id, dispositivo, foto, foto_mime, foto_bytes, navegador)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 usuario.id, tipo, resumen, detalle,
                 tipo === 'falla' ? esperado : null,
@@ -112,7 +147,9 @@ module.exports = {
                 tipo === 'falla' ? null : alcance,
                 tipo === 'falla' ? null : beneficio,
                 vacioANull(limpio(data.pantalla)), vacioANull(limpio(data.pantalla_nombre)),
-                data.obra_id || null, vacioANull(data.dispositivo), navegador,
+                data.obra_id || null, vacioANull(data.dispositivo),
+                foto ? foto.buf : null, foto ? foto.mime : null, foto ? foto.buf.length : null,
+                navegador,
             ]
         );
         const id = res.insertId;
@@ -129,7 +166,20 @@ module.exports = {
             this._avisarFalla(id).catch(e => logger.warn('No se pudo avisar la falla por correo', { id, err: e.message }));
         }
 
-        return { id, tipo, estado: 'pendiente' };
+        return { id, tipo, estado: 'pendiente', tiene_foto: !!foto };
+    },
+
+    /**
+     * La foto de una idea, para el autor o para un revisor (`ideas.revisar`). Nunca
+     * viaja en los listados: se pide aparte, de a una.
+     */
+    async getFoto(id, usuario) {
+        const [[fila]] = await db.query('SELECT usuario_id, foto, foto_mime FROM ideas WHERE id = ?', [id]);
+        if (!fila) throw err(404, 'Idea no encontrada');
+        const esRevisor = Array.isArray(usuario?.p) && usuario.p.includes('ideas.revisar');
+        if (!esRevisor && fila.usuario_id !== usuario?.id) throw err(403, 'No tienes acceso a esta foto');
+        if (!fila.foto) throw err(404, 'La idea no tiene foto');
+        return { buf: fila.foto, mime: fila.foto_mime || 'image/jpeg' };
     },
 
     /** Correo inmediato a los revisores cuando alguien reporta "algo no funciona". */
@@ -140,11 +190,18 @@ module.exports = {
         const para = revisores.map(r => r.email).filter(Boolean);
         if (!para.length) return;
 
+        // La miniatura (~5 KB) va adjunta: en una falla, ver la pantalla ahorra la pregunta.
+        const [[conFoto]] = await db.query('SELECT foto, foto_mime FROM ideas WHERE id = ?', [id]);
+        const adjuntos = conFoto?.foto
+            ? [{ filename: `idea-${id}.${(conFoto.foto_mime || 'image/jpeg').split('/')[1]}`, content: conFoto.foto, contentType: conFoto.foto_mime }]
+            : [];
+
         const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         const donde = [idea.pantalla_nombre, idea.obra_nombre].filter(Boolean).join(' · ') || 'sin pantalla';
         await emailService.sendSystemEmail({
             to: para,
             fromName: 'Bóveda LOLS — Ideas',
+            attachments: adjuntos,
             subject: `Algo no funciona — ${idea.autor_nombre}: ${idea.resumen}`.slice(0, 180),
             text: [
                 `${idea.autor_nombre} (${idea.autor_rol || 'sin rol'}) reportó que algo no funciona.`,
@@ -214,7 +271,7 @@ module.exports = {
         const params = [];
         if (estado) { where.push('i.estado = ?'); params.push(estado); }
         if (tipo) { where.push('i.tipo = ?'); params.push(tipo); }
-        const [rows] = await db.query(
+        const [filas] = await db.query(
             `${SELECT_BANDEJA}
              ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
              ORDER BY FIELD(i.estado, 'pendiente', 'aceptada', 'hecha', 'desechada'),
@@ -228,7 +285,7 @@ module.exports = {
             resumen[c.estado] = Number(c.n) || 0;
             if (c.estado === 'pendiente') resumen.pendiente_mas_antigua = c.mas_antigua;
         }
-        return { ideas: rows, resumen };
+        return { ideas: filas.map(normalizar), resumen };
     },
 
     /** Para el número del menú lateral de los revisores. */
@@ -243,7 +300,7 @@ module.exports = {
      * interna se puede editar sola, sin tocar nada de lo que ve el autor.
      */
     async revisar(id, data, revisorId, req) {
-        const [[actual]] = await db.query('SELECT * FROM ideas WHERE id = ?', [id]);
+        const [[actual]] = await db.query('SELECT id, estado, respuesta FROM ideas WHERE id = ?', [id]);
         if (!actual) throw err(404, 'Idea no encontrada');
 
         const sets = [];
@@ -294,6 +351,6 @@ module.exports = {
 
     async _unaDeBandeja(id) {
         const [[fila]] = await db.query(`${SELECT_BANDEJA} WHERE i.id = ?`, [id]);
-        return fila || null;
+        return normalizar(fila) || null;
     },
 };

@@ -918,6 +918,9 @@ export interface Idea {
     autor_email?: string;
     /** Mis ideas: hubo un cambio que el autor aún no ve. */
     novedad?: boolean;
+    /** Foto opcional (mig 121): nunca viaja en el listado; se pide a /ideas/:id/foto. */
+    tiene_foto?: boolean;
+    foto_bytes?: number | null;
 }
 
 export interface IdeaHecha {

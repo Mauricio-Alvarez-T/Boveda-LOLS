@@ -4,7 +4,7 @@ import { Lightbulb, Inbox, Hourglass, CheckCheck, Archive, Clock, Gauge, AlertTr
 import { useAuth } from '../context/AuthContext';
 import { useStandardHeader } from '../components/ui/PageHeader';
 import { Button } from '../components/ui/Button';
-import { Chip } from '../components/ui/Chip';
+import { EstadoPill } from '../components/ideas/Meta';
 import { EmptyState } from '../components/ui/EmptyState';
 import { SearchBar } from '../components/ui/SearchBar';
 import { IdeaDetalle } from '../components/ideas/IdeaDetalle';
@@ -199,7 +199,7 @@ const IdeasPage: React.FC = () => {
                                                 <span className="inline-flex items-center gap-1 text-micro text-muted-foreground"><Clock className="h-3 w-3" />{hace(i.created_at)}</span>
                                                 {imp.nivel && <span className="inline-flex items-center gap-1 text-micro text-muted-foreground"><Gauge className="h-3 w-3" />impacto {imp.nivel}</span>}
                                                 {imp.posiblePreferencia && <span className="inline-flex items-center gap-1 text-micro font-semibold text-amber-700 dark:text-amber-300"><AlertTriangle className="h-3 w-3" />¿preferencia?</span>}
-                                                {filtro === 'todas' && <Chip tone={ESTADOS[i.estado].tone} label={ESTADOS[i.estado].label} />}
+                                                {filtro === 'todas' && <EstadoPill tone={ESTADOS[i.estado].tone}>{ESTADOS[i.estado].label}</EstadoPill>}
                                             </span>
                                         </span>
                                     </button>

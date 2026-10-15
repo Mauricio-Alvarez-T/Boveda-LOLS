@@ -59,7 +59,7 @@ describe('ideasService.crear — mejoras, no mañas', () => {
     test('una idea bien justificada entra como pendiente', async () => {
         db.query.mockResolvedValueOnce([{ insertId: 41 }]);
         const r = await svc.crear(IDEA_OK, usuario, { headers: { 'user-agent': 'Mozilla/5.0' } });
-        expect(r).toEqual({ id: 41, tipo: 'idea', estado: 'pendiente' });
+        expect(r).toEqual({ id: 41, tipo: 'idea', estado: 'pendiente', tiene_foto: false });
         const [sql, params] = db.query.mock.calls[0];
         expect(sql).toMatch(/INSERT INTO ideas/);
         expect(params[0]).toBe(7);                  // con nombre: siempre el usuario logueado
@@ -239,5 +239,71 @@ describe('Rutas /api/ideas — gates', () => {
         db.query.mockResolvedValueOnce([[]]);
         const r = await request(app).get('/api/ideas/mias').set('Authorization', `Bearer ${token([])}`);
         expect(r.status).toBe(200);
+    });
+});
+
+describe('Ideas — foto opcional (mig 121)', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    // Bytes mínimos con la firma real de cada formato.
+    const JPEG = Buffer.concat([Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]), Buffer.alloc(200, 7)]);
+    const WEBP = Buffer.concat([Buffer.from('RIFF'), Buffer.from([0, 0, 0, 0]), Buffer.from('WEBP'), Buffer.alloc(100, 1)]);
+    const dataUrl = (mime, buf) => `data:${mime};base64,${buf.toString('base64')}`;
+
+    test('una foto WEBP válida se guarda en la fila con su tipo y su peso', async () => {
+        db.query.mockResolvedValueOnce([{ insertId: 60 }]);
+        const r = await svc.crear({ ...IDEA_OK, foto: dataUrl('image/webp', WEBP) }, { id: 7 }, {});
+        expect(r.tiene_foto).toBe(true);
+        const [sql, params] = db.query.mock.calls[0];
+        expect(sql).toMatch(/foto, foto_mime, foto_bytes/);
+        const buf = params.find(x => Buffer.isBuffer(x));
+        expect(buf.equals(WEBP)).toBe(true);
+        expect(params).toContain('image/webp');
+        expect(params).toContain(WEBP.length);
+    });
+
+    test('un data URL que miente sobre el formato → 400 y no se guarda nada', async () => {
+        await expect(svc.crear({ ...IDEA_OK, foto: dataUrl('image/png', JPEG) }, { id: 7 }, {}))
+            .rejects.toMatchObject({ statusCode: 400, code: 'IDEA_FOTO_FORMATO' });
+        await expect(svc.crear({ ...IDEA_OK, foto: 'data:application/pdf;base64,AAAA' }, { id: 7 }, {}))
+            .rejects.toMatchObject({ statusCode: 400, code: 'IDEA_FOTO_FORMATO' });
+        expect(db.query).not.toHaveBeenCalled();
+    });
+
+    test('más de 12 KB → 400 (red de seguridad si alguien se salta la compresión)', async () => {
+        const grande = Buffer.concat([Buffer.from([0xFF, 0xD8]), Buffer.alloc(svc.MAX_FOTO_BYTES, 1)]);
+        await expect(svc.crear({ ...IDEA_OK, foto: dataUrl('image/jpeg', grande) }, { id: 7 }, {}))
+            .rejects.toMatchObject({ statusCode: 400, code: 'IDEA_FOTO_PESADA' });
+        expect(db.query).not.toHaveBeenCalled();
+    });
+
+    test('getFoto: el autor y un revisor la ven; otro usuario no; sin foto → 404', async () => {
+        const fila = [[{ usuario_id: 7, foto: JPEG, foto_mime: 'image/jpeg' }]];
+        db.query.mockResolvedValueOnce(fila);
+        await expect(svc.getFoto(60, { id: 7, p: [] })).resolves.toMatchObject({ mime: 'image/jpeg' });
+        db.query.mockResolvedValueOnce(fila);
+        await expect(svc.getFoto(60, { id: 2, p: ['ideas.revisar'] })).resolves.toMatchObject({ mime: 'image/jpeg' });
+        db.query.mockResolvedValueOnce(fila);
+        await expect(svc.getFoto(60, { id: 9, p: [] })).rejects.toMatchObject({ statusCode: 403 });
+        db.query.mockResolvedValueOnce([[{ usuario_id: 7, foto: null, foto_mime: null }]]);
+        await expect(svc.getFoto(60, { id: 7, p: [] })).rejects.toMatchObject({ statusCode: 404 });
+    });
+
+    test('la bandeja nunca trae el BLOB: solo tiene_foto como booleano', async () => {
+        db.query
+            .mockResolvedValueOnce([[{ id: 1, estado: 'pendiente', tiene_foto: 1 }, { id: 2, estado: 'pendiente', tiene_foto: 0 }]])
+            .mockResolvedValueOnce([[]]);
+        const r = await svc.bandeja({});
+        expect(db.query.mock.calls[0][0]).not.toMatch(/i\.\*/);
+        expect(db.query.mock.calls[0][0]).toMatch(/\(i\.foto IS NOT NULL\) AS tiene_foto/);
+        expect(r.ideas.map(i => i.tiene_foto)).toEqual([true, false]);
+    });
+
+    test('GET /api/ideas/:id/foto responde la imagen con su tipo', async () => {
+        db.query.mockResolvedValueOnce([[{ usuario_id: 7, foto: JPEG, foto_mime: 'image/jpeg' }]]);
+        const r = await request(app).get('/api/ideas/60/foto').set('Authorization', `Bearer ${token([])}`);
+        expect(r.status).toBe(200);
+        expect(r.headers['content-type']).toMatch(/image\/jpeg/);
+        expect(Buffer.from(r.body).equals(JPEG)).toBe(true);
     });
 });

@@ -5,8 +5,8 @@ import {
     AlertTriangle, Gauge, StickyNote, MessageSquareText, ArrowLeft, Link2, Mail,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { Chip } from '../ui/Chip';
-import { Meta } from './Meta';
+import { Meta, EstadoPill } from './Meta';
+import { FotoIdea } from './FotoIdea';
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
 import type { Idea, IdeaEstado, IdeaMotivo } from '../../types/entities';
@@ -105,7 +105,7 @@ export const IdeaDetalle: React.FC<Props> = ({ idea, parecidas, onSeleccionar, o
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                             <h2 className="text-base font-bold text-brand-dark">{idea.autor_nombre}</h2>
-                            <Chip tone={est.tone} label={est.label} />
+                            <EstadoPill tone={est.tone}>{est.label}</EstadoPill>
                             <span className="text-caption text-muted-foreground tabular-nums">#{idea.id}</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2">
@@ -171,6 +171,14 @@ export const IdeaDetalle: React.FC<Props> = ({ idea, parecidas, onSeleccionar, o
                 )}
             </section>
 
+            {/* Foto o captura que mandó */}
+            {idea.tiene_foto && (
+                <section className="rounded-card border border-border bg-card p-4">
+                    <p className={ETIQUETA}>Foto que adjuntó</p>
+                    <FotoIdea ideaId={idea.id} resumen={idea.resumen} tamano={idea.foto_bytes} />
+                </section>
+            )}
+
             {/* Parecidas: misma pantalla */}
             {parecidas.length > 0 && (
                 <section className="rounded-card border border-border bg-card p-4">
@@ -185,7 +193,7 @@ export const IdeaDetalle: React.FC<Props> = ({ idea, parecidas, onSeleccionar, o
                                     className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-muted transition-colors">
                                     <span className="text-xs text-brand-dark truncate flex-1 min-w-0">{p.resumen}</span>
                                     <span className="text-micro text-muted-foreground shrink-0">{primerNombre(p.autor_nombre)}</span>
-                                    <Chip tone={ESTADOS[p.estado].tone} label={ESTADOS[p.estado].label} className="shrink-0" />
+                                    <EstadoPill tone={ESTADOS[p.estado].tone}>{ESTADOS[p.estado].label}</EstadoPill>
                                 </button>
                             </li>
                         ))}
