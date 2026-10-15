@@ -8,6 +8,9 @@ import type { IdeaTipo, IdeaEstado, IdeaMotivo, IdeaFrecuencia, IdeaAlcance, Ide
  * Regla de producto: mejoras del sistema, no mañas (docs/reglas/ideas.md).
  */
 
+/** Nombre del acceso en el menú lateral (una sola fuente: se cambia acá). */
+export const ETIQUETA_BUZON_IDEAS = 'Buzón de ideas';
+
 /** Mínimos de largo: los mismos que valida el backend (ideas.service). */
 export const MIN_RESUMEN = 10;
 export const MIN_DETALLE = 40;

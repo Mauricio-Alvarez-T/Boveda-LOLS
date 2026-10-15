@@ -30,6 +30,7 @@ import { ThemeToggle } from '../ui/ThemeToggle';
 import { IconButton } from '../ui/IconButton';
 import { ProponerMejoraModal } from '../ideas/ProponerMejoraModal';
 import { useMisIdeasResumen, useIdeasPendientes } from '../../hooks/useIdeas';
+import { ETIQUETA_BUZON_IDEAS } from '../ideas/ideasConfig';
 
 interface SidebarProps {
     isCollapsed: boolean;
@@ -128,7 +129,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
         },
         {
             icon: Inbox,
-            label: 'Ideas',
+            label: 'Revisar ideas',
             path: '/ideas',
             visible: hasPermission('ideas.revisar'),
             // Pendiente = ÁMBAR (por revisar, no es error).
@@ -223,40 +224,42 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                         )}
                     </NavLink>
                 ))}
-            </nav>
 
-            {/* Footer: proponer una mejora + tema + usuario */}
-            <div className="p-3 border-t border-border space-y-3">
-                {(isMobile || !isCollapsed) ? (
-                    // eslint-disable-next-line no-restricted-syntax -- botón de pie de menú con ícono, texto y punto de novedad; Button no soporta el punto posicionado
-                    <button
-                        type="button"
-                        onClick={() => { setMobileOpen(false); setShowIdeas(true); }}
-                        className="relative w-full flex items-center gap-2.5 h-10 pl-[18px] pr-3 rounded-xl border border-border bg-card text-sm font-medium text-brand-dark hover:border-brand-primary hover:text-brand-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
-                        title={misIdeas.novedades > 0 ? 'Una de tus ideas tiene novedades' : 'Proponer una mejora para Bóveda'}
-                    >
-                        <Lightbulb className="h-4 w-4 shrink-0" />
-                        <span className="truncate">Proponer una mejora</span>
-                        {misIdeas.novedades > 0 && (
-                            <span className="ml-auto inline-flex items-center gap-1 text-micro font-bold text-amber-700 dark:text-amber-300">
-                                <span className="h-2 w-2 rounded-full bg-warning" />
+                {/* Buzón de ideas: último del menú, para todos. No es una página — abre el
+                    modal — así que imita a un ítem inactivo (sin estado "activo"). Con
+                    novedades en "Mis ideas" lleva un número ámbar, como los demás contadores. */}
+                {/* eslint-disable-next-line no-restricted-syntax -- ítem de menú que abre un modal; mismo layout que NavLink, Button no lo soporta */}
+                <button
+                    type="button"
+                    onClick={() => { setMobileOpen(false); setShowIdeas(true); }}
+                    className={cn(
+                        "flex items-center rounded-xl transition-all group relative text-base whitespace-nowrap overflow-hidden h-12 font-medium",
+                        "text-muted-foreground hover:bg-background hover:text-brand-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40",
+                        (!isMobile && isCollapsed) ? "justify-center px-0 w-12 mx-auto" : "justify-start pl-[18px] pr-4 w-full gap-[14px]"
+                    )}
+                    title={misIdeas.novedades > 0
+                        ? `${misIdeas.novedades} de tus ideas con novedades`
+                        : ((!isMobile && isCollapsed) ? ETIQUETA_BUZON_IDEAS : 'Proponer una mejora para Bóveda')}
+                >
+                    <Lightbulb className="h-5 w-5 shrink-0" />
+                    {(isMobile || !isCollapsed) && (
+                        <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}>{ETIQUETA_BUZON_IDEAS}</motion.span>
+                    )}
+                    {misIdeas.novedades > 0 && (
+                        (isMobile || !isCollapsed) ? (
+                            <span className="ml-auto inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-warning px-1.5 text-micro font-bold text-white tabular-nums"
+                                aria-label={`${misIdeas.novedades} con novedades`}>
                                 {misIdeas.novedades}
                             </span>
-                        )}
-                    </button>
-                ) : (
-                    <div className="relative w-12 mx-auto">
-                        <IconButton
-                            variant="ghost"
-                            aria-label="Proponer una mejora"
-                            title="Proponer una mejora"
-                            onClick={() => setShowIdeas(true)}
-                            className="w-12"
-                            icon={<Lightbulb className="h-5 w-5" />}
-                        />
-                        {misIdeas.novedades > 0 && <span className="absolute top-1.5 right-2.5 h-2 w-2 rounded-full bg-warning pointer-events-none" />}
-                    </div>
-                )}
+                        ) : (
+                            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-warning pointer-events-none" />
+                        )
+                    )}
+                </button>
+            </nav>
+
+            {/* Footer: tema + usuario */}
+            <div className="p-3 border-t border-border space-y-3">
                 {(isMobile || !isCollapsed) && (
                     <div className="flex justify-center">
                         <ThemeToggle />

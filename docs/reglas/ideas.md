@@ -64,10 +64,11 @@ participación; si algún día no se quiere, se quita el componente `HechasRecie
 
 ## UI
 
-- Botón **"Proponer una mejora"** al pie del menú lateral (todos), con punto ámbar si hay novedades;
-  con novedades abre directo en "Mis ideas" (`ProponerMejoraModal`).
-- Ítem **"Ideas"** en el menú solo para revisores, con número ámbar de pendientes
-  (`useIdeasPendientes`, store compartido).
+- **"Buzón de ideas"**: último ítem del menú lateral, bajo Configuración (Marcos, 15-10), para todos.
+  No es una página: abre `ProponerMejoraModal`; con novedades lleva un número ámbar y abre directo en
+  "Mis ideas". El nombre vive en una sola constante, `ETIQUETA_BUZON_IDEAS` (`ideasConfig.ts`).
+- Ítem **"Revisar ideas"** solo para revisores (la bandeja `/ideas`), con número ámbar de pendientes
+  (`useIdeasPendientes`, store compartido). Se llama distinto del buzón para no confundirlos.
 - Bandeja (`pages/Ideas.tsx`): pendientes primero y de la más antigua; al decidir una pendiente
   **salta sola a la siguiente**. Muestra "impacto" (frecuencia × alcance) y marca "¿preferencia?"
   cuando es *solo a mí + de vez en cuando*. "Antes de decidir": 5 criterios fijos, no se guardan.

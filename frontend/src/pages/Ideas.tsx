@@ -8,7 +8,7 @@ import { Chip } from '../components/ui/Chip';
 import { EmptyState } from '../components/ui/EmptyState';
 import { SearchBar } from '../components/ui/SearchBar';
 import { IdeaDetalle } from '../components/ideas/IdeaDetalle';
-import { TIPOS, ESTADOS, impacto, hace, primerNombre } from '../components/ideas/ideasConfig';
+import { TIPOS, ESTADOS, impacto, hace, primerNombre, ETIQUETA_BUZON_IDEAS } from '../components/ideas/ideasConfig';
 import { useIdeasPendientes } from '../hooks/useIdeas';
 import { cn } from '../utils/cn';
 import api from '../services/api';
@@ -119,7 +119,7 @@ const IdeasPage: React.FC = () => {
     };
 
     if (!puedeRevisar) {
-        return <EmptyState icon={Lightbulb} title="Sin acceso a la bandeja" description='Para proponer una mejora usa el botón "Proponer una mejora" del menú.' />;
+        return <EmptyState icon={Lightbulb} title="Sin acceso a la bandeja" description={`Para proponer una mejora usa "${ETIQUETA_BUZON_IDEAS}" en el menú.`} />;
     }
 
     const diasMasAntigua = resumen.pendiente_mas_antigua ? hace(resumen.pendiente_mas_antigua) : '';
