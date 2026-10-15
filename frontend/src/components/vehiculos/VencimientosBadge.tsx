@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
+import { NumeroRodante } from '../ui/NumeroRodante';
 
 interface Props {
     /** Cuántos vencimientos hay. 0 → no se renderiza nada. */
@@ -31,18 +32,19 @@ export const VencimientosBadge: React.FC<Props> = ({ total, vencidos, onClick, t
             : `${total} por vencer`
     );
     const clases = cn(
-        'shrink-0 min-w-[20px] h-[20px] px-1.5 rounded-full text-micro font-black text-white flex items-center justify-center',
-        vencidos > 0 ? 'bg-destructive' : 'bg-amber-500',
+        'shrink-0 min-w-[20px] h-[20px] px-1.5 rounded-full text-micro font-black flex items-center justify-center',
+        // Ámbar con texto oscuro (token --warning-foreground): blanco sobre ámbar no llega a AA.
+        vencidos > 0 ? 'bg-destructive text-white' : 'bg-warning text-warning-foreground',
         className,
     );
 
-    if (!onClick) return <span className={clases} title={label} aria-label={label}>{total}</span>;
+    if (!onClick) return <span className={clases} title={label} aria-label={label}><NumeroRodante value={total} /></span>;
 
     return (
         /* eslint-disable-next-line no-restricted-syntax -- abre el panel sin navegar */
         <button type="button" onClick={onClick} title={ariaLabel ?? `${label} — ver detalle`} aria-label={ariaLabel ?? `Ver vencimientos: ${label}`}
-            className={cn(clases, 'transition-transform hover:scale-110')}>
-            {total}
+            className={cn(clases, 'transition-opacity duration-200 ease-apple hover:opacity-90')}>
+            <NumeroRodante value={total} />
         </button>
     );
 };

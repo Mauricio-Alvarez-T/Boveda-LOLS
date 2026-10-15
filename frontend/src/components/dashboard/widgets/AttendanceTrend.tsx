@@ -3,6 +3,7 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
 import { Activity, CheckSquare } from 'lucide-react';
+import { useReducedMotion } from 'framer-motion';
 import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 
@@ -12,6 +13,10 @@ interface Props {
 }
 
 const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
+    // recharts no pasa por MotionConfig: con «reducir movimiento» el área aparece
+    // ya dibujada. Hook antes de cualquier return temprano (reglas de hooks).
+    const reduce = useReducedMotion();
+
     if (data.length === 0) {
         return (
             <div className="h-full flex flex-col">
@@ -82,6 +87,9 @@ const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
                             }}
                         />
                         <Tooltip
+                            // Sin esto el recuadro se desliza 400 ms entre puntos aunque el sistema pida
+                            // reducir movimiento: recharts no lee prefers-reduced-motion (diseno.md §9.1).
+                            isAnimationActive={!reduce}
                             contentStyle={{
                                 backgroundColor: 'var(--card)',
                                 backdropFilter: 'blur(10px)',
@@ -108,7 +116,8 @@ const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
                             fill="url(#colorTasa)"
                             dot={{ r: 4, fill: 'var(--card)', stroke: 'var(--brand-accent)', strokeWidth: 2 }}
                             activeDot={{ r: 6, fill: 'var(--brand-accent)', stroke: 'var(--card)', strokeWidth: 2 }}
-                            animationDuration={1500}
+                            isAnimationActive={!reduce}
+                            animationDuration={600}
                         />
                     </AreaChart>
                 </ResponsiveContainer>

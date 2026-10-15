@@ -21,14 +21,11 @@ export const MainLayout: React.FC = () => {
         <div className="flex min-h-[100dvh] bg-background">
             {/* Mobile Orientation Lock Overlay — superficie oscura constante (independiente del tema) */}
             <div className="fixed inset-0 z-[9999] bg-neutral-900 flex-col items-center justify-center p-8 text-center overflow-hidden hidden max-md:landscape:flex">
-                <motion.div
-                    initial={{ rotate: 0 }}
-                    animate={{ rotate: 90 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    className="h-24 w-24 rounded-[2rem] bg-brand-primary/10 flex items-center justify-center mb-8 border border-brand-primary/20 backdrop-blur-sm"
-                >
+                {/* Giro en CSS (`.gira-telefono`, index.css): no corre mientras el overlay está oculto.
+                    Sin backdrop-blur: el fondo es opaco, no había nada que desenfocar. */}
+                <div className="gira-telefono h-24 w-24 rounded-[2rem] bg-brand-primary/10 flex items-center justify-center mb-8 border border-brand-primary/20">
                     <Smartphone className="h-12 w-12 text-brand-primary" />
-                </motion.div>
+                </div>
                 <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-3">
                     Gira tu dispositivo
                 </h2>
@@ -36,7 +33,7 @@ export const MainLayout: React.FC = () => {
                     Bóveda LOLS está diseñada para una experiencia vertical óptima. Por favor, vuelve a la orientación vertical.
                 </p>
                 <div className="mt-12 flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                    <div className="h-1.5 w-1.5 rounded-full bg-brand-primary animate-pulse" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-brand-primary motion-safe:animate-pulse" />
                     <span className="text-caption font-bold text-white/50 uppercase tracking-widest">Esperando rotación...</span>
                 </div>
             </div>
@@ -97,13 +94,16 @@ export const MainLayout: React.FC = () => {
 
                 {/* Page Content — actual scroll container */}
                 <div className="flex-1 min-h-0 p-2 md:px-5 md:pt-2 pb-12 overflow-y-auto overflow-x-hidden relative flex flex-col">
+                    {/* Cambio de ruta ≈0,37 s en total: salida 0,12 s solo opacidad + entrada
+                        0,25 s. Con «reducir movimiento», MotionConfig (main.tsx) anula el `y`
+                        y queda solo el fundido. */}
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={location.pathname}
-                            initial={{ opacity: 0, y: 15 }}
+                            initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.2 } }}
-                            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                            exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                            transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
                             className="bg-transparent flex-1 flex flex-col min-h-0"
                         >
                             <ErrorBoundary resetKey={location.pathname}>

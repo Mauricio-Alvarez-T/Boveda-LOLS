@@ -14,6 +14,8 @@ interface UseAttendanceActionsProps {
     updateAttendance?: (workerId: number, data: Partial<Asistencia>) => void;
 }
 
+type EstadoGuardado = 'idle' | 'cargando' | 'listo' | 'fallo';
+
 export function useAttendanceActions({
     date,
     workers,
@@ -26,6 +28,19 @@ export function useAttendanceActions({
     const { hasPermission } = useAuth();
     const [saving, setSaving] = useState(false);
     const [repeating, setRepeating] = useState(false);
+    // Resultado del último Guardar para <MarcaEstado> en el propio botón (diseno.md §9):
+    // cargando → listo/fallo → idle. `saving` sigue siendo el gate de deshabilitado.
+    // Queda atado a la fecha y obra que se guardaron: si el capataz cambia de día antes de
+    // que vuelva a 'idle', el Guardar del otro día no muestra un check que no es suyo.
+    const [ultimoGuardado, setUltimoGuardado] = useState<{ estado: EstadoGuardado; fecha: string; obraId: number | null }>(
+        { estado: 'idle', fecha: '', obraId: null }
+    );
+    const saveStatus: EstadoGuardado =
+        ultimoGuardado.fecha === date && ultimoGuardado.obraId === (selectedObra?.id ?? null) ? ultimoGuardado.estado : 'idle';
+    const statusTimer = useRef<number | null>(null);
+    useEffect(() => () => {
+        if (statusTimer.current) window.clearTimeout(statusTimer.current);
+    }, []);
 
     // Track the latest data for action callbacks via ref to avoid dependency cycles
     const latestData = useRef({ selectedObra, date, workers, attendance, feriadoActual, updateAttendance });
@@ -38,7 +53,14 @@ export function useAttendanceActions({
         const isGlobal = !currentObra;
         if (isGlobal && !hasPermission('asistencia.tomar.global')) return;
 
+        // Un timer pendiente del guardado anterior no puede devolver 'idle' a mitad de este.
+        if (statusTimer.current) {
+            window.clearTimeout(statusTimer.current);
+            statusTimer.current = null;
+        }
+        const contexto = { fecha: currentDate, obraId: currentObra?.id ?? null };
         setSaving(true);
+        setUltimoGuardado({ estado: 'cargando', ...contexto });
         try {
             const validWorkers = currentWorkers.filter(w => {
                 const fIngreso = w.fecha_ingreso ? String(w.fecha_ingreso).split('T')[0] : null;
@@ -68,10 +90,14 @@ export function useAttendanceActions({
 
             await api.post(`/asistencias/bulk/${globalObraId}`, payload);
             toast.success('Asistencia guardada correctamente');
+            setUltimoGuardado({ estado: 'listo', ...contexto });
+            statusTimer.current = window.setTimeout(() => setUltimoGuardado(u => ({ ...u, estado: 'idle' })), 1600);
             fetchAttendanceInfo();
         } catch (error) {
             console.error('Error saving attendance', error);
             toast.error('Error al guardar la asistencia');
+            setUltimoGuardado({ estado: 'fallo', ...contexto });
+            statusTimer.current = window.setTimeout(() => setUltimoGuardado(u => ({ ...u, estado: 'idle' })), 2500);
         } finally {
             setSaving(false);
         }
@@ -214,6 +240,7 @@ export function useAttendanceActions({
 
     return {
         saving,
+        saveStatus,
         handleSave,
         toggleFeriado,
         repetirDiaAnterior,

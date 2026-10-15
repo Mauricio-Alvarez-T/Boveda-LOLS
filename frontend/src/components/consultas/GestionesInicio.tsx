@@ -13,6 +13,7 @@ import React from 'react';
 import { SearchCheck, ClipboardList, Truck, ArrowRight, ChevronRight, AlertTriangle, Inbox } from 'lucide-react';
 
 import { Button } from '../ui/Button';
+import { NumeroRodante } from '../ui/NumeroRodante';
 import { EmptyState } from '../ui/EmptyState';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
@@ -24,8 +25,8 @@ import type { AlertasDocumentos } from '../documentos-fisicos/documentosAlertas'
 interface Props {
     permisos: PermisosGestiones;
     hasPermission: (perm: string) => boolean;
-    /** Solicitudes pendientes (0 sin permiso de aprobar). */
-    solicitudesPendientes: number;
+    /** Solicitudes pendientes. null = aún no se sabe (cargando, error o sin permiso de aprobar): la Cifra muestra «—». */
+    solicitudesPendientes: number | null;
     lotes: PendientesLotes | null;
     lotesBadge: number;
     /** Alertas de documentos sin firmar (null sin documentos.entrega.registrar). */
@@ -88,12 +89,15 @@ const TileContador: React.FC<{
     </section>
 );
 
-/** Cifra grande con etiqueta debajo (tabular para que no salte al cambiar). */
-const Cifra: React.FC<{ n: number; label: string; tono?: 'neutro' | 'aviso' | 'critico' }> = ({ n, label, tono = 'neutro' }) => (
+/**
+ * Cifra grande con etiqueta debajo (tabular para que no salte al cambiar). `n = null` = aún no se
+ * sabe (store cargando o con error): muestra «—», nunca un 0 falso que después "rodaría" a N (§9).
+ */
+const Cifra: React.FC<{ n: number | null; label: string; tono?: 'neutro' | 'aviso' | 'critico' }> = ({ n, label, tono = 'neutro' }) => (
     <div className="min-w-0">
         <span className={cn('block text-display-sm font-bold tabular-nums leading-none tracking-tight',
-            tono === 'critico' ? 'text-red-600 dark:text-red-400' : tono === 'aviso' && n > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-brand-dark')}>
-            {n}
+            tono === 'critico' ? 'text-red-600 dark:text-red-400' : tono === 'aviso' && n !== null && n > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-brand-dark')}>
+            {n === null ? '—' : <NumeroRodante value={n} />}
         </span>
         <span className="mt-1 block text-caption font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
     </div>
@@ -166,8 +170,8 @@ export const GestionesInicio: React.FC<Props> = ({ permisos, hasPermission, soli
                             onEntrar={() => onIr('solicitudes')}
                             pie={(
                                 <div className="flex flex-wrap gap-2">
-                                    <Button size="sm" variant={solicitudesPendientes > 0 ? 'primary' : 'glass'} onClick={() => onIr('solicitudes')}>
-                                        {puedeAprobar && solicitudesPendientes > 0 ? 'Revisar pendientes' : 'Ver solicitudes'}
+                                    <Button size="sm" variant={(solicitudesPendientes ?? 0) > 0 ? 'primary' : 'glass'} onClick={() => onIr('solicitudes')}>
+                                        {puedeAprobar && (solicitudesPendientes ?? 0) > 0 ? 'Revisar pendientes' : 'Ver solicitudes'}
                                     </Button>
                                     {puedeCrearSolicitud && (
                                         <Button size="sm" variant="glass" onClick={() => setModalType('solicitud')}>Nuevo ingreso</Button>
@@ -198,8 +202,8 @@ export const GestionesInicio: React.FC<Props> = ({ permisos, hasPermission, soli
                                     )}
                                 </div>
                             )}>
-                            <Cifra n={lotes?.por_confirmar ?? 0} label={lotes?.alcance === 'propios' ? 'te esperan' : 'sin retirar'} tono="aviso" />
-                            <Cifra n={lotes?.en_terreno ?? 0} label="en terreno" />
+                            <Cifra n={lotes ? lotes.por_confirmar : null} label={lotes?.alcance === 'propios' ? 'te esperan' : 'sin retirar'} tono="aviso" />
+                            <Cifra n={lotes ? lotes.en_terreno : null} label="en terreno" />
                             {alertasCriticas > 0 && <Cifra n={alertasCriticas} label="críticos" tono="critico" />}
                         </TileContador>
                     )}

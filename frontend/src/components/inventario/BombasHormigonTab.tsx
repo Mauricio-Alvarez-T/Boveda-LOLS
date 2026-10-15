@@ -14,6 +14,7 @@ import { Modal } from '../ui/Modal';
 import { FieldError } from '../ui/FieldError';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import { NumeroRodante } from '../ui/NumeroRodante';
 import { fmtMoneyExacto } from '../../utils/format';
 
 interface Props {
@@ -91,6 +92,10 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false, canDel
     // Obras filtradas por participa_bombas (selector + filtro). Fetch propio.
     const [obras, setObras] = useState<{ id: number; nombre: string }[]>([]);
     const [loading, setLoading] = useState(false);
+    // ¿Las cifras de las StatCards vienen del servidor? Hasta la primera respuesta (y tras un error)
+    // muestran «—»: un 0 de relleno que después "rueda" a N dramatiza un dato falso (diseno.md §9.4).
+    // Cambiar de obra no lo apaga: `registros` no se vacía antes del refetch, así que N→M es real.
+    const [cargado, setCargado] = useState(false);
     const [filterObraId, setFilterObraId] = useState<number | ''>('');
     const [searchQuery, setSearchQuery] = useState('');
     // Mes abierto en el historial (drill-down). null = vista de lista de meses.
@@ -110,7 +115,8 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false, canDel
             const params = filterObraId ? `?obra_id=${filterObraId}` : '';
             const res = await api.get(`/bombas-hormigon${params}`);
             setRegistros(res.data.data || []);
-        } catch { setRegistros([]); }
+            setCargado(true);
+        } catch { setRegistros([]); setCargado(false); }
         finally { setLoading(false); }
     };
 
@@ -346,19 +352,19 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false, canDel
                     <StatCard
                         icon={MixerTruck}
                         label="Total Bombeos"
-                        value={String(stats.total)}
+                        value={cargado ? stats.total : '—'}
                         color="bg-muted text-muted-foreground"
                     />
                     <StatCard
                         icon={Building2}
                         label="Empresa"
-                        value={String(stats.propias)}
+                        value={cargado ? stats.propias : '—'}
                         color="bg-muted text-muted-foreground"
                     />
                     <StatCard
                         icon={Truck}
                         label="Externas"
-                        value={String(stats.externas)}
+                        value={cargado ? stats.externas : '—'}
                         color="bg-muted text-muted-foreground"
                     />
                     {verCostos && (
@@ -730,15 +736,17 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false, canDel
     );
 };
 
-/* ─── Stat card ─── */
-const StatCard: React.FC<{ icon: React.ElementType; label: string; value: string; color: string }> = ({ icon: Icon, label, value, color }) => (
+/* ─── Stat card ───
+   Conteos (number) ruedan con NumeroRodante al filtrar; el dinero llega ya formateado
+   (string) y queda estático: los montos nunca se animan (diseno.md §9). */
+const StatCard: React.FC<{ icon: React.ElementType; label: string; value: string | number; color: string }> = ({ icon: Icon, label, value, color }) => (
     <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border bg-card">
         <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", color)}>
             <Icon className="h-3.5 w-3.5" />
         </div>
         <div className="min-w-0">
             <p className="text-caption text-muted-foreground leading-tight">{label}</p>
-            <p className="text-sm font-bold text-brand-dark leading-tight truncate">{value}</p>
+            <p className="text-sm font-bold text-brand-dark leading-tight truncate">{typeof value === 'number' ? <NumeroRodante value={value} /> : value}</p>
         </div>
     </div>
 );

@@ -4,6 +4,7 @@ import { Button } from '../../ui/Button';
 import { Select } from '../../ui/Select';
 import { EmptyState } from '../../ui/EmptyState';
 import { SkeletonText } from '../../ui/Skeleton';
+import { NumeroRodante } from '../../ui/NumeroRodante';
 import { useAuth } from '../../../context/AuthContext';
 import { useInformeActividades } from '../../../hooks/attendance/useInformeActividades';
 import { fmtSemana } from '../../../utils/semanas';
@@ -81,9 +82,10 @@ const ActividadesSemana: React.FC = () => {
                 </div>
 
                 {/* Totales + descarga */}
-                <div className="rounded-xl border border-border bg-background p-4">
+                <div className="rounded-xl border border-border bg-muted/40 p-4">
                     <p className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Total asistieron</p>
-                    <p className="text-3xl font-semibold text-foreground tabular-nums leading-tight mt-0.5">{resumen.total_asistieron}</p>
+                    {/* Rueda al cambiar de semana: `resumen` sigue montado mientras recarga. */}
+                    <p className="text-3xl font-semibold text-foreground tabular-nums leading-tight mt-0.5"><NumeroRodante value={resumen.total_asistieron} /></p>
                     <p className="text-sm text-muted-foreground mt-1">
                         {resumen.listas} lista{resumen.listas === 1 ? '' : 's'} · {resumen.obras} obra{resumen.obras === 1 ? '' : 's'}
                     </p>

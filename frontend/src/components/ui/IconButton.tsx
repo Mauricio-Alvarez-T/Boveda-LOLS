@@ -41,7 +41,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
         <motion.button
             ref={ref}
             type={type}
-            whileHover={{ scale: 1.05 }}
+            // Hover = solo color (diseno.md §7.5: nunca `scale`); el tap sí confirma el toque.
             whileTap={{ scale: 0.95 }}
             disabled={disabled}
             className={cn(

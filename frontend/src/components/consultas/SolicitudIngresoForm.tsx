@@ -12,6 +12,7 @@ import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import type { SelectOption } from '../ui/Select';
 import { Button } from '../ui/Button';
+import { MarcaEstado } from '../ui/MarcaEstado';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import { showApiError } from '../../utils/toastUtils';
 import { DatosPersonalesFields } from '../workers/DatosPersonalesFields';
@@ -188,9 +189,7 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onEnviada, onClose, onCa
         return (
             <div className="space-y-6" role="status">
                 <div className="flex flex-col items-center text-center pt-2">
-                    <div className="h-12 w-12 rounded-full bg-success/10 text-success flex items-center justify-center">
-                        <CheckCircle2 className="h-7 w-7" />
-                    </div>
+                    <MarcaEstado estado="listo" tamano="md" />
                     <h3 className="mt-3 text-lg font-semibold text-foreground">Solicitud enviada a administración</h3>
                     <p className="text-sm text-muted-foreground">Queda pendiente de revisión. Puedes avisar por WhatsApp.</p>
                 </div>

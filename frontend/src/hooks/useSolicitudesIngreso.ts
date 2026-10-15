@@ -9,6 +9,8 @@ interface Estado {
     /** Solicitudes de ingreso en estado `pendiente` (GET /solicitudes-ingreso/pendientes/count). */
     pendientes: number;
     loading: boolean;
+    /** Hay un valor real del servidor (false al inicio y tras un error): sin él, `pendientes` es un 0 de relleno. */
+    cargado: boolean;
 }
 
 /**
@@ -18,7 +20,7 @@ interface Estado {
  * Día. Una sola request compartida y una sola verdad: al aprobar/rechazar, el
  * `refetch` baja el número en los tres lugares.
  */
-let estado: Estado = { pendientes: 0, loading: false };
+let estado: Estado = { pendientes: 0, loading: false, cargado: false };
 const suscriptores = new Set<() => void>();
 let enVuelo: Promise<void> | null = null;
 let timer: number | null = null;
@@ -32,9 +34,9 @@ function cargar(): Promise<void> {
     emitir({ ...estado, loading: true });
     // incluir_prueba: mismo criterio que la lista del panel y la grilla de Consultas.
     enVuelo = api.get<{ data: { total: number } }>('/solicitudes-ingreso/pendientes/count?incluir_prueba=true')
-        .then(res => { emitir({ pendientes: Number(res.data.data?.total) || 0, loading: false }); })
+        .then(res => { emitir({ pendientes: Number(res.data.data?.total) || 0, loading: false, cargado: true }); })
         // Silencioso: el contador no es lugar para un toast — sin datos no se muestra número.
-        .catch(() => { emitir({ pendientes: 0, loading: false }); })
+        .catch(() => { emitir({ pendientes: 0, loading: false, cargado: false }); })
         .finally(() => { enVuelo = null; });
     return enVuelo;
 }
@@ -69,5 +71,7 @@ export function useSolicitudesIngreso() {
 
     // Gate también a la salida: el store es de módulo y sobrevive un cambio de
     // sesión en la misma pestaña — un usuario sin permiso no debe heredar el número.
-    return { pendientes: puedeAprobar ? snap.pendientes : 0, loading: snap.loading, refetch };
+    // `cargado` va aparte (no `pendientes: number | null`) para que el badge del menú siga siendo
+    // número; quien pinta la cifra grande lo usa para mostrar «—» y no un 0 falso (diseno.md §9.4).
+    return { pendientes: puedeAprobar ? snap.pendientes : 0, cargado: puedeAprobar && snap.cargado, loading: snap.loading, refetch };
 }

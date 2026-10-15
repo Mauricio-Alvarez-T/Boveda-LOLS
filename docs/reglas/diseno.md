@@ -217,7 +217,7 @@ Principios y reglas concretas:
    azul**.
 5. **Interacción sutil.** Hover = cambio de **brillo/opacidad**, NO `scale`. Transición
    `duration-200 ease-apple`. Reveals suaves solo en heros/headers, respetando
-   `prefers-reduced-motion` (ver `Login.tsx`).
+   `prefers-reduced-motion` (ver §9 y `Login.tsx`).
 6. **Bordes y sombras casi invisibles.** Preferir **borde hairline** (`border-border`)
    a sombras marcadas. Sombra sutil solo en hover/elevación real (modales). No acumular
    borde + sombra + gradiente en la misma card.
@@ -323,3 +323,99 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       Nada de librerías de fuzzy: sobre un RUT, dos dígitos distintos están a una edición de distancia.
 
     Por encima de ~2.000 registros esto deja de aplicar y hay que volver al servidor con paginación.
+
+---
+
+## 9. Movimiento (2026-10-15, corte React Bits)
+
+1. **Base única.** `main.tsx` envuelve la app en `<MotionConfig reducedMotion="user">` (framer-motion).
+   Si el sistema pide «reducir movimiento», framer apaga transform y layout y deja solo la opacidad.
+   **No cubre** `pathLength`, `filter`, el `animate()` imperativo, los keyframes CSS ni recharts. Esos
+   casos chequean `useReducedMotion()`, van bajo `@media (prefers-reduced-motion: no-preference)` o usan
+   `motion-safe:` / `motion-reduce:`. Referencias: `ui/Skeleton` y el punto de «Esperando rotación» de
+   `MainLayout` (`motion-safe:animate-pulse`), `AttendanceTrend` (`isAnimationActive={!reduce}` en
+   **cada** hijo animado de recharts: `Area`/`Bar`/`Line`/`Pie` y también `Tooltip`, que si no se desliza
+   400 ms entre puntos; 600 ms) y `ui/MarcaEstado` (`useReducedMotion`). Los `useReducedMotion` que ya
+   existían (`Login`, `Modal`, `BotonFiltros`, `FiltrosRail`) se mantienen. Quedan ~70 `animate-*` sin
+   `motion-safe:` heredados; se migran al tocar cada archivo. Un loop infinito va en CSS (no corre dentro
+   de un `display:none` y va en el compositor), nunca con `repeat: Infinity` de framer, que en `rotate`
+   y similares es un loop JS que despierta cada frame aunque el elemento esté oculto (ver `.gira-telefono`).
+2. **El movimiento informa o no va.** Se permite solo cuando confirma una acción (guardó, falló, llegó),
+   dice hacia dónde cambió algo (la cifra sube o baja, el paso avanza o retrocede) o revela contenido
+   oculto (borde de scroll). Nada decorativo: sin fondos animados, brillos, partículas, texto que se
+   desordena ni loops infinitos sobre etiquetas. El hover sigue sin escalar (§7.5): por eso salieron
+   `whileHover={{ scale: 1.05 }}` de `ui/IconButton` y `hover:scale-110` de `VencimientosBadge`; el
+   `whileTap` sí se queda, porque confirma el toque.
+3. **Nunca retrasar la lectura.** Cada animación de feedback dura 250 ms o menos y ninguna tapa un dato
+   mientras corre. El cambio de ruta (`MainLayout`) dura ≈0,37 s en total: salida 0,12 s solo opacidad +
+   entrada 0,25 s con 8 px de `y` (antes ≈0,6 s, con `scale` en la salida). No hay reveals por scroll en
+   pantallas de datos, ni fundido de skeleton a contenido, ni stagger sobre filas de datos.
+4. **Cifras: `ui/NumeroRodante`** (CSS puro, `React.memo`). La cifra nueva entra desde abajo si subió y
+   desde arriba si bajó, en 160 ms (keyframes `numero-sube` / `numero-baja` de `index.css`, que existen
+   solo sin reduce-motion: con «reducir movimiento» el número cambia en seco). **Prohibido el count-up**
+   (contar pasando por valores intermedios) y **prohibido animar dinero**: solo conteos enteros y
+   porcentajes (el `%` va fuera del componente). El primer valor siempre aparece estático. Mientras carga
+   se muestra «—», nunca un 0 falso (`Cifra` de `GestionesInicio` recibe `n: number | null`; un store que
+   arranca en 0 expone `cargado`, como `useSolicitudesIngreso`; la `StatCard` de Bombas recibe «—» hasta
+   la primera respuesta y tras un error). Siempre
+   `fmtNumber`, sin prop de formato, para que el memo siga sirviendo. Referencias: chips y totales de
+   `AttendanceSummaryRow`, `GestionesInicio`, `ActividadesSemana`, `VencimientosBadge` y la `StatCard` de
+   `BombasHormigonTab` (los conteos `number` ruedan; «Costo Total» llega como string y queda quieto).
+5. **Resultado de una acción: `ui/MarcaEstado`** (`cargando` gira; `listo` dibuja un check; `fallo`
+   dibuja una cruz, cada trazo en 240 ms). `tamano="sm"` es el glifo suelto (botón, banner, línea) y
+   toma el color de `currentColor`; `tamano="md"` lo mete en un círculo de 48 px con tokens `success` /
+   `destructive`, para pantallas de confirmación. Siempre `aria-hidden`: el texto lo anuncian sonner, el
+   `role="status"` o el título. Con reduce-motion el glifo aparece ya completo (`initial={false}`) y el
+   spinner queda quieto (`motion-safe:animate-spin`). Un `pathLength: 0` con `strokeLinecap="round"`
+   igual pinta un punto, así que cada trazo arranca con opacidad 0 hasta su retardo.
+   **Referencia: el botón Guardar de asistencia.** `useAttendanceActions` expone `saveStatus`
+   (`'idle' | 'cargando' | 'listo' | 'fallo'`), que vuelve a `idle` tras 1,6 s si salió bien o 2,5 s si
+   falló; el timer se limpia al desmontar y al empezar otro guardado. El resultado queda **atado a la
+   fecha y obra guardadas** (se deriva en render): si el capataz cambia de día antes de que vuelva a
+   `idle`, el Guardar del otro día no muestra un check ajeno ni pierde su gris de deshabilitado. `AttendanceHeaderActions` ya no
+   pasa `isLoading` al `Button` (lo cambiaría por su propio `Loader2` y taparía la marca) y, mientras
+   `saveStatus !== 'idle'`, no aplica el gris de deshabilitado y suma `disabled:opacity-100`: el refetch
+   posterior al guardado pone `loading=true` y, sin eso, el botón se agrisaría justo mientras dibuja el
+   check. Otros usos: confirmación de `SolicitudIngresoForm` (`md`), banner de `EmitirKitModal` y recap
+   de `JourneyRunner`. **Nunca por fila** (§8.13).
+6. **Bordes de scroll horizontal: `hooks/useBordesScroll` + `ui/BordeScroll`.** Es un degradado de una
+   sola capa (`w-6`, `from-card`), del color de la superficie, que se apaga al llegar al extremo (umbral
+   de 4 px para el redondeo subpíxel). Úsalo solo sobre padres `bg-card`. El hook mide amortiguado con
+   `requestAnimationFrame` y solo cambia estado cuando un booleano se da vuelta (scrollear no
+   re-renderiza por frame); la medición inicial la hace el `ResizeObserver`, que observa el contenedor
+   **y cada hijo directo** (un chip que pasa de 9 a 10 o la fuente web que llega tarde no cambian el
+   tamaño del contenedor). `medirCuando` es la identidad del contenido (los ids de los chips, no la
+   cantidad) y vuelve a cablear el observer para los hijos nuevos. Referencia: la franja de chips mobile de
+   `AttendanceSummaryRow`. Prohibido apilar `backdrop-filter` o usar `mask-image` (§8.9).
+7. **Wizards:** el conector se llena con `scale-x` desde `origin-left` en 200 ms (al volver se vacía
+   hacia la izquierda; nunca `width`). El paso entra ±12 px desde el lado hacia el que se avanza, en
+   150 ms, con UN solo `motion.div` con `key={paso}`, sin `AnimatePresence`, sin `exit`, sin
+   `mode="wait"` y sin animar el alto. Los 12 px caben en el padding de los dos hosts (`p-6` del `Modal`,
+   `p-4` de la card del tutorial), así que no aparece una barra de scroll horizontal pasajera.
+   Referencia: `WizardStepper` + `NuevoMovimientoWizardView`. El primer montaje es estático (dir 0): por
+   eso `NuevoMovimientoWizard` resetea el motor también al cerrar, para que la vista no reabra
+   "deslizando" desde el paso donde quedó. El tutorial (`JourneyRunner`) usa el mismo
+   `WizardStepper`; ya no tiene un stepper propio.
+8. **La aritmética del movimiento** (dirección del cambio, bordes de scroll) vive en
+   `utils/movimiento.ts` (`direccionCambio`, `calcBordes`), con test en `utils/movimiento.test.ts`.
+9. **Al cambiar una prop, el estado previo se ajusta durante el render**
+   (`if (value !== previo) { setPrevio(value); ... }`), nunca en un efecto: el efecto llega un frame
+   tarde y rompe la regla set-state-in-effect. Si el valor puede ser `NaN`, comparar con `Object.is`
+   (`NaN !== NaN` re-renderizaría en bucle). Referencias: `NumeroRodante` y `NuevoMovimientoWizardView`.
+10. **Tomar cosas de React Bits.** Solo del repo público o de reactbits.dev (MIT + Commons Clause), jamás
+    de pro.reactbits.dev. Se reescribe la idea con framer-motion o CSS, no se copia: sus componentes
+    traen textos en inglés, colores hex, tema oscuro, `@hugeicons` e imports `motion/react` (aquí es
+    `'framer-motion'`). Prohibido sumar `gsap`, `ogl`, `three`, `motion` o `@hugeicons`. Cada archivo
+    derivado lleva en el encabezado la línea de procedencia
+    `// Idea: <Componente> de React Bits (reactbits.dev, MIT + Commons Clause). Reescrito; sin código copiado.`
+    (hoy: `MarcaEstado`, `NumeroRodante`, `useBordesScroll`, `BordeScroll`, y como comentario junto al
+    conector de `WizardStepper` y al panel de `NuevoMovimientoWizardView`). Si alguna vez se copia
+    código, el archivo lleva en el encabezado «Copyright (c) 2026 David Haz» con el texto de permiso, y
+    se agrega una entrada en `frontend/THIRD_PARTY_NOTICES.md` (hoy no existe porque no se copió nada).
+11. **Descartados el 2026-10-15** (no volver a proponerlos sin un hecho nuevo): CountUp; BlurText/SplitText
+    en Login; RubberSegment/PillNav/GooeyNav/Dock/StaggeredMenu/BranchedMenu; FadeContent/AnimatedContent;
+    GradualBlur, Counter, Stepper y StatusMark tal como vienen; FuseButton, HoldButton, SlideCommit y
+    SwipeRow (gestos escondidos, guantes); WarmTooltip; ShinyText, LatticeLoader y CallChip; los textos
+    que se desordenan; todos los Backgrounds; AnimatedList y Masonry; SpringCheck, SquishSwitch,
+    GlideSelect, JellyRadio, BellToggle y CodeSlots; los efectos de hover (Spotlight, Glare, Tilt,
+    Magnet, bordes eléctricos).

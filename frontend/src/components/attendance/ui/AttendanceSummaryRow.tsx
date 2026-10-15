@@ -3,6 +3,9 @@ import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Users, BarChart3, Sea
 import { motion } from 'framer-motion';
 import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
+import { NumeroRodante } from '../../ui/NumeroRodante';
+import { BordeScroll } from '../../ui/BordeScroll';
+import { useBordesScroll } from '../../../hooks/useBordesScroll';
 import { useTheme } from '../../../context/ThemeContext';
 import type { EstadoAsistencia } from '../../../types/entities';
 
@@ -48,6 +51,10 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
 }) => {
     const { resolvedTheme } = useTheme();
     const isDark = resolvedTheme === 'dark';
+    // Franja de chips mobile: en 360 px los últimos estados quedan tras el borde derecho sin
+    // barra visible; el degradado avisa que hay más (diseno.md §9). La firma son los ids, no la cantidad:
+    // si el último TO pasa a ser el primer LM, el chip nuevo (de otro ancho) también se observa.
+    const chips = useBordesScroll<HTMLDivElement>(summary.desglose.map(d => d.estado.id).join(','));
 
     // Tope: máximo 30 días futuros para selección de fecha (regla operativa).
     // Pasado no se limita. El navegador deshabilita días posteriores en el calendario.
@@ -76,25 +83,30 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                     </Button>
                 </div>
 
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/5 rounded-xl border border-brand-dark/10 shrink-0">
-                        <span className="text-xs font-black text-brand-dark tabular-nums">{summary.total}</span>
-                        <span className="text-micro font-bold text-brand-dark/40 uppercase tracking-tighter">Total</span>
+                <div className="relative">
+                    <div ref={chips.ref} className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/5 rounded-xl border border-brand-dark/10 shrink-0">
+                            <span className="text-xs font-black text-brand-dark tabular-nums"><NumeroRodante value={summary.total} /></span>
+                            <span className="text-micro font-bold text-brand-dark/40 uppercase tracking-tighter">Total</span>
+                        </div>
+                        {summary.desglose.map(({ count, estado }) => {
+                            const isActive = statusFilter === estado.id;
+                            return (
+                                <div
+                                    key={estado.id}
+                                    onClick={() => onStatusFilter(isActive ? null : estado.id)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 cursor-pointer ${isActive ? 'ring-2 ring-offset-1 ring-offset-background shadow-md' : ''}`}
+                                    style={chipStyle(estado.color, isActive, isDark)}
+                                >
+                                    <span className="text-micro font-black opacity-60 uppercase">{estado.codigo}</span>
+                                    <span className="text-xs font-black tabular-nums"><NumeroRodante value={count} /></span>
+                                </div>
+                            );
+                        })}
                     </div>
-                    {summary.desglose.map(({ count, estado }) => {
-                        const isActive = statusFilter === estado.id;
-                        return (
-                            <div
-                                key={estado.id}
-                                onClick={() => onStatusFilter(isActive ? null : estado.id)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 cursor-pointer ${isActive ? 'ring-2 ring-offset-1 ring-offset-background shadow-md' : ''}`}
-                                style={chipStyle(estado.color, isActive, isDark)}
-                            >
-                                <span className="text-micro font-black opacity-60 uppercase">{estado.codigo}</span>
-                                <span className="text-xs font-black tabular-nums">{count}</span>
-                            </div>
-                        );
-                    })}
+                    {/* Superficie del padre = bg-card, el degradado sale de `card` y se funde en ambos temas. */}
+                    <BordeScroll lado="inicio" visible={chips.antes} />
+                    <BordeScroll lado="fin" visible={chips.despues} />
                 </div>
             </div>
 
@@ -136,12 +148,12 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                             <div className="flex items-center gap-1.5 lg:gap-2 shrink-0">
                                 <div className="flex items-center gap-1 px-2 lg:px-3 py-1 bg-brand-dark/5 rounded-lg lg:rounded-xl border border-brand-dark/10 shrink-0">
                                     <Users className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-brand-dark/60" />
-                                    <span className="text-label lg:text-section font-black text-brand-dark uppercase tabular-nums">{summary.total}</span>
+                                    <span className="text-label lg:text-section font-black text-brand-dark uppercase tabular-nums"><NumeroRodante value={summary.total} /></span>
                                     <span className="text-micro lg:text-micro font-bold text-brand-dark/40 uppercase tracking-tighter hidden lg:inline">Total</span>
                                 </div>
                                 <div className="flex items-center gap-1 px-2 py-1 bg-brand-dark/5 rounded-lg lg:rounded-xl border border-brand-dark/10 shrink-0">
                                     <BarChart3 className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-brand-dark/60" />
-                                    <span className="text-label lg:text-section font-black text-brand-dark uppercase tabular-nums">{summary.porcentaje}%</span>
+                                    <span className="text-label lg:text-section font-black text-brand-dark uppercase tabular-nums"><NumeroRodante value={summary.porcentaje} />%</span>
                                 </div>
                             </div>
 
@@ -196,7 +208,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                     style={chipStyle(estado.color, isActive, isDark)}
                                 >
                                     <span className="text-micro lg:text-caption font-black opacity-70 uppercase tracking-widest">{estado.codigo}</span>
-                                    <span className="text-label lg:text-section font-black tabular-nums">{count}</span>
+                                    <span className="text-label lg:text-section font-black tabular-nums"><NumeroRodante value={count} /></span>
                                 </motion.div>
                             );
                         })}

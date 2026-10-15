@@ -335,7 +335,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                     tab === t.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-muted-foreground hover:text-brand-dark')}>
                                                 {t.label}
                                                 {!!t.badge && t.badge > 0 && (
-                                                    <span className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-amber-500 text-micro font-bold tabular-nums text-white">{t.badge}</span>
+                                                    <span className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-warning text-micro font-bold tabular-nums text-warning-foreground">{t.badge}</span>
                                                 )}
                                             </Button>
                                         ))}

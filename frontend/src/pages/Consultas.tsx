@@ -627,7 +627,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 <GestionesInicio
                     permisos={permisosGestiones}
                     hasPermission={hasPermission}
-                    solicitudesPendientes={solicitudes.pendientes}
+                    solicitudesPendientes={solicitudes.cargado ? solicitudes.pendientes : null}
                     lotes={lotes.pendientes}
                     lotesBadge={lotes.badge}
                     alertas={alertasDocs.alertas}

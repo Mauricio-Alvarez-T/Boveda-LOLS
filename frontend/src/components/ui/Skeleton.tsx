@@ -4,10 +4,11 @@ import { cn } from '../../utils/cn';
 /**
  * Skeleton — placeholder de carga (Design System Bóveda LOLS).
  *
- * Bloque con `animate-pulse` sobre la superficie neutra `bg-muted`. Sustituye a
- * los textos "Cargando..." y spinners genéricos para que la carga comunique la
- * forma del contenido que va a llegar (reduce el salto de layout y la sensación
- * de "pegado").
+ * Bloque con `motion-safe:animate-pulse` sobre la superficie neutra `bg-muted`.
+ * Sustituye a los textos "Cargando..." y spinners genéricos para que la carga
+ * comunique la forma del contenido que va a llegar (reduce el salto de layout y
+ * la sensación de "pegado"). Con «reducir movimiento» queda quieto: los
+ * keyframes CSS no los gatea MotionConfig, por eso el `motion-safe:`.
  *
  * ⚠️ Tailwind v4 JIT: las clases base son literales completas. El `className`
  * de tamaño (h-9, w-full, etc.) lo pasa el consumidor, también como literal.
@@ -16,7 +17,7 @@ import { cn } from '../../utils/cn';
  *   <SkeletonText lines={3} />
  */
 export const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
-    <div className={cn('animate-pulse rounded-md bg-muted', className)} aria-hidden="true" />
+    <div className={cn('motion-safe:animate-pulse rounded-md bg-muted', className)} aria-hidden="true" />
 );
 
 /** Varias líneas de texto simuladas (la última, más corta). */
@@ -25,7 +26,7 @@ export const SkeletonText: React.FC<{ lines?: number; className?: string }> = ({
         {Array.from({ length: lines }).map((_, i) => (
             <div
                 key={i}
-                className={cn('animate-pulse rounded-md bg-muted h-3', i === lines - 1 ? 'w-2/3' : 'w-full')}
+                className={cn('motion-safe:animate-pulse rounded-md bg-muted h-3', i === lines - 1 ? 'w-2/3' : 'w-full')}
             />
         ))}
     </div>

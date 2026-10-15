@@ -39,6 +39,34 @@
     .tutorial-pulse { animation: tutorial-pulse-ring 1.6s ease-out infinite; }
 }
 
+/* NumeroRodante (diseno.md §9): la cifra nueva entra desde abajo si subió y desde
+   arriba si bajó. Solo transform + opacity (sin layout). Las clases existen únicamente
+   sin reduce-motion: con «reducir movimiento» el número cambia en seco, sin fundido. */
+@keyframes numero-sube {
+    from { transform: translateY(0.6em); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+@keyframes numero-baja {
+    from { transform: translateY(-0.6em); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .numero-sube { animation: numero-sube 160ms var(--ease-apple, cubic-bezier(0.25, 0.1, 0.25, 1)) both; }
+    .numero-baja { animation: numero-baja 160ms var(--ease-apple, cubic-bezier(0.25, 0.1, 0.25, 1)) both; }
+}
+
+/* Teléfono del aviso «Gira tu dispositivo» (MainLayout). En CSS y no en framer: el overlay está
+   `display:none` salvo en un teléfono apaisado, y una animación CSS no corre dentro de un
+   display:none (y va en el compositor). Con framer, `rotate` es un loop JS en el hilo principal
+   que despierta cada frame en TODAS las páginas aunque nadie lo vea. */
+@keyframes gira-telefono {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(90deg); }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .gira-telefono { animation: gira-telefono 2s ease-in-out infinite; }
+}
+
 /* ──────────────────────────────────────────────────────────────────
    Design tokens
    Los tokens que generan las utilidades (bg-card, text-foreground,

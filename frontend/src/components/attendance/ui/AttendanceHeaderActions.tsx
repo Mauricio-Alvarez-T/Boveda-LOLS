@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Save, MoreHorizontal, FileDown, CalendarRange, CopyPlus, Plus, Building2, Check, Eraser } from 'lucide-react';
 import { Button } from '../../ui/Button';
+import { MarcaEstado, type EstadoMarca } from '../../ui/MarcaEstado';
 import RequirePermission from '../../auth/RequirePermission';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
 import { cn } from '../../../utils/cn';
@@ -13,6 +14,8 @@ interface AttendanceHeaderActionsProps {
     toggleFeriado: () => void;
     handleSave: () => void;
     saving: boolean;
+    /** Resultado del último Guardar: en vez del ícono, el botón gira / dibuja check / dibuja cruz. */
+    saveStatus: 'idle' | EstadoMarca;
     loading: boolean;
     hasWorkers: boolean;
     hasPermission: (p: string) => boolean;
@@ -50,6 +53,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
     toggleFeriado,
     handleSave,
     saving,
+    saveStatus,
     loading,
     hasWorkers,
     hasPermission,
@@ -71,6 +75,12 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
     const isRepeatDisabled = repeating || saving || loading || !hasWorkers || !hasPermission('asistencia.guardar') || isFeriado || isWeekend || !repetirDiaAnterior;
     const canSendWhatsApp = hasPermission('asistencia.enviar_whatsapp') && !isGlobal;
     const whatsAppTitle = isGlobal ? "Disponible al seleccionar una obra" : "Enviar por WhatsApp";
+    // Guardar muestra el resultado donde el capataz está mirando (diseno.md §9). Sin
+    // isLoading: el Button lo cambiaría por su propio Loader2 y taparía la marca.
+    const marcandoGuardado = saveStatus !== 'idle';
+    const iconoGuardar = saveStatus === 'idle'
+        ? <Save className="h-4 w-4" />
+        : <MarcaEstado estado={saveStatus} className="h-4 w-4" />;
 
     return (
         <div className="flex items-center gap-2">
@@ -110,15 +120,17 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
 
                 <Button
                     onClick={handleSave}
-                    isLoading={saving}
                     disabled={isSaveDisabled}
                     className={cn(
                         "h-11 w-11 p-0 justify-center rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center shrink-0",
-                        isSaveDisabled && "opacity-40 grayscale pointer-events-none"
+                        // El refetch post-guardado pone loading=true: sin esto el botón se
+                        // agrisaría justo mientras dibuja el check.
+                        isSaveDisabled && !marcandoGuardado && "opacity-40 grayscale pointer-events-none",
+                        marcandoGuardado && "disabled:opacity-100"
                     )}
                     title="Guardar"
                 >
-                    <Save className="h-4 w-4" />
+                    {iconoGuardar}
                 </Button>
             </div>
 
@@ -226,15 +238,15 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
 
                 <Button
                     onClick={handleSave}
-                    isLoading={saving}
                     disabled={isSaveDisabled}
                     title="Guardar"
                     className={cn(
                         "h-9 w-9 p-0 justify-center rounded-xl shadow-lg shadow-brand-primary/20",
-                        isSaveDisabled && "opacity-40 grayscale pointer-events-none"
+                        isSaveDisabled && !marcandoGuardado && "opacity-40 grayscale pointer-events-none",
+                        marcandoGuardado && "disabled:opacity-100"
                     )}
                 >
-                    <Save className="h-4 w-4" />
+                    {iconoGuardar}
                 </Button>
 
                 {/* Goma de borrar: borrado correctivo de la asistencia guardada del día.

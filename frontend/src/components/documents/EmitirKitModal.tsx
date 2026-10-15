@@ -15,13 +15,14 @@
  * guarda en la ficha antes de emitir, igual que los datos personales.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { Download, Printer, CheckCircle2, AlertTriangle, PackageOpen } from 'lucide-react';
+import { Download, Printer, AlertTriangle, PackageOpen } from 'lucide-react';
 import { toast } from 'sonner';
 
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { MarcaEstado } from '../ui/MarcaEstado';
 import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
 import { showApiError } from '../../utils/toastUtils';
@@ -221,8 +222,8 @@ export const EmitirKitModal: React.FC<Props> = ({ isOpen, onClose, worker, onEmi
 
                 {emitidos ? (
                     <div className="space-y-2">
-                        <div role="status" className="flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-800 dark:border-green-800/60 dark:bg-green-500/10 dark:text-green-300">
-                            <CheckCircle2 className="h-5 w-5 shrink-0" /> {emitidos.length} documento(s) guardado(s) en la ficha
+                        <div role="status" className="flex items-center gap-2 rounded-2xl border border-success/30 bg-success/5 px-4 py-3 text-sm font-bold text-brand-dark">
+                            <MarcaEstado estado="listo" className="h-5 w-5 text-success" /> {emitidos.length} documento(s) guardado(s) en la ficha
                         </div>
                         <ul className="divide-y divide-border rounded-2xl border border-border overflow-hidden">
                             {emitidos.map(d => (

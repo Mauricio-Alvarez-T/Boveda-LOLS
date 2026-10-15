@@ -5,6 +5,7 @@ import './index.css'
 import { AuthProvider } from './context/AuthContext.tsx'
 import { ObraProvider } from './context/ObraContext.tsx'
 import { Toaster } from 'sonner'
+import { MotionConfig } from 'framer-motion'
 import { PageHeaderProvider } from './context/PageHeaderContext.tsx'
 import { ThemeProvider, useTheme } from './context/ThemeContext.tsx'
 import { ErrorBoundary } from './components/ui/ErrorBoundary.tsx'
@@ -33,10 +34,16 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <ObraProvider>
           <PageHeaderProvider>
-            <ErrorBoundary fullScreen>
-              <App />
-            </ErrorBoundary>
-            <ThemedToaster />
+            {/* Base única de movimiento (diseno.md §9.1): si el sistema pide «reducir
+                movimiento», framer apaga transform/layout y deja solo la opacidad.
+                No cubre pathLength, filter, animate() imperativo, keyframes CSS ni
+                recharts: esos casos se gatean aparte (useReducedMotion / motion-safe:). */}
+            <MotionConfig reducedMotion="user">
+              <ErrorBoundary fullScreen>
+                <App />
+              </ErrorBoundary>
+              <ThemedToaster />
+            </MotionConfig>
           </PageHeaderProvider>
         </ObraProvider>
       </AuthProvider>

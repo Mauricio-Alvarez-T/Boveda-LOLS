@@ -247,7 +247,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                     )}
                     {misIdeas.novedades > 0 && (
                         (isMobile || !isCollapsed) ? (
-                            <span className="ml-auto inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-warning px-1.5 text-micro font-bold text-white tabular-nums"
+                            <span className="ml-auto inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-warning px-1.5 text-micro font-bold text-warning-foreground tabular-nums"
                                 aria-label={`${misIdeas.novedades} con novedades`}>
                                 {misIdeas.novedades}
                             </span>

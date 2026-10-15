@@ -41,10 +41,13 @@ export const NuevoMovimientoWizard: React.FC<{
     const engine = useWizardEngine(modo, data, permisos);
 
     // Reset de inputs + carga de datos al abrir (igual que antes; modo entra vía reset).
+    // También se resetea al CERRAR: así la vista siempre monta en el paso 0 con dirección 0 y no
+    // entra "deslizando" desde el paso donde quedó (diseno.md §9.7: el primer montaje es estático),
+    // ni muestra un frame del paso viejo. Lo que se desvanece es el elemento congelado que retiene
+    // el AnimatePresence del Modal, así que el reset no cambia la salida.
     useEffect(() => {
-        if (!isOpen) return;
         engine.reset();
-        reload();
+        if (isOpen) reload();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, engine.reset, reload]);
 

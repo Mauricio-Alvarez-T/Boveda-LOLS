@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, RotateCcw, Sparkles, Check, CheckCircle2 } from 'lucide-react';
-import { cn } from '../../../utils/cn';
+import { ArrowLeft, RotateCcw, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Button } from '../../ui/Button';
+import { MarcaEstado } from '../../ui/MarcaEstado';
 import { NuevoMovimientoWizardView } from '../../inventario/nuevo-movimiento/NuevoMovimientoWizardView';
+import { WizardStepper } from '../../inventario/nuevo-movimiento/WizardStepper';
 import { useWizardEngine, type WizardData } from '../../inventario/nuevo-movimiento/wizardEngine';
 import TransferenciaDetail from '../../inventario/TransferenciaDetail';
 import DiscrepanciaDetail from '../../inventario/DiscrepanciaDetail';
@@ -47,31 +48,6 @@ const RECAP_DEFAULT = [
     'Se aprobó eligiendo de qué bodega sale cada ítem.',
     'Se registró la recepción y quedó Recibida.',
 ];
-
-const Stepper: React.FC<{ pasos: string[]; activo: number }> = ({ pasos, activo }) => (
-    <div className="flex items-center justify-center gap-1 sm:gap-2">
-        {pasos.map((label, idx) => {
-            const completado = idx < activo;
-            const esActivo = idx === activo;
-            return (
-                <React.Fragment key={label}>
-                    {idx > 0 && <div className={cn('h-0.5 w-8 sm:w-12 rounded-full', idx <= activo ? 'bg-brand-primary' : 'bg-muted')} />}
-                    <div className="flex items-center gap-1.5">
-                        <div className={cn(
-                            'h-6 w-6 rounded-full flex items-center justify-center text-caption font-black border-2 transition-all',
-                            completado ? 'bg-brand-primary border-brand-primary text-white'
-                                : esActivo ? 'border-brand-primary text-brand-primary ring-4 ring-brand-primary/15'
-                                    : 'border-border text-muted-foreground/50',
-                        )}>
-                            {completado ? <Check className="h-3.5 w-3.5" /> : idx + 1}
-                        </div>
-                        <span className={cn('text-label font-bold whitespace-nowrap hidden sm:block', esActivo ? 'text-brand-dark' : 'text-muted-foreground/60')}>{label}</span>
-                    </div>
-                </React.Fragment>
-            );
-        })}
-    </div>
-);
 
 export const JourneyRunner: React.FC<{
     journey: JourneyDef;
@@ -195,7 +171,8 @@ export const JourneyRunner: React.FC<{
             </div>
 
             <div className="flex flex-col items-center gap-1.5">
-                <Stepper pasos={pasos} activo={activo} />
+                {/* Mismo stepper que el wizard real (conector que se llena, diseno.md §9.7). */}
+                <WizardStepper pasos={pasos} actual={activo} />
                 <p className="text-caption text-muted-foreground">
                     {completado ? 'Completado' : `Paso ${pasoNum} de ${pasos.length}`}
                     {trf && <> · Estado: <span className="font-bold text-brand-dark">{ESTADO_LABEL[estado!] ?? estado}</span></>}
@@ -289,7 +266,7 @@ export const JourneyRunner: React.FC<{
             {completado && (
                 <div className="rounded-2xl border border-success/30 bg-success/5 px-4 py-4 space-y-3">
                     <p className="flex items-center gap-2 text-sm font-bold text-brand-dark">
-                        <CheckCircle2 className="h-5 w-5 shrink-0 text-success" /> ¡Flujo completo! Así se hace de principio a fin.
+                        <MarcaEstado estado="listo" className="h-5 w-5 text-success" /> ¡Flujo completo! Así se hace de principio a fin.
                     </p>
                     <ol className="ml-5 space-y-1 list-decimal text-caption text-muted-foreground">
                         {recap.map((r, i) => <li key={i}>{r}</li>)}
