@@ -8,12 +8,25 @@ y la revisan una a una cuando tienen tiempo.
 
 - **Con nombre, nunca anónimas.** La idea queda atada al usuario logueado (`ideas.usuario_id`); el
   formulario lo dice a la vista ("Se enviará con tu nombre: …").
-- **Mejoras del sistema, no mañas.** Nada "porque sí": una idea (`idea`/`cuesta`) no entra sin
-  - qué cambiar (≥ 10 caracteres),
-  - **el problema de hoy** (≥ 40 caracteres, con ejemplo "así no / así sí" en el formulario),
-  - cada cuánto pasa (`frecuencia`), a quién afecta (`alcance`) y qué se ganaría (`beneficio`).
-  Mismos mínimos en el frontend (`ideasConfig.ts`: `MIN_RESUMEN`, `MIN_DETALLE`) y en el backend
-  (`ideas.service.js`), que es quien manda (400 con `code` `IDEA_*`).
+- **Mejoras del sistema, no mañas** — pero **sin mínimo de caracteres** (Marcos 15-10: "la persona
+  tiene que escribir lo que siente que le cuesta, no entiende o quiere cambiar"; el 14-10 había ≥10 y
+  ≥40). Lo que filtra las mañas son las preguntas, no el largo: ningún campo puede ir **vacío**
+  (`IDEA_RESUMEN_VACIO`, `IDEA_DETALLE_VACIO`) y `idea`/`cuesta` exigen además cada cuánto, a quién y
+  qué se ganaría (`IDEA_FALTAN_SENALES`). Los revisores aplican los cinco criterios y el aviso
+  "¿preferencia?".
+- **Cada tipo pregunta distinto** (Marcos 15-10: "tengo una idea es algo nuevo"). Textos en
+  `FORMULARIOS` (`ideasConfig.ts`); las columnas son genéricas:
+
+  | Columna | `idea` (algo nuevo) | `cuesta` (algo que ya existe) | `falla` |
+  |---|---|---|---|
+  | `resumen` | ¿Qué se te ocurre? | ¿Qué te gustaría que cambie? | ¿Qué estabas haciendo? |
+  | `detalle` | ¿Cómo te lo imaginas? | ¿Qué te cuesta o qué no entiendes? | ¿Qué pasó? |
+  | `esperado` | ¿Cómo lo haces hoy, sin esto? (opcional) | — | ¿Qué esperabas que pasara? (obligatorio) |
+  | `frecuencia` | ¿Cada cuánto lo usarías? | ¿Cada cuánto te pasa? | — |
+  | `alcance` | ¿Quién lo usaría? (Solo yo…) | ¿A quién afecta? (Solo a mí…) | — |
+  | `beneficio` | ¿Qué ganaríamos? | ¿Qué ganaríamos? | — |
+
+  Cada uno con su ejemplo "así no / así sí".
 - **"Algo no funciona" (`falla`)** pide qué estaba haciendo, qué pasó y qué esperaba; no lleva
   señales. Avisa **al tiro por correo** a los revisores (`sendSystemEmail`, sin `await`: un SMTP
   caído nunca hace fallar el envío).
@@ -94,6 +107,6 @@ evita `cn()` en esos casos. Afecta también a `<Chip>` en toda la app (pendiente
 
 ## Tests
 
-`backend/tests/ideas.test.js` (mínimos contra mañas, falla sin "qué esperabas", correo que no
-rompe el alta, Mis ideas sin nota interna, crédito, transiciones y motivo, gates 401/403).
+`backend/tests/ideas.test.js` (sin mínimos pero nada vacío, la idea guarda "cómo lo hace hoy",
+falla sin "qué esperabas", correo que no rompe el alta, foto (formato, peso, quién la ve), Mis ideas sin nota interna, crédito, transiciones y motivo, gates 401/403).
 `backend/tests/permisos_hierarchy_sync.test.js` cubre que `ideas.revisar` esté en la jerarquía.

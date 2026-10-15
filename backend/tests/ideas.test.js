@@ -2,8 +2,8 @@
  * Tests de Ideas para Bóveda (mig 120, docs/reglas/ideas.md).
  *
  * Lo que fijan:
- *   · "mejoras, no mañas": una idea sin el problema contado, o sin frecuencia /
- *     alcance / beneficio, NO entra; una falla sin "qué esperabas" tampoco,
+ *   · sin mínimo de caracteres (15-10), pero nada vacío; una idea sin frecuencia /
+ *     alcance / beneficio NO entra; una falla sin "qué esperabas" tampoco,
  *   · proponer no pide permiso (basta estar logueado); la bandeja y revisar sí
  *     (`ideas.revisar`) → 403 sin él,
  *   · "Mis ideas" nunca expone la nota interna ni el navegador,
@@ -68,10 +68,12 @@ describe('ideasService.crear — mejoras, no mañas', () => {
         expect(emailService.sendSystemEmail).not.toHaveBeenCalled();   // una idea no manda correo
     });
 
-    test('sin el problema contado (< 40) no entra', async () => {
-        await expect(svc.crear({ ...IDEA_OK, detalle: 'Porque me gusta más' }, usuario, {}))
-            .rejects.toMatchObject({ statusCode: 400, code: 'IDEA_DETALLE_CORTO' });
-        expect(db.query).not.toHaveBeenCalled();
+    test('sin mínimo de caracteres: un texto corto entra; vacío (o solo espacios) no', async () => {
+        db.query.mockResolvedValueOnce([{ insertId: 44 }]);
+        await expect(svc.crear({ ...IDEA_OK, resumen: 'Colores', detalle: 'me cuesta leer' }, usuario, {}))
+            .resolves.toMatchObject({ id: 44 });
+        await expect(svc.crear({ ...IDEA_OK, detalle: '   ' }, usuario, {}))
+            .rejects.toMatchObject({ statusCode: 400, code: 'IDEA_DETALLE_VACIO' });
     });
 
     test('sin frecuencia, alcance o beneficio no entra', async () => {
@@ -82,9 +84,19 @@ describe('ideasService.crear — mejoras, no mañas', () => {
         expect(db.query).not.toHaveBeenCalled();
     });
 
-    test('resumen demasiado corto no entra', async () => {
-        await expect(svc.crear({ ...IDEA_OK, resumen: 'Color' }, usuario, {}))
-            .rejects.toMatchObject({ statusCode: 400, code: 'IDEA_RESUMEN_CORTO' });
+    test('resumen vacío no entra', async () => {
+        await expect(svc.crear({ ...IDEA_OK, resumen: '  ' }, usuario, {}))
+            .rejects.toMatchObject({ statusCode: 400, code: 'IDEA_RESUMEN_VACIO' });
+    });
+
+    test('"Tengo una idea" guarda cómo lo hace hoy; "Algo me cuesta" no usa ese campo', async () => {
+        db.query.mockResolvedValueOnce([{ insertId: 45 }]);
+        await svc.crear({ ...IDEA_OK, tipo: 'idea', esperado: 'Reviso el Excel a mano cada lunes' }, usuario, {});
+        expect(db.query.mock.calls[0][1][4]).toBe('Reviso el Excel a mano cada lunes');
+
+        db.query.mockResolvedValueOnce([{ insertId: 46 }]);
+        await svc.crear({ ...IDEA_OK, tipo: 'cuesta', esperado: 'no aplica' }, usuario, {});
+        expect(db.query.mock.calls[1][1][4]).toBeNull();
     });
 
     test('una falla exige "qué esperabas" y no guarda las señales de idea', async () => {

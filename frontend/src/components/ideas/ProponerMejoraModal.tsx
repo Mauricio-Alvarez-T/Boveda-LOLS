@@ -21,7 +21,7 @@ import { useObra } from '../../context/ObraContext';
 import { useMisIdeasResumen } from '../../hooks/useIdeas';
 import type { Idea, IdeaHecha, IdeaTipo, IdeaFrecuencia, IdeaAlcance, IdeaBeneficio } from '../../types/entities';
 import {
-    TIPOS, ESTADOS, MOTIVOS, FRECUENCIAS, ALCANCES, BENEFICIOS, MIN_RESUMEN, MIN_DETALLE,
+    TIPOS, ESTADOS, MOTIVOS, FRECUENCIAS, ALCANCES, ALCANCES_IDEA, BENEFICIOS, FORMULARIOS,
     nombrePantalla, hace, fechaCorta, primerNombre,
 } from './ideasConfig';
 
@@ -117,20 +117,23 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
     const cerrar = () => { onClose(); setTimeout(reiniciar, 250); };
 
     const esFalla = tipo === 'falla';
+    const textos = FORMULARIOS[tipo || 'cuesta'];
     // Lo que falta, en el orden en que se llena el formulario.
+    // Lo que falta, en el orden del formulario. Sin mínimo de caracteres: basta con no dejarlo vacío.
     const pasos = useMemo(() => {
         if (!tipo) return [];
+        const f = FORMULARIOS[tipo].falta;
         return esFalla
             ? [
-                { listo: resumen.trim().length >= MIN_RESUMEN, falta: 'qué estabas haciendo' },
-                { listo: detalle.trim().length >= MIN_DETALLE, falta: 'qué pasó' },
-                { listo: esperado.trim().length > 0, falta: 'qué esperabas que pasara' },
+                { listo: resumen.trim().length > 0, falta: f.resumen },
+                { listo: detalle.trim().length > 0, falta: f.detalle },
+                { listo: esperado.trim().length > 0, falta: f.esperado || '' },
             ]
             : [
-                { listo: resumen.trim().length >= MIN_RESUMEN, falta: 'qué te gustaría que cambie' },
-                { listo: detalle.trim().length >= MIN_DETALLE, falta: 'el problema que tienes hoy' },
-                { listo: !!frecuencia && !!alcance, falta: 'cada cuánto te pasa y a quién afecta' },
-                { listo: !!beneficio, falta: 'qué ganaríamos' },
+                { listo: resumen.trim().length > 0, falta: f.resumen },
+                { listo: detalle.trim().length > 0, falta: f.detalle },
+                { listo: !!frecuencia && !!alcance, falta: f.senales || '' },
+                { listo: !!beneficio, falta: f.beneficio || '' },
             ];
     }, [tipo, esFalla, resumen, detalle, esperado, frecuencia, alcance, beneficio]);
     const listos = pasos.filter(p => p.listo).length;
@@ -146,6 +149,7 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
                 resumen: resumen.trim(),
                 detalle: detalle.trim(),
                 ...(esFalla ? { esperado: esperado.trim() } : { frecuencia, alcance, beneficio }),
+                ...(tipo === 'idea' && esperado.trim() ? { esperado: esperado.trim() } : {}),
                 pantalla: contexto.pantalla || undefined,
                 pantalla_nombre: contexto.pantallaNombre || undefined,
                 obra_id: selectedObra?.id || undefined,
@@ -276,77 +280,73 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
                             </div>
 
                             <div>
-                                <label htmlFor="idea-resumen" className={ETIQUETA}>
-                                    {esFalla ? '¿Qué estabas haciendo?' : '¿Qué te gustaría que cambie?'}
-                                </label>
+                                <label htmlFor="idea-resumen" className={ETIQUETA}>{textos.resumen.label}</label>
                                 <input
                                     id="idea-resumen"
                                     value={resumen}
                                     onChange={e => setResumen(e.target.value)}
                                     maxLength={200}
                                     autoFocus
-                                    placeholder={esFalla ? 'Ej: Estaba guardando la asistencia de la obra' : 'Ej: Que el botón Guardar quede siempre a la vista en el celular'}
+                                    placeholder={textos.resumen.placeholder}
                                     className={cn(CAMPO, 'h-11')}
                                 />
                             </div>
 
                             <div>
-                                <label htmlFor="idea-detalle" className={ETIQUETA}>
-                                    {esFalla ? '¿Qué pasó?' : '¿Qué problema tienes hoy?'}
-                                </label>
+                                <label htmlFor="idea-detalle" className={ETIQUETA}>{textos.detalle.label}</label>
                                 <textarea
                                     id="idea-detalle"
                                     value={detalle}
                                     onChange={e => setDetalle(e.target.value)}
                                     rows={4}
                                     maxLength={4000}
-                                    placeholder={esFalla ? 'Ej: Toqué Guardar, salió un error rojo y la lista quedó vacía.' : 'Cuéntalo como si se lo explicaras a alguien que no ve tu pantalla.'}
+                                    placeholder={textos.detalle.placeholder}
                                     className={CAMPO}
                                 />
-                                <div className="mt-1 flex justify-end">
-                                    <span className={`text-micro tabular-nums ${detalle.trim().length >= MIN_DETALLE ? 'text-success' : 'text-muted-foreground'}`}>
-                                        {detalle.trim().length >= MIN_DETALLE ? 'Suficiente detalle' : `${detalle.trim().length} / ${MIN_DETALLE} caracteres mínimo`}
-                                    </span>
-                                </div>
-                                {!esFalla && (
+                                {textos.ejemplo && (
                                     <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         <div className="rounded-xl border border-border bg-background px-3 py-2">
                                             <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Así no</p>
-                                            <p className="text-xs text-muted-foreground">"Cambiar el botón de lugar."</p>
+                                            <p className="text-xs text-muted-foreground">{textos.ejemplo.no}</p>
                                         </div>
                                         <div className="rounded-xl border border-border bg-background px-3 py-2">
                                             <p className="text-micro font-bold uppercase tracking-wider text-success mb-0.5">Así sí</p>
-                                            <p className="text-xs text-muted-foreground">"En el celular el botón Guardar queda abajo y no se ve. Dos veces creí que había guardado y no se guardó."</p>
+                                            <p className="text-xs text-muted-foreground">{textos.ejemplo.si}</p>
                                         </div>
                                     </div>
                                 )}
                             </div>
 
-                            {esFalla ? (
+                            {textos.esperado && (
                                 <div>
-                                    <label htmlFor="idea-esperado" className={ETIQUETA}>¿Qué esperabas que pasara?</label>
+                                    <label htmlFor="idea-esperado" className={ETIQUETA}>
+                                        {textos.esperado.label}
+                                        {!textos.esperado.obligatorio && <span className="font-normal normal-case tracking-normal"> (opcional)</span>}
+                                    </label>
                                     <textarea
                                         id="idea-esperado"
                                         value={esperado}
                                         onChange={e => setEsperado(e.target.value)}
                                         rows={2}
                                         maxLength={2000}
-                                        placeholder="Ej: Que se guardara y quedara marcado en verde."
+                                        placeholder={textos.esperado.placeholder}
                                         className={CAMPO}
                                     />
                                 </div>
-                            ) : (
+                            )}
+
+                            {!esFalla && (
                                 <>
                                     <div>
-                                        <p className={ETIQUETA}>¿Cada cuánto te pasa?</p>
+                                        <p className={ETIQUETA}>{textos.frecuencia}</p>
                                         <Opciones valor={frecuencia} opciones={FRECUENCIAS} onChange={setFrecuencia} />
                                     </div>
                                     <div>
-                                        <p className={ETIQUETA}>¿A quién afecta?</p>
-                                        <Opciones valor={alcance} opciones={ALCANCES} onChange={setAlcance} />
+                                        <p className={ETIQUETA}>{textos.alcance}</p>
+                                        <Opciones valor={alcance} opciones={tipo === 'idea' ? ALCANCES_IDEA : ALCANCES} onChange={setAlcance} />
                                     </div>
                                     <div>
-                                        <p className={ETIQUETA}>¿Qué ganaríamos?</p>
+                                        <p className={ETIQUETA}>{textos.beneficio}</p>
                                         <Opciones valor={beneficio} opciones={BENEFICIOS} onChange={setBeneficio} />
                                     </div>
                                 </>

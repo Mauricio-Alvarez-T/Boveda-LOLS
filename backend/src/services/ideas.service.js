@@ -16,9 +16,6 @@ const err = (statusCode, message, extra = {}) => Object.assign(new Error(message
 const limpio = v => (typeof v === 'string' ? v.trim() : v);
 const vacioANull = v => (v === '' || v === undefined ? null : v);
 
-/** Mínimos de largo: los mismos que muestra el formulario. */
-const MIN_RESUMEN = 10;
-const MIN_DETALLE = 40;
 
 /**
  * Foto opcional (mig 121): miniatura comprimida en el cliente, meta ~5 KB. El servidor
@@ -96,8 +93,6 @@ const aVistaAutor = (fila) => {
 const normalizar = (fila) => (fila ? { ...fila, tiene_foto: !!fila.tiene_foto } : fila);
 
 module.exports = {
-    MIN_RESUMEN,
-    MIN_DETALLE,
     MAX_FOTO_BYTES,
     TRANSICIONES,
 
@@ -116,21 +111,22 @@ module.exports = {
         const alcance = vacioANull(data.alcance);
         const beneficio = vacioANull(data.beneficio);
 
-        if (resumen.length < MIN_RESUMEN) {
-            throw err(400, tipo === 'falla'
-                ? 'Cuéntanos qué estabas haciendo (al menos 10 caracteres).'
-                : 'Cuéntanos qué te gustaría que cambie (al menos 10 caracteres).', { code: 'IDEA_RESUMEN_CORTO' });
+        // Sin mínimo de caracteres (Marcos 15-10: "la persona tiene que escribir lo que siente"):
+        // basta con que no venga vacío.
+        if (!resumen) {
+            throw err(400, tipo === 'falla' ? 'Cuéntanos qué estabas haciendo.'
+                : tipo === 'idea' ? 'Cuéntanos qué se te ocurre.' : 'Cuéntanos qué te gustaría que cambie.', { code: 'IDEA_RESUMEN_VACIO' });
         }
-        if (detalle.length < MIN_DETALLE) {
-            throw err(400, tipo === 'falla'
-                ? 'Cuéntanos qué pasó con un poco más de detalle (al menos 40 caracteres).'
-                : 'Cuéntanos el problema que tienes hoy con un poco más de detalle (al menos 40 caracteres): sin el problema no podemos evaluar la idea.',
-                { code: 'IDEA_DETALLE_CORTO' });
+        if (!detalle) {
+            throw err(400, tipo === 'falla' ? 'Cuéntanos qué pasó.'
+                : tipo === 'idea' ? 'Cuéntanos cómo te lo imaginas.' : 'Cuéntanos qué te cuesta o qué no entiendes.', { code: 'IDEA_DETALLE_VACIO' });
         }
         if (tipo === 'falla') {
             if (!esperado) throw err(400, 'Cuéntanos qué esperabas que pasara.', { code: 'IDEA_FALTA_ESPERADO' });
         } else if (!frecuencia || !alcance || !beneficio) {
-            throw err(400, 'Marca cada cuánto te pasa, a quién afecta y qué ganaríamos.', { code: 'IDEA_FALTAN_SENALES' });
+            throw err(400, tipo === 'idea'
+                ? 'Marca cada cuánto lo usarías, quién lo usaría y qué ganaríamos.'
+                : 'Marca cada cuánto te pasa, a quién afecta y qué ganaríamos.', { code: 'IDEA_FALTAN_SENALES' });
         }
 
         const foto = leerFoto(data.foto);
@@ -142,7 +138,8 @@ module.exports = {
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 usuario.id, tipo, resumen, detalle,
-                tipo === 'falla' ? esperado : null,
+                // falla: qué esperaba (obligatorio) · idea: cómo lo hace hoy (opcional) · cuesta: no aplica
+                tipo === 'cuesta' ? null : esperado,
                 tipo === 'falla' ? null : frecuencia,
                 tipo === 'falla' ? null : alcance,
                 tipo === 'falla' ? null : beneficio,

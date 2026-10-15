@@ -11,7 +11,7 @@ import { cn } from '../../utils/cn';
 import api from '../../services/api';
 import type { Idea, IdeaEstado, IdeaMotivo } from '../../types/entities';
 import {
-    TIPOS, ESTADOS, MOTIVOS, FRECUENCIAS, ALCANCES, BENEFICIOS, CRITERIOS,
+    TIPOS, ESTADOS, MOTIVOS, FRECUENCIAS, ALCANCES, ALCANCES_IDEA, BENEFICIOS, CRITERIOS,
     impacto, hace, fechaCorta, primerNombre,
 } from './ideasConfig';
 
@@ -135,15 +135,15 @@ export const IdeaDetalle: React.FC<Props> = ({ idea, parecidas, onSeleccionar, o
 
             {/* Lo que propone */}
             <section className="rounded-card border border-border bg-card p-4 md:p-5">
-                <p className={ETIQUETA}>{idea.tipo === 'falla' ? 'Qué estaba haciendo' : 'Qué le gustaría que cambie'}</p>
+                <p className={ETIQUETA}>{idea.tipo === 'falla' ? 'Qué estaba haciendo' : idea.tipo === 'idea' ? 'Qué se le ocurre' : 'Qué le gustaría que cambie'}</p>
                 <h3 className="text-title-sm font-bold tracking-tight text-brand-dark leading-snug">{idea.resumen}</h3>
 
-                <p className={`${ETIQUETA} mt-4`}>{idea.tipo === 'falla' ? 'Qué pasó' : 'El problema que tiene hoy'}</p>
+                <p className={`${ETIQUETA} mt-4`}>{idea.tipo === 'falla' ? 'Qué pasó' : idea.tipo === 'idea' ? 'Cómo se lo imagina' : 'Qué le cuesta o no entiende'}</p>
                 <p className="text-sm text-brand-dark leading-relaxed whitespace-pre-wrap">{idea.detalle}</p>
 
-                {idea.tipo === 'falla' && idea.esperado && (
+                {idea.esperado && idea.tipo !== 'cuesta' && (
                     <>
-                        <p className={`${ETIQUETA} mt-4`}>Qué esperaba</p>
+                        <p className={`${ETIQUETA} mt-4`}>{idea.tipo === 'falla' ? 'Qué esperaba' : 'Cómo lo hace hoy, sin esto'}</p>
                         <p className="text-sm text-brand-dark leading-relaxed whitespace-pre-wrap">{idea.esperado}</p>
                     </>
                 )}
@@ -152,7 +152,7 @@ export const IdeaDetalle: React.FC<Props> = ({ idea, parecidas, onSeleccionar, o
                     <div className="mt-4 pt-4 border-t border-border">
                         <div className="flex flex-wrap items-center gap-1.5">
                             {idea.frecuencia && <Meta>{FRECUENCIAS[idea.frecuencia]}</Meta>}
-                            {idea.alcance && <Meta>{ALCANCES[idea.alcance]}</Meta>}
+                            {idea.alcance && <Meta>{idea.tipo === 'idea' ? `Lo usaría: ${ALCANCES_IDEA[idea.alcance].toLowerCase()}` : ALCANCES[idea.alcance]}</Meta>}
                             {idea.beneficio && <Meta>{BENEFICIOS[idea.beneficio]}</Meta>}
                             {imp.nivel && (
                                 <span className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-brand-dark">
@@ -164,7 +164,9 @@ export const IdeaDetalle: React.FC<Props> = ({ idea, parecidas, onSeleccionar, o
                         {imp.posiblePreferencia && (
                             <p className="mt-3 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
                                 <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                                Solo le pasa a {nombre || 'esta persona'} y de vez en cuando: revisa si es un problema del sistema o una preferencia.
+                                {idea.tipo === 'idea'
+                                    ? <>Solo la usaría {nombre || 'esta persona'} y de vez en cuando: revisa si es una mejora para el sistema o una preferencia.</>
+                                    : <>Solo le pasa a {nombre || 'esta persona'} y de vez en cuando: revisa si es un problema del sistema o una preferencia.</>}
                             </p>
                         )}
                     </div>

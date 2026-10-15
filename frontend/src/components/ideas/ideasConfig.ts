@@ -11,9 +11,66 @@ import type { IdeaTipo, IdeaEstado, IdeaMotivo, IdeaFrecuencia, IdeaAlcance, Ide
 /** Nombre del acceso en el menú lateral (una sola fuente: se cambia acá). */
 export const ETIQUETA_BUZON_IDEAS = 'Buzón de ideas';
 
-/** Mínimos de largo: los mismos que valida el backend (ideas.service). */
-export const MIN_RESUMEN = 10;
-export const MIN_DETALLE = 40;
+/**
+ * Preguntas del formulario según el tipo. Sin mínimo de caracteres (Marcos 15-10:
+ * "la persona tiene que escribir lo que siente"): basta con que no quede vacío.
+ * "Tengo una idea" pregunta distinto que "Algo me cuesta": es algo NUEVO, no un
+ * problema de algo que ya existe.
+ */
+export interface TextosFormulario {
+    resumen: { label: string; placeholder: string };
+    detalle: { label: string; placeholder: string };
+    /** idea: cómo lo hace hoy (opcional) · falla: qué esperaba (obligatorio) · cuesta: no aplica. */
+    esperado?: { label: string; placeholder: string; obligatorio: boolean };
+    frecuencia?: string;
+    alcance?: string;
+    beneficio?: string;
+    ejemplo?: { no: string; si: string };
+    /** Para el medidor y el aviso junto al botón: "falta contarnos …". */
+    falta: { resumen: string; detalle: string; esperado?: string; senales?: string; beneficio?: string };
+}
+
+export const FORMULARIOS: Record<IdeaTipo, TextosFormulario> = {
+    idea: {
+        resumen: { label: '¿Qué se te ocurre?', placeholder: 'Ej: Que Bóveda me avise cuando a un trabajador le vence un documento' },
+        detalle: { label: '¿Cómo te lo imaginas?', placeholder: 'Dónde estaría, qué haría y qué verías en la pantalla.' },
+        esperado: { label: '¿Cómo lo haces hoy, sin esto?', placeholder: 'Ej: Reviso a mano el Excel de documentos cada lunes', obligatorio: false },
+        frecuencia: '¿Cada cuánto lo usarías?',
+        alcance: '¿Quién lo usaría?',
+        beneficio: '¿Qué ganaríamos?',
+        ejemplo: {
+            no: '"Que Bóveda sea más moderna."',
+            si: '"Que al cerrar la asistencia me llegue un resumen por WhatsApp, para no tener que contarla a mano."',
+        },
+        falta: { resumen: 'qué se te ocurre', detalle: 'cómo te lo imaginas', senales: 'cada cuánto lo usarías y quién', beneficio: 'qué ganaríamos' },
+    },
+    cuesta: {
+        resumen: { label: '¿Qué te gustaría que cambie?', placeholder: 'Ej: Que el botón Guardar quede siempre a la vista en el celular' },
+        detalle: { label: '¿Qué te cuesta o qué no entiendes?', placeholder: 'Cuéntalo como si se lo explicaras a alguien que no ve tu pantalla.' },
+        frecuencia: '¿Cada cuánto te pasa?',
+        alcance: '¿A quién afecta?',
+        beneficio: '¿Qué ganaríamos?',
+        ejemplo: {
+            no: '"Cambiar el botón de lugar."',
+            si: '"En el celular el botón Guardar queda abajo y no se ve. Dos veces creí que había guardado y no se guardó."',
+        },
+        falta: { resumen: 'qué te gustaría que cambie', detalle: 'qué te cuesta', senales: 'cada cuánto te pasa y a quién afecta', beneficio: 'qué ganaríamos' },
+    },
+    falla: {
+        resumen: { label: '¿Qué estabas haciendo?', placeholder: 'Ej: Estaba guardando la asistencia de la obra' },
+        detalle: { label: '¿Qué pasó?', placeholder: 'Ej: Toqué Guardar, salió un error rojo y la lista quedó vacía.' },
+        esperado: { label: '¿Qué esperabas que pasara?', placeholder: 'Ej: Que se guardara y quedara marcado en verde.', obligatorio: true },
+        falta: { resumen: 'qué estabas haciendo', detalle: 'qué pasó', esperado: 'qué esperabas que pasara' },
+    },
+};
+
+/** "¿Quién lo usaría?" en primera persona para una idea nueva. */
+export const ALCANCES_IDEA: Record<IdeaAlcance, string> = {
+    solo_yo: 'Solo yo',
+    equipo: 'Mi equipo',
+    obra: 'Toda la obra',
+    todos: 'Todos',
+};
 
 export const TIPOS: Record<IdeaTipo, { label: string; ayuda: string; icon: LucideIcon; tone: ChipTone }> = {
     idea: { label: 'Tengo una idea', ayuda: 'Algo nuevo que haría mejor el trabajo', icon: Lightbulb, tone: 'neutral' },
