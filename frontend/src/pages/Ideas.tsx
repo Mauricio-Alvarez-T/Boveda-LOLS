@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button';
 import { EstadoPill } from '../components/ideas/Meta';
 import { EmptyState } from '../components/ui/EmptyState';
 import { SearchBar } from '../components/ui/SearchBar';
+import { PestanasElasticas } from '../components/ui/PestanasElasticas';
 import { IdeaDetalle } from '../components/ideas/IdeaDetalle';
 import { TIPOS, ESTADOS, impacto, hace, primerNombre, ETIQUETA_BUZON_IDEAS } from '../components/ideas/ideasConfig';
 import { useIdeasPendientes } from '../hooks/useIdeas';
@@ -138,13 +139,24 @@ const IdeasPage: React.FC = () => {
             {/* Filtros */}
             {/* En el celular cada fila se desliza de lado en vez de apilarse en tres pisos. */}
             <div className={cn('flex flex-col md:flex-row md:items-center gap-2 md:gap-3', verDetalleMovil && 'hidden lg:flex')}>
-                <div className="flex items-center gap-1 overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0 [scrollbar-width:none]">
-                    {FILTROS.map(f => (
-                        <Button key={f.key} size="sm" className="shrink-0" variant={filtro === f.key ? 'primary' : 'ghost'} onClick={() => setFiltro(f.key)}>
-                            {f.label}
-                            {f.key !== 'todas' && <span className="ml-1.5 opacity-70 tabular-nums">{resumen[f.key as IdeaEstado]}</span>}
-                        </Button>
-                    ))}
+                <div className="flex items-center overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0 [scrollbar-width:none]">
+                    {/* Misma caja que un `Button size="sm"` (h-9, px-3, gap-1.5, rounded-full → radio 18), sin su whileTap. */}
+                    <PestanasElasticas
+                        opciones={FILTROS}
+                        activa={filtro}
+                        onCambiar={setFiltro}
+                        aria-label="Estado de las ideas"
+                        claseFila="gap-1"
+                        claseOpcion="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 font-medium whitespace-nowrap"
+                        claseInactiva="text-brand-dark hover:bg-black/5"
+                        radio={18}
+                        render={(f) => (
+                            <>
+                                {f.label}
+                                {f.key !== 'todas' && <span className="ml-1.5 opacity-70 tabular-nums">{resumen[f.key as IdeaEstado]}</span>}
+                            </>
+                        )}
+                    />
                 </div>
                 <div className="flex items-center gap-1 overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0 md:ml-auto [scrollbar-width:none]">
                     <Button size="sm" className="shrink-0" variant={tipo === 'todos' ? 'secondary' : 'ghost'} onClick={() => setTipo('todos')}>Todo</Button>

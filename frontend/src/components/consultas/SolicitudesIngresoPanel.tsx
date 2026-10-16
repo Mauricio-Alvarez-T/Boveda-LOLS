@@ -14,6 +14,7 @@ import { cn } from '../../utils/cn';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { EmptyState } from '../ui/EmptyState';
+import { PestanasElasticas } from '../ui/PestanasElasticas';
 import { StatusBadge } from '../ui/StatusBadge';
 import { RevisarSolicitudModal, type SolicitudAccion } from './RevisarSolicitudModal';
 import {
@@ -29,6 +30,9 @@ interface Props {
     /** Abre el formulario de nueva ficha de ingreso (el modal vive en la página). Solo con trabajadores.solicitud.crear. */
     onNuevoIngreso?: () => void;
 }
+
+/** Filtros como opciones de `PestanasElasticas` (la clave es el estado). */
+const OPCIONES_FILTRO = FILTROS_SOLICITUDES.map(f => ({ ...f, key: f.value }));
 
 const TONO_ESPERA = {
     ok: 'text-muted-foreground',
@@ -168,31 +172,33 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
         <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
             {/* Cabecera: pestañas por estado con contador + acciones */}
             <div className="border-b border-border px-3 sm:px-4 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
-                <div role="tablist" aria-label="Estado de las solicitudes" className="flex items-center gap-1 rounded-2xl bg-muted p-1 overflow-x-auto scrollbar-none max-w-full">
-                    {FILTROS_SOLICITUDES.map(f => {
-                        const activo = filtro === f.value;
-                        const n = conteo[f.value];
-                        return (
-                            <Button
-                                key={f.value}
-                                role="tab"
-                                size="sm"
-                                variant={activo ? 'glass' : 'ghost'}
-                                onClick={() => setFiltro(f.value)}
-                                aria-selected={activo}
-                                className={cn('h-9 shrink-0 rounded-xl px-3 text-section font-semibold gap-2',
-                                    activo ? 'text-brand-dark shadow-sm' : 'text-muted-foreground hover:text-brand-dark')}
-                            >
-                                {f.label}
-                                {!loading && n > 0 && (
-                                    <span className={cn('flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full text-micro font-bold tabular-nums',
-                                        f.value === 'pendiente' ? 'bg-amber-500 text-white' : 'bg-border text-muted-foreground')}>
-                                        {n}
-                                    </span>
-                                )}
-                            </Button>
-                        );
-                    })}
+                <div className="flex items-center rounded-2xl bg-muted p-1 overflow-x-auto scrollbar-none max-w-full">
+                    <PestanasElasticas
+                        opciones={OPCIONES_FILTRO}
+                        activa={filtro}
+                        onCambiar={setFiltro}
+                        aria-label="Estado de las solicitudes"
+                        claseFila="gap-1"
+                        claseOpcion="flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-section font-semibold whitespace-nowrap"
+                        claseInactiva="text-muted-foreground hover:text-brand-dark"
+                        render={(f, sobreIndicador) => {
+                            const n = conteo[f.value];
+                            return (
+                                <>
+                                    {f.label}
+                                    {!loading && n > 0 && (
+                                        <span className={cn('flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full text-micro font-bold tabular-nums',
+                                            // Sobre el verde del indicador: pastilla blanca (pendientes conserva su ámbar en el número).
+                                            sobreIndicador
+                                                ? (f.value === 'pendiente' ? 'bg-white text-amber-700' : 'bg-white/25 text-white')
+                                                : (f.value === 'pendiente' ? 'bg-amber-500 text-white' : 'bg-border text-muted-foreground'))}>
+                                            {n}
+                                        </span>
+                                    )}
+                                </>
+                            );
+                        }}
+                    />
                 </div>
                 <div className="flex items-center gap-2 ml-auto">
                     <IconButton

@@ -2,12 +2,12 @@ import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckSquare, ClipboardList } from 'lucide-react';
-import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import AttendanceDailyTab from '../components/attendance/AttendanceDailyTab';
 import ActividadesSugeridasTab from '../components/attendance/actividades/ActividadesSugeridasTab';
 import ActividadesErrorBoundary from '../components/attendance/actividades/ActividadesErrorBoundary';
+import { PestanasElasticas } from '../components/ui/PestanasElasticas';
 
 type TabKey = 'diaria' | 'actividades';
 
@@ -68,31 +68,27 @@ const AttendancePage: React.FC = () => {
         <div className="flex flex-col flex-1 min-h-0 gap-2">
             {/* Tab bar — solo en MÓVIL (en desktop el ícono de Actividades vive en AttendanceSummaryRow) */}
             {visibleTabs.length > 1 && (
-                <div className="md:hidden flex items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 overflow-x-auto scrollbar-none">
-                    {visibleTabs.map(tab => {
-                        const TabIcon = tab.icon;
-                        const isActive = effectiveTab === tab.key;
-                        return (
-                            // eslint-disable-next-line no-restricted-syntax -- control de tab segmentado (flex-1 + estado activo full-bleed); el primitivo Button (pill rounded-full, scale) rompe el layout
-                            <button
-                                key={tab.key}
-                                type="button"
-                                onClick={() => setActiveTab(tab.key)}
-                                className={cn(
-                                    'flex items-center justify-center gap-1.5 rounded-xl font-bold uppercase tracking-wider transition-all whitespace-nowrap',
-                                    // `text-base`: el tamaño que siempre se vio (el `text-label` lo borraba `cn()`
-                                    // antes de conocer los tamaños propios); igual que las pestañas de Inventario.
-                                    'flex-1 px-3 py-2 text-base',
-                                    isActive
-                                        ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/25'
-                                        : 'text-muted-foreground hover:bg-background hover:text-brand-dark'
-                                )}
-                            >
-                                <TabIcon className="h-4 w-4 shrink-0" />
-                                <span>{tab.shortLabel}</span>
-                            </button>
-                        );
-                    })}
+                <div className="md:hidden flex items-center p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 overflow-x-auto scrollbar-none">
+                    <PestanasElasticas
+                        opciones={visibleTabs}
+                        activa={effectiveTab}
+                        onCambiar={setActiveTab}
+                        aria-label="Secciones de asistencia"
+                        claseFila="gap-0.5 w-full"
+                        // `text-base`: el tamaño que siempre se vio (el `text-label` lo borraba `cn()` antes de
+                        // conocer los tamaños propios); igual que las pestañas de Inventario.
+                        claseOpcion="flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-base font-bold uppercase tracking-wider whitespace-nowrap"
+                        claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark"
+                        render={(tab) => {
+                            const TabIcon = tab.icon;
+                            return (
+                                <>
+                                    <TabIcon className="h-4 w-4 shrink-0" />
+                                    <span>{tab.shortLabel}</span>
+                                </>
+                            );
+                        }}
+                    />
                 </div>
             )}
 

@@ -475,8 +475,15 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     vuelta, Inicio y Fin (activación inmediata), en `indicePorTecla`; el recorrido se calcula en
     `planElastico` (ambos en `utils/movimiento.ts`, con test). Sin arrastre: en el teléfono la fila
     hace scroll horizontal y el gesto quedaría escondido. Referencias: las dos barras de
-    `pages/Inventario.tsx` y, en `pages/Settings.tsx`, las categorías (teléfono y escritorio) y las
-    sub-pestañas del teléfono. Opciones de ancho parejo: `flex-1` en `claseOpcion` y `w-full` en
+    `pages/Inventario.tsx`; en `pages/Settings.tsx`, las categorías (teléfono y escritorio) y las
+    sub-pestañas del teléfono; las pestañas Asistencia / Actividades del teléfono (`Attendance.tsx`);
+    los filtros de estado de Solicitudes de ingreso y los carriles del teléfono de Documentos físicos
+    (Gestiones), y la fila de estado de Revisar ideas (`Ideas.tsx`, `radio={18}` por `rounded-full`).
+    Un conteo dentro de la opción usa `render(op, sobreIndicador)` para su versión sobre el verde
+    (pastilla blanca con el número en su color, o `bg-white/25 text-white` si es neutro). Si la opción
+    activa se elige sola al cargar (el primer carril con lotes de Documentos físicos), se elige dentro
+    de la misma carga y la fila se remonta con `key`, para que aparezca quieta y no viaje sin que nadie
+    toque nada. Opciones de ancho parejo: `flex-1` en `claseOpcion` y `w-full` en
     `claseFila`. Si la lista cambia entera (las sub-pestañas cambian al cambiar de categoría), el
     componente se remonta con `key`: así aparece quieto en la nueva lista en vez de «viajar» desde una
     posición de la lista anterior. Las sub-pestañas de escritorio de Configuración son pastillas

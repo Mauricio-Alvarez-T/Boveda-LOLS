@@ -19,6 +19,7 @@ import { cn } from '../../utils/cn';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { EmptyState } from '../ui/EmptyState';
+import { PestanasElasticas } from '../ui/PestanasElasticas';
 import { NuevoLoteModal } from './NuevoLoteModal';
 import { LoteDetalleModal } from './LoteDetalleModal';
 import { AlertasDocumentosStrip } from './AlertasDocumentosStrip';
@@ -48,11 +49,15 @@ const CARRIL_HINT: Record<LoteEstado, { rrhh: string; portador: string }> = {
     },
 };
 
-const CARRIL_ESTILO: Record<LoteEstado, { punto: string; conteo: string }> = {
-    pendiente_retiro: { punto: 'bg-amber-500', conteo: 'bg-amber-500 text-white' },
-    en_terreno: { punto: 'bg-blue-500', conteo: 'bg-blue-500 text-white' },
-    cerrado: { punto: 'bg-muted-foreground/50', conteo: 'bg-border text-muted-foreground' },
+/** `sobreVerde`: el conteo dentro del indicador verde de las pestañas del celular. */
+const CARRIL_ESTILO: Record<LoteEstado, { punto: string; conteo: string; sobreVerde: string }> = {
+    pendiente_retiro: { punto: 'bg-amber-500', conteo: 'bg-amber-500 text-white', sobreVerde: 'bg-white text-amber-700' },
+    en_terreno: { punto: 'bg-blue-500', conteo: 'bg-blue-500 text-white', sobreVerde: 'bg-white text-blue-700' },
+    cerrado: { punto: 'bg-muted-foreground/50', conteo: 'bg-border text-muted-foreground', sobreVerde: 'bg-white/25 text-white' },
 };
+
+/** Carriles como opciones de `PestanasElasticas`. */
+const OPCIONES_CARRIL = LOTE_ESTADOS.map(e => ({ key: e }));
 
 const CERRADOS_VISIBLES = 12;
 
@@ -71,6 +76,12 @@ export const DocumentosFisicosPanel: React.FC = () => {
     const [carrilMovil, setCarrilMovil] = useState<LoteEstado>('pendiente_retiro');
     const [verTodosCerrados, setVerTodosCerrados] = useState(false);
     const seq = useRef(0);
+    // Primer carril con contenido para quien entra desde el celular (el portador quiere ver lo que debe
+    // confirmar). Se elige DENTRO de la primera carga, en el mismo render que los lotes, y las pestañas
+    // se remontan con `carrilListo`: así el indicador aparece quieto en ese carril en vez de viajar
+    // solo, sin que nadie toque nada (diseno.md §9.12).
+    const carrilInicial = useRef(false);
+    const [carrilListo, setCarrilListo] = useState(false);
 
     const cargar = useCallback(async (silencioso = false) => {
         const mio = ++seq.current;
@@ -81,7 +92,15 @@ export const DocumentosFisicosPanel: React.FC = () => {
                 puedeRegistrar ? api.get<{ data: DocumentoDisponible[] }>('/documentos-lotes/disponibles') : Promise.resolve(null),
             ]);
             if (mio !== seq.current) return;
-            setLotes(resLotes.data.data || []);
+            const datos = resLotes.data.data || [];
+            setLotes(datos);
+            if (!carrilInicial.current) {
+                carrilInicial.current = true; // solo la primera carga: después manda lo que elija la persona
+                const grupos = agruparLotesPorEstado(datos);
+                const primero = LOTE_ESTADOS.find(e => grupos[e].length > 0);
+                if (primero) setCarrilMovil(primero);
+                setCarrilListo(true);
+            }
             if (resDisp) setDisponibles((resDisp.data.data || []).length);
         } catch (err) {
             if (mio !== seq.current) return;
@@ -98,14 +117,6 @@ export const DocumentosFisicosPanel: React.FC = () => {
     const quien = useMemo(() => ({ id: user?.id, puedeRegistrar, puedePortar }), [user?.id, puedeRegistrar, puedePortar]);
     const carriles = useMemo(() => agruparLotesPorEstado(lotes), [lotes]);
     const rol: 'rrhh' | 'portador' = puedeRegistrar ? 'rrhh' : 'portador';
-    // Primer carril con contenido para quien entra desde el celular (el portador quiere ver lo que debe confirmar).
-    const carrilInicial = useRef(false);
-    useEffect(() => {
-        if (loading || carrilInicial.current) return;
-        carrilInicial.current = true; // solo la primera carga: después manda lo que elija la persona
-        const primero = LOTE_ESTADOS.find(e => carriles[e].length > 0);
-        if (primero) setCarrilMovil(primero);
-    }, [loading, carriles]);
 
     const botonNuevo = puedeRegistrar
         ? <Button size="sm" leftIcon={<PackageOpen className="h-4 w-4" />} onClick={() => setNuevo(true)} className="shrink-0">Nuevo lote</Button>
@@ -219,15 +230,26 @@ export const DocumentosFisicosPanel: React.FC = () => {
                     <IconButton variant="ghost" size="sm" aria-label="Recargar" title="Recargar" onClick={() => cargar()} icon={<RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />} />
                     {botonNuevo}
                 </div>
-                <div role="tablist" aria-label="Dónde están" className="lg:hidden flex w-full items-center gap-1 rounded-2xl bg-muted p-1">
-                    {LOTE_ESTADOS.map(e => (
-                        <Button key={e} role="tab" size="sm" variant={carrilMovil === e ? 'glass' : 'ghost'} aria-selected={carrilMovil === e}
-                            onClick={() => setCarrilMovil(e)}
-                            className={cn('h-9 flex-1 rounded-xl px-2 text-section font-semibold gap-1.5', carrilMovil === e ? 'text-brand-dark shadow-sm' : 'text-muted-foreground')}>
-                            {LOTE_ESTADO_LABEL[e]}
-                            <span className={cn('flex h-5 min-w-5 px-1 items-center justify-center rounded-full text-micro font-bold tabular-nums', CARRIL_ESTILO[e].conteo)}>{carriles[e].length}</span>
-                        </Button>
-                    ))}
+                <div className="lg:hidden flex w-full items-center rounded-2xl bg-muted p-1">
+                    <PestanasElasticas
+                        key={carrilListo ? 'listo' : 'cargando'}
+                        opciones={OPCIONES_CARRIL}
+                        activa={carrilMovil}
+                        onCambiar={setCarrilMovil}
+                        aria-label="Dónde están"
+                        claseFila="gap-1 w-full"
+                        claseOpcion="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 text-section font-semibold"
+                        claseInactiva="text-muted-foreground"
+                        render={({ key: e }, sobreIndicador) => (
+                            <>
+                                {LOTE_ESTADO_LABEL[e]}
+                                <span className={cn('flex h-5 min-w-5 px-1 items-center justify-center rounded-full text-micro font-bold tabular-nums',
+                                    sobreIndicador ? CARRIL_ESTILO[e].sobreVerde : CARRIL_ESTILO[e].conteo)}>
+                                    {carriles[e].length}
+                                </span>
+                            </>
+                        )}
+                    />
                 </div>
             </div>
 
