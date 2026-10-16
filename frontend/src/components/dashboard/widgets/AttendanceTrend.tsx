@@ -6,6 +6,7 @@ import { Activity, CheckSquare } from 'lucide-react';
 import { useReducedMotion } from 'framer-motion';
 import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
+import { EncabezadoTarjeta } from './EncabezadoTarjeta';
 
 interface Props {
     data: { fecha: string; tasa: number }[];
@@ -20,15 +21,7 @@ const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
     if (data.length === 0) {
         return (
             <div className="h-full flex flex-col">
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 className="text-sm font-semibold text-foreground">Tendencia de Asistencia</h3>
-                        <p className="text-xs text-muted-foreground">Últimos 7 días activos.</p>
-                    </div>
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
-                        <Activity className="h-5 w-5 text-muted-foreground" />
-                    </span>
-                </div>
+                <EncabezadoTarjeta icon={Activity} titulo="Tendencia de asistencia" subtitulo="Últimos 7 días activos" />
                 <EmptyState
                     className="flex-1 py-8"
                     icon={CheckSquare}
@@ -45,13 +38,7 @@ const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-4">
-                <div>
-                    <h3 className="text-sm font-semibold text-foreground">Tendencia de Asistencia</h3>
-                    <p className="text-xs text-muted-foreground">Últimos 7 días activos.</p>
-                </div>
-                <Activity className="h-5 w-5 text-muted-foreground" />
-            </div>
+            <EncabezadoTarjeta icon={Activity} titulo="Tendencia de asistencia" subtitulo="Últimos 7 días activos" />
             <div className="h-[200px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     {/* Colores vía CSS vars (tokens) → el gráfico respeta claro/oscuro.
