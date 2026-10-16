@@ -77,6 +77,9 @@ function recorte(l: number, r: number, w: number, radio: number) {
     return w > 0 ? `inset(0 ${Math.max(0, w - r)}px 0 ${Math.max(0, l)}px round ${radio}px)` : 'inset(0 100% 0 0)';
 }
 
+/** Indicador escondido (ninguna opción elegida): ancho cero. */
+const NADA: Tramo = { l: 0, r: 0 };
+
 /** El indicador se está moviendo o espera el relevo. */
 function enViaje(m: Motor) {
     return m.relevo.current !== undefined || m.l.isAnimating() || m.r.isAnimating();
@@ -106,7 +109,8 @@ function mostrarOpcion(fila: HTMLElement, opcion: HTMLElement | undefined, suave
 
 interface PestanasElasticasProps<K extends string, T extends { key: K }> {
     opciones: readonly T[];
-    activa: K;
+    /** Opción elegida; `null` (o una clave que no está) = ninguna, sin indicador (chips de Vehículos al entrar). */
+    activa: K | null;
     onCambiar: (key: K) => void;
     'aria-label': string;
     /**
@@ -123,6 +127,13 @@ interface PestanasElasticasProps<K extends string, T extends { key: K }> {
     claseInactiva?: string;
     /** Radio del indicador en px; igual al `rounded-*` de `claseOpcion` (`rounded-xl` = 12). */
     radio?: number;
+    /**
+     * Color del indicador y de su texto. Por defecto el verde de marca; otro solo si el color ES el
+     * significado: rojo en «Diferencias» de Inventario.
+     */
+    claseIndicador?: string;
+    /** Color de fondo exacto (hex) cuando sale de los datos: el color de cada empresa en Vehículos. */
+    colorIndicador?: string;
     /** Tooltip de cada opción. */
     titulo?: (opcion: T) => string | undefined;
     /** Contenido de una opción. `sobreIndicador` = la copia blanca que se ve dentro del indicador verde. */
@@ -155,6 +166,8 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
     claseOpcion,
     claseInactiva,
     radio = 12,
+    claseIndicador = 'bg-brand-primary text-white',
+    colorIndicador,
     titulo,
     render,
 }: PestanasElasticasProps<K, T>) {
@@ -162,7 +175,8 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
     const filaRef = useRef<HTMLDivElement>(null);
     const copiaRef = useRef<HTMLDivElement>(null);
     const tramos = useRef<Tramo[]>([]);
-    const indice = Math.max(0, opciones.findIndex(o => o.key === activa));
+    /** -1 = ninguna elegida. */
+    const indice = opciones.findIndex(o => o.key === activa);
     /** Opción donde está (o hacia donde va) el indicador. */
     const confirmado = useRef(indice);
     const turno = useRef(0);
@@ -194,7 +208,7 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
             ancho.set(fila.offsetWidth);
             // Si algo cambia de ancho a medio viaje (un conteo que aparece al activar la pestaña),
             // el viaje sigue hacia la medida nueva en vez de cortarse en seco.
-            const destino = tramos.current[confirmado.current];
+            const destino = tramos.current[confirmado.current] ?? NADA;
             if (enViaje(motor)) {
                 viajar(motor, destino);
             } else {
@@ -221,9 +235,10 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
         if (desde === indice) return;
         confirmado.current = indice;
         const fila = filaRef.current;
-        if (!fila || fila.offsetWidth === 0 || reducir) saltar(motor, tramos.current[indice]);
+        // Desde o hacia «ninguna» no hay recorrido que mostrar: aparece o se va en seco.
+        if (!fila || fila.offsetWidth === 0 || reducir || desde < 0 || indice < 0) saltar(motor, tramos.current[indice] ?? NADA);
         else viajar(motor, tramos.current[indice]);
-        if (fila && fila.offsetWidth > 0) {
+        if (fila && fila.offsetWidth > 0 && indice >= 0) {
             mostrarOpcion(fila, fila.querySelectorAll<HTMLElement>(':scope > [role="tab"]')[indice], !reducir);
         }
     }, [indice, reducir, motor]);
@@ -248,7 +263,8 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
                     type="button"
                     role="tab"
                     aria-selected={i === indice}
-                    tabIndex={i === indice ? 0 : -1}
+                    // Sin ninguna elegida, la primera recibe el foco del Tab.
+                    tabIndex={i === Math.max(0, indice) ? 0 : -1}
                     title={titulo?.(opcion)}
                     onClick={() => onCambiar(opcion.key)}
                     onKeyDown={e => alTeclear(e, i)}
@@ -262,12 +278,13 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
                 ref={copiaRef}
                 aria-hidden
                 className={clsx(
-                    'pointer-events-none absolute inset-0 flex bg-brand-primary text-white',
+                    'pointer-events-none absolute inset-0 flex',
+                    claseIndicador,
                     // Alto contraste de Windows pinta todos los fondos igual: el indicador usa el color de selección del sistema.
                     'forced-colors:bg-[Highlight] forced-colors:text-[HighlightText] forced-colors:[forced-color-adjust:none]',
                     claseFila,
                 )}
-                style={{ clipPath }}
+                style={{ clipPath, backgroundColor: colorIndicador }}
             >
                 {opciones.map(opcion => (
                     <span key={opcion.key} className={clsx(claseOpcion, 'text-center')}>

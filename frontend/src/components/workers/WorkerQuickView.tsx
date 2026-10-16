@@ -10,6 +10,7 @@ import { listarDatosPersonales } from '../consultas/solicitudIngresoSchema';
 import { IconButton } from '../ui/IconButton';
 import { Chip } from '../ui/Chip';
 import { cn } from '../../utils/cn';
+import { PestanasElasticas } from '../ui/PestanasElasticas';
 import { WorkerCalendarModal } from '../attendance/WorkerCalendarModal';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -327,18 +328,25 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                         </Button>
                                     </div>
 
-                                    <div role="tablist" aria-label="Secciones de la ficha" className="mt-3 flex gap-1">
-                                        {TABS.map(t => (
-                                            <Button key={t.id} role="tab" size="sm" variant="ghost" aria-selected={tab === t.id}
-                                                onClick={() => setTab(t.id)}
-                                                className={cn('h-10 flex-1 rounded-none rounded-t-lg border-b-2 gap-1.5 text-section font-semibold',
-                                                    tab === t.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-muted-foreground hover:text-brand-dark')}>
-                                                {t.label}
-                                                {!!t.badge && t.badge > 0 && (
-                                                    <span className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-warning text-micro font-bold tabular-nums text-warning-foreground">{t.badge}</span>
-                                                )}
-                                            </Button>
-                                        ))}
+                                    <div className="mt-3 flex rounded-2xl bg-muted p-1">
+                                        <PestanasElasticas
+                                            opciones={TABS.map(t => ({ ...t, key: t.id }))}
+                                            activa={tab}
+                                            onCambiar={setTab}
+                                            aria-label="Secciones de la ficha"
+                                            claseFila="gap-1 w-full"
+                                            claseOpcion="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl text-section font-semibold"
+                                            claseInactiva="text-muted-foreground hover:text-brand-dark"
+                                            render={(t, sobreIndicador) => (
+                                                <>
+                                                    {t.label}
+                                                    {!!t.badge && t.badge > 0 && (
+                                                        <span className={cn('flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-micro font-bold tabular-nums',
+                                                            sobreIndicador ? 'bg-white text-amber-700' : 'bg-warning text-warning-foreground')}>{t.badge}</span>
+                                                    )}
+                                                </>
+                                            )}
+                                        />
                                     </div>
                                 </div>
 

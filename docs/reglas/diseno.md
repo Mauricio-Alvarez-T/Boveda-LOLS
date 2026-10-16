@@ -483,8 +483,23 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     (pastilla blanca con el número en su color, o `bg-white/25 text-white` si es neutro). Si la opción
     activa se elige sola al cargar (el primer carril con lotes de Documentos físicos), se elige dentro
     de la misma carga y la fila se remonta con `key`, para que aparezca quieta y no viaje sin que nadie
-    toque nada. Opciones de ancho parejo: `flex-1` en `claseOpcion` y `w-full` en
+    toque nada.
+13. **Formato único de menús de opciones (dueño 2026-10-16, «buscar cohesión»).** Todo menú donde se
+    elige UNA opción de varias (pestañas, sub-pestañas, filtros de estado, categorías, vista
+    Cards/Tabla) es `ui/PestanasElasticas`: una pista **rectangular** (`rounded-2xl`; `bg-card` con
+    borde sobre fondo gris, `bg-muted` dentro de una tarjeta) con opciones `rounded-xl` y el indicador
+    relleno. **Prohibidas las pastillas ovaladas** (`rounded-full`) y la pastilla blanca con borde
+    verde para elegir. Verde por defecto; otro color solo si el color es el significado
+    (`claseIndicador`: rojo en «Diferencias» de Inventario y en la lista de diferencias;
+    `colorIndicador`: el color de cada empresa en los chips de Vehículos, que además parten sin
+    ninguna elegida, `activa={null}`). Una sola fila: si no cabe, scroll horizontal (el indicador no
+    admite dos líneas). Aplicado: Inventario (barra, Maestro Ítems/Stock y Cards/Tabla, filtro de
+    Solicitudes, Diferencias, categorías y Catálogo/Otros del pedido), Configuración (todas sus
+    barras), Asistencia, Gestiones (Solicitudes de ingreso, Documentos físicos), ficha rápida del
+    trabajador, Revisar ideas (estado y tipo), Buzón de ideas (Proponer/Mis ideas), Centro de ayuda y
+    Vehículos. **No** aplica a respuestas de formulario ni a controles por fila (A/F/JI/TO,
+    Asistió/No, Conceder/Denegar, Firmado/Sin firma, preguntas de una idea), a filtros donde se
+    marcan varios, a menús verticales ni al selector de tema (íconos, ya rectangular). Opciones de ancho parejo: `flex-1` en `claseOpcion` y `w-full` en
     `claseFila`. Si la lista cambia entera (las sub-pestañas cambian al cambiar de categoría), el
     componente se remonta con `key`: así aparece quieto en la nueva lista en vez de «viajar» desde una
-    posición de la lista anterior. Las sub-pestañas de escritorio de Configuración son pastillas
-    blancas con borde verde, otro estilo; quedan como están.
+    posición de la lista anterior. Las sub-pestañas de escritorio de Configuración también lo usan desde la regla 13.

@@ -11,6 +11,7 @@ import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { IconButton } from '../components/ui/IconButton';
 import { EmptyState } from '../components/ui/EmptyState';
+import { PestanasElasticas } from '../components/ui/PestanasElasticas';
 import { fmtNumber } from '../utils/format';
 import { VehiculoForm } from '../components/vehiculos/VehiculoForm';
 import { VenderVehiculoForm } from '../components/vehiculos/VenderVehiculoForm';
@@ -422,26 +423,20 @@ const VehiculosPage: React.FC = () => {
 
     // Chip compacto de empresa (selector horizontal en móvil): punto de color +
     // nombre completo + contador. El activo se rellena con el color de la empresa.
-    const renderEmpresaChip = (
-        key: React.Key,
-        nombre: string,
-        color: string,
-        count: number,
-        activa: boolean,
-        onSelect: () => void,
-    ) => (
-        <button key={key} type="button" onClick={onSelect}
-            className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-bold whitespace-nowrap shrink-0 transition-colors',
-                activa ? 'border-transparent text-white shadow-sm' : 'border-border bg-card text-brand-dark'
-            )}
-            style={activa ? { backgroundColor: color } : undefined}
-        >
-            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: activa ? '#ffffff' : color }} />
-            <span>{nombre}</span>
-            <span className={cn('rounded-full px-1.5 text-xs', activa ? 'bg-white/25' : 'bg-muted text-muted-foreground')}>{count}</span>
-        </button>
-    );
+    // Chips de empresas del celular: formato único de menús (dueño 2026-10-16). El indicador toma el
+    // color de la empresa elegida; al entrar no hay ninguna (`activa = null`, sin indicador).
+    const chipsEmpresa = [
+        ...empresas.map(e => ({
+            key: `e${e.id}`, nombre: e.nombre, color: e.color,
+            count: e.vehiculos_count ?? (conteos.porEmpresa.get(e.id) || 0),
+            entrar: () => entrarEmpresa(e),
+        })),
+        ...(conteos.sin > 0
+            ? [{ key: 'sin', nombre: 'Sin empresa', color: SIN_EMPRESA_COLOR, count: conteos.sin, entrar: () => entrarEmpresa('sin') }]
+            : []),
+        { key: 'vendidos', nombre: 'Vendidos', color: VENDIDOS_COLOR, count: ventas.length, entrar: () => entrarEmpresa('vendidos') },
+    ];
+    const chipActivo = esVendidos ? 'vendidos' : selectedEmpresa === 'sin' ? 'sin' : empresaActiva ? `e${empresaActiva.id}` : null;
 
     const EmpresasList = (
         <div className="flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0">
@@ -769,21 +764,27 @@ const VehiculosPage: React.FC = () => {
                     <>
                         {/* Chips de empresas (scroll horizontal si hay muchas) */}
                         <div className="shrink-0 border-b border-border overflow-x-auto">
-                            <div className="flex items-center gap-2 p-3 w-max">
-                                {empresas.map(e => renderEmpresaChip(
-                                    e.id, e.nombre, e.color,
-                                    e.vehiculos_count ?? (conteos.porEmpresa.get(e.id) || 0),
-                                    empresaActiva?.id === e.id,
-                                    () => entrarEmpresa(e),
-                                ))}
-                                {conteos.sin > 0 && renderEmpresaChip(
-                                    'sin', 'Sin empresa', SIN_EMPRESA_COLOR, conteos.sin,
-                                    selectedEmpresa === 'sin', () => entrarEmpresa('sin'),
-                                )}
-                                {renderEmpresaChip(
-                                    'vendidos', 'Vendidos', VENDIDOS_COLOR, ventas.length,
-                                    esVendidos, () => entrarEmpresa('vendidos'),
-                                )}
+                            <div className="p-3 w-max">
+                                <div className="flex rounded-2xl bg-muted p-1">
+                                    <PestanasElasticas
+                                        opciones={chipsEmpresa}
+                                        activa={chipActivo}
+                                        onCambiar={(k) => chipsEmpresa.find(c => c.key === k)?.entrar()}
+                                        aria-label="Empresas"
+                                        claseFila="gap-1"
+                                        claseOpcion="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-bold whitespace-nowrap shrink-0"
+                                        claseInactiva="text-brand-dark"
+                                        claseIndicador="text-white"
+                                        colorIndicador={chipActivo ? empresaActivaColor : undefined}
+                                        render={(c, sobreIndicador) => (
+                                            <>
+                                                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: sobreIndicador ? '#ffffff' : c.color }} />
+                                                <span>{c.nombre}</span>
+                                                <span className={cn('rounded-full px-1.5 text-xs', sobreIndicador ? 'bg-white/25' : 'bg-card text-muted-foreground')}>{c.count}</span>
+                                            </>
+                                        )}
+                                    />
+                                </div>
                             </div>
                         </div>
 

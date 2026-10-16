@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Plus, Minus, Trash2, Search, Package, AlertCircle, ShoppingBag } from 'lucide-react';
-import { cn } from '../../../utils/cn';
 import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
 import { Skeleton } from '../../ui/Skeleton';
 import { QtyStepper } from '../../ui/QtyStepper';
 import type { ItemInventario, CategoriaInventario } from '../../../types/entities';
 import type { ItemInput, CustomItemInput } from '../../../utils/inferMovimiento';
+import { PestanasElasticas } from '../../ui/PestanasElasticas';
+
+const SECCIONES = [{ key: 'catalogo' as const }, { key: 'otros' as const }];
 
 /**
  * Paso Ítems del wizard. En modo Pedir (`allowCustom`) son DOS pestañas: "Catálogo"
@@ -41,6 +43,7 @@ export const CatalogoCarrito: React.FC<{
     }, [cart]);
 
     const cats = useMemo(() => (categorias ? [...categorias].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0)) : []), [categorias]);
+    const opcionesCat = useMemo(() => [{ key: 'todas', label: 'Todas' }, ...cats.map(c => ({ key: String(c.id), label: c.nombre }))], [cats]);
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -74,13 +77,19 @@ export const CatalogoCarrito: React.FC<{
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar ítem del catálogo..." className="w-full h-10 pl-9 pr-3 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none" />
             </div>
             {cats.length > 0 && (
-                <div className="flex gap-1.5 overflow-x-auto pb-2 shrink-0">
-                    {/* eslint-disable-next-line no-restricted-syntax -- selector pill (filtro de categoría) */}
-                    <button type="button" onClick={() => setCatFiltro(null)} className={cn('shrink-0 px-2.5 h-7 rounded-full text-caption font-bold border transition-colors', catFiltro === null ? 'bg-brand-primary text-white border-brand-primary' : 'bg-card text-muted-foreground border-border hover:border-brand-primary/40')}>Todas</button>
-                    {cats.map(c => (
-                        // eslint-disable-next-line no-restricted-syntax -- selector pill (filtro de categoría)
-                        <button key={c.id} type="button" onClick={() => setCatFiltro(c.id)} className={cn('shrink-0 px-2.5 h-7 rounded-full text-caption font-bold border transition-colors whitespace-nowrap', catFiltro === c.id ? 'bg-brand-primary text-white border-brand-primary' : 'bg-card text-muted-foreground border-border hover:border-brand-primary/40')}>{c.nombre}</button>
-                    ))}
+                <div className="overflow-x-auto scrollbar-none pb-2 shrink-0">
+                    <div className="flex w-max rounded-2xl bg-muted p-1">
+                        <PestanasElasticas
+                            opciones={opcionesCat}
+                            activa={catFiltro === null ? 'todas' : String(catFiltro)}
+                            onCambiar={(k) => setCatFiltro(k === 'todas' ? null : Number(k))}
+                            aria-label="Categorías del catálogo"
+                            claseFila="gap-1"
+                            claseOpcion="flex h-7 shrink-0 items-center px-2.5 rounded-xl text-caption font-bold whitespace-nowrap"
+                            claseInactiva="text-muted-foreground hover:text-brand-dark"
+                            render={(o) => o.label}
+                        />
+                    </div>
                 </div>
             )}
             <div className="flex-1 min-h-0 overflow-y-auto border border-border rounded-xl max-h-[55vh]">
@@ -159,11 +168,19 @@ export const CatalogoCarrito: React.FC<{
 
     return (
         <div className="flex flex-col min-h-0">
-            <div className="grid grid-cols-2 gap-1 p-1 bg-muted rounded-xl mb-3 shrink-0">
-                {/* eslint-disable-next-line no-restricted-syntax -- tab (selector de pestaña) */}
-                <button type="button" onClick={() => setTab('catalogo')} className={cn('h-9 rounded-lg text-sm font-bold transition-colors', tab === 'catalogo' ? 'bg-card text-brand-dark shadow-sm' : 'text-muted-foreground')}>Catálogo{cart.length ? ` · ${cart.length}` : ''}</button>
-                {/* eslint-disable-next-line no-restricted-syntax -- tab (selector de pestaña) */}
-                <button type="button" onClick={() => setTab('otros')} className={cn('h-9 rounded-lg text-sm font-bold transition-colors', tab === 'otros' ? 'bg-card text-brand-dark shadow-sm' : 'text-muted-foreground')}>Otros materiales{otrosCount ? ` · ${otrosCount}` : ''}</button>
+            <div className="flex p-1 bg-muted rounded-2xl mb-3 shrink-0">
+                <PestanasElasticas
+                    opciones={SECCIONES}
+                    activa={tab}
+                    onCambiar={setTab}
+                    aria-label="Tipo de material"
+                    claseFila="gap-1 w-full"
+                    claseOpcion="flex h-9 flex-1 items-center justify-center rounded-xl text-sm font-bold"
+                    claseInactiva="text-muted-foreground hover:text-brand-dark"
+                    render={(o) => o.key === 'catalogo'
+                        ? `Catálogo${cart.length ? ` · ${cart.length}` : ''}`
+                        : `Otros materiales${otrosCount ? ` · ${otrosCount}` : ''}`}
+                />
             </div>
             {tab === 'catalogo' ? catalogoPanel : otrosPanel}
         </div>

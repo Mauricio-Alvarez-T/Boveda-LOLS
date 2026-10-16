@@ -521,15 +521,14 @@ const BarraFiltros: React.FC<BarraFiltrosProps> = ({
     return (
         <div className="flex flex-col gap-2 shrink-0 mb-2">
             <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                {/* Filtros: scroll horizontal en mobile (evita que los tabs empujen las acciones
-                    fuera de pantalla); ancho natural + wrap en desktop. */}
-                <div className="min-w-0 overflow-x-auto md:overflow-visible">
+                {/* Filtros: una sola fila con scroll horizontal si no cabe (evita que los tabs empujen
+                    las acciones fuera de pantalla; el indicador elástico no admite dos líneas). */}
+                <div className="min-w-0 overflow-x-auto scrollbar-none">
                     <StatusFilterBar
                         active={statusFilter}
                         onChange={onStatusChange}
                         discrepanciasCount={pendientesCount}
                         canVerDiscrepancias={canVerDiscrepancias}
-                        className="flex-nowrap md:flex-wrap"
                     />
                 </div>
 

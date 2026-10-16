@@ -24,6 +24,9 @@ import {
     TIPOS, ESTADOS, MOTIVOS, FRECUENCIAS, ALCANCES, ALCANCES_IDEA, BENEFICIOS, FORMULARIOS,
     nombrePantalla, hace, fechaCorta, primerNombre,
 } from './ideasConfig';
+import { PestanasElasticas } from '../ui/PestanasElasticas';
+
+const PESTANAS = [{ key: 'nueva' as const }, { key: 'mias' as const }];
 
 interface Props {
     isOpen: boolean;
@@ -194,17 +197,25 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
             ) : undefined}
         >
             {/* Pestañas */}
-            <div className="flex items-center gap-1.5 mb-5">
-                <Button size="sm" variant={pestana === 'nueva' ? 'primary' : 'ghost'} onClick={() => setPestana('nueva')}>
-                    Proponer
-                </Button>
-                <Button size="sm" variant={pestana === 'mias' ? 'primary' : 'ghost'} onClick={() => setPestana('mias')}>
-                    Mis ideas
-                    {resumenMias.total > 0 && <span className="ml-1.5 opacity-80 tabular-nums">{resumenMias.total}</span>}
-                    {resumenMias.novedades > 0 && pestana !== 'mias' && (
-                        <span className="ml-1.5 h-2 w-2 rounded-full bg-warning" aria-label={`${resumenMias.novedades} con novedades`} />
+            <div className="mb-5 flex w-fit rounded-2xl bg-muted p-1">
+                <PestanasElasticas
+                    opciones={PESTANAS}
+                    activa={pestana}
+                    onCambiar={setPestana}
+                    aria-label="Buzón de ideas"
+                    claseFila="gap-1"
+                    claseOpcion="inline-flex h-8 items-center rounded-xl px-3 font-medium whitespace-nowrap"
+                    claseInactiva="text-muted-foreground hover:text-brand-dark"
+                    render={(o) => o.key === 'nueva' ? 'Proponer' : (
+                        <>
+                            Mis ideas
+                            {resumenMias.total > 0 && <span className="ml-1.5 opacity-80 tabular-nums">{resumenMias.total}</span>}
+                            {resumenMias.novedades > 0 && pestana !== 'mias' && (
+                                <span className="ml-1.5 h-2 w-2 rounded-full bg-warning" aria-label={`${resumenMias.novedades} con novedades`} />
+                            )}
+                        </>
                     )}
-                </Button>
+                />
             </div>
 
             {pestana === 'mias' ? (

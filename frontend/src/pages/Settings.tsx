@@ -448,24 +448,27 @@ const SettingsPage: React.FC = () => {
                     />
                 </div>
 
-                {/* ── Desktop Sub-Tabs: pills con icono + texto ── */}
-                <div className="hidden md:flex h-[60px] border-b border-border bg-white/50 dark:bg-white/5 px-3 lg:px-5 items-center shrink-0 overflow-x-auto scrollbar-none gap-2">
-                    {activeGroup.items.map(tab => (
-                        // eslint-disable-next-line no-restricted-syntax -- tab nav con estado activo; no hay primitivo Tab (ver diseno.md)
-                        <button
-                            key={tab.key}
-                            onClick={() => setActiveTab(tab.key)}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border whitespace-nowrap shrink-0",
-                                activeTab === tab.key
-                                    ? "bg-card border-brand-primary text-brand-primary shadow-sm ring-4 ring-brand-primary/5"
-                                    : "bg-white/50 dark:bg-white/5 border-border text-muted-foreground hover:border-brand-primary/30 hover:text-brand-primary"
+                {/* ── Desktop Sub-Tabs ── formato único de menús (dueño 2026-10-16): rectángulo verde, no pastilla
+                    ovalada con borde. `key` por categoría: la lista cambia entera (diseno.md §9.12). */}
+                <div className="hidden md:flex h-[60px] border-b border-border bg-white/50 dark:bg-white/5 px-3 lg:px-5 items-center shrink-0 overflow-x-auto scrollbar-none">
+                    <div className="flex shrink-0 rounded-2xl bg-muted p-1">
+                        <PestanasElasticas
+                            key={activeGroup.title}
+                            opciones={activeGroup.items}
+                            activa={activeTab}
+                            onCambiar={setActiveTab}
+                            aria-label={`Secciones de ${activeGroup.title}`}
+                            claseFila="gap-1"
+                            claseOpcion="flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0"
+                            claseInactiva="text-muted-foreground hover:text-brand-dark"
+                            render={(tab, sobreIndicador) => (
+                                <>
+                                    <tab.icon className={cn('h-4 w-4', !sobreIndicador && 'text-muted-foreground/60')} />
+                                    {tab.label}
+                                </>
                             )}
-                        >
-                            <tab.icon className={cn("h-4 w-4", activeTab === tab.key ? "text-brand-primary" : "text-muted-foreground/60")} />
-                            {tab.label}
-                        </button>
-                    ))}
+                        />
+                    </div>
                 </div>
 
                 {/* Inner Content Area - Scrollable — mobile: pt-3 sin padding lateral; md+: p-6/p-8 con bg gris */}

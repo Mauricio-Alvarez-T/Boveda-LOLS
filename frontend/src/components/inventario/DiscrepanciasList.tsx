@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, ArrowRight, PackageX, Search, X, MapPin, Warehouse } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { PestanasElasticas } from '../ui/PestanasElasticas';
 import { IconButton } from '../ui/IconButton';
 import type { TransferenciaConDiscrepancias } from '../../types/entities';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
@@ -23,6 +24,8 @@ const SUB_CHIPS: { value: 'pendiente' | 'resuelta' | 'descartada'; label: string
     { value: 'resuelta', label: 'Resueltas', color: 'bg-green-500' },
     { value: 'descartada', label: 'Descartadas', color: 'bg-muted-foreground' },
 ];
+
+const OPCIONES_SUB = SUB_CHIPS.map(c => ({ ...c, key: c.value }));
 
 const DiscrepanciasList: React.FC<Props> = ({
     discrepancias, loading, selectedId, onSelect,
@@ -60,23 +63,26 @@ const DiscrepanciasList: React.FC<Props> = ({
             )}
 
             {/* Sub-filter chips */}
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
-                {SUB_CHIPS.map(chip => (
-                    // eslint-disable-next-line no-restricted-syntax -- selector pill (segmented filter)
-                    <button
-                        key={chip.value}
-                        onClick={() => onSubFilterChange(chip.value)}
-                        className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-caption font-bold whitespace-nowrap border transition-all shrink-0",
-                            subFilter === chip.value
-                                ? "bg-red-500 text-white border-red-500 shadow-sm"
-                                : "bg-card text-muted-foreground border-border hover:border-red-300 dark:hover:border-red-700"
+            <div className="overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
+                <div className="flex w-max rounded-2xl bg-muted p-1">
+                    <PestanasElasticas
+                        opciones={OPCIONES_SUB}
+                        activa={subFilter}
+                        onCambiar={onSubFilterChange}
+                        aria-label="Estado de las diferencias"
+                        claseFila="gap-1"
+                        claseOpcion="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-caption font-bold whitespace-nowrap shrink-0"
+                        claseInactiva="text-muted-foreground hover:text-brand-dark"
+                        // Diferencias: el elegido va en rojo, como antes (el color es el significado).
+                        claseIndicador="bg-red-500 text-white"
+                        render={(c, sobreIndicador) => (
+                            <>
+                                <span className={cn('h-1.5 w-1.5 rounded-full', sobreIndicador ? 'bg-white' : c.color)} />
+                                {c.label}
+                            </>
                         )}
-                    >
-                        <span className={cn("h-1.5 w-1.5 rounded-full", chip.color)} />
-                        {chip.label}
-                    </button>
-                ))}
+                    />
+                </div>
             </div>
 
             {/* Card list */}

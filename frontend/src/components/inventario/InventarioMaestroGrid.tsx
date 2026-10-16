@@ -8,6 +8,7 @@ import { Button } from '../ui/Button';
 import type { ItemInventario } from '../../types/entities';
 import { useAuth } from '../../context/AuthContext';
 import { fmtMoney } from '../../utils/format';
+import { PestanasElasticas } from '../ui/PestanasElasticas';
 
 interface Props {
     hasEditPermission: boolean;
@@ -26,6 +27,11 @@ type EditableField =
 
 type DirtyMap = Record<number, Partial<Pick<ItemInventario, EditableField>>>;
 type ViewMode = 'cards' | 'table';
+
+const VISTAS: { key: ViewMode; label: string; titulo: string; icon: React.ElementType }[] = [
+    { key: 'cards', label: 'Cards', titulo: 'Vista Cards', icon: LayoutGrid },
+    { key: 'table', label: 'Tabla', titulo: 'Vista Tabla', icon: Table2 },
+];
 
 const PROPIETARIOS: Array<ItemInventario['propietario']> = ['lols', 'dedalius'];
 
@@ -249,35 +255,27 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                 </span>
 
                 {/* View Toggle */}
-                <div className="flex items-center p-0.5 bg-muted rounded-lg">
-                    {/* eslint-disable-next-line no-restricted-syntax -- selector segmentado */}
-                    <button
-                        onClick={() => setViewMode('cards')}
-                        className={cn(
-                            "flex items-center gap-1 px-2.5 py-1 rounded-md text-label font-bold transition-all",
-                            viewMode === 'cards'
-                                ? "bg-card text-green-700 dark:text-green-300 shadow-sm"
-                                : "text-muted-foreground hover:text-brand-dark"
-                        )}
-                        title="Vista Cards"
-                    >
-                        <LayoutGrid className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Cards</span>
-                    </button>
-                    {/* eslint-disable-next-line no-restricted-syntax -- selector segmentado */}
-                    <button
-                        onClick={() => setViewMode('table')}
-                        className={cn(
-                            "flex items-center gap-1 px-2.5 py-1 rounded-md text-label font-bold transition-all",
-                            viewMode === 'table'
-                                ? "bg-card text-green-700 dark:text-green-300 shadow-sm"
-                                : "text-muted-foreground hover:text-brand-dark"
-                        )}
-                        title="Vista Tabla"
-                    >
-                        <Table2 className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Tabla</span>
-                    </button>
+                <div className="flex rounded-xl bg-muted p-0.5">
+                    <PestanasElasticas
+                        opciones={VISTAS}
+                        activa={viewMode}
+                        onCambiar={setViewMode}
+                        aria-label="Vista"
+                        claseFila="gap-0.5"
+                        claseOpcion="flex items-center gap-1 px-2.5 py-1 rounded-lg text-label font-bold"
+                        claseInactiva="text-muted-foreground hover:text-brand-dark"
+                        radio={8}
+                        titulo={(v) => v.titulo}
+                        render={(v) => {
+                            const Icono = v.icon;
+                            return (
+                                <>
+                                    <Icono className="h-3.5 w-3.5" />
+                                    <span className="hidden sm:inline">{v.label}</span>
+                                </>
+                            );
+                        }}
+                    />
                 </div>
 
                 {/* Save/Revert buttons */}

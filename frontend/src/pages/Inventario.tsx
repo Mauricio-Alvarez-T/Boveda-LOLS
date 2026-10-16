@@ -44,6 +44,11 @@ const tabs: { key: TabKey; label: string; shortLabel: string; icon: React.Elemen
     { key: 'movimientos',       label: 'Movimientos',       shortLabel: 'Movim.',    icon: History,         requiresPerm: 'inventario.movimientos.ver' },
 ];
 
+const SUBTABS_MAESTRO = [
+    { key: 'items' as const, label: 'Ítems' },
+    { key: 'stock' as const, label: 'Stock por ubicación' },
+];
+
 type UbicacionOption = { id: number; nombre: string; type: 'obra' | 'bodega'; key: string };
 
 /**
@@ -471,25 +476,17 @@ const InventarioPage: React.FC = () => {
                 {activeTab === 'maestro' && (
                     <div className="flex-1 min-h-0 flex flex-col gap-3">
                         {/* Sub-tabs Ítems / Stock */}
-                        <div className="flex items-center gap-1 p-1 bg-muted rounded-xl w-fit shrink-0">
-                            {([
-                                { key: 'items', label: 'Ítems' },
-                                { key: 'stock', label: 'Stock por ubicación' },
-                            ] as const).map(st => (
-                                // eslint-disable-next-line no-restricted-syntax -- tab
-                                <button
-                                    key={st.key}
-                                    onClick={() => setMaestroSubTab(st.key)}
-                                    className={cn(
-                                        "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
-                                        maestroSubTab === st.key
-                                            ? "bg-card text-green-700 dark:text-green-300 shadow-sm"
-                                            : "text-muted-foreground hover:text-brand-dark"
-                                    )}
-                                >
-                                    {st.label}
-                                </button>
-                            ))}
+                        <div className="flex w-fit shrink-0 rounded-2xl bg-muted p-1">
+                            <PestanasElasticas
+                                opciones={SUBTABS_MAESTRO}
+                                activa={maestroSubTab}
+                                onCambiar={setMaestroSubTab}
+                                aria-label="Vista del maestro"
+                                claseFila="gap-1"
+                                claseOpcion="flex items-center px-4 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap"
+                                claseInactiva="text-muted-foreground hover:text-brand-dark"
+                                render={(st) => st.label}
+                            />
                         </div>
                         {maestroSubTab === 'items' ? (
                             <InventarioMaestroGrid hasEditPermission={hasPermission('inventario.editar')} />

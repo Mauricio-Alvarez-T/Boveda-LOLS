@@ -3,7 +3,6 @@ import { toast } from 'sonner';
 import { Lightbulb, Inbox, Hourglass, CheckCheck, Archive, Clock, Gauge, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useStandardHeader } from '../components/ui/PageHeader';
-import { Button } from '../components/ui/Button';
 import { EstadoPill } from '../components/ideas/Meta';
 import { EmptyState } from '../components/ui/EmptyState';
 import { SearchBar } from '../components/ui/SearchBar';
@@ -23,6 +22,16 @@ const FILTROS: { key: Filtro; label: string }[] = [
     { key: 'hecha', label: 'Hechas' },
     { key: 'desechada', label: 'Desechadas' },
     { key: 'todas', label: 'Todas' },
+];
+
+/** Fila de tipo: «Todo» + los tipos de idea, con su ícono. */
+const OPCIONES_TIPO: { key: IdeaTipo | 'todos'; label: string; icon?: React.ElementType }[] = [
+    { key: 'todos', label: 'Todo' },
+    ...(Object.keys(TIPOS) as IdeaTipo[]).map(t => ({
+        key: t,
+        label: t === 'idea' ? 'Ideas' : t === 'cuesta' ? 'Me cuesta' : 'No funciona',
+        icon: TIPOS[t].icon as React.ElementType,
+    })),
 ];
 
 const RESUMEN_VACIO: IdeasResumenBandeja = { pendiente: 0, aceptada: 0, desechada: 0, hecha: 0, pendiente_mas_antigua: null };
@@ -140,16 +149,15 @@ const IdeasPage: React.FC = () => {
             {/* En el celular cada fila se desliza de lado en vez de apilarse en tres pisos. */}
             <div className={cn('flex flex-col md:flex-row md:items-center gap-2 md:gap-3', verDetalleMovil && 'hidden lg:flex')}>
                 <div className="flex items-center overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0 [scrollbar-width:none]">
-                    {/* Misma caja que un `Button size="sm"` (h-9, px-3, gap-1.5, rounded-full → radio 18), sin su whileTap. */}
+                    <div className="flex shrink-0 rounded-2xl border border-border bg-card p-1">
                     <PestanasElasticas
                         opciones={FILTROS}
                         activa={filtro}
                         onCambiar={setFiltro}
                         aria-label="Estado de las ideas"
                         claseFila="gap-1"
-                        claseOpcion="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 font-medium whitespace-nowrap"
-                        claseInactiva="text-brand-dark hover:bg-black/5"
-                        radio={18}
+                        claseOpcion="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 font-medium whitespace-nowrap"
+                        claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark"
                         render={(f) => (
                             <>
                                 {f.label}
@@ -157,17 +165,29 @@ const IdeasPage: React.FC = () => {
                             </>
                         )}
                     />
+                    </div>
                 </div>
-                <div className="flex items-center gap-1 overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0 md:ml-auto [scrollbar-width:none]">
-                    <Button size="sm" className="shrink-0" variant={tipo === 'todos' ? 'secondary' : 'ghost'} onClick={() => setTipo('todos')}>Todo</Button>
-                    {(Object.keys(TIPOS) as IdeaTipo[]).map(t => {
-                        const Icon = TIPOS[t].icon;
-                        return (
-                            <Button key={t} size="sm" className="shrink-0" variant={tipo === t ? 'secondary' : 'ghost'} onClick={() => setTipo(t)} leftIcon={<Icon className="h-3.5 w-3.5" />}>
-                                {t === 'idea' ? 'Ideas' : t === 'cuesta' ? 'Me cuesta' : 'No funciona'}
-                            </Button>
-                        );
-                    })}
+                <div className="flex items-center overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0 md:ml-auto [scrollbar-width:none]">
+                    <div className="flex shrink-0 rounded-2xl border border-border bg-card p-1">
+                        <PestanasElasticas
+                            opciones={OPCIONES_TIPO}
+                            activa={tipo}
+                            onCambiar={setTipo}
+                            aria-label="Tipo de idea"
+                            claseFila="gap-1"
+                            claseOpcion="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 font-medium whitespace-nowrap"
+                            claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark"
+                            render={(o) => {
+                                const Icono = o.icon;
+                                return (
+                                    <>
+                                        {Icono && <Icono className="h-3.5 w-3.5" />}
+                                        {o.label}
+                                    </>
+                                );
+                            }}
+                        />
+                    </div>
                 </div>
                 <SearchBar value={busqueda} onChange={setBusqueda} placeholder="Buscar idea, persona, pantalla…" className="md:w-64" />
             </div>

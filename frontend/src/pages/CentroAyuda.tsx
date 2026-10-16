@@ -12,6 +12,10 @@ import { ConsultasJourneyRunner } from '../components/ayuda/consultas/ConsultasJ
 import { JOURNEYS, type JourneyDef } from '../components/ayuda/journey/journeys';
 import { textoBusqueda } from '../components/ayuda/journey/buscarJourneys';
 import { useTutorialProgreso } from '../hooks/ayuda/useTutorialProgreso';
+import { PestanasElasticas } from '../components/ui/PestanasElasticas';
+
+/** Clave de «Todas» en la fila de categorías (ningún módulo se llama así). */
+const TODAS = '__todas';
 
 /**
  * Centro de ayuda. Tutoriales organizados por FLUJO DE TRABAJO (end-to-end): cada
@@ -91,6 +95,7 @@ const CentroAyuda: React.FC = () => {
     const [cat, setCat] = useState<string | null>(null);
 
     const categorias = useMemo(() => Array.from(new Set(JOURNEYS.map(j => j.modulo))), []);
+    const opcionesCat = useMemo(() => [{ key: TODAS }, ...categorias.map(c => ({ key: c }))], [categorias]);
 
     // Avance global (solo disponibles) + por categoría.
     const disponibles = useMemo(() => JOURNEYS.filter(j => j.estado === 'disponible'), []);
@@ -178,35 +183,23 @@ const CentroAyuda: React.FC = () => {
                         className="w-full h-11 pl-9 pr-3 text-sm bg-card border border-input rounded-control outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary"
                     />
                 </div>
-                <div className="flex gap-1.5 overflow-x-auto pb-1">
-                    {/* eslint-disable-next-line no-restricted-syntax -- chip de filtro (selector segmentado) */}
-                    <button
-                        type="button"
-                        onClick={() => setCat(null)}
-                        className={cn(
-                            'shrink-0 px-3 h-8 rounded-full text-caption font-bold border transition-colors',
-                            cat === null ? 'bg-brand-primary text-white border-brand-primary' : 'bg-card text-muted-foreground border-border hover:border-brand-primary/40'
-                        )}
-                    >
-                        Todas
-                    </button>
-                    {categorias.map(c => {
-                        const cp = catProg[c];
-                        return (
-                            // eslint-disable-next-line no-restricted-syntax -- chip de filtro (selector segmentado)
-                            <button
-                                key={c}
-                                type="button"
-                                onClick={() => setCat(c)}
-                                className={cn(
-                                    'shrink-0 px-3 h-8 rounded-full text-caption font-bold border transition-colors whitespace-nowrap',
-                                    cat === c ? 'bg-brand-primary text-white border-brand-primary' : 'bg-card text-muted-foreground border-border hover:border-brand-primary/40'
-                                )}
-                            >
-                                {c}{cp && cp.disp > 0 ? ` · ${cp.comp}/${cp.disp}` : ''}
-                            </button>
-                        );
-                    })}
+                <div className="overflow-x-auto scrollbar-none">
+                    <div className="flex w-max rounded-2xl border border-border bg-card p-1">
+                        <PestanasElasticas
+                            opciones={opcionesCat}
+                            activa={cat ?? TODAS}
+                            onCambiar={(k) => setCat(k === TODAS ? null : k)}
+                            aria-label="Categorías de tutoriales"
+                            claseFila="gap-1"
+                            claseOpcion="flex h-8 shrink-0 items-center px-3 rounded-xl text-caption font-bold whitespace-nowrap"
+                            claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark"
+                            render={(o) => {
+                                if (o.key === TODAS) return 'Todas';
+                                const cp = catProg[o.key];
+                                return `${o.key}${cp && cp.disp > 0 ? ` · ${cp.comp}/${cp.disp}` : ''}`;
+                            }}
+                        />
+                    </div>
                 </div>
             </div>
 

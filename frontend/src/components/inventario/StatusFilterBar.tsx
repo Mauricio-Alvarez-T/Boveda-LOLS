@@ -1,11 +1,12 @@
 import React from 'react';
 import { Clock, CheckCircle2, PackageCheck, AlertTriangle, LayoutGrid, History } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { PestanasElasticas } from '../ui/PestanasElasticas';
 
 /**
- * Filtro de estado de Transferencias — chips compactos SIEMPRE visibles.
- * Una fila de chips muy pequeños (Todas / Pendientes / Aprobadas / Recibidas /
- * Discrepancias), sin desplegable; el activo queda resaltado.
+ * Filtro de estado de Transferencias — SIEMPRE visible, sin desplegable.
+ * Formato único de menús (dueño 2026-10-16): `PestanasElasticas` en una sola fila
+ * (con scroll horizontal si no cabe); «Diferencias» activo va en rojo.
  */
 
 const STATUS_CHIPS: { value: string; label: string; icon: React.ElementType; discrepancia?: boolean }[] = [
@@ -38,40 +39,36 @@ const StatusFilterBar: React.FC<Props> = ({
     const chips = STATUS_CHIPS.filter(c => c.value !== 'discrepancias' || canVerDiscrepancias);
 
     return (
-        <div className={cn("flex flex-wrap items-center gap-1 shrink-0", className)}>
-            {chips.map(chip => {
-                const isActive = active === chip.value;
-                const isDiscrep = !!chip.discrepancia;
-                const Icon = chip.icon;
-                return (
-                    // `text-base`: 16 px es lo que siempre se vio (el `text-label` lo borraba `cn()` antes de
-                    // conocer los tamaños propios); el dueño eligió conservarlo (2026-10-16).
-                    // eslint-disable-next-line no-restricted-syntax -- selector pill estado (color dinámico activo/discrepancia)
-                    <button
-                        key={chip.value}
-                        onClick={() => onChange(chip.value)}
-                        title={chip.label}
-                        className={cn(
-                            "flex items-center gap-1 px-2 py-1 rounded-lg text-base font-bold transition-colors",
-                            isActive
-                                ? isDiscrep
-                                    ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300"
-                                    : "bg-brand-primary/10 text-green-700 dark:text-green-300"
-                                : isDiscrep
-                                    ? "text-red-700/80 hover:bg-muted hover:text-red-700 dark:text-red-300/80"
-                                    : "text-muted-foreground hover:bg-muted hover:text-brand-dark"
-                        )}
-                    >
-                        <Icon className="h-3 w-3 shrink-0" />
-                        <span>{chip.label}</span>
-                        {isDiscrep && discrepanciasCount > 0 && (
-                            <span className="px-1.5 py-[1px] rounded-full text-micro font-black leading-none bg-red-500 text-white shrink-0">
-                                {discrepanciasCount}
-                            </span>
-                        )}
-                    </button>
-                );
-            })}
+        <div className={cn('flex shrink-0 rounded-2xl bg-muted p-1', className)}>
+            <PestanasElasticas
+                opciones={chips.map(c => ({ ...c, key: c.value }))}
+                activa={active}
+                onCambiar={onChange}
+                aria-label="Estado de las solicitudes de materiales"
+                claseFila="gap-1"
+                // `text-base`: 16 px es lo que siempre se vio (el `text-label` lo borraba `cn()` antes de
+                // conocer los tamaños propios); el dueño eligió conservarlo (2026-10-16).
+                claseOpcion="flex items-center gap-1 px-2.5 py-1 rounded-xl text-base font-bold whitespace-nowrap shrink-0"
+                claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark"
+                // «Diferencias» se marca en rojo: el color es el significado (diseno.md §9.12).
+                claseIndicador={active === 'discrepancias' ? 'bg-red-600 text-white' : undefined}
+                titulo={c => c.label}
+                render={(c, sobreIndicador) => {
+                    const Icon = c.icon;
+                    return (
+                        <>
+                            <Icon className="h-3 w-3 shrink-0" />
+                            <span className={cn(!sobreIndicador && c.discrepancia && 'text-red-700/80 dark:text-red-300/80')}>{c.label}</span>
+                            {c.discrepancia && discrepanciasCount > 0 && (
+                                <span className={cn('px-1.5 py-[1px] rounded-full text-micro font-black leading-none shrink-0',
+                                    sobreIndicador ? 'bg-white text-red-700' : 'bg-red-500 text-white')}>
+                                    {discrepanciasCount}
+                                </span>
+                            )}
+                        </>
+                    );
+                }}
+            />
         </div>
     );
 };
