@@ -940,3 +940,117 @@ export interface IdeasResumenBandeja {
     hecha: number;
     pendiente_mas_antigua: string | null;
 }
+
+// ─── Costos de obra (mig 122, docs/reglas/costos.md) ──────────────────────────
+export type CostoCategoria = 'materiales' | 'mano_obra' | 'maquinaria' | 'subcontrato' | 'combustible' | 'gastos_generales' | 'otro';
+export type CostoTipoDocumento = 'factura' | 'boleta' | 'guia' | 'otro';
+export type CostoEstadoPago = 'por_pagar' | 'pagada';
+
+export interface CostoObraLista {
+    obra_id: number;
+    obra_nombre: string;
+    finalizada: boolean;
+    tiene_presupuesto: boolean;
+    partidas: number;
+    costo_presupuestado: number;
+    gastado_neto: number;
+    gastos: number;
+    por_completar: number;
+    por_pagar: number;
+}
+
+export interface CostoPresupuesto {
+    id: number;
+    obra_id: number;
+    gg_pct: number | string;
+    imprevistos_pct: number | string;
+    utilidad_pct: number | string;
+    iva_pct: number | string;
+    observacion?: string | null;
+}
+
+export interface CostoPartida {
+    id: number;
+    capitulo: string;
+    codigo: string | null;
+    descripcion: string;
+    unidad: string | null;
+    cantidad: number | string;
+    precio_unitario: number | string;
+    origen: 'original' | 'modificacion';
+    motivo: string | null;
+    orden: number;
+    /** Calculados por el backend. */
+    total: number;
+    gastado: number;
+    diferencia: number;
+}
+
+export interface CostoGasto {
+    id: number;
+    obra_id: number;
+    fecha: string;
+    tipo_documento: CostoTipoDocumento;
+    proveedor: string | null;
+    folio: string | null;
+    monto_neto: number | string | null;
+    iva: number | string | null;
+    monto_total: number | string;
+    categoria: CostoCategoria | null;
+    partida_id: number | null;
+    partida_descripcion?: string | null;
+    partida_capitulo?: string | null;
+    estado_pago: CostoEstadoPago;
+    fecha_vencimiento: string | null;
+    fecha_pago: string | null;
+    observacion: string | null;
+    tiene_foto: boolean;
+    foto_nombre?: string | null;
+    foto_mime?: string | null;
+    foto_tamano?: number | null;
+    creado_por_nombre?: string | null;
+    created_at: string;
+}
+
+export interface CostoResumen {
+    costo_directo: number;
+    costo_directo_original: number;
+    costo_directo_modificaciones: number;
+    gastos_generales: number;
+    imprevistos: number;
+    costo_presupuestado: number;
+    utilidad: number;
+    neto: number;
+    iva: number;
+    total: number;
+    gastado_neto: number;
+    gastado_estimado: boolean;
+    disponible: number;
+    pct_gastado: number | null;
+    gastos_generales_gastado: number;
+    sin_asignar: number;
+    por_completar: number;
+    por_pagar: { n: number; monto: number };
+    vencidas: { n: number; monto: number };
+    capitulos: { capitulo: string; presupuestado: number; gastado: number; partidas: number }[];
+    partidas_excedidas: { id: number; capitulo: string; descripcion: string; presupuestado: number; gastado: number }[];
+}
+
+export interface CostoDetalleObra {
+    obra: { id: number; nombre: string; finalizada: boolean };
+    presupuesto: CostoPresupuesto | null;
+    partidas: CostoPartida[];
+    gastos: CostoGasto[];
+    resumen: CostoResumen;
+}
+
+export interface CostoHistorial {
+    id: number;
+    entidad: 'presupuesto' | 'partida' | 'gasto';
+    entidad_id: number | null;
+    accion: 'crear' | 'editar' | 'borrar' | 'importar';
+    resumen: string;
+    detalle: Record<string, unknown> | null;
+    usuario_nombre: string | null;
+    created_at: string;
+}
