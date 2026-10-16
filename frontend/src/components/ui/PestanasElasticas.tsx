@@ -72,6 +72,11 @@ function viajar(m: Motor, hasta: Tramo | undefined) {
     m.relevo.current = window.setTimeout(asentar, T_RELEVO * 1000);
 }
 
+/** `clip-path` del indicador. Sin medir todavía (o dentro de un `display:none`) no se ve. */
+function recorte(l: number, r: number, w: number, radio: number) {
+    return w > 0 ? `inset(0 ${Math.max(0, w - r)}px 0 ${Math.max(0, l)}px round ${radio}px)` : 'inset(0 100% 0 0)';
+}
+
 /** El indicador se está moviendo o espera el relevo. */
 function enViaje(m: Motor) {
     return m.relevo.current !== undefined || m.l.isAnimating() || m.r.isAnimating();
@@ -155,6 +160,7 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
 }: PestanasElasticasProps<K, T>) {
     const reducir = useReducedMotion();
     const filaRef = useRef<HTMLDivElement>(null);
+    const copiaRef = useRef<HTMLDivElement>(null);
     const tramos = useRef<Tramo[]>([]);
     const indice = Math.max(0, opciones.findIndex(o => o.key === activa));
     /** Opción donde está (o hacia donde va) el indicador. */
@@ -165,10 +171,7 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
     const bordeL = useMotionValue(0);
     const bordeR = useMotionValue(0);
     const ancho = useMotionValue(0);
-    const clipPath = useTransform([bordeL, bordeR, ancho], ([l, r, w]: number[]) =>
-        // Sin medir todavía (o dentro de un `display:none`) el indicador no se ve.
-        w > 0 ? `inset(0 ${Math.max(0, w - r)}px 0 ${Math.max(0, l)}px round ${radio}px)` : 'inset(0 100% 0 0)'
-    );
+    const clipPath = useTransform([bordeL, bordeR, ancho], ([l, r, w]: number[]) => recorte(l, r, w, radio));
     const motor = useMemo<Motor>(() => ({ l: bordeL, r: bordeR, turno, relevo }), [bordeL, bordeR]);
 
     // Medir: al montar, al cambiar la lista y cada vez que la fila o una opción cambia de tamaño
@@ -192,8 +195,14 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
             // Si algo cambia de ancho a medio viaje (un conteo que aparece al activar la pestaña),
             // el viaje sigue hacia la medida nueva en vez de cortarse en seco.
             const destino = tramos.current[confirmado.current];
-            if (enViaje(motor)) viajar(motor, destino);
-            else saltar(motor, destino);
+            if (enViaje(motor)) {
+                viajar(motor, destino);
+            } else {
+                saltar(motor, destino);
+                // framer pinta el valor nuevo en el próximo frame: escribirlo ya evita un frame sin
+                // indicador al montar (p. ej. la fila que se remonta al terminar la primera carga).
+                if (copiaRef.current) copiaRef.current.style.clipPath = recorte(bordeL.get(), bordeR.get(), fila.offsetWidth, radio);
+            }
         };
         medir();
         const observador = new ResizeObserver(medir);
@@ -204,7 +213,7 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
             vivo = false;
             observador.disconnect();
         };
-    }, [claveLista, ancho, motor]);
+    }, [claveLista, ancho, motor, bordeL, bordeR, radio]);
 
     // Viajar cuando cambia la pestaña activa (efecto: `animate()` es imperativo, no va en el render).
     useLayoutEffect(() => {
@@ -250,6 +259,7 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
                 </button>
             ))}
             <motion.div
+                ref={copiaRef}
                 aria-hidden
                 className={clsx(
                     'pointer-events-none absolute inset-0 flex bg-brand-primary text-white',
