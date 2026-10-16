@@ -28,7 +28,7 @@ const ActividadesSemana: React.FC = () => {
     const puedeDescargar = hasPermission('asistencia.actividades_sugeridas.informe');
 
     const selector = !!resumen?.semanas_disponibles?.length && (
-        <div className="w-full sm:w-60">
+        <div className="w-full sm:w-72">
             <Select
                 aria-label="Semana del informe"
                 options={resumen.semanas_disponibles.map(s => ({ value: s, label: fmtSemana(s) }))}
