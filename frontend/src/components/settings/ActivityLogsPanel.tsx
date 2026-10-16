@@ -669,7 +669,8 @@ export const ActivityLogsPanel: React.FC = () => {
                         <div className="md:col-span-2 lg:col-span-3 pt-3 border-t border-border space-y-3">
                             <div>
                                 <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70 mb-2 block">Acción</label>
-                                <div className="flex flex-wrap gap-2">
+                                {/* Formato único de menús (diseno.md §9.13): pista y opciones rectangulares; varias a la vez. */}
+                                <div className="flex w-fit flex-wrap gap-1 rounded-2xl bg-muted p-1">
                                     {(filterOptions?.acciones || ['CREATE', 'UPDATE', 'DELETE', 'UPLOAD', 'EMAIL', 'LOGIN']).map(acc => {
                                         const active = filters.accion.includes(acc);
                                         return (
@@ -678,10 +679,10 @@ export const ActivityLogsPanel: React.FC = () => {
                                                 key={acc}
                                                 onClick={() => toggleAccion(acc)}
                                                 className={cn(
-                                                    "px-3 py-1.5 rounded-full text-caption font-black uppercase tracking-wider border transition-all",
+                                                    "px-3 py-1.5 rounded-xl text-caption font-black uppercase tracking-wider transition-colors",
                                                     active
-                                                        ? "bg-brand-primary text-white border-brand-primary shadow-md"
-                                                        : "bg-background text-muted-foreground border-border hover:border-brand-primary/30"
+                                                        ? "bg-brand-primary text-white"
+                                                        : "text-muted-foreground hover:bg-background hover:text-brand-dark"
                                                 )}
                                             >
                                                 {acc}

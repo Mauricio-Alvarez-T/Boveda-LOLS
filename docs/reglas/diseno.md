@@ -497,9 +497,12 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     Solicitudes, Diferencias, categorías y Catálogo/Otros del pedido), Configuración (todas sus
     barras), Asistencia, Gestiones (Solicitudes de ingreso, Documentos físicos), ficha rápida del
     trabajador, Revisar ideas (estado y tipo), Buzón de ideas (Proponer/Mis ideas), Centro de ayuda y
-    Vehículos. **No** aplica a respuestas de formulario ni a controles por fila (A/F/JI/TO,
-    Asistió/No, Conceder/Denegar, Firmado/Sin firma, preguntas de una idea), a filtros donde se
-    marcan varios, a menús verticales ni al selector de tema (íconos, ya rectangular). Opciones de ancho parejo: `flex-1` en `claseOpcion` y `w-full` en
+    Vehículos. Los filtros donde se encienden **varios** a la vez (atajos de la grilla de
+    Trabajadores en Gestiones, acciones del historial de actividad) usan la misma pista y opciones
+    `rounded-xl`, cada opción encendida en relleno (verde; ámbar o rojo si el atajo es un aviso),
+    sin indicador elástico. **No** aplica a respuestas de formulario ni a controles por fila
+    (A/F/JI/TO, Asistió/No, Conceder/Denegar, Firmado/Sin firma, preguntas de una idea), a menús
+    verticales ni al selector de tema (íconos, ya rectangular). Opciones de ancho parejo: `flex-1` en `claseOpcion` y `w-full` en
     `claseFila`. Si la lista cambia entera (las sub-pestañas cambian al cambiar de categoría), el
     componente se remonta con `key`: así aparece quieto en la nueva lista en vez de «viajar» desde una
     posición de la lista anterior. Las sub-pestañas de escritorio de Configuración también lo usan desde la regla 13.

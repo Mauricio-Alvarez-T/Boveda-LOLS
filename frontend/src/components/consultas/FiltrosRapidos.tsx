@@ -31,10 +31,11 @@ export interface FiltroRapido {
     tono?: 'brand' | 'aviso' | 'peligro';
 }
 
+/** Atajo encendido: relleno, como la opción elegida de un menú (diseno.md §9.13). */
 const TONOS = {
-    brand: 'border-brand-primary bg-brand-primary/10 text-brand-primary',
-    aviso: 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-700/70 dark:bg-amber-500/10 dark:text-amber-300',
-    peligro: 'border-red-300 bg-red-50 text-red-700 dark:border-red-800/60 dark:bg-red-500/10 dark:text-red-300',
+    brand: 'bg-brand-primary text-white',
+    aviso: 'bg-warning text-warning-foreground',
+    peligro: 'bg-red-600 text-white',
 } as const;
 
 export const FiltrosRapidos: React.FC<{ filtros: FiltroRapido[] }> = ({ filtros }) => {
@@ -43,7 +44,10 @@ export const FiltrosRapidos: React.FC<{ filtros: FiltroRapido[] }> = ({ filtros 
         // Viven DENTRO de la barra de la cabecera de la grilla (2026-09-16), donde antes había hueco
         // vacío: así no gastan una fila propia del alto de la lista. Por eso una sola línea siempre,
         // que se desliza cuando no caben, y sin rótulo "Atajos" (el contexto de la barra ya lo dice).
-        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto scrollbar-none">
+        // Formato único de menús (dueño 2026-10-16): pista rectangular y opciones `rounded-xl`, no
+        // pastillas ovaladas. Se pueden encender varios a la vez, así que no hay indicador elástico.
+        <div className="min-w-0 overflow-x-auto scrollbar-none">
+        <div className="flex w-max flex-nowrap items-center gap-1 rounded-2xl bg-muted p-1">
             {filtros.map(f => {
                 const Icon = f.icon;
                 return (
@@ -57,14 +61,15 @@ export const FiltrosRapidos: React.FC<{ filtros: FiltroRapido[] }> = ({ filtros 
                         leftIcon={<Icon className="h-3.5 w-3.5" />}
                         rightIcon={f.activo ? <X className="h-3.5 w-3.5" /> : undefined}
                         className={cn(
-                            'h-8 shrink-0 rounded-full border px-3 text-caption font-semibold',
-                            f.activo ? TONOS[f.tono ?? 'brand'] : 'border-border text-muted-foreground hover:text-brand-dark',
+                            'h-7 shrink-0 rounded-xl px-3 text-caption font-semibold',
+                            f.activo ? TONOS[f.tono ?? 'brand'] : 'text-muted-foreground hover:bg-background hover:text-brand-dark',
                         )}
                     >
                         {f.label}
                     </Button>
                 );
             })}
+        </div>
         </div>
     );
 };
