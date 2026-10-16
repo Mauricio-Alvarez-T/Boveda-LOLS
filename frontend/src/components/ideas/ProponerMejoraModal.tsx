@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
     Lightbulb, MapPin, Building2, Smartphone, Monitor, CheckCircle2, ArrowLeft, Send, Loader2,
-    MessageSquareText, Sparkles, Inbox, Camera, ImagePlus, X, Maximize2,
+    MessageSquareText, Sparkles, Inbox, ImagePlus, X, Maximize2,
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -80,7 +80,6 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
     const [foto, setFoto] = useState<Miniatura | null>(null);
     const [comprimiendo, setComprimiendo] = useState(false);
     const [verFoto, setVerFoto] = useState(false);
-    const camaraRef = useRef<HTMLInputElement>(null);
     const galeriaRef = useRef<HTMLInputElement>(null);
     const fotoUrl = useMemo(() => (foto ? URL.createObjectURL(foto.blob) : null), [foto]);
     useEffect(() => () => { if (fotoUrl) URL.revokeObjectURL(fotoUrl); }, [fotoUrl]);
@@ -362,7 +361,6 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
                                             ? 'De la pantalla donde te gustaría que estuviera lo nuevo.'
                                             : 'De la parte que te cuesta o que no entiendes.'}
                                 </p>
-                                <input ref={camaraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={elegirFoto} />
                                 <input ref={galeriaRef} type="file" accept="image/*" className="hidden" onChange={elegirFoto} />
                                 {comprimiendo ? (
                                     <div className="flex items-center gap-2 h-11 px-3 rounded-xl border border-border bg-background text-xs text-muted-foreground">
@@ -385,10 +383,11 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
                                         <IconButton size="sm" onClick={() => setFoto(null)} aria-label="Quitar foto" title="Quitar" icon={<X className="h-3.5 w-3.5" />} />
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <Button variant="secondary" size="sm" onClick={() => camaraRef.current?.click()} leftIcon={<Camera className="h-4 w-4" />}>Tomar foto</Button>
-                                        <Button variant="secondary" size="sm" onClick={() => galeriaRef.current?.click()} leftIcon={<ImagePlus className="h-4 w-4" />}>Subir pantallazo</Button>
-                                    </div>
+                                    // Solo pantallazo (Marcos 16-10): lo que sirve es la captura de la pantalla de
+                                    // Bóveda, no una foto de cámara. El selector igual deja elegir de la galería.
+                                    <Button variant="secondary" size="sm" className="w-full" onClick={() => galeriaRef.current?.click()} leftIcon={<ImagePlus className="h-4 w-4" />}>
+                                        Subir pantallazo
+                                    </Button>
                                 )}
                                 {verFoto && foto && fotoUrl && (
                                     <VisorAdjunto url={fotoUrl} mime={foto.blob.type} nombre="Foto de tu idea" size={foto.blob.size}
