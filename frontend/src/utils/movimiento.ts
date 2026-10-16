@@ -44,3 +44,53 @@ export function calcBordes(scrollLeft: number, scrollWidth: number, clientWidth:
         despues: scrollLeft + clientWidth < scrollWidth - umbral,
     };
 }
+
+/** Tramo horizontal (px) que ocupa una opción dentro de su fila: borde izquierdo y derecho. */
+export interface Tramo {
+    l: number;
+    r: number;
+}
+
+/** Recorrido del indicador elástico de `ui/PestanasElasticas` entre dos opciones. */
+export interface PlanElastico {
+    /** Primer tiempo: el indicador se estira hasta cubrir la opción de origen y la de destino. */
+    estirado: Tramo;
+    /** 1 = viaja a la derecha, -1 = a la izquierda. */
+    direccion: 1 | -1;
+    /**
+     * Segundo tiempo: el borde de adelante llega a su lugar y el de atrás se pasa `aplaste` px
+     * hacia adelante (el indicador queda un poco más angosto) antes de soltarse en `hasta`.
+     */
+    aplastado: Tramo;
+}
+
+/**
+ * Plan del indicador elástico (diseno.md §9.12). El aplaste nunca supera la mitad del ancho
+ * de destino, así una opción angosta no queda con el indicador dado vuelta; un aplaste
+ * negativo cuenta como 0. Si origen y destino comparten centro se toma la derecha.
+ */
+export function planElastico(desde: Tramo, hasta: Tramo, aplaste: number): PlanElastico {
+    const direccion: 1 | -1 = (hasta.l + hasta.r) / 2 >= (desde.l + desde.r) / 2 ? 1 : -1;
+    const a = Math.max(0, Math.min(aplaste, (hasta.r - hasta.l) / 2));
+    return {
+        estirado: { l: Math.min(desde.l, hasta.l), r: Math.max(desde.r, hasta.r) },
+        direccion,
+        aplastado: direccion === 1 ? { l: hasta.l + a, r: hasta.r } : { l: hasta.l, r: hasta.r - a },
+    };
+}
+
+/**
+ * Opción a la que lleva una tecla en una fila de pestañas (patrón WAI-ARIA "tabs"): las
+ * flechas avanzan y retroceden dando la vuelta en los extremos; Inicio y Fin van a la
+ * primera y a la última. Cualquier otra tecla, o una fila vacía, devuelve null.
+ */
+export function indicePorTecla(tecla: string, actual: number, total: number): number | null {
+    if (total <= 0) return null;
+    switch (tecla) {
+        case 'ArrowRight': return (actual + 1) % total;
+        case 'ArrowLeft': return (actual - 1 + total) % total;
+        case 'Home': return 0;
+        case 'End': return total - 1;
+        default: return null;
+    }
+}

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, ArrowRight, LayoutGrid, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt, Eye, EyeOff } from 'lucide-react';
 import { MixerTruck } from '../components/icons/MixerTruck';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { flagOff } from '../utils/flags';
 import { useAuth } from '../context/AuthContext';
@@ -26,6 +26,7 @@ import { exportStockObra } from '../utils/exportExcel';
 import type { StockObraData } from '../hooks/inventario/useInventarioData';
 import { formatBodegaConResponsable } from '../utils/formatBodega';
 import { Button } from '../components/ui/Button';
+import { PestanasElasticas } from '../components/ui/PestanasElasticas';
 
 type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencias' | 'maestro' | 'bombas' | 'movimientos' | 'facturas';
 
@@ -275,68 +276,55 @@ const InventarioPage: React.FC = () => {
         <div className="flex flex-col flex-1 min-h-0 gap-2">
             {/* Tab Navigation — estilo Configuración: ícono pequeño al lado del texto */}
             <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-1 bg-muted shrink-0">
-                {/* ── Mobile: compacto vertical (ícono pequeño + label corto) ── */}
+                {/* ── Mobile: compacto vertical (ícono pequeño + label corto) ──
+                    `text-base` (16 px) es el tamaño que se ve hoy: los `text-micro`/`text-caption` que había
+                    los borraba `cn()` (tailwind-merge sin configurar) y el texto heredaba 16 px. */}
                 <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
-                    {visibleTabs.map(tab => {
-                        const TabIcon = tab.icon;
-                        const isActive = activeTab === tab.key;
-                        return (
-                            // eslint-disable-next-line no-restricted-syntax -- tab
-                            <button
-                                key={tab.key}
-                                onClick={() => setActiveTab(tab.key)}
-                                className={cn(
-                                    "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-2.5 shrink-0 transition-all",
-                                    isActive ? "text-white" : "text-muted-foreground"
-                                )}
-                            >
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="activeInventarioTab"
-                                        className="absolute inset-0 bg-brand-primary rounded-xl shadow-lg shadow-brand-primary/25"
-                                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                                    />
-                                )}
-                                <TabIcon className={cn(
-                                    "h-4 w-4 relative z-10 transition-colors",
-                                    isActive ? "text-white" : "text-muted-foreground"
-                                )} />
-                                <span className={cn(
-                                    "text-micro font-black uppercase tracking-tight relative z-10 leading-none whitespace-nowrap",
-                                    isActive ? "text-white" : "text-muted-foreground"
-                                )}>
-                                    {tab.shortLabel}
-                                </span>
-                            </button>
-                        );
-                    })}
+                    <PestanasElasticas
+                        opciones={visibleTabs}
+                        activa={activeTab}
+                        onCambiar={setActiveTab}
+                        aria-label="Secciones de inventario"
+                        claseFila="gap-0.5"
+                        claseOpcion="flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-2.5 shrink-0"
+                        claseInactiva="text-muted-foreground"
+                        render={(tab) => {
+                            const TabIcon = tab.icon;
+                            return (
+                                <>
+                                    <TabIcon className="h-4 w-4" />
+                                    <span className="text-base font-black uppercase tracking-tight leading-none whitespace-nowrap">
+                                        {tab.shortLabel}
+                                    </span>
+                                </>
+                            );
+                        }}
+                    />
                     {showVirtualToggle && (
                         <BodegaVirtualToggle modo={bodegaVirtualModo} onCycle={cycleBodegaVirtual} className="ml-1" />
                     )}
                 </div>
                 {/* ── Desktop: horizontal compacto (mismo estilo que Configuración) ── */}
                 <div className="hidden md:flex items-center gap-1 p-2 bg-card/80 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
-                    {visibleTabs.map(tab => {
-                        const TabIcon = tab.icon;
-                        const isActive = activeTab === tab.key;
-                        return (
-                            // eslint-disable-next-line no-restricted-syntax -- tab
-                            <button
-                                key={tab.key}
-                                onClick={() => setActiveTab(tab.key)}
-                                title={tab.label}
-                                className={cn(
-                                    "flex items-center gap-2 px-4 py-2 rounded-xl text-caption font-black uppercase tracking-[0.12em] transition-all whitespace-nowrap shrink-0",
-                                    isActive
-                                        ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
-                                        : "text-muted-foreground hover:bg-background hover:text-brand-dark"
-                                )}
-                            >
-                                <TabIcon className={cn("h-4 w-4 shrink-0", isActive ? "text-white" : "text-muted-foreground/60")} />
-                                <span>{tab.shortLabel}</span>
-                            </button>
-                        );
-                    })}
+                    <PestanasElasticas
+                        opciones={visibleTabs}
+                        activa={activeTab}
+                        onCambiar={setActiveTab}
+                        aria-label="Secciones de inventario"
+                        claseFila="gap-1"
+                        claseOpcion="flex items-center gap-2 px-4 py-2 rounded-xl text-base font-black uppercase tracking-[0.12em] whitespace-nowrap shrink-0"
+                        claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark"
+                        titulo={(tab) => tab.label}
+                        render={(tab, sobreIndicador) => {
+                            const TabIcon = tab.icon;
+                            return (
+                                <>
+                                    <TabIcon className={cn('h-4 w-4 shrink-0', !sobreIndicador && 'text-muted-foreground/60')} />
+                                    <span>{tab.shortLabel}</span>
+                                </>
+                            );
+                        }}
+                    />
                     {showVirtualToggle && (
                         <BodegaVirtualToggle modo={bodegaVirtualModo} onCycle={cycleBodegaVirtual} className="ml-auto" />
                     )}

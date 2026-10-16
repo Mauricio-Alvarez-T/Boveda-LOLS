@@ -350,6 +350,8 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    mientras corre. El cambio de ruta (`MainLayout`) dura ≈0,37 s en total: salida 0,12 s solo opacidad +
    entrada 0,25 s con 8 px de `y` (antes ≈0,6 s, con `scale` en la salida). No hay reveals por scroll en
    pantallas de datos, ni fundido de skeleton a contenido, ni stagger sobre filas de datos.
+   Única excepción: el indicador de `ui/PestanasElasticas` (§9.12), ≈0,6 s, pedido del dueño; no
+   tapa nada porque el contenido de la pestaña cambia de inmediato.
 4. **Cifras: `ui/NumeroRodante`** (CSS puro, `React.memo`). La cifra nueva entra desde abajo si subió y
    desde arriba si bajó, en 160 ms (keyframes `numero-sube` / `numero-baja` de `index.css`, que existen
    solo sin reduce-motion: con «reducir movimiento» el número cambia en seco). **Prohibido el count-up**
@@ -396,8 +398,9 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    eso `NuevoMovimientoWizard` resetea el motor también al cerrar, para que la vista no reabra
    "deslizando" desde el paso donde quedó. El tutorial (`JourneyRunner`) usa el mismo
    `WizardStepper`; ya no tiene un stepper propio.
-8. **La aritmética del movimiento** (dirección del cambio, bordes de scroll) vive en
-   `utils/movimiento.ts` (`direccionCambio`, `calcBordes`), con test en `utils/movimiento.test.ts`.
+8. **La aritmética del movimiento** (dirección del cambio, bordes de scroll, recorrido del indicador
+   elástico y teclas de pestañas) vive en `utils/movimiento.ts` (`direccionCambio`, `calcBordes`,
+   `planElastico`, `indicePorTecla`), con test en `utils/movimiento.test.ts`.
 9. **Al cambiar una prop, el estado previo se ajusta durante el render**
    (`if (value !== previo) { setPrevio(value); ... }`), nunca en un efecto: el efecto llega un frame
    tarde y rompe la regla set-state-in-effect. Si el valor puede ser `NaN`, comparar con `Object.is`
@@ -408,14 +411,42 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     `'framer-motion'`). Prohibido sumar `gsap`, `ogl`, `three`, `motion` o `@hugeicons`. Cada archivo
     derivado lleva en el encabezado la línea de procedencia
     `// Idea: <Componente> de React Bits (reactbits.dev, MIT + Commons Clause). Reescrito; sin código copiado.`
-    (hoy: `MarcaEstado`, `NumeroRodante`, `useBordesScroll`, `BordeScroll`, y como comentario junto al
+    (hoy: `MarcaEstado`, `NumeroRodante`, `useBordesScroll`, `BordeScroll`, `PestanasElasticas`, y como comentario junto al
     conector de `WizardStepper` y al panel de `NuevoMovimientoWizardView`). Si alguna vez se copia
     código, el archivo lleva en el encabezado «Copyright (c) 2026 David Haz» con el texto de permiso, y
     se agrega una entrada en `frontend/THIRD_PARTY_NOTICES.md` (hoy no existe porque no se copió nada).
 11. **Descartados el 2026-10-15** (no volver a proponerlos sin un hecho nuevo): CountUp; BlurText/SplitText
-    en Login; RubberSegment/PillNav/GooeyNav/Dock/StaggeredMenu/BranchedMenu; FadeContent/AnimatedContent;
+    en Login; PillNav/GooeyNav/Dock/StaggeredMenu/BranchedMenu; FadeContent/AnimatedContent;
     GradualBlur, Counter, Stepper y StatusMark tal como vienen; FuseButton, HoldButton, SlideCommit y
     SwipeRow (gestos escondidos, guantes); WarmTooltip; ShinyText, LatticeLoader y CallChip; los textos
     que se desordenan; todos los Backgrounds; AnimatedList y Masonry; SpringCheck, SquishSwitch,
     GlideSelect, JellyRadio, BellToggle y CodeSlots; los efectos de hover (Spotlight, Glare, Tilt,
     Magnet, bordes eléctricos).
+    RubberSegment salió de esta lista el 2026-10-16 porque el dueño lo pidió para las pestañas de
+    Inventario (§9.12), sin el arrastre del indicador.
+12. **Pestañas de sección: `ui/PestanasElasticas`** (idea: RubberSegment). Al cambiar de pestaña el
+    indicador verde se estira en 190 ms (ease-out) hasta cubrir su posición actual y la pestaña de
+    destino: el borde de adelante queda ya en su lugar. A los 150 ms el borde de atrás lo sigue con un
+    resorte de 300 ms, se pasa 3 px (aplaste) y se suelta en 160 ms. El origen es la posición ACTUAL
+    del indicador, no la pestaña anterior: si un clic interrumpe un viaje, no sigue estirándose hacia la
+    pestaña que se dejó (el resorte del borde de adelante corrige ese caso). Así se ve hacia dónde se
+    fue, también cuando el salto viene de otro panel (la tarjeta «Por aprobar» del Ejecutivo abre
+    Solicitudes). El indicador es una copia de la fila en blanco sobre
+    `bg-brand-primary` recortada con `clip-path`: el texto cambia de color justo en el borde y una
+    pestaña intermedia nunca queda gris sobre verde. Por eso `claseOpcion` y `claseFila` se aplican
+    igual a la fila de botones y a la copia (si difieren, el texto blanco no calza), y se juntan con
+    `clsx`, **no con `cn()`**: tailwind-merge sin configurar borra `text-caption`/`text-micro` cuando
+    hay un color `text-*` al lado (gotcha de `ideas.md`), y el botón quedaría con otra caja que la
+    copia. Las barras de Inventario usan `text-base` porque 16 px es lo que se veía antes (esos
+    tamaños propios nunca llegaban a aplicarse). En alto contraste de Windows el indicador toma
+    `Highlight`/`HighlightText`. El recorte se come
+    las sombras: el indicador no lleva `shadow`. Mide con `getBoundingClientRect` (subpíxel) al montar,
+    con `ResizeObserver` sobre la fila y cada opción, y cuando llega la fuente web; dentro de un
+    `display:none` mide 0 y el indicador no se ve hasta que la barra aparece. Cada cambio sube un
+    «turno» y cancela el anterior, así que varios clics rápidos no se pisan. Con «reducir movimiento» o
+    con la barra oculta salta en seco. Teclado: `role="tablist"`/`"tab"`, `aria-selected`, flechas con
+    vuelta, Inicio y Fin (activación inmediata), en `indicePorTecla`; el recorrido se calcula en
+    `planElastico` (ambos en `utils/movimiento.ts`, con test). Sin arrastre: en el teléfono la fila
+    hace scroll horizontal y el gesto quedaría escondido. Referencia: las dos barras de
+    `pages/Inventario.tsx`. Configuración (`Settings.tsx`) sigue con su `layoutId`; si se cambia, se
+    reemplaza por este componente.
