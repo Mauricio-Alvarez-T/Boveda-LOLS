@@ -45,11 +45,9 @@ function viajar(m: Motor, hasta: Tramo | undefined) {
     detener(m); // `stop()` deja cada borde donde iba
     if (!hasta) return;
     const turno = m.turno.current;
-    const plan = planElastico({ l: m.l.get(), r: m.r.get() }, hasta, APLASTE);
-    const estira = { duration: T_ESTIRA, ease: EASE_SALIDA };
-    animate(m.l, plan.estirado.l, estira);
-    animate(m.r, plan.estirado.r, estira);
-    m.relevo.current = window.setTimeout(() => {
+    const actual = { l: m.l.get(), r: m.r.get() };
+    const plan = planElastico(actual, hasta, APLASTE);
+    const asentar = () => {
         if (m.turno.current !== turno) return;
         const adelanteDer = plan.direccion === 1;
         const [adelante, atras] = adelanteDer ? [m.r, m.l] : [m.l, m.r];
@@ -62,7 +60,14 @@ function viajar(m: Motor, hasta: Tramo | undefined) {
                 animate(atras, adelanteDer ? hasta.l : hasta.r, { type: 'spring', duration: T_SUELTA, bounce: 0 });
             }
         });
-    }, T_RELEVO * 1000);
+    };
+    // Si el indicador ya cubre el destino (volver a la pestaña de recién, a medio viaje) no hay
+    // nada que estirar: se asienta de inmediato, sin la pausa del relevo.
+    if (plan.estirado.l === actual.l && plan.estirado.r === actual.r) { asentar(); return; }
+    const estira = { duration: T_ESTIRA, ease: EASE_SALIDA };
+    animate(m.l, plan.estirado.l, estira);
+    animate(m.r, plan.estirado.r, estira);
+    m.relevo.current = window.setTimeout(asentar, T_RELEVO * 1000);
 }
 
 interface PestanasElasticasProps<K extends string, T extends { key: K }> {

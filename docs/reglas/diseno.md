@@ -429,7 +429,8 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     destino: el borde de adelante queda ya en su lugar. A los 150 ms el borde de atrás lo sigue con un
     resorte de 300 ms, se pasa 3 px (aplaste) y se suelta en 160 ms. El origen es la posición ACTUAL
     del indicador, no la pestaña anterior: si un clic interrumpe un viaje, no sigue estirándose hacia la
-    pestaña que se dejó (el resorte del borde de adelante corrige ese caso). Así se ve hacia dónde se
+    pestaña que se dejó (el resorte del borde de adelante corrige ese caso) y, si ya cubre el destino,
+    se asienta de inmediato, sin los 150 ms de pausa. Así se ve hacia dónde se
     fue, también cuando el salto viene de otro panel (la tarjeta «Por aprobar» del Ejecutivo abre
     Solicitudes). El indicador es una copia de la fila en blanco sobre
     `bg-brand-primary` recortada con `clip-path`: el texto cambia de color justo en el borde y una
