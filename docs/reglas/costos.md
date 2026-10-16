@@ -95,6 +95,17 @@ secretaria"), y se pierden datos. **Es un ESQUELETO**: Marcos le pregunta a Rodr
 - Fechas `DATE` se devuelven como **AAAA-MM-DD local** (`ymd`), no con `toISOString` (que puede
   correr un día).
 
+## «Lo que viene» — prototipo solo en test
+
+- Botón **«Lo que viene (ejemplo)»** en la portada de Presupuestos → `/costos?vista=propuesta`. Existe
+  **solo con `VITE_ENTORNO=staging`** (en producción ni el botón ni la vista se renderizan).
+- Muestra con **datos inventados** («Obra de ejemplo», edificio de 5 pisos) cómo se verían las mejoras
+  propuestas el 16-10 tras comparar con MásConstruye: estados de pago al mandante (con el EP 8
+  editable), avance vs costo con proyección al término, facturas desde el Registro de Compras del SII,
+  mano de obra estimada desde Asistencia y curva de inversión. No llama a la API ni guarda nada.
+- Datos y cuentas en `components/costos/propuesta/datosPropuesta.ts`. Se borra o se reemplaza por la
+  función real cuando Rodrigo defina cada parte.
+
 ## Pendiente (preguntar a Rodrigo)
 
 - ¿Qué columnas tiene hoy su Excel? ¿Trabajan algún presupuesto en **UF**? (hoy todo es CLP).

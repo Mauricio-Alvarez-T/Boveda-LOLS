@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Calculator, ChevronLeft, Building2, AlertTriangle, Plus } from 'lucide-react';
+import { Calculator, ChevronLeft, Building2, AlertTriangle, Plus, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useStandardHeader } from '../components/ui/PageHeader';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -22,6 +22,13 @@ import { PartidaModal } from '../components/costos/PartidaModal';
 import { PorcentajesModal } from '../components/costos/PorcentajesModal';
 import { ImportarExcelModal } from '../components/costos/ImportarExcelModal';
 import { AgregarObraModal } from '../components/costos/AgregarObraModal';
+/**
+ * «Lo que viene» (prototipo con datos inventados para la reunión con Rodrigo) existe solo en test.
+ * Import diferido detrás de la constante: en el build de producción la rama queda muerta y el
+ * prototipo ni siquiera entra al paquete.
+ */
+const ES_STAGING = import.meta.env.VITE_ENTORNO === 'staging';
+const PropuestaCostos = ES_STAGING ? lazy(() => import('../components/costos/propuesta/PropuestaCostos')) : null;
 import type { CostoDetalleObra, CostoGasto, CostoObraLista, CostoPartida } from '../types/entities';
 
 type Pestana = 'resumen' | 'presupuesto' | 'gastos' | 'historial';
@@ -57,14 +64,22 @@ const CostosPage: React.FC = () => {
         return <EmptyState icon={Calculator} title="Sin acceso" description="Presupuestos y costos es solo para quienes administran la plata de las obras." />;
     }
 
+    if (PropuestaCostos && params.get('vista') === 'propuesta') {
+        return (
+            <Suspense fallback={<div className="h-96 animate-pulse rounded-card border border-border bg-card" />}>
+                <PropuestaCostos onVolver={() => setParams({})} />
+            </Suspense>
+        );
+    }
+
     return obraId
         ? <ObraCostos key={obraId} obraId={obraId} params={params} setParams={setParams} />
-        : <ListaObras onAbrir={id => setParams({ obra: String(id) })} />;
+        : <ListaObras onAbrir={id => setParams({ obra: String(id) })} onPropuesta={ES_STAGING ? () => setParams({ vista: 'propuesta' }) : undefined} />;
 };
 
 // ─── Portada: las obras ──────────────────────────────────────────────────────
 
-const ListaObras: React.FC<{ onAbrir: (id: number) => void }> = ({ onAbrir }) => {
+const ListaObras: React.FC<{ onAbrir: (id: number) => void; onPropuesta?: () => void }> = ({ onAbrir, onPropuesta }) => {
     const [obras, setObras] = useState<CostoObraLista[] | null>(null);
     const [busqueda, setBusqueda] = useState('');
     const [agregando, setAgregando] = useState(false);
@@ -92,13 +107,17 @@ const ListaObras: React.FC<{ onAbrir: (id: number) => void }> = ({ onAbrir }) =>
     const botonAgregar = (
         <Button onClick={() => setAgregando(true)} leftIcon={<Plus className="h-4 w-4" />} className="md:shrink-0">Agregar obra</Button>
     );
+    // Solo en test: el prototipo de lo que viene, con datos inventados.
+    const botonPropuesta = onPropuesta && (
+        <Button variant="glass" onClick={onPropuesta} leftIcon={<Sparkles className="h-4 w-4" />} className="md:shrink-0">Lo que viene (ejemplo)</Button>
+    );
 
     if (!obras.length) {
         return (
             <>
                 <EmptyState icon={Building2} title="Todavía no hay obras en Presupuestos"
                     description="Agrega la obra a la que le vas a llevar presupuesto y gastos. Solo aparecen aquí las obras que se agregan."
-                    action={botonAgregar} />
+                    action={<div className="flex flex-wrap justify-center gap-2">{botonAgregar}{botonPropuesta}</div>} />
                 {modalAgregar}
             </>
         );
@@ -147,6 +166,7 @@ const ListaObras: React.FC<{ onAbrir: (id: number) => void }> = ({ onAbrir }) =>
                         <SearchBar value={busqueda} onChange={setBusqueda} placeholder="Buscar obra…" />
                     </div>
                 )}
+                {botonPropuesta}
                 {botonAgregar}
             </div>
             {!enCurso.length && !finalizadas.length && <EmptyState icon={Building2} title="Ninguna obra con ese nombre" />}
