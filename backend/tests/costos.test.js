@@ -145,12 +145,13 @@ describe('Costos — gastos', () => {
     test('gasto con foto: guarda la ruta relativa y deja historial', async () => {
         db.query
             .mockResolvedValueOnce(OBRA)
+            .mockResolvedValueOnce([[{ id: 70, obra_id: 3 }]])              // la obra ya está en el módulo
             .mockResolvedValueOnce([{ insertId: 31 }])
             .mockResolvedValueOnce([{}]);
         const file = { originalname: 'factura.jpg', mimetype: 'image/jpeg', size: 250000, path: require('path').join(__dirname, '../uploads/costos/3/1-2.jpg') };
         const r = await svc.crearGasto(3, { monto_total: '119.000', tipo_documento: 'factura', fecha: '2026-10-16' }, file, 5);
         expect(r).toEqual({ id: 31 });
-        const [sql, params] = db.query.mock.calls[1];
+        const [sql, params] = db.query.mock.calls[2];
         expect(sql).toMatch(/INSERT INTO costo_gastos/);
         expect(params).toContain(119000);
         expect(params).toContain(require('path').join('costos', '3', '1-2.jpg'));
@@ -229,6 +230,61 @@ describe('Costos — gastos', () => {
     });
 });
 
+describe('Costos — obras del módulo (se agregan, no aparecen todas)', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    test('la portada lista solo las obras agregadas (con presupuesto o gastos)', async () => {
+        db.query.mockResolvedValueOnce([[]]);
+        await svc.listarObras();
+        expect(db.query.mock.calls[0][0]).toMatch(/AND \(p\.id IS NOT NULL OR gt\.gastos > 0\)/);
+    });
+
+    test('disponibles = obras reales sin presupuesto ni gastos', async () => {
+        db.query.mockResolvedValueOnce([[{ id: 8, nombre: 'ABATE 80', finalizada: 0 }]]);
+        const r = await svc.obrasDisponibles();
+        expect(r).toEqual([{ id: 8, nombre: 'ABATE 80', finalizada: false }]);
+        const sql = db.query.mock.calls[0][0];
+        expect(sql).toMatch(/es_prueba = 0/);
+        expect(sql).toMatch(/p\.id IS NULL/);
+        expect(sql).toMatch(/NOT EXISTS \(SELECT 1 FROM costo_gastos/);
+    });
+
+    test('agregar crea el presupuesto vacío y deja historial; si ya estaba, no duplica', async () => {
+        db.query
+            .mockResolvedValueOnce(OBRA)
+            .mockResolvedValueOnce([[]])                                   // no tenía presupuesto
+            .mockResolvedValueOnce([[]])                                   // presupuestoDe(crear): SELECT
+            .mockResolvedValueOnce([{ insertId: 70 }])                     // INSERT
+            .mockResolvedValueOnce([{}]);                                  // historial
+        expect(await svc.agregarObra(3, 5)).toEqual({ obra_id: 3 });
+        expect(db.query.mock.calls[3][0]).toMatch(/INSERT INTO costo_presupuestos/);
+        expect(db.query.mock.calls[4][1]).toContain('Agregó la obra BASCUÑAN 661 a Presupuestos');
+
+        jest.clearAllMocks();
+        db.query.mockResolvedValueOnce(OBRA).mockResolvedValueOnce([[{ id: 70, obra_id: 3 }]]);
+        expect(await svc.agregarObra(3, 5)).toEqual({ obra_id: 3, ya_estaba: true });
+        expect(db.query).toHaveBeenCalledTimes(2);
+    });
+
+    test('quitar solo una obra vacía: con partidas o gastos → 409', async () => {
+        db.query
+            .mockResolvedValueOnce(OBRA)
+            .mockResolvedValueOnce([[{ id: 70, obra_id: 3 }]])
+            .mockResolvedValueOnce([[{ partidas: 4, gastos: 0 }]]);
+        await expect(svc.quitarObra(3, 5)).rejects.toMatchObject({ statusCode: 409, code: 'COSTO_OBRA_CON_DATOS' });
+
+        jest.clearAllMocks();
+        db.query
+            .mockResolvedValueOnce(OBRA)
+            .mockResolvedValueOnce([[{ id: 70, obra_id: 3 }]])
+            .mockResolvedValueOnce([[{ partidas: 0, gastos: 0 }]])
+            .mockResolvedValueOnce([{ affectedRows: 1 }])
+            .mockResolvedValueOnce([{}]);
+        expect(await svc.quitarObra(3, 5)).toEqual({ obra_id: 3 });
+        expect(db.query.mock.calls[3]).toEqual(['DELETE FROM costo_presupuestos WHERE id = ?', [70]]);
+    });
+});
+
 describe('Rutas /api/costos — gate', () => {
     beforeEach(() => jest.clearAllMocks());
 
@@ -245,5 +301,12 @@ describe('Rutas /api/costos — gate', () => {
         const r = await request(app).get('/api/costos/obras').set('Authorization', `Bearer ${token(['costos.gestionar'])}`);
         expect(r.status).toBe(200);
         expect(r.body.data[0]).toMatchObject({ obra_id: 3, tiene_presupuesto: true, costo_presupuestado: 220000, gastado_neto: 130000 });
+    });
+
+    test('/obras/disponibles no se lee como el id de una obra', async () => {
+        db.query.mockResolvedValueOnce([[{ id: 8, nombre: 'ABATE 80', finalizada: 0 }]]);
+        const r = await request(app).get('/api/costos/obras/disponibles').set('Authorization', `Bearer ${token(['costos.gestionar'])}`);
+        expect(r.status).toBe(200);
+        expect(r.body.data).toEqual([{ id: 8, nombre: 'ABATE 80', finalizada: false }]);
     });
 });

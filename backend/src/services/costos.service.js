@@ -228,7 +228,11 @@ module.exports = {
     TIPOS_DOC, CATEGORIAS, ESTADOS_PAGO, MAX_IMPORTAR,
     calcularTotales, netoDeGasto, num,
 
-    /** Obras con su resumen corto, para la portada del módulo. */
+    /**
+     * Obras AGREGADAS al módulo (tienen presupuesto creado o algún gasto), con su resumen corto.
+     * No se listan todas las obras: OFICINA, LICENCIA o LOLS GENERAL no son obras con presupuesto
+     * (Marcos, 16-10). Se agregan con `agregarObra`.
+     */
     async listarObras() {
         const [rows] = await db.query(
             `SELECT o.id AS obra_id, o.nombre AS obra_nombre, o.finalizada,
@@ -245,6 +249,7 @@ module.exports = {
                                  SUM(CASE WHEN g.estado_pago = 'por_pagar' THEN g.monto_total ELSE 0 END) AS por_pagar
                             FROM costo_gastos g GROUP BY g.obra_id) gt ON gt.obra_id = o.id
               WHERE o.es_prueba = 0 AND (o.activa = 1 OR o.finalizada = 1)
+                AND (p.id IS NOT NULL OR gt.gastos > 0)
               ORDER BY o.finalizada ASC, o.nombre ASC`
         );
         return rows.map(r => {
@@ -262,6 +267,50 @@ module.exports = {
                 por_pagar: Number(r.por_pagar) || 0,
             };
         });
+    },
+
+    /** Obras que se pueden agregar: vigentes o finalizadas, reales, que aún no están en el módulo. */
+    async obrasDisponibles() {
+        const [rows] = await db.query(
+            `SELECT o.id, o.nombre, o.finalizada
+               FROM obras o
+               LEFT JOIN costo_presupuestos p ON p.obra_id = o.id
+              WHERE o.es_prueba = 0 AND (o.activa = 1 OR o.finalizada = 1) AND p.id IS NULL
+                AND NOT EXISTS (SELECT 1 FROM costo_gastos g WHERE g.obra_id = o.id)
+              ORDER BY o.finalizada ASC, o.nombre ASC`
+        );
+        return rows.map(r => ({ id: r.id, nombre: r.nombre, finalizada: !!r.finalizada }));
+    },
+
+    /** Agrega una obra al módulo (le crea el presupuesto vacío). Si ya estaba, no hace nada. */
+    async agregarObra(obraId, userId) {
+        const obra = await obraOFalla(obraId);
+        const antes = await presupuestoDe(obraId);
+        if (antes) return { obra_id: obraId, ya_estaba: true };
+        const pres = await presupuestoDe(obraId, { crear: true, userId });
+        await registrar(null, { obra_id: obraId, entidad: 'presupuesto', entidad_id: pres.id, accion: 'crear',
+            resumen: `Agregó la obra ${obra.nombre} a Presupuestos`, usuario_id: userId });
+        return { obra_id: obraId };
+    },
+
+    /**
+     * Quita una obra del módulo, solo si está vacía (sin partidas ni gastos): sirve para deshacer
+     * un "Agregar" equivocado sin poder borrar información por esta vía.
+     */
+    async quitarObra(obraId, userId) {
+        const obra = await obraOFalla(obraId);
+        const pres = await presupuestoDe(obraId);
+        const [[c]] = await db.query(
+            `SELECT (SELECT COUNT(*) FROM costo_partidas WHERE presupuesto_id = ?) AS partidas,
+                    (SELECT COUNT(*) FROM costo_gastos WHERE obra_id = ?) AS gastos`, [pres?.id || 0, obraId]
+        );
+        if (Number(c?.partidas) || Number(c?.gastos)) {
+            throw err(409, `No se puede quitar: la obra tiene ${Number(c.partidas)} partida${Number(c.partidas) === 1 ? '' : 's'} y ${Number(c.gastos)} gasto${Number(c.gastos) === 1 ? '' : 's'}. Bórralos primero si de verdad no van.`, { code: 'COSTO_OBRA_CON_DATOS' });
+        }
+        if (pres) await db.query('DELETE FROM costo_presupuestos WHERE id = ?', [pres.id]);
+        await registrar(null, { obra_id: obraId, entidad: 'presupuesto', entidad_id: pres?.id || null, accion: 'borrar',
+            resumen: `Quitó la obra ${obra.nombre} de Presupuestos`, usuario_id: userId });
+        return { obra_id: obraId };
     },
 
     /** Todo lo de una obra: presupuesto, partidas con lo gastado, gastos y el resumen. */
@@ -461,6 +510,8 @@ module.exports = {
             const g = leerGasto(data);
             if (g.estado_pago === 'pagada' && !g.fecha_pago) g.fecha_pago = hoy();
             await verificarPartidaDeObra(g.partida_id, obraId);
+            // Un gasto deja la obra agregada al módulo (aparece en la portada).
+            await presupuestoDe(obraId, { crear: true, userId });
             const foto = file ? {
                 foto_nombre: file.originalname, foto_ruta: path.relative(UPLOADS_DIR, file.path),
                 foto_mime: file.mimetype, foto_tamano: file.size,

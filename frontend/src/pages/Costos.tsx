@@ -12,6 +12,7 @@ import { PestanasElasticas } from '../components/ui/PestanasElasticas';
 import { fmtMoney } from '../utils/format';
 import api from '../services/api';
 import { BarraAvance, PctGastado } from '../components/costos/piezas';
+import { mensajeError } from '../components/costos/costosConfig';
 import { ResumenObra } from '../components/costos/ResumenObra';
 import { PresupuestoObra } from '../components/costos/PresupuestoObra';
 import { GastosObra, type FiltroGastos } from '../components/costos/GastosObra';
@@ -20,6 +21,7 @@ import { GastoModal } from '../components/costos/GastoModal';
 import { PartidaModal } from '../components/costos/PartidaModal';
 import { PorcentajesModal } from '../components/costos/PorcentajesModal';
 import { ImportarExcelModal } from '../components/costos/ImportarExcelModal';
+import { AgregarObraModal } from '../components/costos/AgregarObraModal';
 import type { CostoDetalleObra, CostoGasto, CostoObraLista, CostoPartida } from '../types/entities';
 
 type Pestana = 'resumen' | 'presupuesto' | 'gastos' | 'historial';
@@ -65,6 +67,7 @@ const CostosPage: React.FC = () => {
 const ListaObras: React.FC<{ onAbrir: (id: number) => void }> = ({ onAbrir }) => {
     const [obras, setObras] = useState<CostoObraLista[] | null>(null);
     const [busqueda, setBusqueda] = useState('');
+    const [agregando, setAgregando] = useState(false);
 
     useEffect(() => {
         api.get<{ data: CostoObraLista[] }>('/costos/obras')
@@ -85,7 +88,21 @@ const ListaObras: React.FC<{ onAbrir: (id: number) => void }> = ({ onAbrir }) =>
             </div>
         );
     }
-    if (!obras.length) return <EmptyState icon={Building2} title="No hay obras" description="Cuando se cree una obra en Configuración, aparece aquí." />;
+    const modalAgregar = agregando && <AgregarObraModal onClose={() => setAgregando(false)} onAgregada={onAbrir} />;
+    const botonAgregar = (
+        <Button onClick={() => setAgregando(true)} leftIcon={<Plus className="h-4 w-4" />} className="md:shrink-0">Agregar obra</Button>
+    );
+
+    if (!obras.length) {
+        return (
+            <>
+                <EmptyState icon={Building2} title="Todavía no hay obras en Presupuestos"
+                    description="Agrega la obra a la que le vas a llevar presupuesto y gastos. Solo aparecen aquí las obras que se agregan."
+                    action={botonAgregar} />
+                {modalAgregar}
+            </>
+        );
+    }
 
     const tarjetas = (lista: CostoObraLista[]) => (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -123,9 +140,14 @@ const ListaObras: React.FC<{ onAbrir: (id: number) => void }> = ({ onAbrir }) =>
 
     return (
         <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                <p className="text-sm text-muted-foreground">Elige una obra para ver su presupuesto, cargar gastos y revisar el historial.</p>
-                <SearchBar value={busqueda} onChange={setBusqueda} placeholder="Buscar obra…" className="md:w-64" />
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                <p className="text-sm text-muted-foreground md:mr-auto">Elige una obra para ver su presupuesto, cargar gastos y revisar el historial.</p>
+                {obras.length > 6 && (
+                    <div className="md:w-64">
+                        <SearchBar value={busqueda} onChange={setBusqueda} placeholder="Buscar obra…" />
+                    </div>
+                )}
+                {botonAgregar}
             </div>
             {!enCurso.length && !finalizadas.length && <EmptyState icon={Building2} title="Ninguna obra con ese nombre" />}
             {enCurso.length > 0 && tarjetas(enCurso)}
@@ -135,6 +157,7 @@ const ListaObras: React.FC<{ onAbrir: (id: number) => void }> = ({ onAbrir }) =>
                     {tarjetas(finalizadas)}
                 </div>
             )}
+            {modalAgregar}
         </div>
     );
 };
@@ -169,6 +192,17 @@ const ObraCostos: React.FC<{
     useEffect(() => { cargar(); }, [cargar, version]);
 
     const alGuardar = () => { setModal(null); setVersion(v => v + 1); };
+
+    const quitar = async () => {
+        if (!window.confirm(`¿Quitar ${detalle?.obra.nombre || 'la obra'} de Presupuestos? No tiene partidas ni gastos; se puede volver a agregar cuando quieras.`)) return;
+        try {
+            await api.delete(`/costos/obras/${obraId}`);
+            toast.success('Obra quitada de Presupuestos');
+            setParams({});
+        } catch (e) {
+            toast.error(mensajeError(e, 'No se pudo quitar la obra.'));
+        }
+    };
 
     const capitulos = useMemo(() => [...new Set((detalle?.partidas || []).map(p => p.capitulo))], [detalle]);
     const gastosPorPartida = useMemo(() => {
@@ -224,6 +258,7 @@ const ObraCostos: React.FC<{
                     onAgregarPartida={() => setModal({ tipo: 'partida', partida: null })}
                     onVerGastos={f => ir('gastos', { filtro: f })}
                     onVerPartida={id => { const p = detalle.partidas.find(x => x.id === id); if (p) setModal({ tipo: 'partida', partida: p }); }}
+                    onQuitar={quitar}
                 />
             )}
             {pestana === 'presupuesto' && (

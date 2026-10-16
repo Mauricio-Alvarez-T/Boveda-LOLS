@@ -17,6 +17,19 @@ router.get('/obras', ...gate, async (req, res, next) => {
     try { res.json({ data: await svc.listarObras() }); } catch (e) { next(e); }
 });
 
+// Antes de /obras/:obraId para que "disponibles" no se lea como un id.
+router.get('/obras/disponibles', ...gate, async (req, res, next) => {
+    try { res.json({ data: await svc.obrasDisponibles() }); } catch (e) { next(e); }
+});
+
+router.post('/obras', ...gate, async (req, res, next) => {
+    try { res.status(201).json({ data: await svc.agregarObra(id(req.body?.obra_id), req.user.id) }); } catch (e) { next(e); }
+});
+
+router.delete('/obras/:obraId', ...gate, async (req, res, next) => {
+    try { res.json({ data: await svc.quitarObra(id(req.params.obraId), req.user.id) }); } catch (e) { next(e); }
+});
+
 router.get('/obras/:obraId', ...gate, async (req, res, next) => {
     try { res.json({ data: await svc.detalleObra(id(req.params.obraId)) }); } catch (e) { next(e); }
 });

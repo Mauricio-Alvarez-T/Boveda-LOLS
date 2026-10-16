@@ -19,7 +19,15 @@ secretaria"), y se pierden datos. **Es un ESQUELETO**: Marcos le pregunta a Rodr
   después de asignarlo.
 - Menú: **«Presupuestos»** (ícono calculadora), ruta `/costos`. Backend `/api/costos/*`, todo con
   `[auth, checkPermission('costos.gestionar')]` (`costos.routes.js`).
-- Obras visibles: `es_prueba = 0` y (`activa = 1` o `finalizada = 1`).
+- **Obras: se agregan, no aparecen todas** (Marcos, 16-10: OFICINA, LICENCIA o LOLS GENERAL no
+  llevan presupuesto). La portada lista solo las obras con presupuesto creado o con algún gasto;
+  «Agregar obra» (`POST /api/costos/obras`) ofrece las reales (`es_prueba = 0`, vigentes o
+  finalizadas) que aún no están y les crea el presupuesto vacío. Cargar un gasto también deja la
+  obra agregada. **Quitar** (`DELETE /api/costos/obras/:id`) solo si está vacía: con partidas o
+  gastos → 409 `COSTO_OBRA_CON_DATOS` (no es una vía para borrar información).
+- **En test** hay tres obras de ejemplo, «Obra demo 1», «Obra demo 2» y «Obra demo 3», con
+  presupuesto y gastos (`saneoCostos.service.js`, lo corre `sanear_staging.js --sembrar`; producción
+  nunca). Se siembran una vez por obra: lo que se edite o borre al probar no reaparece.
 
 ## Presupuesto (itemizado chileno)
 

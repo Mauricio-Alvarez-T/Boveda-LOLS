@@ -88,7 +88,7 @@ cd backend && npm test          # 373+ tests, mocks de DB
 
 > Un trabajador de staging es legítimo **si y solo si** su RUT está en el bloque **44.000.000-44.000.999**.
 
-- **Purga + siembra**: `backend/scripts/sanear_staging.js` (núcleo en `src/services/saneoStaging|saneoSiembra|saneoArchivos.service.js`, con test).
+- **Purga + siembra**: `backend/scripts/sanear_staging.js` (núcleo en `src/services/saneoStaging|saneoSiembra|saneoArchivos|saneoCostos.service.js`, con test; `saneoCostos` siembra las 3 obras de ejemplo de Presupuestos).
   Tres guardas: `DB_NAME` no puede ser la base de producción, debe decir test/staging/dev, y escribir exige
   `--aplicar` + `SANEO_STAGING=1`. Sin flags, dry-run.
 - **Red de seguridad**: bloque `sanear-datos` en `scripts/cpanel-deploy-staging.sh` (NO en el de producción),

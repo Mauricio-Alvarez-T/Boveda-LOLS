@@ -14,6 +14,8 @@ interface Props {
     onAgregarPartida: () => void;
     onVerGastos: (filtro: 'completar' | 'pagar') => void;
     onVerPartida: (id: number) => void;
+    /** Quitar la obra del módulo: solo se ofrece si está vacía (sin partidas ni gastos). */
+    onQuitar: () => void;
 }
 
 /**
@@ -21,7 +23,7 @@ interface Props {
  * gastó y cuánto queda, por capítulo, y qué partidas se pasaron. Cada cifra que
  * no es exacta lo dice al lado (neto estimado, gastos sin asignar).
  */
-export const ResumenObra: React.FC<Props> = ({ detalle, onImportar, onAgregarPartida, onVerGastos, onVerPartida }) => {
+export const ResumenObra: React.FC<Props> = ({ detalle, onImportar, onAgregarPartida, onVerGastos, onVerPartida, onQuitar }) => {
     const r = detalle.resumen;
     const pres = detalle.presupuesto;
     const sinPartidas = detalle.partidas.length === 0;
@@ -66,9 +68,14 @@ export const ResumenObra: React.FC<Props> = ({ detalle, onImportar, onAgregarPar
                     title="Esta obra aún no tiene presupuesto"
                     description="Importa el Excel del presupuesto (itemizado) o agrega las partidas a mano. Los gastos se pueden ir cargando desde ya."
                     action={
-                        <div className="flex flex-wrap justify-center gap-2">
-                            <Button onClick={onImportar} leftIcon={<FileSpreadsheet className="h-4 w-4" />}>Importar Excel</Button>
-                            <Button variant="glass" onClick={onAgregarPartida} leftIcon={<ListPlus className="h-4 w-4" />}>Agregar partida</Button>
+                        <div className="flex flex-col items-center gap-3">
+                            <div className="flex flex-wrap justify-center gap-2">
+                                <Button onClick={onImportar} leftIcon={<FileSpreadsheet className="h-4 w-4" />}>Importar Excel</Button>
+                                <Button variant="glass" onClick={onAgregarPartida} leftIcon={<ListPlus className="h-4 w-4" />}>Agregar partida</Button>
+                            </div>
+                            {!detalle.gastos.length && (
+                                <Button variant="link" size="sm" className="text-xs text-muted-foreground" onClick={onQuitar}>¿La agregaste por error? Quitarla de Presupuestos</Button>
+                            )}
                         </div>
                     }
                 />
