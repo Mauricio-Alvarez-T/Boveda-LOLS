@@ -2,11 +2,11 @@ import React from 'react';
 import type { ChipTone } from '../ui/Chip';
 
 /**
- * Píldoras del módulo Ideas. Sin `cn()` a propósito: tailwind-merge no conoce los
- * tamaños propios (`text-micro`, `text-label`…) y los BORRA cuando hay un color
- * `text-*` al lado. Por eso mismo el `<Chip>` del design system sale más grande de
- * lo que pide (pendiente de arreglar en utils/cn.ts) y acá no se usa: en el celular
- * un "ACEPTADA" a tamaño de texto normal le comía media línea al título.
+ * Píldoras del módulo Ideas. Nacieron sin `cn()` porque tailwind-merge todavía no
+ * conocía los tamaños propios (`text-micro`, `text-label`…) y los BORRABA junto a
+ * un color `text-*`: el `<Chip>` del design system salía a tamaño de texto normal y
+ * en el celular un "ACEPTADA" le comía media línea al título. utils/cn.ts ya los
+ * registra (2026-10-16); estas píldoras siguen con clases fijas, no necesitan merge.
  */
 
 /** Metadato (pantalla, obra, dispositivo, fecha, señales): neutro y en minúsculas — es dato, no estado. */

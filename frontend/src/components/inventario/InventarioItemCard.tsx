@@ -159,9 +159,9 @@ const InventarioItemCard: React.FC<Props> = ({
                     contraste depende de la imagen de atrás (el verde /80 medía 2.04:1
                     sobre foto clara; sólido da 4.95:1 siempre). El backdrop-blur sale
                     porque ya no aporta sobre un fondo opaco. 44px táctiles en móvil,
-                    tamaño denso desde md:. `text-base` explícito porque tailwind-merge
-                    descartaba `text-caption` al ganar `text-white` — el chip ya venía
-                    heredando 16px y así no encoge si el merge cambia. */}
+                    tamaño denso desde md:. `text-base` explícito: tailwind-merge descartaba
+                    `text-caption` al ganar `text-white` (antes de que utils/cn.ts conociera
+                    los tamaños propios) y el chip siempre se vio a 16px; así se queda. */}
                 {/* eslint-disable-next-line no-restricted-syntax -- toggle del buffer de edición (dirty); se persiste con "Guardar cambios" */}
                 <button
                     onClick={() => setField('activo', !activo)}

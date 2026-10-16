@@ -100,10 +100,11 @@ participación; si algún día no se quiere, se quita el componente `HechasRecie
 
 ## Gotcha encontrado al construirlo
 
-`cn()` (tailwind-merge sin configurar) **borra los tamaños propios** (`text-micro`, `text-caption`,
-`text-label`…) cuando hay un color `text-*` en la misma llamada: los trata como color. El módulo
-evita `cn()` en esos casos. Afecta también a `<Chip>` en toda la app (pendiente de arreglar en
-`utils/cn.ts` con `extendTailwindMerge`).
+`cn()` (tailwind-merge sin configurar) **borraba los tamaños propios** (`text-micro`, `text-caption`,
+`text-label`…) cuando había un color `text-*` en la misma llamada: los trataba como color. El módulo
+evitó `cn()` en esos casos (`<Meta>` y las píldoras siguen con clases fijas). Afectaba también a
+`<Chip>` en toda la app. **Arreglado el 2026-10-16**: `utils/cn.ts` registra los tamaños propios con
+`extendTailwindMerge` (test en `utils/cn.test.ts`); ver `diseno.md` §1.
 
 ## Tests
 

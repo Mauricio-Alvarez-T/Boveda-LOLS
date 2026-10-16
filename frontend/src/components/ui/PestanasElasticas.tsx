@@ -78,8 +78,9 @@ interface PestanasElasticasProps<K extends string, T extends { key: K }> {
     /**
      * Disposición de la fila (`gap-*`, y `w-full` si las opciones son `flex-1`). Va igual en la fila
      * de abajo y en la copia del indicador.
-     * Las clases se juntan con `clsx`, sin `cn()`: tailwind-merge sin configurar borra los tamaños
-     * propios (`text-caption`…) si hay un color `text-*` al lado, y las dos filas dejarían de calzar.
+     * Las clases se juntan con `clsx`, sin `cn()`: las dos filas deben llevar exactamente las mismas
+     * clases para calzar al píxel, y `cn()` podría resolverlas distinto (nació así cuando tailwind-merge
+     * aún borraba los tamaños propios junto a un color `text-*`; hoy `utils/cn.ts` ya los conoce).
      */
     claseFila?: string;
     /** Caja de cada opción (flex, padding, tipografía, `rounded-*`). Idéntica en ambas filas para que calcen al píxel. */

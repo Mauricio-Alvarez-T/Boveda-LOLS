@@ -52,6 +52,23 @@ en `display`/`headline`/`title` (da el look SF Pro).
 Tracking: `tracking-display` (-0.03em), `tracking-headline` (-0.022em), `tracking-title`
 (-0.018em), `tracking-tight` (-0.01em). Siguen siendo tokens → **nunca `text-[Npx]`**.
 
+### `cn()` conoce los tamaños propios (2026-10-16)
+`utils/cn.ts` registra las dos escalas en tailwind-merge (`extendTailwindMerge`, escala `text`
+del tema; lista `TAMANOS_TEXTO_PROPIOS`). Antes no las conocía: tomaba `text-caption` & cía.
+por **colores** y las borraba si después venía un `text-<color>` en la misma llamada
+(`cn('text-caption', 'text-muted-foreground')` → solo el color; la etiqueta heredaba 16px).
+Ahora un tamaño y un color conviven, y entre dos tamaños gana el último, igual que con
+`text-xs`/`text-sm`. Consecuencias:
+- Lo que se veía a 16px por el borrado (`<Chip>`, `<StatusBadge>`, pills, contadores,
+  cifras de `GestionesInicio`…) toma el tamaño que el código siempre pidió.
+- Donde 16px era el aspecto querido se fijó `text-base` explícito: pestañas de Inventario
+  (`PestanasElasticas` + `BodegaVirtualToggle`), de Configuración y la de Asistencia móvil.
+- Ojo con `leading-*`: en tailwind-merge un tamaño borra el `leading-*` que venga **antes**
+  en la misma llamada (`cn('leading-none', 'text-caption')` → solo `text-caption`). Pon el
+  `leading-*` después del tamaño (al 2026-10-16 no hay ningún caso así).
+- **Token nuevo en `index.css` (`--text-<n>`) ⇒ sumarlo a `TAMANOS_TEXTO_PROPIOS`**;
+  `cn.test.ts` falla si las dos listas no calzan.
+
 ## 2. Colores
 
 Tokens en `index.css` (`@theme inline` + `:root`/`.dark`): `brand-primary`,
@@ -436,10 +453,11 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     `bg-brand-primary` recortada con `clip-path`: el texto cambia de color justo en el borde y una
     pestaña intermedia nunca queda gris sobre verde. Por eso `claseOpcion` y `claseFila` se aplican
     igual a la fila de botones y a la copia (si difieren, el texto blanco no calza), y se juntan con
-    `clsx`, **no con `cn()`**: tailwind-merge sin configurar borra `text-caption`/`text-micro` cuando
-    hay un color `text-*` al lado (gotcha de `ideas.md`), y el botón quedaría con otra caja que la
-    copia. Las barras de Inventario usan `text-base` porque 16 px es lo que se veía antes (esos
-    tamaños propios nunca llegaban a aplicarse). En alto contraste de Windows el indicador toma
+    `clsx`, **no con `cn()`**: las dos filas tienen que llevar exactamente las mismas clases, y
+    `cn()` podría resolverlas distinto (nació así cuando tailwind-merge borraba
+    `text-caption`/`text-micro` junto a un color `text-*`; desde el 2026-10-16 `cn()` ya los
+    conoce, §1). Las barras de Inventario usan `text-base` porque 16 px es lo que siempre se vio
+    (esos tamaños propios nunca llegaban a aplicarse). En alto contraste de Windows el indicador toma
     `Highlight`/`HighlightText`. El recorte se come
     las sombras: el indicador no lleva `shadow`. Mide con `getBoundingClientRect` (subpíxel) al montar,
     con `ResizeObserver` sobre la fila y cada opción, y cuando llega la fuente web; dentro de un

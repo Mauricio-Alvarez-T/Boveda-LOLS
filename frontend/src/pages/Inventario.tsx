@@ -277,8 +277,8 @@ const InventarioPage: React.FC = () => {
             {/* Tab Navigation — estilo Configuración: ícono pequeño al lado del texto */}
             <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-1 bg-muted shrink-0">
                 {/* ── Mobile: compacto vertical (ícono pequeño + label corto) ──
-                    `text-base` (16 px) es el tamaño que se ve hoy: los `text-micro`/`text-caption` que había
-                    los borraba `cn()` (tailwind-merge sin configurar) y el texto heredaba 16 px. */}
+                    `text-base` (16 px) es el tamaño que siempre se vio: los `text-micro`/`text-caption` que había
+                    los borraba `cn()` (antes de que utils/cn.ts conociera los tamaños propios) y el texto heredaba 16 px. */}
                 <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
                     <PestanasElasticas
                         opciones={visibleTabs}

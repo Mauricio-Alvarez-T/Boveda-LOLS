@@ -49,8 +49,10 @@ const BodegaVirtualToggle: React.FC<Props> = ({ modo, onCycle, className }) => {
             onClick={onCycle}
             title={cfg.next}
             aria-label={`Bodega Virtual: ${cfg.label}. ${cfg.next}`}
+            // `text-base`: vive en la barra de pestañas de Inventario y conserva el tamaño que siempre
+            // tuvo (el `text-label` que había lo borraba `cn()` antes de conocer los tamaños propios).
             className={cn(
-                'flex items-center justify-center gap-1.5 px-3 py-2 md:py-1.5 text-label font-semibold rounded-xl border transition-all whitespace-nowrap shrink-0',
+                'flex items-center justify-center gap-1.5 px-3 py-2 md:py-1.5 text-base font-semibold rounded-xl border transition-all whitespace-nowrap shrink-0',
                 cfg.classes,
                 className,
             )}
