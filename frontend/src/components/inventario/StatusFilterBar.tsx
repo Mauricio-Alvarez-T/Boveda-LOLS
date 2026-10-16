@@ -44,13 +44,15 @@ const StatusFilterBar: React.FC<Props> = ({
                 const isDiscrep = !!chip.discrepancia;
                 const Icon = chip.icon;
                 return (
+                    // `text-base`: 16 px es lo que siempre se vio (el `text-label` lo borraba `cn()` antes de
+                    // conocer los tamaños propios); el dueño eligió conservarlo (2026-10-16).
                     // eslint-disable-next-line no-restricted-syntax -- selector pill estado (color dinámico activo/discrepancia)
                     <button
                         key={chip.value}
                         onClick={() => onChange(chip.value)}
                         title={chip.label}
                         className={cn(
-                            "flex items-center gap-1 px-2 py-1 rounded-lg text-label font-bold transition-colors",
+                            "flex items-center gap-1 px-2 py-1 rounded-lg text-base font-bold transition-colors",
                             isActive
                                 ? isDiscrep
                                     ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300"

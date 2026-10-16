@@ -62,7 +62,10 @@ Ahora un tamaño y un color conviven, y entre dos tamaños gana el último, igua
 - Lo que se veía a 16px por el borrado (`<Chip>`, `<StatusBadge>`, pills, contadores,
   cifras de `GestionesInicio`…) toma el tamaño que el código siempre pidió.
 - Donde 16px era el aspecto querido se fijó `text-base` explícito: pestañas de Inventario
-  (`PestanasElasticas` + `BodegaVirtualToggle`), de Configuración y la de Asistencia móvil.
+  (`PestanasElasticas` + `BodegaVirtualToggle`), de Configuración y la de Asistencia móvil;
+  y, por decisión del dueño tras verlo en staging, los controles de cada fila de Asistencia
+  diaria (nº, A/F/JI/TO, Detalle, horas extra; los tres layouts) y los filtros de estado de
+  Solicitudes (`StatusFilterBar`).
 - Ojo con `leading-*`: en tailwind-merge un tamaño borra el `leading-*` que venga **antes**
   en la misma llamada (`cn('leading-none', 'text-caption')` → solo `text-caption`). Pon el
   `leading-*` después del tamaño (al 2026-10-16 no hay ningún caso así).
