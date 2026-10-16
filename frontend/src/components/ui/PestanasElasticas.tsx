@@ -23,6 +23,7 @@ interface Motor {
 
 function detener(m: Motor) {
     window.clearTimeout(m.relevo.current);
+    m.relevo.current = undefined;
     m.turno.current += 1;
     m.l.stop();
     m.r.stop();
@@ -49,6 +50,7 @@ function viajar(m: Motor, hasta: Tramo | undefined) {
     const plan = planElastico(actual, hasta, APLASTE);
     const asentar = () => {
         if (m.turno.current !== turno) return;
+        m.relevo.current = undefined;
         const adelanteDer = plan.direccion === 1;
         const [adelante, atras] = adelanteDer ? [m.r, m.l] : [m.l, m.r];
         // El de adelante normalmente ya llegó al estirarse; el resorte corrige el caso en que
@@ -68,6 +70,33 @@ function viajar(m: Motor, hasta: Tramo | undefined) {
     animate(m.l, plan.estirado.l, estira);
     animate(m.r, plan.estirado.r, estira);
     m.relevo.current = window.setTimeout(asentar, T_RELEVO * 1000);
+}
+
+/** El indicador se está moviendo o espera el relevo. */
+function enViaje(m: Motor) {
+    return m.relevo.current !== undefined || m.l.isAnimating() || m.r.isAnimating();
+}
+
+/**
+ * Trae la opción a la vista dentro de la fila con scroll horizontal (la barra del teléfono). Sin
+ * esto, un salto desde otro panel (la tarjeta «Por aprobar» → Solicitudes) movía el indicador a
+ * una pestaña fuera de la pantalla. Busca el contenedor con scroll solo entre los 3 ancestros más
+ * cercanos, para no mover nada ajeno a la barra.
+ */
+function mostrarOpcion(fila: HTMLElement, opcion: HTMLElement | undefined, suave: boolean) {
+    if (!opcion) return;
+    let cont = fila.parentElement;
+    for (let i = 0; cont && i < 3; i++, cont = cont.parentElement) {
+        if (cont.scrollWidth > cont.clientWidth && /auto|scroll/.test(getComputedStyle(cont).overflowX)) break;
+    }
+    if (!cont || !(cont.scrollWidth > cont.clientWidth)) return;
+    const c = cont.getBoundingClientRect();
+    const o = opcion.getBoundingClientRect();
+    const margen = 16;
+    const delta = o.left < c.left + margen ? o.left - c.left - margen
+        : o.right > c.right - margen ? o.right - c.right + margen
+        : 0;
+    if (delta !== 0) cont.scrollBy({ left: delta, behavior: suave ? 'smooth' : 'auto' });
 }
 
 interface PestanasElasticasProps<K extends string, T extends { key: K }> {
@@ -108,6 +137,9 @@ interface PestanasElasticasProps<K extends string, T extends { key: K }> {
  * - Sin arrastre del indicador: la fila hace scroll horizontal en el teléfono y el gesto quedaría
  *   escondido (§9.11).
  * - Teclado: patrón WAI-ARIA de pestañas (flechas con vuelta, Inicio, Fin; activación inmediata).
+ * - Si la fila hace scroll horizontal, la opción nueva se trae a la vista.
+ * - Mide en coordenadas propias de la fila: dentro de un `Modal` que abre con `scale`, las cajas de
+ *   `getBoundingClientRect` vienen escaladas y se corrigen por `caja.width / offsetWidth`.
  */
 export function PestanasElasticas<K extends string, T extends { key: K }>({
     opciones,
@@ -150,12 +182,18 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
         const medir = () => {
             if (!vivo) return;
             const caja = fila.getBoundingClientRect();
+            // Escala de un ancestro con `transform` (un Modal abriendo); 1 sin transform.
+            const escala = fila.offsetWidth > 0 ? caja.width / fila.offsetWidth : 1;
             tramos.current = opcionesDom().map(el => {
                 const r = el.getBoundingClientRect();
-                return { l: r.left - caja.left, r: r.right - caja.left };
+                return { l: (r.left - caja.left) / escala, r: (r.right - caja.left) / escala };
             });
-            ancho.set(caja.width);
-            saltar(motor, tramos.current[confirmado.current]);
+            ancho.set(fila.offsetWidth);
+            // Si algo cambia de ancho a medio viaje (un conteo que aparece al activar la pestaña),
+            // el viaje sigue hacia la medida nueva en vez de cortarse en seco.
+            const destino = tramos.current[confirmado.current];
+            if (enViaje(motor)) viajar(motor, destino);
+            else saltar(motor, destino);
         };
         medir();
         const observador = new ResizeObserver(medir);
@@ -173,9 +211,12 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
         const desde = confirmado.current;
         if (desde === indice) return;
         confirmado.current = indice;
-        const visible = (filaRef.current?.offsetWidth ?? 0) > 0;
-        if (reducir || !visible) saltar(motor, tramos.current[indice]);
+        const fila = filaRef.current;
+        if (!fila || fila.offsetWidth === 0 || reducir) saltar(motor, tramos.current[indice]);
         else viajar(motor, tramos.current[indice]);
+        if (fila && fila.offsetWidth > 0) {
+            mostrarOpcion(fila, fila.querySelectorAll<HTMLElement>(':scope > [role="tab"]')[indice], !reducir);
+        }
     }, [indice, reducir, motor]);
 
     useEffect(() => () => detener(motor), [motor]);

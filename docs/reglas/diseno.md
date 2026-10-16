@@ -396,7 +396,7 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    `saveStatus !== 'idle'`, no aplica el gris de deshabilitado y suma `disabled:opacity-100`: el refetch
    posterior al guardado pone `loading=true` y, sin eso, el botón se agrisaría justo mientras dibuja el
    check. Otros usos: confirmación de `SolicitudIngresoForm` (`md`), banner de `EmitirKitModal` y recap
-   de `JourneyRunner`. **Nunca por fila** (§8.13).
+   de `JourneyRunner`. **Nunca por fila**: en una lista se repetiría en cada registro y taparía el dato.
 6. **Bordes de scroll horizontal: `hooks/useBordesScroll` + `ui/BordeScroll`.** Es un degradado de una
    sola capa (`w-6`, `from-card`), del color de la superficie, que se apaga al llegar al extremo (umbral
    de 4 px para el redondeo subpíxel). Úsalo solo sobre padres `bg-card`. El hook mide amortiguado con
@@ -461,7 +461,12 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     `Highlight`/`HighlightText`. El recorte se come
     las sombras: el indicador no lleva `shadow`. Mide con `getBoundingClientRect` (subpíxel) al montar,
     con `ResizeObserver` sobre la fila y cada opción, y cuando llega la fuente web; dentro de un
-    `display:none` mide 0 y el indicador no se ve hasta que la barra aparece. Cada cambio sube un
+    `display:none` mide 0 y el indicador no se ve hasta que la barra aparece. Mide en coordenadas
+    propias de la fila (corrige por `caja.width / offsetWidth`), así un `Modal` que abre con `scale`
+    no lo deja desfasado. Si una opción cambia de ancho a medio viaje (un conteo que aparece), el viaje
+    sigue hacia la medida nueva en vez de cortarse. Si la fila hace scroll horizontal, la opción nueva
+    se trae a la vista (scroll suave, o en seco con «reducir movimiento»): en el teléfono, «Por
+    aprobar» → Solicitudes ya no viaja a una pestaña fuera de la pantalla. Cada cambio sube un
     «turno» y cancela el anterior, así que varios clics rápidos no se pisan. Con «reducir movimiento» o
     con la barra oculta salta en seco. Teclado: `role="tablist"`/`"tab"`, `aria-selected`, flechas con
     vuelta, Inicio y Fin (activación inmediata), en `indicePorTecla`; el recorrido se calcula en
