@@ -3,6 +3,7 @@ import { Bell, Users, CalendarClock, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../services/api';
 import { IconButton } from '../ui/IconButton';
+import { EmptyState } from '../ui/EmptyState';
 import { useCierreExterno } from '../../hooks/useCierreExterno';
 
 interface Worker10m {
@@ -118,9 +119,7 @@ export const NotificationBell: React.FC = () => {
                         {/* Body */}
                         <div className="max-h-[70vh] overflow-y-auto">
                             {alerts.length === 0 ? (
-                                <div className="p-6 text-center text-sm text-muted-foreground">
-                                    No hay notificaciones pendientes 🎉
-                                </div>
+                                <EmptyState className="py-6" icon={Bell} title="No hay notificaciones pendientes" />
                             ) : (
                                 <div className="divide-y divide-background">
                                     {alerts.map((alert, i) => (

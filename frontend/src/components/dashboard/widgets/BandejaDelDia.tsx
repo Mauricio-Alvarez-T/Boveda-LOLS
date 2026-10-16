@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { EmptyState } from '../../ui/EmptyState';
+import { contarBandeja } from './bandejaConteo';
 
 export interface PendingTask {
     severity: 'critical' | 'warning' | 'info';
@@ -58,6 +59,18 @@ const GROUPS: { key: PendingTask['category']; label: string; icon: React.Element
     { key: 'contratos', label: 'Contratos', icon: Users },
 ];
 
+/** Grupo de filas que no vienen de `tasks` (vehículos, solicitudes, documentos físicos, inventario). */
+interface GrupoExterno {
+    key: string;
+    label: string;
+    icon: React.ElementType;
+    /** Ícono de cada fila si difiere del del grupo (Inventario usa flechas). */
+    rowIcon?: React.ElementType;
+    items: BandejaItem[];
+    /** Se pinta después de los grupos de tareas (Inventario). */
+    despuesDeTareas?: boolean;
+}
+
 /** Único grupo desplegado al entrar; los demás arrancan cerrados. */
 const GRUPO_ABIERTO_POR_DEFECTO = 'vehiculos';
 
@@ -101,12 +114,20 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
     const estaColapsado = (key: string) => collapsed[key] ?? key !== GRUPO_ABIERTO_POR_DEFECTO;
 
-    const total = tasks.length + (trabajadoresSinDocs > 0 ? 1 : 0) + inventoryItems.length + vehiculoItems.length + solicitudItems.length;
-    const criticalCount =
-        tasks.filter(t => t.severity === 'critical').length +
-        inventoryItems.filter(i => i.severity === 'critical').length +
-        vehiculoItems.filter(i => i.severity === 'critical').length +
-        solicitudItems.filter(i => i.severity === 'critical').length;
+    // Grupos externos declarados UNA vez: de esta lista salen el conteo del encabezado, el
+    // "Bandeja vacía" y el render. Antes se listaban por separado y los documentos físicos
+    // quedaron pintados pero sin contar. Orden pedido por obra: Vehículos (desplegado) →
+    // Solicitudes → Documentos físicos → tareas (Asistencia primero) → Inventario al final.
+    const externos: GrupoExterno[] = [
+        { key: 'vehiculos', label: 'Vehículos', icon: Truck, items: vehiculoItems },
+        // Solicitudes de ingreso (ficha digital): fichas de terreno esperando a la oficina.
+        { key: 'solicitudes', label: 'Solicitudes de ingreso', icon: UserPlus, items: solicitudItems },
+        // Documentos físicos (B6): al portador, sus lotes por confirmar; a RRHH, lo que está en terreno.
+        { key: 'documentos_fisicos', label: 'Documentos físicos', icon: Truck, items: documentosFisicosItems },
+        // Inventario (diferido, gated por permiso): va después de las tareas.
+        { key: 'inventario', label: 'Inventario', icon: Boxes, rowIcon: ArrowLeftRight, items: inventoryItems, despuesDeTareas: true },
+    ];
+    const { total, criticas: criticalCount } = contarBandeja(tasks, trabajadoresSinDocs, externos.map(g => g.items));
 
     if (total === 0) {
         return (
@@ -114,7 +135,7 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
                 className="py-8"
                 icon={Inbox}
                 title="Bandeja vacía"
-                description="No hay pendientes por resolver hoy. Buen trabajo."
+                description="No hay pendientes por resolver hoy."
             />
         );
     }
@@ -160,8 +181,8 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
         );
     };
 
-    /** Grupo armado desde una fuente externa (inventario, vehículos). */
-    const renderGrupoExterno = (key: string, label: string, icon: React.ElementType, items: BandejaItem[], rowIcon: React.ElementType = icon) => {
+    /** Grupo armado desde una fuente externa (inventario, vehículos, …). */
+    const renderGrupoExterno = ({ key, label, icon, items, rowIcon = icon }: GrupoExterno) => {
         if (items.length === 0) return null;
         return (
             <div key={key} className="mt-1">
@@ -202,17 +223,11 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
                 </div>
             </div>
 
-            {/* Orden pedido por obra: Vehículos (desplegado) → Asistencia → el resto. */}
-            {renderGrupoExterno('vehiculos', 'Vehículos', Truck, vehiculoItems)}
-            {/* Solicitudes de ingreso (ficha digital): fichas de terreno esperando a la oficina. */}
-            {renderGrupoExterno('solicitudes', 'Solicitudes de ingreso', UserPlus, solicitudItems)}
-            {/* Documentos físicos (B6): al portador, sus lotes por confirmar; a RRHH, lo que está en terreno. */}
-            {renderGrupoExterno('documentos_fisicos', 'Documentos físicos', Truck, documentosFisicosItems)}
+            {/* Orden pedido por obra: Vehículos (desplegado) → Asistencia → el resto (ver `externos`). */}
+            {externos.filter(g => !g.despuesDeTareas).map(renderGrupoExterno)}
             {GROUPS.filter(g => g.key === 'asistencia').map(renderGrupoTareas)}
             {GROUPS.filter(g => g.key !== 'asistencia').map(renderGrupoTareas)}
-
-            {/* Grupo Inventario (diferido, gated por permiso) */}
-            {renderGrupoExterno('inventario', 'Inventario', Boxes, inventoryItems, ArrowLeftRight)}
+            {externos.filter(g => g.despuesDeTareas).map(renderGrupoExterno)}
         </div>
     );
 };

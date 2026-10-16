@@ -300,7 +300,7 @@ const Dashboard: React.FC = () => {
                 {showAusentes && (
                     <Panel className="lg:sticky lg:top-6">
                         {ready && data
-                            ? <AbsencesToday data={data.ausentesDetalle ?? []} />
+                            ? <AbsencesToday data={data.ausentesDetalle ?? []} total={data.counters.ausentes_hoy} />
                             : <SkeletonText lines={6} />}
                     </Panel>
                 )}

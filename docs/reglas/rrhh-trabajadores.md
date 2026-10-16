@@ -787,7 +787,11 @@ físicos); sin correo en v1 (un cron de email sería un follow-up con el patrón
   115/114/110 la respuesta es la estructura vacía (200), nunca 500.
 - **UI**: Bandeja del Día, grupo **Documentos físicos**: para RRHH una fila por tipo ("3 contratos de trabajo
   sin firmar · 2 críticos"), tope de 4 tipos + "+N tipos más", y una fila por categoría de lote; crítico =
-  rojo. El portador (sin `registrar`) sigue viendo el contador simple de sus lotes por confirmar. En la
+  rojo. El portador (sin `registrar`) sigue viendo el contador simple de sus lotes por confirmar. Estas
+  filas **cuentan** en el encabezado de la Bandeja ("N pendientes · M críticas") y en el "Bandeja
+  vacía" (fix 2026-10-16: antes se pintaban sin contarse y quien solo tenía lotes pendientes veía la
+  bandeja vacía). Los grupos externos se declaran una vez en `BandejaDelDia` (`externos`) y de ahí
+  salen conteo (`bandejaConteo.ts`, con test) y render. En la
   pestaña Documentos físicos, la franja **"Documentos sin firmar fuera de plazo"** (`AlertasDocumentosStrip`)
   resume por etapa y, desplegada, lista trabajador · tipo · días · portador y los lotes atascados (con
   "Abrir"). Store de módulo `useDocumentosAlertas` (gate `registrar`); lógica pura en
