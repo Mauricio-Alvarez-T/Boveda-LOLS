@@ -448,6 +448,10 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     con la barra oculta salta en seco. Teclado: `role="tablist"`/`"tab"`, `aria-selected`, flechas con
     vuelta, Inicio y Fin (activación inmediata), en `indicePorTecla`; el recorrido se calcula en
     `planElastico` (ambos en `utils/movimiento.ts`, con test). Sin arrastre: en el teléfono la fila
-    hace scroll horizontal y el gesto quedaría escondido. Referencia: las dos barras de
-    `pages/Inventario.tsx`. Configuración (`Settings.tsx`) sigue con su `layoutId`; si se cambia, se
-    reemplaza por este componente.
+    hace scroll horizontal y el gesto quedaría escondido. Referencias: las dos barras de
+    `pages/Inventario.tsx` y, en `pages/Settings.tsx`, las categorías (teléfono y escritorio) y las
+    sub-pestañas del teléfono. Opciones de ancho parejo: `flex-1` en `claseOpcion` y `w-full` en
+    `claseFila`. Si la lista cambia entera (las sub-pestañas cambian al cambiar de categoría), el
+    componente se remonta con `key`: así aparece quieto en la nueva lista en vez de «viajar» desde una
+    posición de la lista anterior. Las sub-pestañas de escritorio de Configuración son pastillas
+    blancas con borde verde, otro estilo; quedan como están.

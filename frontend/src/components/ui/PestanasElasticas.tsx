@@ -76,7 +76,8 @@ interface PestanasElasticasProps<K extends string, T extends { key: K }> {
     onCambiar: (key: K) => void;
     'aria-label': string;
     /**
-     * Separación entre opciones (`gap-*`). Va igual en la fila de abajo y en la copia del indicador.
+     * Disposición de la fila (`gap-*`, y `w-full` si las opciones son `flex-1`). Va igual en la fila
+     * de abajo y en la copia del indicador.
      * Las clases se juntan con `clsx`, sin `cn()`: tailwind-merge sin configurar borra los tamaños
      * propios (`text-caption`…) si hay un color `text-*` al lado, y las dos filas dejarían de calzar.
      */

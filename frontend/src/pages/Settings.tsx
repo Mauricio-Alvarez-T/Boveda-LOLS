@@ -75,6 +75,7 @@ import AvisosPanel from '../components/settings/AvisosPanel';
 import AlertasDocumentosPanel from '../components/settings/AlertasDocumentosPanel';
 import { CargoSueldoModal } from '../components/settings/CargoSueldoModal';
 import { Modal } from '../components/ui/Modal';
+import { PestanasElasticas } from '../components/ui/PestanasElasticas';
 
 type TabKey = 'empresas' | 'obras' | 'cargos' | 'conductores' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'reportes_suscriptores' | 'avisos' | 'alertas_documentos' | 'logs' | 'seguridad' | 'cat_inventario' | 'bodegas' | 'items_inventario';
 
@@ -308,6 +309,9 @@ const tipoAusenciaCols: ColumnDef<TipoAusencia>[] = [
     },
 ];
 
+/** Categorías como opciones de `PestanasElasticas` (la clave es el título del grupo). */
+const categorias = tabGroups.map(g => ({ ...g, key: g.title }));
+
 const SettingsPage: React.FC = () => {
     const { hasPermission } = useAuth();
     const [activeTab, setActiveTab] = useState<TabKey>('empresas');
@@ -354,6 +358,12 @@ const SettingsPage: React.FC = () => {
         }]
         : cargoCols), [puedeVerSueldo, sueldos]);
 
+    /** Al elegir una categoría se abre su primera sección. */
+    const irACategoria = (titulo: string) => {
+        const grupo = categorias.find(g => g.key === titulo);
+        if (grupo) setActiveTab(grupo.items[0].key);
+    };
+
     // Find current active group for navigation
     const activeGroup = tabGroups.find(g => g.items.some(t => t.key === activeTab)) || tabGroups[0];
 
@@ -373,101 +383,69 @@ const SettingsPage: React.FC = () => {
     return (
         <div className="h-[calc(100dvh-116px)] md:h-[calc(100dvh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full">
             {/* ── Mobile: Icon + Short Label Category Tabs (all 5 visible) ── */}
-            <div className="md:hidden flex-none bg-card/80 backdrop-blur-xl rounded-2xl border border-border p-1 flex items-center gap-0.5 shadow-sm">
-                {tabGroups.map((group, idx) => {
-                    const isActive = activeGroup.title === group.title;
-                    const GroupIcon = group.icon;
-                    return (
-                        // eslint-disable-next-line no-restricted-syntax -- tab nav con estado activo; no hay primitivo Tab (ver diseno.md)
-                        <button
-                            key={idx}
-                            onClick={() => setActiveTab(group.items[0].key)}
-                            className={cn(
-                                "flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl transition-all relative overflow-hidden",
-                                isActive
-                                    ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
-                                    : "text-muted-foreground active:bg-background"
-                            )}
-                        >
-                            <GroupIcon className={cn("h-[18px] w-[18px] relative z-10", isActive && "drop-shadow-sm")} />
-                            <span className="text-micro font-black uppercase tracking-tight leading-none relative z-10">
-                                {group.shortTitle}
-                            </span>
-                            {isActive && (
-                                <motion.div
-                                    layoutId="activeCategoryMobile"
-                                    className="absolute inset-0 bg-white/10 rounded-xl"
-                                    transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
-                                />
-                            )}
-                        </button>
-                    );
-                })}
+            <div className="md:hidden flex-none bg-card/80 backdrop-blur-xl rounded-2xl border border-border p-1 flex items-center shadow-sm">
+                <PestanasElasticas
+                    opciones={categorias}
+                    activa={activeGroup.title}
+                    onCambiar={irACategoria}
+                    aria-label="Categorías de configuración"
+                    claseFila="gap-0.5 w-full"
+                    claseOpcion="flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl"
+                    claseInactiva="text-muted-foreground active:bg-background"
+                    render={(group) => (
+                        <>
+                            <group.icon className="h-[18px] w-[18px]" />
+                            <span className="text-micro font-black uppercase tracking-tight leading-none">{group.shortTitle}</span>
+                        </>
+                    )}
+                />
             </div>
 
-            {/* ── Desktop: Full Text Category Tabs ── */}
-            <div className="hidden md:flex flex-none bg-card/80 backdrop-blur-xl rounded-2xl border border-border p-2 items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
-                {tabGroups.map((group, idx) => {
-                    const isActive = activeGroup.title === group.title;
-                    const GroupIcon = group.icon;
-                    return (
-                        // eslint-disable-next-line no-restricted-syntax -- tab nav con estado activo; no hay primitivo Tab (ver diseno.md)
-                        <button
-                            key={idx}
-                            onClick={() => setActiveTab(group.items[0].key)}
-                            className={cn(
-                                "flex items-center gap-2 px-6 py-2.5 rounded-xl text-caption font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap shrink-0 relative overflow-hidden group",
-                                isActive
-                                    ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25 translate-y-[-1px]"
-                                    : "text-muted-foreground hover:bg-background hover:text-brand-dark"
-                            )}
-                        >
-                            <GroupIcon className={cn("h-4 w-4 relative z-10", isActive ? "text-white" : "text-muted-foreground/60")} />
-                            <span className="relative z-10">{group.title}</span>
-                            {isActive && (
-                                <motion.div
-                                    layoutId="activeCategoryGlow"
-                                    className="absolute inset-0 bg-white/10"
-                                />
-                            )}
-                        </button>
-                    );
-                })}
+            {/* ── Desktop: Full Text Category Tabs ──
+                `text-base` (16 px) es lo que se veía: el `text-caption` que había lo borraba `cn()`. */}
+            <div className="hidden md:flex flex-none bg-card/80 backdrop-blur-xl rounded-2xl border border-border p-2 items-center overflow-x-auto scrollbar-none shadow-sm">
+                <PestanasElasticas
+                    opciones={categorias}
+                    activa={activeGroup.title}
+                    onCambiar={irACategoria}
+                    aria-label="Categorías de configuración"
+                    claseFila="gap-1"
+                    claseOpcion="flex items-center gap-2 px-6 py-2.5 rounded-xl text-base font-black uppercase tracking-[0.15em] whitespace-nowrap shrink-0"
+                    claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark"
+                    render={(group, sobreIndicador) => (
+                        <>
+                            <group.icon className={cn('h-4 w-4', !sobreIndicador && 'text-muted-foreground/60')} />
+                            <span>{group.title}</span>
+                        </>
+                    )}
+                />
             </div>
 
             {/* Main Content Area (Full Width) — mobile: full-bleed sin chrome; md+: card */}
             <div className="flex-1 min-h-0 flex flex-col md:bg-card md:border md:border-border md:rounded-3xl md:shadow-[0_10px_40px_rgb(0,0,0,0.08)] md:overflow-hidden relative">
 
-                {/* ── Mobile Sub-Tabs: pill card flotante (sin wrapper blanco encima) ── */}
-                <div className="md:hidden bg-card/80 backdrop-blur-xl rounded-2xl border border-border shadow-sm px-1.5 py-1.5 flex items-center shrink-0 gap-0.5">
-                    {activeGroup.items.map(tab => {
-                        const isActive = activeTab === tab.key;
-                        return (
-                            // eslint-disable-next-line no-restricted-syntax -- tab nav con estado activo; no hay primitivo Tab (ver diseno.md)
-                            <button
-                                key={tab.key}
-                                onClick={() => setActiveTab(tab.key)}
-                                className={cn(
-                                    "flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl transition-all relative overflow-hidden",
-                                    isActive
-                                        ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
-                                        : "text-muted-foreground active:bg-background"
-                                )}
-                            >
-                                <tab.icon className={cn("h-[18px] w-[18px] relative z-10", isActive && "drop-shadow-sm")} />
-                                <span className="text-micro font-black uppercase tracking-tight leading-none relative z-10">
+                {/* ── Mobile Sub-Tabs: pill card flotante (sin wrapper blanco encima) ──
+                    `key` por categoría: la lista cambia entera, así que se remonta quieta en vez de
+                    "viajar" desde una posición de la lista anterior (diseno.md §9.12). */}
+                <div className="md:hidden bg-card/80 backdrop-blur-xl rounded-2xl border border-border shadow-sm px-1.5 py-1.5 flex items-center shrink-0">
+                    <PestanasElasticas
+                        key={activeGroup.title}
+                        opciones={activeGroup.items}
+                        activa={activeTab}
+                        onCambiar={setActiveTab}
+                        aria-label={`Secciones de ${activeGroup.title}`}
+                        claseFila="gap-0.5 w-full"
+                        claseOpcion="flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl"
+                        claseInactiva="text-muted-foreground active:bg-background"
+                        render={(tab) => (
+                            <>
+                                <tab.icon className="h-[18px] w-[18px]" />
+                                <span className="text-micro font-black uppercase tracking-tight leading-none">
                                     {tab.shortLabel || tab.label}
                                 </span>
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="activeSubTabMobile"
-                                        className="absolute inset-0 bg-white/10 rounded-xl"
-                                        transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
-                                    />
-                                )}
-                            </button>
-                        );
-                    })}
+                            </>
+                        )}
+                    />
                 </div>
 
                 {/* ── Desktop Sub-Tabs: pills con icono + texto ── */}
