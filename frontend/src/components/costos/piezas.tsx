@@ -12,19 +12,32 @@ export const Kpi: React.FC<{
     tono?: 'neutro' | 'peligro' | 'aviso';
     /** La nota es la que avisa (ej.: lo vencido dentro de lo por pagar): el número queda neutro. */
     notaPeligro?: boolean;
-}> = ({ icon: Icon, label, valor, nota, tono = 'neutro', notaPeligro }) => (
-    <div className={cn('flex min-w-0 flex-col gap-1 rounded-card border bg-card p-4',
-        tono === 'peligro' ? 'border-destructive/40' : tono === 'aviso' ? 'border-warning/50' : 'border-border')}>
-        <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-            <Icon className="h-3.5 w-3.5 shrink-0" /> {label}
-        </span>
-        <span className={cn('text-lg md:text-xl font-bold tracking-headline tabular-nums leading-tight break-all',
-            tono === 'peligro' && !notaPeligro ? 'text-destructive' : 'text-brand-dark')}>
-            {valor}
-        </span>
-        {nota && <span className={cn('text-caption', notaPeligro ? 'font-semibold text-destructive' : 'text-muted-foreground')}>{nota}</span>}
-    </div>
-);
+    /** Tarjeta cliqueable: lleva al detalle de dónde sale el número («Ver ›» abajo a la derecha). */
+    onClick?: () => void;
+    /** Texto del enlace (por defecto «Ver»). */
+    accion?: string;
+}> = ({ icon: Icon, label, valor, nota, tono = 'neutro', notaPeligro, onClick, accion = 'Ver' }) => {
+    const clase = cn('flex min-w-0 flex-col gap-1 rounded-card border bg-card p-4 text-left',
+        tono === 'peligro' ? 'border-destructive/40' : tono === 'aviso' ? 'border-warning/50' : 'border-border',
+        onClick && 'transition-colors hover:border-muted-foreground/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40');
+    const cuerpo = (
+        <>
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                <Icon className="h-3.5 w-3.5 shrink-0" /> {label}
+            </span>
+            <span className={cn('text-lg md:text-xl font-bold tracking-headline tabular-nums leading-tight break-all',
+                tono === 'peligro' && !notaPeligro ? 'text-destructive' : 'text-brand-dark')}>
+                {valor}
+            </span>
+            {nota && <span className={cn('text-caption', notaPeligro ? 'font-semibold text-destructive' : 'text-muted-foreground')}>{nota}</span>}
+            {onClick && <span className="mt-auto self-end pt-1 text-xs font-semibold text-brand-primary">{accion} ›</span>}
+        </>
+    );
+    return onClick
+        // eslint-disable-next-line no-restricted-syntax -- tarjeta KPI cliqueable (ícono, cifra, nota y enlace); Button no soporta este layout
+        ? <button type="button" onClick={onClick} className={clase}>{cuerpo}</button>
+        : <div className={clase}>{cuerpo}</div>;
+};
 
 /** Barra gastado / presupuestado con el color del semáforo (verde, ámbar ≥ 85 %, rojo > 100 %). */
 export const BarraAvance: React.FC<{ presupuestado: number; gastado: number; className?: string }> = ({ presupuestado, gastado, className }) => {

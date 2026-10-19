@@ -23,6 +23,9 @@ interface Props {
     /** null = gasto nuevo. */
     gasto: CostoGasto | null;
     partidas: CostoPartida[];
+    /** Gasto nuevo desde el detalle de un capítulo o partida: llega con la partida o la categoría ya elegida. */
+    partidaInicial?: number | null;
+    categoriaInicial?: CostoCategoria | null;
     onClose: () => void;
     onGuardado: () => void;
 }
@@ -34,7 +37,7 @@ const num = (v: number | string | null | undefined) => (v === null || v === unde
  * y el monto total basta para guardarlo; lo demás (proveedor, folio, a qué partida
  * va) se completa ahora o después, y mientras falte queda "por completar".
  */
-export const GastoModal: React.FC<Props> = ({ obraId, gasto, partidas, onClose, onGuardado }) => {
+export const GastoModal: React.FC<Props> = ({ obraId, gasto, partidas, partidaInicial = null, categoriaInicial = null, onClose, onGuardado }) => {
     const editando = !!gasto;
     const [fecha, setFecha] = useState(gasto?.fecha?.slice(0, 10) || hoyISO());
     const [tipo, setTipo] = useState<CostoTipoDocumento>(gasto?.tipo_documento || 'factura');
@@ -42,8 +45,8 @@ export const GastoModal: React.FC<Props> = ({ obraId, gasto, partidas, onClose, 
     const [neto, setNeto] = useState(num(gasto?.monto_neto));
     const [proveedor, setProveedor] = useState(gasto?.proveedor || '');
     const [folio, setFolio] = useState(gasto?.folio || '');
-    const [partidaId, setPartidaId] = useState<number | null>(gasto?.partida_id ?? null);
-    const [categoria, setCategoria] = useState<CostoCategoria | ''>(gasto?.categoria || '');
+    const [partidaId, setPartidaId] = useState<number | null>(gasto ? gasto.partida_id ?? null : partidaInicial);
+    const [categoria, setCategoria] = useState<CostoCategoria | ''>(gasto ? gasto.categoria || '' : categoriaInicial || '');
     const [estadoPago, setEstadoPago] = useState<CostoEstadoPago>(gasto?.estado_pago || 'por_pagar');
     const [vencimiento, setVencimiento] = useState(gasto?.fecha_vencimiento?.slice(0, 10) || '');
     const [fechaPago, setFechaPago] = useState(gasto?.fecha_pago?.slice(0, 10) || '');
@@ -78,8 +81,9 @@ export const GastoModal: React.FC<Props> = ({ obraId, gasto, partidas, onClose, 
         if (!f.type.startsWith('image/') && f.type !== 'application/pdf') { setError('La foto tiene que ser una imagen (JPG, PNG, WEBP) o un PDF.'); return; }
         setError(null);
         setComprimiendo(true);
-        // Legible para leer montos y folio, sin pasar de ~400 KB (el servidor tiene poco espacio).
-        const listo = await compressImage(f, { maxBytes: 400 * 1024 }).catch(() => f);
+        // Legible para leer montos, folio y RUT (letra chica de una factura): hasta 2.000 px de lado
+        // largo y nunca menos de 1.400, sin pasar de ~400 KB (el servidor tiene poco espacio).
+        const listo = await compressImage(f, { maxDim: 2000, minDim: 1400, maxBytes: 400 * 1024 }).catch(() => f);
         setComprimiendo(false);
         if (listo.size > 10 * 1024 * 1024) { setError('El archivo pesa más de 10 MB.'); return; }
         setFoto(listo);
@@ -220,7 +224,7 @@ export const GastoModal: React.FC<Props> = ({ obraId, gasto, partidas, onClose, 
                                     <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2">
                                         <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                                         <span className="min-w-0 flex-1 truncate text-xs text-brand-dark">{gasto.foto_nombre || 'Foto guardada'}</span>
-                                        <Button variant="link" size="sm" onClick={() => setVerGuardada(true)}>Ver ›</Button>
+                                        <Button variant="link" size="sm" onClick={() => setVerGuardada(true)}>Ver</Button>
                                     </div>
                                 )}
                                 <div className="grid grid-cols-2 gap-2">

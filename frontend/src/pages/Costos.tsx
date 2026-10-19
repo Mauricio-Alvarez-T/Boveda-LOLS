@@ -28,7 +28,8 @@ import { AgregarObraModal } from '../components/costos/AgregarObraModal';
 import { FotoGastoViewer } from '../components/costos/FotoGastoViewer';
 import { FlujoCaja } from '../components/costos/FlujoCaja';
 import { CompararObras } from '../components/costos/CompararObras';
-import type { CostoCobro, CostoDetalleObra, CostoGasto, CostoObraLista, CostoPartida } from '../types/entities';
+import { DetalleCostos, type VistaDetalle, type AccionesDetalle } from '../components/costos/DetalleCostos';
+import type { CostoCategoria, CostoCobro, CostoDetalleObra, CostoGasto, CostoObraLista, CostoPartida } from '../types/entities';
 
 /**
  * «Lo que viene» (prototipo con datos inventados para la reunión con Rodrigo) existe solo en test.
@@ -56,10 +57,10 @@ const PESTANAS: { key: Pestana; label: string }[] = [
 ];
 
 type Modal =
-    | { tipo: 'gasto'; gasto: CostoGasto | null }
+    | { tipo: 'gasto'; gasto: CostoGasto | null; partidaInicial?: number | null; categoriaInicial?: CostoCategoria | null }
     | { tipo: 'foto'; gasto: CostoGasto }
     | { tipo: 'cobro'; cobro: CostoCobro | null }
-    | { tipo: 'partida'; partida: CostoPartida | null }
+    | { tipo: 'partida'; partida: CostoPartida | null; capituloInicial?: string }
     | { tipo: 'porcentajes' }
     | { tipo: 'importar' }
     | null;
@@ -247,11 +248,13 @@ const ObraCostos: React.FC<{
     const [falla, setFalla] = useState(false);
     const [version, setVersion] = useState(0);
     const [modal, setModal] = useState<Modal>(null);
+    /** Detalle abierto desde el Resumen; queda abierto debajo mientras se carga o edita algo encima. */
+    const [vistaDetalle, setVistaDetalle] = useState<VistaDetalle | null>(null);
 
     const pestanaParam = params.get('tab') as Pestana | null;
     const pestana: Pestana = PESTANAS.some(p => p.key === pestanaParam) ? pestanaParam! : 'resumen';
     const filtroParam = params.get('filtro') as FiltroGastos | null;
-    const filtro: FiltroGastos = filtroParam === 'completar' || filtroParam === 'pagar' ? filtroParam : 'todos';
+    const filtro: FiltroGastos = filtroParam === 'completar' || filtroParam === 'pagar' || filtroParam === 'estimados' ? filtroParam : 'todos';
 
     const ir = useCallback((tab: Pestana, extra: Record<string, string> = {}) => {
         setParams({ obra: String(obraId), tab, ...extra }, { replace: true });
@@ -293,6 +296,14 @@ const ObraCostos: React.FC<{
     }
     if (!detalle) return <div className="h-96 animate-pulse rounded-card border border-border bg-card" />;
 
+    const acciones: AccionesDetalle = {
+        cargarFactura: ({ partidaId = null, categoria = null }) => setModal({ tipo: 'gasto', gasto: null, partidaInicial: partidaId, categoriaInicial: categoria }),
+        editarGasto: g => setModal({ tipo: 'gasto', gasto: g }),
+        verFoto: g => setModal({ tipo: 'foto', gasto: g }),
+        editarPartida: p => setModal({ tipo: 'partida', partida: p }),
+        agregarPartida: capitulo => setModal({ tipo: 'partida', partida: null, capituloInicial: capitulo }),
+    };
+
     // Cerrada: montos congelados (el backend responde 409); acá solo se ve y se corrige la superficie.
     const bloqueada = !!detalle.cierre;
     const conteo: Partial<Record<Pestana, number>> = { presupuesto: detalle.partidas.length, gastos: detalle.gastos.length, cobros: detalle.cobros.length };
@@ -317,7 +328,7 @@ const ObraCostos: React.FC<{
             {bloqueada && pestana !== 'cierre' && (
                 <Aviso icon={Lock} tono="neutro">
                     Obra cerrada el {fmtFechaCorta(detalle.cierre!.cerrado_at)}: los montos quedaron congelados.{' '}
-                    <Button variant="link" size="sm" className="text-xs" onClick={() => ir('cierre')}>Ver el cierre ›</Button>
+                    <Button variant="link" size="sm" className="text-xs" onClick={() => ir('cierre')}>Ver el cierre</Button>
                 </Aviso>
             )}
 
@@ -341,8 +352,8 @@ const ObraCostos: React.FC<{
                     detalle={detalle}
                     onImportar={() => setModal({ tipo: 'importar' })}
                     onAgregarPartida={() => setModal({ tipo: 'partida', partida: null })}
-                    onVerGastos={f => ir('gastos', { filtro: f })}
-                    onVerPartida={id => { const p = detalle.partidas.find(x => x.id === id); if (p && !bloqueada) setModal({ tipo: 'partida', partida: p }); }}
+                    onIr={(tab, f) => ir(tab, f && f !== 'todos' ? { filtro: f } : {})}
+                    onDetalle={setVistaDetalle}
                     onQuitar={quitar}
                 />
             )}
@@ -380,15 +391,20 @@ const ObraCostos: React.FC<{
             {pestana === 'historial' && <HistorialObra obraId={obraId} version={version} partidas={detalle.partidas} />}
             {pestana === 'cierre' && <CierreObra detalle={detalle} onCambio={() => setVersion(v => v + 1)} />}
 
+            {vistaDetalle && (
+                <DetalleCostos detalle={detalle} vista={vistaDetalle} bloqueada={bloqueada} acciones={acciones} onClose={() => setVistaDetalle(null)} />
+            )}
             {modal?.tipo === 'gasto' && (
-                <GastoModal obraId={obraId} gasto={modal.gasto} partidas={detalle.partidas} onClose={() => setModal(null)} onGuardado={alGuardar} />
+                <GastoModal obraId={obraId} gasto={modal.gasto} partidas={detalle.partidas}
+                    partidaInicial={modal.partidaInicial} categoriaInicial={modal.categoriaInicial}
+                    onClose={() => setModal(null)} onGuardado={alGuardar} />
             )}
             {modal?.tipo === 'foto' && <FotoGastoViewer gasto={modal.gasto} onClose={() => setModal(null)} />}
             {modal?.tipo === 'cobro' && (
                 <CobroModal obraId={obraId} cobro={modal.cobro} glosas={detalle.cobros.map(c => c.glosa)} onClose={() => setModal(null)} onGuardado={alGuardar} />
             )}
             {modal?.tipo === 'partida' && (
-                <PartidaModal obraId={obraId} partida={modal.partida} capitulos={capitulos} hayPartidas={detalle.partidas.length > 0}
+                <PartidaModal obraId={obraId} partida={modal.partida} capitulos={capitulos} capituloInicial={modal.capituloInicial} hayPartidas={detalle.partidas.length > 0}
                     gastosAsignados={modal.partida ? gastosPorPartida.get(modal.partida.id) || 0 : 0}
                     onClose={() => setModal(null)} onGuardado={alGuardar} />
             )}

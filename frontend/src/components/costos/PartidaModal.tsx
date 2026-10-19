@@ -17,6 +17,8 @@ interface Props {
     /** null = partida nueva. */
     partida: CostoPartida | null;
     capitulos: string[];
+    /** Partida nueva desde el detalle de un capítulo: llega con ese capítulo. */
+    capituloInicial?: string;
     /** Si ya hay presupuesto, una partida nueva parte como modificación. */
     hayPartidas: boolean;
     /** Gastos asignados a esta partida (para avisar antes de borrarla). */
@@ -32,9 +34,9 @@ const ORIGENES = { original: 'Del presupuesto original', modificacion: 'Modifica
  * entra como MODIFICACIÓN con su motivo: así el original queda visible y se ve
  * cuánto creció la obra y por qué.
  */
-export const PartidaModal: React.FC<Props> = ({ obraId, partida, capitulos, hayPartidas, gastosAsignados, onClose, onGuardado }) => {
+export const PartidaModal: React.FC<Props> = ({ obraId, partida, capitulos, capituloInicial, hayPartidas, gastosAsignados, onClose, onGuardado }) => {
     const editando = !!partida;
-    const [capitulo, setCapitulo] = useState(partida?.capitulo || capitulos[0] || '');
+    const [capitulo, setCapitulo] = useState(partida?.capitulo || capituloInicial || capitulos[0] || '');
     const [codigo, setCodigo] = useState(partida?.codigo || '');
     const [descripcion, setDescripcion] = useState(partida?.descripcion || '');
     const [unidad, setUnidad] = useState(partida?.unidad || '');

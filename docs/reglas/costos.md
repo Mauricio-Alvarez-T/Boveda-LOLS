@@ -65,14 +65,39 @@ secretaria"), y se pierden datos. **Es un ESQUELETO**: Marcos le pregunta a Rodr
 - Borrar una partida **no borra sus gastos**: quedan sin partida (`ON DELETE SET NULL`) y el
   historial dice cuántos.
 
+## Resumen: cada número lleva a su detalle (2026-10-19)
+
+- Regla: **todo número con detalle responde «¿de dónde sale?» en un toque** («Ver ›»); lo que es una
+  cuenta a la vista **no** se ve como botón.
+  - Tarjetas: **Presupuesto de costo** → pestaña Presupuesto; **Gastado** → Gastos; **Por pagar** →
+    Gastos «Por pagar», ordenado por vencimiento (lo vencido primero). **Queda** no se toca (es una
+    resta).
+  - Avisos: «neto estimado» → Gastos filtro **Neto estimado** (solo aparece si hay); «gastos sin
+    partida» → panel con esos gastos.
+  - **Por capítulo** → panel del capítulo (`DetalleCostos.tsx`): sus partidas (presupuestado vs
+    gastado) y, al desplegar cada una, **las facturas que la componen** (proveedor, fecha, N°, total,
+    neto, estado de pago, observación y foto). **Gastos generales** → los gastos de esa categoría sin
+    partida, contra el GG presupuestado.
+  - **Desglose**: solo la línea **«· modificaciones»** se toca → obras extra con su motivo, fecha y
+    cuánto creció el presupuesto.
+  - **Partidas que se pasaron** → el capítulo con esa partida desplegada.
+- Desde el panel se **carga una factura ya asignada** («Factura aquí» = esa partida; desde Gastos
+  generales = esa categoría), se **edita** un gasto o una partida y se **agrega una partida** al
+  capítulo. El panel queda abierto debajo y se actualiza al guardar. Obra cerrada: solo mirar (y ver
+  fotos).
+- Teléfono (iPhone): el panel es una hoja desde abajo, tarjetas apiladas, botones de 44 px, sin
+  scroll lateral.
+
 ## Gastos (facturas, boletas, guías)
 
 - Con **la foto y el monto total ya se puede guardar** (reemplaza el "le saco foto y la mando"). Lo
   que falte queda **«por completar»**: sin proveedor, o sin partida **y** sin categoría
   (`porCompletar`, mismo criterio en SQL de `listarObras`).
 - Foto o PDF: `upload-costos.js` → `backend/uploads/costos/<obraId>/`, máx. 10 MB, JPG/PNG/WEBP/PDF.
-  En el navegador la foto se comprime a ~400 KB (legible para montos y folio; el servidor tiene poco
-  espacio). Descarga **autenticada** (`GET /api/costos/gastos/:id/foto`), nunca un estático; la ruta
+  En el navegador la foto se comprime a ~400 KB: hasta **2.000 px** de lado largo y nunca menos de
+  **1.400** (legible para montos, folio y RUT; una foto de iPhone de 7 MB queda en ~350 KB a
+  2000×1500). `compressImage` reduce ambos lados por el mismo factor (hasta el 19-10 podía deformar
+  la foto al topar cada lado por separado). Descarga **autenticada** (`GET /api/costos/gastos/:id/foto`), nunca un estático; la ruta
   en disco no sale en el JSON (`tiene_foto`). Si el gasto se rechaza, la foto recién subida se borra.
   Borrar el gasto borra su foto.
 - **Lo gastado se mide en NETO**, como el presupuesto (`netoDeGasto` / `SQL_NETO`):

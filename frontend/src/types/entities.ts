@@ -984,6 +984,7 @@ export interface CostoPartida {
     origen: 'original' | 'modificacion';
     motivo: string | null;
     orden: number;
+    created_at?: string;
     /** Calculados por el backend. */
     total: number;
     gastado: number;

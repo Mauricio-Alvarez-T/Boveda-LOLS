@@ -9,7 +9,7 @@ import { fmtMoney, fmtFechaCorta } from '../../utils/format';
 import { CATEGORIAS, TIPOS_DOC, hoyISO, netoGasto, porCompletar } from './costosConfig';
 import type { CostoGasto } from '../../types/entities';
 
-export type FiltroGastos = 'todos' | 'completar' | 'pagar';
+export type FiltroGastos = 'todos' | 'completar' | 'pagar' | 'estimados';
 
 interface Props {
     gastos: CostoGasto[];
@@ -19,7 +19,11 @@ interface Props {
     onAbrir: (g: CostoGasto) => void;
 }
 
-/** Facturas y boletas de la obra, de la más nueva a la más antigua. */
+/**
+ * Facturas y boletas de la obra, de la más nueva a la más antigua. «Por pagar» va por vencimiento
+ * (lo vencido primero, sin fecha al final). «Neto estimado» aparece solo si hay facturas cargadas
+ * solo con el total: son las que hay que completar para que el gastado sea exacto.
+ */
 export const GastosObra: React.FC<Props> = ({ gastos, filtro, onFiltro, onNuevo, onAbrir }) => {
     const [busqueda, setBusqueda] = useState('');
     const hoy = hoyISO();
@@ -28,19 +32,28 @@ export const GastosObra: React.FC<Props> = ({ gastos, filtro, onFiltro, onNuevo,
         todos: gastos.length,
         completar: gastos.filter(porCompletar).length,
         pagar: gastos.filter(g => g.estado_pago === 'por_pagar').length,
+        estimados: gastos.filter(g => netoGasto(g).estimado).length,
     }), [gastos]);
 
     const opciones: { key: FiltroGastos; label: string }[] = [
         { key: 'todos', label: 'Todos' },
         { key: 'completar', label: 'Por completar' },
         { key: 'pagar', label: 'Por pagar' },
+        ...(conteo.estimados || filtro === 'estimados' ? [{ key: 'estimados' as const, label: 'Neto estimado' }] : []),
     ];
 
     const visibles = useMemo(() => {
         const q = busqueda.trim().toLowerCase();
-        return gastos.filter(g =>
-            (filtro === 'todos' || (filtro === 'completar' ? porCompletar(g) : g.estado_pago === 'por_pagar')) &&
+        const pasa = (g: CostoGasto) => filtro === 'todos'
+            || (filtro === 'completar' && porCompletar(g))
+            || (filtro === 'pagar' && g.estado_pago === 'por_pagar')
+            || (filtro === 'estimados' && netoGasto(g).estimado);
+        const lista = gastos.filter(g => pasa(g) &&
             (!q || [g.proveedor, g.folio, g.partida_descripcion, g.observacion, g.categoria ? CATEGORIAS[g.categoria] : ''].some(t => (t || '').toLowerCase().includes(q))));
+        if (filtro === 'pagar') {
+            lista.sort((a, b) => (a.fecha_vencimiento || '9999').localeCompare(b.fecha_vencimiento || '9999'));
+        }
+        return lista;
     }, [gastos, filtro, busqueda]);
 
     const totalVisible = visibles.reduce((s, g) => s + (Number(g.monto_total) || 0), 0);
@@ -71,7 +84,7 @@ export const GastosObra: React.FC<Props> = ({ gastos, filtro, onFiltro, onNuevo,
                     description="Toma la foto de la factura y anota el total: con eso basta para empezar. Lo demás se completa después."
                     action={<Button onClick={onNuevo} leftIcon={<Plus className="h-4 w-4" />}>Cargar el primero</Button>} />
             ) : !visibles.length ? (
-                <EmptyState icon={Receipt} title={filtro === 'completar' ? 'Todo completo' : filtro === 'pagar' ? 'Nada por pagar' : 'Nada con esa búsqueda'} />
+                <EmptyState icon={Receipt} title={filtro === 'completar' ? 'Todo completo' : filtro === 'pagar' ? 'Nada por pagar' : filtro === 'estimados' ? 'Todas las facturas tienen su neto' : 'Nada con esa búsqueda'} />
             ) : (
                 <>
                     <ul className="flex flex-col gap-2">

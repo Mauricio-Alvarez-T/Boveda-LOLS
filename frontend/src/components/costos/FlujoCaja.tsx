@@ -209,7 +209,7 @@ const Movimientos: React.FC<{ balde: CostoBaldeFlujo; onIrObra: (obraId: number,
                 <span className={cn('shrink-0 text-xs font-semibold tabular-nums', m.tipo === 'cobro' ? 'text-brand-dark' : 'text-muted-foreground')}>
                     {m.tipo === 'cobro' ? '+' : '−'}{fmtMoney(m.monto)}
                 </span>
-                <Button variant="link" size="sm" className="shrink-0 text-xs" onClick={() => onIrObra(m.obra_id, m.tipo === 'cobro' ? 'cobros' : 'gastos')}>Ver ›</Button>
+                <Button variant="link" size="sm" className="shrink-0 text-xs" onClick={() => onIrObra(m.obra_id, m.tipo === 'cobro' ? 'cobros' : 'gastos')}>Ver</Button>
             </li>
         ))}
     </ul>
@@ -221,7 +221,7 @@ const Pendiente: React.FC<{ icon: React.ElementType; titulo: string; texto: stri
         <section className="rounded-card border border-border bg-card px-4 py-3">
             <h3 className="flex items-center gap-1.5 text-sm font-semibold text-brand-dark"><Icon className="h-4 w-4 text-muted-foreground" />{titulo}</h3>
             <p className="mt-1 text-xs text-muted-foreground">{texto}</p>
-            <Button variant="link" size="sm" className="mt-1 text-xs" onClick={() => setVer(v => !v)}>{ver ? 'Ocultar' : 'Ver cuáles'} ›</Button>
+            <Button variant="link" size="sm" className="mt-1 text-xs" onClick={() => setVer(v => !v)}>{ver ? 'Ocultar' : 'Ver cuáles'}</Button>
             {ver && <div className="mt-1"><Movimientos balde={balde} onIrObra={onIrObra} /></div>}
         </section>
     );
