@@ -4,7 +4,7 @@ import api from '../../services/api';
 import { EmptyState } from '../ui/EmptyState';
 import { fmtMoney } from '../../utils/format';
 import { fmtFechaHora } from '../../utils/fechas';
-import { CATEGORIAS, ESTADOS_PAGO, TIPOS_DOC } from './costosConfig';
+import { nombreCategoria, ESTADOS_PAGO, TIPOS_DOC } from './costosConfig';
 import type { CostoHistorial, CostoPartida } from '../../types/entities';
 
 const ICONO = { crear: Plus, editar: Pencil, borrar: Trash2, importar: FileSpreadsheet, cerrar: Lock, reabrir: LockOpen } as const;
@@ -23,7 +23,7 @@ const DINERO = new Set(['precio_unitario', 'monto_total', 'monto_neto', 'iva', '
 function valor(campo: string, v: unknown, partidas: Map<number, string>): string {
     if (v === null || v === undefined || v === '') return '(vacío)';
     if (DINERO.has(campo)) return fmtMoney(v as number) || String(v);
-    if (campo === 'categoria') return CATEGORIAS[v as keyof typeof CATEGORIAS] || String(v);
+    if (campo === 'categoria') return nombreCategoria(String(v));
     if (campo === 'tipo_documento') return TIPOS_DOC[v as keyof typeof TIPOS_DOC] || String(v);
     if (campo === 'estado_pago') return ESTADOS_PAGO[v as keyof typeof ESTADOS_PAGO] || String(v);
     if (campo === 'partida_id') return partidas.get(Number(v)) || `partida #${v} (ya no existe)`;

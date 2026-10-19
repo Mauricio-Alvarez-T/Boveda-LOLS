@@ -6,7 +6,7 @@ import { SearchBar } from '../ui/SearchBar';
 import { EmptyState } from '../ui/EmptyState';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
 import { fmtMoney, fmtFechaCorta } from '../../utils/format';
-import { CATEGORIAS, TIPOS_DOC, hoyISO, netoGasto, porCompletar } from './costosConfig';
+import { CATEGORIAS, TIPOS_DOC, hoyISO, netoGasto, porCompletar, nombreGasto } from './costosConfig';
 import type { CostoGasto } from '../../types/entities';
 
 export type FiltroGastos = 'todos' | 'completar' | 'pagar' | 'estimados';
@@ -103,8 +103,8 @@ export const GastosObra: React.FC<Props> = ({ gastos, filtro, onFiltro, onNuevo,
                                         </span>
                                         <span className="min-w-0 flex-1">
                                             <span className="flex items-start justify-between gap-3">
-                                                <span className={g.proveedor ? 'min-w-0 truncate text-sm font-semibold text-brand-dark' : 'min-w-0 truncate text-sm font-semibold text-muted-foreground'}>
-                                                    {g.proveedor || 'Sin proveedor'}
+                                                <span className={g.proveedor || g.tipo_documento === 'planilla' ? 'min-w-0 truncate text-sm font-semibold text-brand-dark' : 'min-w-0 truncate text-sm font-semibold text-muted-foreground'}>
+                                                    {nombreGasto(g)}
                                                 </span>
                                                 <span className="shrink-0 text-sm font-bold text-brand-dark tabular-nums">{fmtMoney(g.monto_total)}</span>
                                             </span>

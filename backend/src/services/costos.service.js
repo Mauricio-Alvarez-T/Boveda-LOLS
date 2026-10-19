@@ -23,8 +23,41 @@ const logger = require('../utils/logger-structured');
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 
-const TIPOS_DOC = ['factura', 'boleta', 'guia', 'otro'];
-const CATEGORIAS = ['materiales', 'mano_obra', 'maquinaria', 'subcontrato', 'combustible', 'gastos_generales', 'otro'];
+const TIPOS_DOC = ['factura', 'boleta', 'guia', 'planilla', 'otro'];
+
+/**
+ * Categorías de gasto (mig 124), en los grupos que usa LOLS (nota de Rodrigo + desglose de gastos de
+ * obra, 19-10). Los textos y ejemplos para la pantalla viven en frontend/.../costosConfig.ts.
+ *   Mano de obra y administración · Gastos generales de obra · Materiales · Permisos y legal · Otro
+ */
+const CATEGORIAS = [
+    'sueldos_administracion', 'sueldos', 'anticipos', 'subcontrato',
+    'arriendo_equipos', 'servicios_basicos', 'logistica_seguridad', 'combustible', 'herramientas', 'gastos_generales',
+    'hormigon', 'acero', 'materiales',
+    'permisos', 'mitigaciones',
+    'otro',
+];
+
+/**
+ * Las que, cargadas SIN partida, se comparan contra los gastos generales presupuestados (% GG):
+ * la administración de la obra, la instalación de faenas y los permisos. El resto sin partida queda
+ * «sin asignar» (cuenta en el total, en ningún capítulo). Con partida, todo cuenta en su partida.
+ */
+const CATEGORIAS_GG = new Set([
+    'sueldos_administracion',
+    'arriendo_equipos', 'servicios_basicos', 'logistica_seguridad', 'combustible', 'herramientas', 'gastos_generales',
+    'permisos', 'mitigaciones',
+]);
+
+/**
+ * Mano de obra directa: en el itemizado chileno va DENTRO del precio unitario de cada partida, así
+ * que sueldos, anticipos y subcontratistas casi nunca se asignan a una sola partida. Sin partida se
+ * muestran aparte («mano de obra») y no como «sin asignar» (no es algo que falte corregir).
+ */
+const CATEGORIAS_MANO_OBRA = new Set(['sueldos', 'anticipos', 'subcontrato']);
+
+/** Falta completar: el proveedor (salvo una planilla de sueldos, que no tiene) o a qué va. */
+const faltaCompletar = g => (!g.proveedor && g.tipo_documento !== 'planilla') || (!g.partida_id && !g.categoria);
 const ESTADOS_PAGO = ['por_pagar', 'pagada'];
 const MAX_IMPORTAR = 3000;
 
@@ -235,7 +268,7 @@ function noCerrada(fila) {
 const totalCobro = c => Math.round((Number(c.monto_neto) || 0) + (Number(c.iva) || 0) - (Number(c.retencion) || 0));
 
 module.exports = {
-    TIPOS_DOC, CATEGORIAS, ESTADOS_PAGO, MAX_IMPORTAR,
+    TIPOS_DOC, CATEGORIAS, CATEGORIAS_GG, CATEGORIAS_MANO_OBRA, ESTADOS_PAGO, MAX_IMPORTAR, faltaCompletar,
     calcularTotales, netoDeGasto, num,
     /** Para costosCaja.service y costosCierre.service (mismas reglas, un solo lugar). */
     _h: { err, num, texto, fechaISO, ymd, hoy, registrar, diferencias, obraOFalla, presupuestoDe, noCerrada, totalCobro, netoDeGasto },
@@ -257,7 +290,7 @@ module.exports = {
                LEFT JOIN (SELECT presupuesto_id, SUM(ROUND(cantidad * precio_unitario)) AS costo_directo, COUNT(*) AS partidas
                             FROM costo_partidas GROUP BY presupuesto_id) pt ON pt.presupuesto_id = p.id
                LEFT JOIN (SELECT g.obra_id, SUM(${SQL_NETO}) AS gastado_neto, COUNT(*) AS gastos,
-                                 SUM(g.proveedor IS NULL OR (g.partida_id IS NULL AND g.categoria IS NULL)) AS por_completar,
+                                 SUM((g.proveedor IS NULL AND g.tipo_documento <> 'planilla') OR (g.partida_id IS NULL AND g.categoria IS NULL)) AS por_completar,
                                  SUM(CASE WHEN g.estado_pago = 'por_pagar' THEN g.monto_total ELSE 0 END) AS por_pagar
                             FROM costo_gastos g GROUP BY g.obra_id) gt ON gt.obra_id = o.id
               WHERE o.es_prueba = 0 AND (o.activa = 1 OR o.finalizada = 1)
@@ -362,7 +395,7 @@ module.exports = {
 
         const totales = calcularTotales(pres, partidas);
         const gastadoPorPartida = new Map();
-        let gastado = 0, estimado = false, gg = 0, sinAsignar = 0, porCompletar = 0;
+        let gastado = 0, estimado = false, gg = 0, manoObra = 0, sinAsignar = 0, porCompletar = 0;
         let porPagarN = 0, porPagarMonto = 0, vencidasN = 0, vencidasMonto = 0;
         const hoyStr = hoy();
         for (const g of gastos) {
@@ -370,9 +403,10 @@ module.exports = {
             gastado += neto;
             if (est) estimado = true;
             if (g.partida_id) gastadoPorPartida.set(g.partida_id, (gastadoPorPartida.get(g.partida_id) || 0) + neto);
-            else if (g.categoria === 'gastos_generales') gg += neto;
+            else if (CATEGORIAS_GG.has(g.categoria)) gg += neto;
+            else if (CATEGORIAS_MANO_OBRA.has(g.categoria)) manoObra += neto;
             else sinAsignar += neto;
-            if (!g.proveedor || (!g.partida_id && !g.categoria)) porCompletar++;
+            if (faltaCompletar(g)) porCompletar++;
             if (g.estado_pago === 'por_pagar') {
                 porPagarN++; porPagarMonto += Number(g.monto_total) || 0;
                 const venc = ymd(g.fecha_vencimiento);
@@ -409,6 +443,7 @@ module.exports = {
                 disponible: totales.costo_presupuestado - gastado,
                 pct_gastado: totales.costo_presupuestado > 0 ? Math.round((gastado / totales.costo_presupuestado) * 1000) / 10 : null,
                 gastos_generales_gastado: gg,
+                mano_obra_sin_partida: manoObra,
                 sin_asignar: sinAsignar,
                 por_completar: porCompletar,
                 por_pagar: { n: porPagarN, monto: porPagarMonto },

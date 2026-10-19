@@ -38,7 +38,7 @@ function resumenCierre(detalle) {
         },
         real: {
             gastado_neto: gastado, gastado_estimado: r.gastado_estimado, por_categoria: porCategoria,
-            gastos_generales_gastado: r.gastos_generales_gastado, sin_asignar: r.sin_asignar,
+            gastos_generales_gastado: r.gastos_generales_gastado, mano_obra_sin_partida: r.mano_obra_sin_partida || 0, sin_asignar: r.sin_asignar,
         },
         venta: {
             neto: venta, fuente: hayCobros ? 'cobros' : 'presupuesto',

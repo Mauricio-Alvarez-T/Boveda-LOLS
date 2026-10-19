@@ -17,7 +17,7 @@ const HOY = new Date(2026, 9, 16);
  * Mock de BD: `existentes` = nombres de obra que ya están; `marcadas` = obras que ya recibieron
  * superficie y cobros; `tablas` = si existen las tablas de costos.
  */
-function dbCon({ existentes = [], marcadas = [], tablas = true } = {}) {
+function dbCon({ existentes = [], marcadas = [], marcadasMes = [], mig124 = false, tablas = true } = {}) {
     let id = 100;
     const llamadas = [];
     const creadas = [];
@@ -34,7 +34,11 @@ function dbCon({ existentes = [], marcadas = [], tablas = true } = {}) {
             if (/FROM obras o JOIN costo_presupuestos p/.test(sql)) {
                 return [[...existentes, ...creadas].map(nombre => ({ obra_id: idDe(nombre), nombre, presupuesto_id: 700 + idDe(nombre) }))];
             }
-            if (/FROM costo_historial/.test(sql)) return [marcadas.map(n => ({ obra_id: idDe(n) }))];
+            if (/FROM schema_migrations/.test(sql)) return [mig124 ? [{ 1: 1 }] : []];
+            if (/FROM costo_historial/.test(sql)) {
+                const lista = String(params[1]).startsWith(costosDemo.MARCA_MES) ? marcadasMes : marcadas;
+                return [lista.map(n => ({ obra_id: idDe(n) }))];
+            }
             if (/INSERT INTO obras/.test(sql)) { creadas.push(params[0]); return [{ insertId: idDe(params[0]) }]; }
             if (/FROM empresas/.test(sql)) return [[{ id: 1 }]];
             if (/FROM usuarios/.test(sql)) return [[{ id: 9 }]];
@@ -68,7 +72,7 @@ describe('saneoCostos — obras de ejemplo de Presupuestos', () => {
     test('sin las tablas de costos (mig 122 sin correr) no hay nada pendiente ni se siembra', async () => {
         const db = dbCon({ tablas: false });
         expect(await costosDemo.pendiente(db)).toBe(false);
-        expect(await costosDemo.sembrar(db, { hoy: HOY })).toEqual({ obras: 0, partidas: 0, gastos: 0, cobros: 0 });
+        expect(await costosDemo.sembrar(db, { hoy: HOY })).toEqual({ obras: 0, partidas: 0, gastos: 0, cobros: 0, gastos_mes: 0 });
         expect(db.llamadas.some(([sql]) => /INSERT/.test(sql))).toBe(false);
     });
 
@@ -89,7 +93,7 @@ describe('saneoCostos — obras de ejemplo de Presupuestos', () => {
         expect(obrasCreadas).toEqual(['Obra demo 1', 'Obra demo 3']);
         const d1 = costosDemo.OBRAS_DEMO[0], d3 = costosDemo.OBRAS_DEMO[2];
         const nCobros = Object.values(costosDemo.EXTRAS).reduce((t, e) => t + e.cobros.length, 0);
-        expect(r).toEqual({ obras: 2, partidas: d1.partidas.length + d3.partidas.length, gastos: d1.gastos.length, cobros: nCobros });
+        expect(r).toEqual({ obras: 2, partidas: d1.partidas.length + d3.partidas.length, gastos: d1.gastos.length, cobros: nCobros, gastos_mes: 0 });
         // Historial: «datos de ejemplo» de las 2 nuevas + la marca de superficie y cobros de las 3.
         expect(db.llamadas.filter(([sql]) => /INSERT INTO costo_historial/.test(sql))).toHaveLength(5);
 
@@ -112,6 +116,27 @@ describe('saneoCostos — obras de ejemplo de Presupuestos', () => {
         expect(ep2).toEqual([10, '2026-10-26', 'EP 2', 6500000, 1235000, 325000, 'por_cobrar', null, 9]);
         const marcas = db.llamadas.filter(([sql, p]) => /INSERT INTO costo_historial/.test(sql) && String(p[2]).startsWith(costosDemo.MARCA_EXTRAS));
         expect(marcas).toHaveLength(2);
+    });
+
+    test('gastos mes a mes: solo con la mig 124, una vez por obra, sin días futuros y con planillas sin IVA', async () => {
+        const todas = ['Obra demo 1', 'Obra demo 2', 'Obra demo 3'];
+        // Sin la mig 124 no se siembran (la columna aún no acepta las categorías nuevas).
+        expect(await costosDemo.pendiente(dbCon({ existentes: todas, marcadas: todas }))).toBe(false);
+
+        const db = dbCon({ existentes: todas, marcadas: todas, mig124: true, marcadasMes: ['Obra demo 2'] });
+        expect(await costosDemo.pendiente(db)).toBe(true);
+        const r = await costosDemo.sembrar(db, { hoy: HOY });           // 16-10-2026
+        const gastos = db.llamadas.filter(([sql]) => /INSERT INTO costo_gastos/.test(sql)).map(([, p]) => p);
+        expect(gastos.every(p => p[0] === 10)).toBe(true);               // solo la Obra demo 1
+        expect(gastos.every(p => p[1] <= '2026-10-16')).toBe(true);      // nada con fecha futura
+        // El anticipo de este mes es del 15: sí entra; no hay planillas del 28 de octubre.
+        expect(gastos.some(p => p[1] === '2026-10-15' && p[8] === 'anticipos')).toBe(true);
+        expect(gastos.some(p => p[1] === '2026-10-28')).toBe(false);
+        const planilla = gastos.find(p => p[8] === 'sueldos');
+        expect([planilla[2], planilla[3], planilla[5], planilla[6]]).toEqual(['planilla', null, null, null]);
+        expect(r.gastos_mes).toBe(gastos.length);
+        const marca = db.llamadas.filter(([sql, p]) => /INSERT INTO costo_historial/.test(sql) && String(p[2]).startsWith(costosDemo.MARCA_MES));
+        expect(marca).toHaveLength(1);
     });
 
     test('fechas relativas a hoy: la factura vencida queda vencida y la por vencer, por vencer', async () => {

@@ -88,6 +88,41 @@ secretaria"), y se pierden datos. **Es un ESQUELETO**: Marcos le pregunta a Rodr
 - Teléfono (iPhone): el panel es una hoja desde abajo, tarjetas apiladas, botones de 44 px, sin
   scroll lateral.
 
+## Categorías de gasto y gastos mes a mes (mig 124, 2026-10-19)
+
+- Pedido de Rodrigo (nota a mano: Copec; anticipos y sueldos mes a mes; hormigón; herramientas;
+  materiales; arriendo de materiales y maquinaria a **Dedalius**, un monto mensual por obra) + desglose
+  de gastos de obra. Respuestas del 19-10: herramientas = gasto general (se suman mes a mes); permisos
+  se pagan por obra; subcontratistas, uno o varios pagos (cada pago es un gasto); sueldos con bonos y
+  horas extra: **pendiente de Rodrigo** (hoy, un total mensual por obra; el detalle en Observación).
+  Grupos y categorías (claves en `costos.service.js · CATEGORIAS`, textos y ejemplos en
+  `costosConfig.ts · GRUPOS_CATEGORIA / CATEGORIAS / AYUDA_CATEGORIA`):
+
+  | Grupo | Categorías | Sin partida cuenta como… |
+  |---|---|---|
+  | Mano de obra y administración (mensual) | Sueldos administración de obra · Sueldos trabajadores · Anticipos de sueldo · Subcontratistas | administración → **gastos generales**; el resto → **mano de obra** |
+  | Gastos generales de obra (mensual) | Arriendo de equipos y maquinaria · Servicios básicos de faena · Escombros y seguridad · Combustible (Copec) · Herramientas · Otros gastos generales | gastos generales |
+  | Materiales (mensual) | Hormigón · Acero, fierro y perfiles · Otros materiales | sin asignar (deberían ir a una partida) |
+  | Permisos y legal (por proyecto) | Permisos y derechos municipales · Mitigaciones (IMIV, ambientales) | gastos generales |
+  | Otro | Otro | sin asignar |
+
+- `categoria` pasó de ENUM a **VARCHAR(40)** validado en el código: ajustar la lista con Rodrigo no
+  exige otra migración. `mano_obra` → `sueldos`, `maquinaria` → `arriendo_equipos` (traducidas en la
+  mig 124; los nombres viejos se siguen mostrando bien en historiales y cierres).
+- **Mano de obra sin partida** (sueldos, anticipos, subcontratistas) va **aparte** en el Resumen,
+  sin barra contra presupuesto: en el itemizado chileno la mano de obra va **dentro del precio
+  unitario** de cada partida, así que no se asigna a una sola y no es «sin asignar».
+- **Planilla de sueldos** (`tipo_documento = 'planilla'`): sin IVA (cuenta el total), sin proveedor
+  (no queda «por completar») y con su detalle en Observación. Elegir una categoría de sueldo cambia
+  el documento a planilla (si quedara «factura», el neto se estimaría ÷ 1,19 y la mano de obra
+  saldría 16 % más baja). En listas y en el flujo de caja se nombra «Planilla · …».
+- **Gastos mes a mes** (Resumen, `GastosMesAMes.tsx`): neto por la **fecha del documento**, por
+  grupo y categoría. Teléfono: se elige el mes (o toda la obra), con el total y la variación contra
+  el mes anterior. Escritorio: además, la **tabla** de los últimos 6 meses lado a lado. Cada monto
+  abre sus documentos (`DetalleCostos` vista `categoria`), desde donde se carga otro ya clasificado.
+- En test las Obra demo 1 y 2 reciben 3 meses de gastos variados, una vez por obra (marca «Datos de
+  ejemplo de test: gastos mes a mes»), solo si ya corrió la mig 124.
+
 ## Gastos (facturas, boletas, guías)
 
 - Con **la foto y el monto total ya se puede guardar** (reemplaza el "le saco foto y la mando"). Lo

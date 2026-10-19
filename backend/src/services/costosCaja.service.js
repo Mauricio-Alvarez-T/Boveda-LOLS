@@ -164,7 +164,7 @@ module.exports = {
         const filtro = obraId ? ' AND o.id = ?' : '';
         const params = obraId ? [obraId] : [];
         const [pagos] = await db.query(
-            `SELECT g.id, g.obra_id, o.nombre AS obra_nombre, g.fecha, g.fecha_vencimiento, g.proveedor, g.folio, g.tipo_documento, g.monto_total
+            `SELECT g.id, g.obra_id, o.nombre AS obra_nombre, g.fecha, g.fecha_vencimiento, g.proveedor, g.folio, g.tipo_documento, g.observacion, g.monto_total
                FROM costo_gastos g JOIN obras o ON o.id = g.obra_id
               WHERE g.estado_pago = 'por_pagar'${filtro}`, params);
         const [cobros] = await db.query(
@@ -175,7 +175,10 @@ module.exports = {
             ...pagos.map(g => ({
                 tipo: 'pago', id: g.id, obra_id: g.obra_id, obra_nombre: g.obra_nombre,
                 fecha: ymd(g.fecha_vencimiento), fecha_documento: ymd(g.fecha),
-                detalle: `${g.proveedor || 'Sin proveedor'}${g.folio ? ` · N° ${g.folio}` : ''}`,
+                // Una planilla de sueldos no tiene proveedor: se nombra por su detalle.
+                detalle: g.proveedor
+                    ? `${g.proveedor}${g.folio ? ` · N° ${g.folio}` : ''}`
+                    : g.tipo_documento === 'planilla' ? `Planilla de sueldos${g.observacion ? ` · ${g.observacion}` : ''}` : 'Sin proveedor',
                 monto: Math.round(Number(g.monto_total) || 0),
             })),
             ...cobros.map(c => ({

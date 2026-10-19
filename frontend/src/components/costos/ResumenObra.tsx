@@ -7,6 +7,7 @@ import { fmtMoney, fmtNumber } from '../../utils/format';
 import { pct } from './costosConfig';
 import { Kpi, BarraAvance, PctGastado, Aviso } from './piezas';
 import type { VistaDetalle } from './DetalleCostos';
+import { GastosMesAMes } from './GastosMesAMes';
 import type { FiltroGastos } from './GastosObra';
 import type { CostoDetalleObra } from '../../types/entities';
 
@@ -112,6 +113,13 @@ export const ResumenObra: React.FC<Props> = ({ detalle, onImportar, onAgregarPar
                                         onClick={() => onDetalle({ tipo: 'gastos_generales' })} />
                                 </li>
                             )}
+                            {r.mano_obra_sin_partida > 0 && (
+                                <li>
+                                    <FilaCapitulo nombre="Mano de obra" sufijo="(sin partida)" presupuestado={0} gastado={r.mano_obra_sin_partida} sinPresupuesto
+                                        nota="sueldos, anticipos y subcontratos"
+                                        onClick={() => onDetalle({ tipo: 'mano_obra' })} />
+                                </li>
+                            )}
                         </ul>
                     </Section>
 
@@ -169,12 +177,30 @@ export const ResumenObra: React.FC<Props> = ({ detalle, onImportar, onAgregarPar
                     </div>
                 </div>
             )}
+
+            {detalle.gastos.length > 0 && <GastosMesAMes gastos={detalle.gastos} onDetalle={onDetalle} />}
         </div>
     );
 };
 
-/** Capítulo como fila tocable de 44 px o más: nombre, %, barra y montos, con flecha. */
-const FilaCapitulo: React.FC<{ nombre: string; sufijo?: string; nota?: string; presupuestado: number; gastado: number; onClick: () => void }> = ({ nombre, sufijo, nota, presupuestado, gastado, onClick }) => (
+/**
+ * Capítulo como fila tocable de 44 px o más: nombre, %, barra y montos, con flecha. `sinPresupuesto`:
+ * sin barra ni % (la mano de obra no tiene presupuesto aparte: va dentro de los precios unitarios).
+ */
+const FilaCapitulo: React.FC<{ nombre: string; sufijo?: string; nota?: string; presupuestado: number; gastado: number; sinPresupuesto?: boolean; onClick: () => void }> = ({ nombre, sufijo, nota, presupuestado, gastado, sinPresupuesto, onClick }) => sinPresupuesto ? (
+    // eslint-disable-next-line no-restricted-syntax -- fila que abre la mano de obra sin partida (nombre, monto y nota); Button no soporta este layout
+    <button type="button" onClick={onClick}
+        className="flex min-h-11 w-full items-center gap-2 rounded-xl px-2 py-2.5 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40">
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0 truncate text-sm font-semibold text-brand-dark">{nombre}{sufijo && <span className="font-normal text-muted-foreground"> {sufijo}</span>}</span>
+                <span className="shrink-0 text-sm font-semibold text-brand-dark tabular-nums">{fmtMoney(gastado) || '$0'}</span>
+            </span>
+            <span className="text-caption text-muted-foreground">{nota ? `${nota} · ` : ''}va dentro de los precios unitarios de las partidas</span>
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </button>
+) : (
     // eslint-disable-next-line no-restricted-syntax -- fila de capítulo que abre su detalle (nombre, %, barra y montos); Button no soporta este layout
     <button type="button" onClick={onClick}
         className="flex min-h-11 w-full items-center gap-2 rounded-xl px-2 py-2.5 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40">

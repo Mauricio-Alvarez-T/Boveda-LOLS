@@ -230,6 +230,44 @@ describe('Costos — gastos', () => {
     });
 });
 
+describe('Costos — categorías detalladas (mig 124)', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    test('acepta las categorías nuevas y rechaza las que se tradujeron (mano_obra, maquinaria)', async () => {
+        db.query.mockResolvedValueOnce(OBRA).mockResolvedValueOnce([[{ id: 70, obra_id: 3 }]]).mockResolvedValueOnce([{ insertId: 40 }]).mockResolvedValueOnce([{}]);
+        await expect(svc.crearGasto(3, { monto_total: 1000, categoria: 'hormigon' }, null, 5)).resolves.toEqual({ id: 40 });
+        for (const vieja of ['mano_obra', 'maquinaria']) {
+            db.query.mockResolvedValueOnce(OBRA);
+            await expect(svc.crearGasto(3, { monto_total: 1000, categoria: vieja }, null, 5)).rejects.toMatchObject({ statusCode: 400, code: 'COSTO_CATEGORIA' });
+        }
+    });
+
+    test('una planilla de sueldos no lleva IVA: cuenta el total, y sin proveedor no queda «por completar»', () => {
+        expect(svc.netoDeGasto({ monto_neto: null, monto_total: 2400000, tipo_documento: 'planilla' })).toEqual({ neto: 2400000, estimado: false });
+        expect(svc.faltaCompletar({ proveedor: null, tipo_documento: 'planilla', partida_id: null, categoria: 'sueldos' })).toBe(false);
+        expect(svc.faltaCompletar({ proveedor: null, tipo_documento: 'factura', partida_id: null, categoria: 'materiales' })).toBe(true);
+    });
+
+    test('sin partida: administración y faenas van a gastos generales; sueldos y subcontratos, a mano de obra; materiales, sin asignar', async () => {
+        const g = (id, categoria, total, tipo = 'boleta') => ({ id, partida_id: null, categoria, monto_total: total, monto_neto: null, tipo_documento: tipo, proveedor: 'X', estado_pago: 'pagada', foto_ruta: null });
+        db.query
+            .mockResolvedValueOnce(OBRA)
+            .mockResolvedValueOnce([[{ id: 70, obra_id: 3, gg_pct: 10, imprevistos_pct: 0, utilidad_pct: 0, iva_pct: 19 }]])
+            .mockResolvedValueOnce([[]])
+            .mockResolvedValueOnce([[
+                g(1, 'sueldos_administracion', 2400000, 'planilla'), g(2, 'arriendo_equipos', 650000), g(3, 'permisos', 300000),
+                g(4, 'sueldos', 4200000, 'planilla'), g(5, 'anticipos', 1000000, 'planilla'), g(6, 'subcontrato', 900000),
+                g(7, 'hormigon', 500000), g(8, null, 100000), g(9, 'herramientas', 145000),
+            ]]);
+        const d = await svc.detalleObra(3);
+        // Herramientas = gasto general de obra (respuesta del 19-10): se suman mes a mes.
+        expect(d.resumen.gastos_generales_gastado).toBe(2400000 + 650000 + 300000 + 145000);
+        expect(d.resumen.mano_obra_sin_partida).toBe(4200000 + 1000000 + 900000);
+        expect(d.resumen.sin_asignar).toBe(500000 + 100000);
+        expect(d.resumen.por_completar).toBe(1);                       // solo el sin categoría
+    });
+});
+
 describe('Costos — obras del módulo (se agregan, no aparecen todas)', () => {
     beforeEach(() => jest.clearAllMocks());
 

@@ -32,7 +32,7 @@ const OBRAS_DEMO = [
         // [días atrás, tipo, proveedor, folio, neto, total, ítem de partida | null, categoría, pagada, vence en (días, negativo = vencida), observación]
         gastos: [
             [40, 'factura', 'Constructora Sur', '3301', 1420000, 1689800, '1.1', 'subcontrato', true, null, null],
-            [38, 'factura', 'Excavaciones Ltda', '777', 610000, 725900, '2.1', 'maquinaria', true, null, null],
+            [38, 'factura', 'Excavaciones Ltda', '777', 610000, 725900, '2.1', 'arriendo_equipos', true, null, null],
             [25, 'factura', 'Arriendos Faena SpA', '1022', 850000, 1011500, null, 'gastos_generales', false, -10, null],
             [6, 'factura', 'Gerdau Aza', '55120', null, 3689000, '2.3', 'materiales', true, null, 'Cargada solo con el total: el neto se estima'],
             [4, 'boleta', 'Copec', null, null, 185000, null, 'combustible', true, null, null],
@@ -110,6 +110,44 @@ const EXTRAS = {
     },
 };
 
+/**
+ * Complemento del 19-10 tarde (mig 124): gastos de varios meses con las categorías detalladas, para
+ * que «Gastos mes a mes» muestre algo. Una vez por obra (marca en el historial).
+ * Gasto: [meses atrás (0 = este mes), día, tipo, proveedor, folio, neto | null, total, categoría, pagada, detalle]
+ */
+const MARCA_MES = 'Datos de ejemplo de test: gastos mes a mes';
+const MIG_CATEGORIAS = '124_costos_categorias_detalladas.sql';
+const GASTOS_MES = {
+    'Obra demo 1': [
+        [2, 5, 'factura', 'Baños Químicos Norte', '2201', 180000, 214200, 'servicios_basicos', true, null],
+        [2, 10, 'boleta', 'Copec', null, null, 210000, 'combustible', true, null],
+        [2, 12, 'factura', 'Andamios del Sur', '9011', 650000, 773500, 'arriendo_equipos', true, 'Andamios y alzaprimas, mensual'],
+        [2, 15, 'planilla', null, null, null, 1000000, 'anticipos', true, 'Anticipo de quincena'],
+        [2, 28, 'planilla', null, null, null, 2400000, 'sueldos_administracion', true, 'Administrador, jefe de obra y prevencionista'],
+        [2, 28, 'planilla', null, null, null, 4200000, 'sueldos', true, 'Planilla de trabajadores'],
+        [1, 5, 'factura', 'Baños Químicos Norte', '2264', 180000, 214200, 'servicios_basicos', true, null],
+        [1, 8, 'factura', 'Tolvas y Escombros', '512', 320000, 380800, 'logistica_seguridad', true, 'Retiro de escombros (2 tolvas)'],
+        [1, 10, 'boleta', 'Copec', null, null, 230000, 'combustible', true, null],
+        [1, 12, 'factura', 'Andamios del Sur', '9087', 650000, 773500, 'arriendo_equipos', true, 'Andamios y alzaprimas, mensual'],
+        [1, 15, 'planilla', null, null, null, 1100000, 'anticipos', true, 'Anticipo de quincena'],
+        [1, 18, 'factura', 'Ferretería Central', '5402', 145000, 172550, 'herramientas', true, 'Esmeril y discos'],
+        [1, 28, 'planilla', null, null, null, 2400000, 'sueldos_administracion', true, 'Administrador, jefe de obra y prevencionista'],
+        [1, 28, 'planilla', null, null, null, 4600000, 'sueldos', true, 'Planilla de trabajadores'],
+        [0, 3, 'factura', 'Baños Químicos Norte', '2330', 180000, 214200, 'servicios_basicos', false, null],
+        [0, 6, 'factura', 'Andamios del Sur', '9150', 650000, 773500, 'arriendo_equipos', false, 'Andamios y alzaprimas, mensual'],
+        [0, 15, 'planilla', null, null, null, 1050000, 'anticipos', true, 'Anticipo de quincena'],
+    ],
+    'Obra demo 2': [
+        [2, 10, 'boleta', 'Copec', null, null, 120000, 'combustible', true, null],
+        [2, 28, 'planilla', null, null, null, 2800000, 'sueldos', true, 'Planilla de trabajadores'],
+        [1, 10, 'boleta', 'Copec', null, null, 135000, 'combustible', true, null],
+        [1, 14, 'factura', 'Hormigones del Sur', '4502', 980000, 1166200, 'hormigon', true, 'Hormigón H-20 radier terraza'],
+        [1, 15, 'planilla', null, null, null, 600000, 'anticipos', true, 'Anticipo de quincena'],
+        [1, 28, 'planilla', null, null, null, 2950000, 'sueldos', true, 'Planilla de trabajadores'],
+        [0, 15, 'planilla', null, null, null, 650000, 'anticipos', true, 'Anticipo de quincena'],
+    ],
+};
+
 /** AAAA-MM-DD local, `dias` desde hoy (negativo = atrás). */
 function fecha(dias, hoy = new Date()) {
     const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + dias);
@@ -151,11 +189,69 @@ async function obrasSinExtras(db) {
     return obras.filter(o => !con.has(o.obra_id) && EXTRAS[o.nombre]);
 }
 
+/** ¿Ya corrió la mig 124? (sin ella, la columna categoría no acepta las categorías nuevas). */
+async function hayCategoriasDetalladas(db) {
+    try {
+        const [r] = await db.query('SELECT 1 FROM schema_migrations WHERE name = ?', [MIG_CATEGORIAS]);
+        return r.length > 0;
+    } catch (e) {
+        if (sinTablas(e)) return false;
+        throw e;
+    }
+}
+
+/** Obras demo ya creadas a las que todavía no se les agregaron los gastos mes a mes. */
+async function obrasSinMes(db) {
+    if (!(await hayCategoriasDetalladas(db))) return [];
+    const [obras] = await db.query(
+        `SELECT o.id AS obra_id, o.nombre, p.id AS presupuesto_id
+           FROM obras o JOIN costo_presupuestos p ON p.obra_id = o.id
+          WHERE o.nombre IN (?)`, [NOMBRES_DEMO]);
+    if (!obras.length) return [];
+    const [marcas] = await db.query(
+        'SELECT DISTINCT obra_id FROM costo_historial WHERE obra_id IN (?) AND resumen LIKE ?',
+        [obras.map(o => o.obra_id), `${MARCA_MES}%`]);
+    const con = new Set(marcas.map(m => m.obra_id));
+    return obras.filter(o => !con.has(o.obra_id) && GASTOS_MES[o.nombre]);
+}
+
 /** ¿Hay algo que sembrar? false también si las tablas de costos no existen (mig 122 sin correr). */
 async function pendiente(db) {
     if (!(await existeTabla(db, 'costo_presupuestos'))) return false;
     if (await faltanObras(db)) return true;
-    return (await obrasSinExtras(db)).length > 0;
+    if ((await obrasSinExtras(db)).length > 0) return true;
+    return (await obrasSinMes(db)).length > 0;
+}
+
+/** AAAA-MM-DD del día `dia` de hace `mesesAtras` meses (el día se acota al último del mes). */
+function fechaMes(mesesAtras, dia, hoy) {
+    const ultimo = new Date(hoy.getFullYear(), hoy.getMonth() - mesesAtras + 1, 0).getDate();
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() - mesesAtras, Math.min(dia, ultimo));
+    const dos = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
+}
+
+/** Gastos mes a mes de una obra demo, con su marca (en la transacción de `q`). Lo de días futuros se salta. */
+async function sembrarMes(q, obra, usuarioId, hoy) {
+    const hoyISO = fecha(0, hoy);
+    let n = 0;
+    for (const [atras, dia, tipo, proveedor, folio, neto, total, categoria, pagada, detalle] of GASTOS_MES[obra.nombre]) {
+        const f = fechaMes(atras, dia, hoy);
+        if (f > hoyISO) continue;
+        const vence = pagada ? null : fechaMes(atras, Math.min(28, dia + 20), hoy);
+        await q.query(
+            `INSERT INTO costo_gastos (obra_id, fecha, tipo_documento, proveedor, folio, monto_neto, iva, monto_total,
+                                       categoria, partida_id, estado_pago, fecha_vencimiento, fecha_pago, observacion, creado_por)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
+            [obra.obra_id, f, tipo, proveedor, folio, neto, neto !== null ? total - neto : null, total,
+                categoria, pagada ? 'pagada' : 'por_pagar', vence, pagada ? f : null, detalle, usuarioId]);
+        n++;
+    }
+    await q.query(
+        `INSERT INTO costo_historial (obra_id, entidad, entidad_id, accion, resumen, usuario_id)
+         VALUES (?, 'presupuesto', ?, 'importar', ?, NULL)`,
+        [obra.obra_id, obra.presupuesto_id, `${MARCA_MES}: ${n} gastos de los últimos 3 meses`]);
+    return n;
 }
 
 /** Superficie y cobros de una obra demo, con su marca en el historial (en la transacción de `q`). */
@@ -199,7 +295,7 @@ async function enTransaccion(db, fn) {
  * Devuelve cuántas obras, partidas y gastos sembró.
  */
 async function sembrar(db, { hoy = new Date() } = {}) {
-    const resumen = { obras: 0, partidas: 0, gastos: 0, cobros: 0 };
+    const resumen = { obras: 0, partidas: 0, gastos: 0, cobros: 0, gastos_mes: 0 };
     if (!(await pendiente(db))) return resumen;
 
     const [existentes] = await db.query('SELECT nombre FROM obras WHERE nombre IN (?)', [NOMBRES_DEMO]);
@@ -271,7 +367,11 @@ async function sembrar(db, { hoy = new Date() } = {}) {
     for (const obra of await obrasSinExtras(db)) {
         resumen.cobros += await enTransaccion(db, q => sembrarExtras(q, obra, usuario.id, hoy));
     }
+    // Gastos mes a mes con las categorías detalladas (mig 124).
+    for (const obra of await obrasSinMes(db)) {
+        resumen.gastos_mes += await enTransaccion(db, q => sembrarMes(q, obra, usuario.id, hoy));
+    }
     return resumen;
 }
 
-module.exports = { OBRAS_DEMO, NOMBRES_DEMO, EXTRAS, MARCA_EXTRAS, pendiente, sembrar, _interno: { fecha } };
+module.exports = { OBRAS_DEMO, NOMBRES_DEMO, EXTRAS, MARCA_EXTRAS, GASTOS_MES, MARCA_MES, pendiente, sembrar, _interno: { fecha, fechaMes } };

@@ -13,7 +13,7 @@ import { compressImage } from '../../utils/compressImage';
 import { cn } from '../../utils/cn';
 import { formatearTamano, navegadorMuestraPdf } from '../../utils/archivos';
 import { fmtMoney } from '../../utils/format';
-import { CATEGORIAS, ESTADOS_PAGO, TIPOS_DOC, CAMPO, ETIQUETA, hoyISO, mensajeError } from './costosConfig';
+import { CATEGORIAS, AYUDA_CATEGORIA, GRUPOS_CATEGORIA, CATEGORIAS_GG, CATEGORIAS_MANO_OBRA, CATEGORIAS_SUELDO, PROVEEDORES_FRECUENTES, ESTADOS_PAGO, TIPOS_DOC, CAMPO, ETIQUETA, hoyISO, mensajeError } from './costosConfig';
 import { Opciones, Aviso } from './piezas';
 import { FotoGastoViewer } from './FotoGastoViewer';
 import type { CostoCategoria, CostoEstadoPago, CostoGasto, CostoPartida, CostoTipoDocumento } from '../../types/entities';
@@ -26,6 +26,8 @@ interface Props {
     /** Gasto nuevo desde el detalle de un capítulo o partida: llega con la partida o la categoría ya elegida. */
     partidaInicial?: number | null;
     categoriaInicial?: CostoCategoria | null;
+    /** Proveedores ya usados en la obra, para sugerirlos al escribir. */
+    proveedores?: string[];
     onClose: () => void;
     onGuardado: () => void;
 }
@@ -37,10 +39,12 @@ const num = (v: number | string | null | undefined) => (v === null || v === unde
  * y el monto total basta para guardarlo; lo demás (proveedor, folio, a qué partida
  * va) se completa ahora o después, y mientras falte queda "por completar".
  */
-export const GastoModal: React.FC<Props> = ({ obraId, gasto, partidas, partidaInicial = null, categoriaInicial = null, onClose, onGuardado }) => {
+export const GastoModal: React.FC<Props> = ({ obraId, gasto, partidas, partidaInicial = null, categoriaInicial = null, proveedores = [], onClose, onGuardado }) => {
     const editando = !!gasto;
     const [fecha, setFecha] = useState(gasto?.fecha?.slice(0, 10) || hoyISO());
-    const [tipo, setTipo] = useState<CostoTipoDocumento>(gasto?.tipo_documento || 'factura');
+    // Una planilla nueva desde «Sueldos» o «Anticipos» parte como planilla (sin IVA).
+    const [tipo, setTipo] = useState<CostoTipoDocumento>(gasto?.tipo_documento
+        || (categoriaInicial && CATEGORIAS_SUELDO.has(categoriaInicial) ? 'planilla' : 'factura'));
     const [total, setTotal] = useState(num(gasto?.monto_total));
     const [neto, setNeto] = useState(num(gasto?.monto_neto));
     const [proveedor, setProveedor] = useState(gasto?.proveedor || '');
@@ -73,6 +77,14 @@ export const GastoModal: React.FC<Props> = ({ obraId, gasto, partidas, partidaIn
     })), [partidas]);
 
     const netoEstimado = tipo === 'factura' && total > 0 && !neto ? Math.round(total / 1.19) : null;
+    const esPlanilla = tipo === 'planilla';
+
+    // Sueldos y anticipos se pagan con planilla, sin IVA: si quedara «factura», el neto se estimaría
+    // total ÷ 1,19 y la mano de obra saldría 16 % más baja.
+    const elegirCategoria = (c: CostoCategoria | '') => {
+        setCategoria(c);
+        if (c && CATEGORIAS_SUELDO.has(c) && tipo === 'factura') setTipo('planilla');
+    };
 
     const elegirFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const f = e.target.files?.[0];
@@ -101,7 +113,7 @@ export const GastoModal: React.FC<Props> = ({ obraId, gasto, partidas, partidaIn
         tipo_documento: tipo,
         monto_total: total,
         // Neto vacío = el backend lo estima (factura) o usa el total (boleta, guía, otro).
-        monto_neto: neto > 0 ? neto : '',
+        monto_neto: neto > 0 && !esPlanilla ? neto : '',
         iva: neto > 0 && tipo === 'factura' ? Math.max(0, total - neto) : '',
         proveedor,
         folio,
@@ -133,7 +145,8 @@ export const GastoModal: React.FC<Props> = ({ obraId, gasto, partidas, partidaIn
                 for (const [k, v] of Object.entries(campos())) fd.append(k, String(v ?? ''));
                 if (foto) fd.append('foto', foto, foto.name);
                 await api.post(`/costos/obras/${obraId}/gastos`, fd);
-                toast.success(proveedor && (partidaId || categoria) ? 'Gasto cargado' : 'Gasto cargado · queda por completar');
+                const falta = (!proveedor.trim() && !esPlanilla) || (!partidaId && !categoria);
+                toast.success(falta ? 'Gasto cargado · queda por completar' : 'Gasto cargado');
             }
             onGuardado();
         } catch (e) {
@@ -249,28 +262,37 @@ export const GastoModal: React.FC<Props> = ({ obraId, gasto, partidas, partidaIn
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">
-                        <CurrencyInput label="Monto total *" value={total} onChange={setTotal} placeholder="$0" />
-                        <div>
-                            <CurrencyInput label={tipo === 'factura' ? 'Neto (sin IVA)' : 'Neto'} value={neto} onChange={setNeto} placeholder="Opcional" />
-                            <p className="mt-1 ml-0.5 text-caption text-muted-foreground">
-                                {tipo === 'factura'
-                                    ? (neto > 0 ? `IVA: ${fmtMoney(Math.max(0, total - neto))}` : netoEstimado ? `Si lo dejas vacío se estima: total ÷ 1,19 = ${fmtMoney(netoEstimado)}` : 'El que dice la factura.')
-                                    : 'En boleta o guía cuenta el total: ese IVA no se recupera.'}
-                            </p>
-                        </div>
+                        <CurrencyInput label={esPlanilla ? 'Monto de la planilla *' : 'Monto total *'} value={total} onChange={setTotal} placeholder="$0" />
+                        {esPlanilla ? (
+                            <p className="self-end pb-2 text-caption text-muted-foreground">Una planilla no lleva IVA: cuenta el total. Anota en Observación de qué es (ej.: «Planilla trabajadores octubre»).</p>
+                        ) : (
+                            <div>
+                                <CurrencyInput label={tipo === 'factura' ? 'Neto (sin IVA)' : 'Neto'} value={neto} onChange={setNeto} placeholder="Opcional" />
+                                <p className="mt-1 ml-0.5 text-caption text-muted-foreground">
+                                    {tipo === 'factura'
+                                        ? (neto > 0 ? `IVA: ${fmtMoney(Math.max(0, total - neto))}` : netoEstimado ? `Si lo dejas vacío se estima: total ÷ 1,19 = ${fmtMoney(netoEstimado)}` : 'El que dice la factura.')
+                                        : 'En boleta o guía cuenta el total: ese IVA no se recupera.'}
+                                </p>
+                            </div>
+                        )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_9rem_10rem]">
+                    <div className={cn('grid grid-cols-2 gap-3', !esPlanilla && 'sm:grid-cols-[minmax(0,1fr)_9rem_10rem]')}>
+                        {!esPlanilla && (<>
                         <div className="col-span-2 sm:col-span-1">
                             <label htmlFor="gasto-proveedor" className={ETIQUETA}>Proveedor</label>
-                            <input id="gasto-proveedor" value={proveedor} onChange={e => setProveedor(e.target.value)} maxLength={200}
-                                placeholder="Sodimac, Melón, Copec…" className={CAMPO} />
+                            <input id="gasto-proveedor" list="gasto-proveedores" value={proveedor} onChange={e => setProveedor(e.target.value)} maxLength={200}
+                                placeholder="Dedalius, Copec, Sodimac…" className={CAMPO} />
+                            <datalist id="gasto-proveedores">
+                                {[...new Set([...proveedores, ...PROVEEDORES_FRECUENTES])].sort((a, b) => a.localeCompare(b, 'es')).map(p => <option key={p} value={p} />)}
+                            </datalist>
                         </div>
                         <div>
                             <label htmlFor="gasto-folio" className={ETIQUETA}>N° / folio</label>
                             <input id="gasto-folio" value={folio} onChange={e => setFolio(e.target.value)} maxLength={40} inputMode="numeric"
                                 placeholder="Opcional" className={CAMPO} />
                         </div>
+                        </>)}
                         <div>
                             <label htmlFor="gasto-fecha" className={ETIQUETA}>Fecha</label>
                             <input id="gasto-fecha" type="date" value={fecha} onChange={e => setFecha(e.target.value)} className={CAMPO} />
@@ -293,11 +315,19 @@ export const GastoModal: React.FC<Props> = ({ obraId, gasto, partidas, partidaIn
                         )}
                         <div>
                             <label htmlFor="gasto-categoria" className="text-sm font-medium text-muted-foreground ml-0.5">Categoría</label>
-                            <select id="gasto-categoria" value={categoria} onChange={e => setCategoria(e.target.value as CostoCategoria | '')} className={CAMPO + ' mt-1.5'}>
+                            <select id="gasto-categoria" value={categoria} onChange={e => elegirCategoria(e.target.value as CostoCategoria | '')} className={CAMPO + ' mt-1.5'}>
                                 <option value="">{partidaId ? 'La de la partida (opcional)' : 'Elegir…'}</option>
-                                {(Object.keys(CATEGORIAS) as CostoCategoria[]).map(c => <option key={c} value={c}>{CATEGORIAS[c]}</option>)}
+                                {GRUPOS_CATEGORIA.map(g => (
+                                    <optgroup key={g.clave} label={`${g.nombre}${g.periodicidad === 'por proyecto' ? ' (por proyecto)' : ''}`}>
+                                        {g.categorias.map(c => <option key={c} value={c}>{CATEGORIAS[c]}</option>)}
+                                    </optgroup>
+                                ))}
                             </select>
-                            <p className="mt-1 ml-0.5 text-caption text-muted-foreground">«Gastos generales» es lo que no va a una partida: arriendo de faena, sueldos de oficina, permisos.</p>
+                            <p className="mt-1 ml-0.5 text-caption text-muted-foreground">
+                                {categoria
+                                    ? <>{AYUDA_CATEGORIA[categoria]}{!partidaId && (CATEGORIAS_GG.has(categoria) ? ' · Sin partida, se compara con los gastos generales del presupuesto.' : CATEGORIAS_MANO_OBRA.has(categoria) ? ' · Sin partida, se muestra como mano de obra (va dentro de los precios unitarios).' : '')}</>
+                                    : 'Elige el tipo de gasto: mano de obra, gastos generales de obra, materiales o permisos.'}
+                            </p>
                         </div>
                     </div>
 

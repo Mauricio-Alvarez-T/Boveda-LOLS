@@ -149,7 +149,8 @@ async function main() {
     let demo = '';
     if (hayCostosPendientes) {
         const c = await costosDemo.sembrar(db);
-        demo = [c.obras ? `${c.obras} obras demo de Presupuestos` : '', c.cobros ? `${c.cobros} cobros demo` : ''].filter(Boolean).join(' · ');
+        demo = [c.obras ? `${c.obras} obras demo de Presupuestos` : '', c.cobros ? `${c.cobros} cobros demo` : '',
+            c.gastos_mes ? `${c.gastos_mes} gastos mes a mes demo` : ''].filter(Boolean).join(' · ');
         log.ok(`Presupuestos de ejemplo: ${resumir(c)}`);
     }
 

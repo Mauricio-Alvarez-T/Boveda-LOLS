@@ -942,8 +942,14 @@ export interface IdeasResumenBandeja {
 }
 
 // ─── Costos de obra (mig 122, docs/reglas/costos.md) ──────────────────────────
-export type CostoCategoria = 'materiales' | 'mano_obra' | 'maquinaria' | 'subcontrato' | 'combustible' | 'gastos_generales' | 'otro';
-export type CostoTipoDocumento = 'factura' | 'boleta' | 'guia' | 'otro';
+/** Categorías de gasto (mig 124), en grupos: ver costosConfig · GRUPOS_CATEGORIA. */
+export type CostoCategoria =
+    | 'sueldos_administracion' | 'sueldos' | 'anticipos' | 'subcontrato'
+    | 'arriendo_equipos' | 'servicios_basicos' | 'logistica_seguridad' | 'combustible' | 'gastos_generales'
+    | 'hormigon' | 'acero' | 'materiales' | 'herramientas'
+    | 'permisos' | 'mitigaciones'
+    | 'otro';
+export type CostoTipoDocumento = 'factura' | 'boleta' | 'guia' | 'planilla' | 'otro';
 export type CostoEstadoPago = 'por_pagar' | 'pagada';
 
 export interface CostoObraLista {
@@ -1033,6 +1039,8 @@ export interface CostoResumen {
     disponible: number;
     pct_gastado: number | null;
     gastos_generales_gastado: number;
+    /** Sueldos, anticipos y subcontratos sin partida (la mano de obra va dentro de los precios unitarios). */
+    mano_obra_sin_partida: number;
     sin_asignar: number;
     por_completar: number;
     por_pagar: { n: number; monto: number };

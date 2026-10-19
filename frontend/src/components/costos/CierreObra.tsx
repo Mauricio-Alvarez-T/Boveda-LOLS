@@ -8,10 +8,10 @@ import { Section } from '../ui/Section';
 import { FormError } from '../ui/FormError';
 import { fmtMoney, fmtNumber, fmtFechaCorta } from '../../utils/format';
 import { cn } from '../../utils/cn';
-import { CATEGORIAS, CAMPO, ETIQUETA, mensajeError } from './costosConfig';
+import { nombreCategoria, CAMPO, ETIQUETA, mensajeError } from './costosConfig';
 import { Kpi, Aviso, BarraAvance, PctGastado } from './piezas';
 import { aNumero } from './excelPresupuesto';
-import type { CostoCategoria, CostoDetalleObra, CostoCierreResumen } from '../../types/entities';
+import type { CostoDetalleObra, CostoCierreResumen } from '../../types/entities';
 
 const pct = (n: number | null | undefined) => (n === null || n === undefined ? '—' : `${fmtNumber(n, { decimals: 1 })} %`);
 const conSigno = (n: number) => (n < 0 ? `−${fmtMoney(Math.abs(n))}` : `+${fmtMoney(n) || '$0'}`);
@@ -139,7 +139,7 @@ const InformeCierre: React.FC<{ r: CostoCierreResumen; m2: number | null; leccio
                         <ul className="flex flex-col gap-2 text-xs">
                             {categorias.map(([k, v]) => (
                                 <li key={k} className="flex items-baseline justify-between gap-3">
-                                    <span className="text-brand-dark">{CATEGORIAS[k as CostoCategoria] || 'Sin categoría'}</span>
+                                    <span className="text-brand-dark">{nombreCategoria(k)}</span>
                                     <span className="tabular-nums text-muted-foreground">{fmtMoney(v)} · {totalGastado ? `${fmtNumber((v / totalGastado) * 100, { decimals: 0 })} %` : '—'}</span>
                                 </li>
                             ))}

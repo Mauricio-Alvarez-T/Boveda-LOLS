@@ -8,22 +8,95 @@ import type { CostoCategoria, CostoTipoDocumento, CostoEstadoPago } from '../../
 
 export const ETIQUETA_COSTOS = 'Presupuestos';
 
+/**
+ * Categorías de gasto en los grupos que usa LOLS (mig 124: nota de Rodrigo + desglose de gastos de
+ * obra, 19-10). Mismo orden y claves que el backend (costos.service.js · CATEGORIAS). Sin partida:
+ * las de CATEGORIAS_GG se comparan contra los gastos generales presupuestados; las de
+ * CATEGORIAS_MANO_OBRA van aparte (la mano de obra va dentro de los precios unitarios del itemizado).
+ */
+export interface GrupoCategoria {
+    clave: string;
+    nombre: string;
+    /** Cada cuánto se paga: los permisos van por proyecto, no mes a mes. */
+    periodicidad: 'mensual' | 'por proyecto';
+    categorias: CostoCategoria[];
+}
+
+export const GRUPOS_CATEGORIA: GrupoCategoria[] = [
+    { clave: 'mano_obra', nombre: 'Mano de obra y administración', periodicidad: 'mensual', categorias: ['sueldos_administracion', 'sueldos', 'anticipos', 'subcontrato'] },
+    { clave: 'faenas', nombre: 'Gastos generales de obra', periodicidad: 'mensual', categorias: ['arriendo_equipos', 'servicios_basicos', 'logistica_seguridad', 'combustible', 'herramientas', 'gastos_generales'] },
+    { clave: 'materiales', nombre: 'Materiales', periodicidad: 'mensual', categorias: ['hormigon', 'acero', 'materiales'] },
+    { clave: 'permisos', nombre: 'Permisos y legal', periodicidad: 'por proyecto', categorias: ['permisos', 'mitigaciones'] },
+    { clave: 'otro', nombre: 'Otro', periodicidad: 'mensual', categorias: ['otro'] },
+];
+
 export const CATEGORIAS: Record<CostoCategoria, string> = {
-    materiales: 'Materiales',
-    mano_obra: 'Mano de obra',
-    maquinaria: 'Maquinaria y equipos',
-    subcontrato: 'Subcontrato',
-    combustible: 'Combustible',
-    gastos_generales: 'Gastos generales',
+    sueldos_administracion: 'Sueldos administración de obra',
+    sueldos: 'Sueldos trabajadores',
+    anticipos: 'Anticipos de sueldo',
+    subcontrato: 'Subcontratistas',
+    arriendo_equipos: 'Arriendo de equipos y maquinaria',
+    servicios_basicos: 'Servicios básicos de faena',
+    logistica_seguridad: 'Escombros y seguridad',
+    combustible: 'Combustible (Copec)',
+    gastos_generales: 'Otros gastos generales',
+    hormigon: 'Hormigón',
+    acero: 'Acero, fierro y perfiles',
+    materiales: 'Otros materiales',
+    herramientas: 'Herramientas',
+    permisos: 'Permisos y derechos municipales',
+    mitigaciones: 'Mitigaciones (IMIV, ambientales)',
     otro: 'Otro',
 };
+
+/** Ejemplos de lo que va en cada categoría (se muestran al elegirla). */
+export const AYUDA_CATEGORIA: Record<CostoCategoria, string> = {
+    sueldos_administracion: 'Administrador, jefe de obra, supervisores, prevencionista, aseo y guardias.',
+    sueldos: 'Planilla mensual de maestros, jornales y ayudantes (un total por obra; en Observación, si incluye bonos o horas extra).',
+    anticipos: 'Anticipo de quincena a los trabajadores.',
+    subcontrato: 'Pagos a subcontratistas: fierreros, hormigoneros, montajistas de estructuras. Cada pago es un gasto (uno o varios).',
+    arriendo_equipos: 'Grúa, excavadora, andamios, alzaprimas, moldajes, generador. Ej.: el arriendo mensual a Dedalius, un monto por obra.',
+    servicios_basicos: 'Agua, luz provisoria, internet de obra, baños químicos.',
+    logistica_seguridad: 'Retiro de escombros (tolvas), guardias 24/7.',
+    combustible: 'Bencina y petróleo para vehículos y maquinaria.',
+    gastos_generales: 'Lo de faena que no calza arriba: oficina, insumos de terreno, seguros.',
+    hormigon: 'Hormigón premezclado.',
+    acero: 'Acero de refuerzo, fierro, perfiles metálicos.',
+    materiales: 'Áridos, ladrillos, madera, cerámica, pintura y demás materiales.',
+    herramientas: 'Herramientas y equipos menores que se compran para la obra; se van sumando mes a mes.',
+    permisos: 'Permiso de edificación, ocupación de vía pública, patentes. Los derechos municipales no llevan IVA: usa el documento «Otro».',
+    mitigaciones: 'Estudios y obras de impacto vial (IMIV) o ambientales.',
+    otro: 'Lo que no calza en ninguna categoría.',
+};
+
+/** Sin partida, se comparan contra los gastos generales presupuestados (igual que el backend). */
+export const CATEGORIAS_GG = new Set<CostoCategoria>(['sueldos_administracion', 'arriendo_equipos', 'servicios_basicos', 'logistica_seguridad', 'combustible', 'herramientas', 'gastos_generales', 'permisos', 'mitigaciones']);
+
+/** Proveedores que se sugieren siempre al escribir (además de los ya usados en la obra). */
+export const PROVEEDORES_FRECUENTES = ['Dedalius', 'Copec'];
+/** Sin partida, van aparte como «mano de obra» (no son «sin asignar»). */
+export const CATEGORIAS_MANO_OBRA = new Set<CostoCategoria>(['sueldos', 'anticipos', 'subcontrato']);
+/** Se pagan con planilla (sin IVA, sin proveedor). */
+export const CATEGORIAS_SUELDO = new Set<CostoCategoria>(['sueldos_administracion', 'sueldos', 'anticipos']);
+
+/** Nombres de categorías antiguas (mig 122) que pueden aparecer en historiales y cierres viejos. */
+const CATEGORIAS_ANTIGUAS: Record<string, string> = { mano_obra: 'Mano de obra', maquinaria: 'Maquinaria y equipos', sin_categoria: 'Sin categoría' };
+export const nombreCategoria = (k: string | null | undefined): string =>
+    !k ? 'Sin categoría' : CATEGORIAS[k as CostoCategoria] || CATEGORIAS_ANTIGUAS[k] || k;
+export const grupoDe = (k: string | null | undefined): GrupoCategoria | null =>
+    GRUPOS_CATEGORIA.find(g => g.categorias.includes(k as CostoCategoria)) || null;
 
 export const TIPOS_DOC: Record<CostoTipoDocumento, string> = {
     factura: 'Factura',
     boleta: 'Boleta',
     guia: 'Guía de despacho',
+    planilla: 'Planilla de sueldos',
     otro: 'Otro',
 };
+
+/** Cómo se nombra un gasto en las listas: el proveedor, o la planilla y su categoría. */
+export const nombreGasto = (g: { proveedor: string | null; tipo_documento: CostoTipoDocumento; categoria: CostoCategoria | null }): string =>
+    g.proveedor || (g.tipo_documento === 'planilla' ? `Planilla · ${g.categoria ? CATEGORIAS[g.categoria] : 'sueldos'}` : 'Sin proveedor');
 
 export const ESTADOS_PAGO: Record<CostoEstadoPago, string> = {
     por_pagar: 'Por pagar',
@@ -38,6 +111,10 @@ export const pct = (v: number | string | null | undefined): string => {
     const n = Number(v);
     return Number.isFinite(n) ? `${n.toLocaleString('es-CL', { maximumFractionDigits: 2 })} %` : '—';
 };
+
+const MESES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+/** "2026-10" → "octubre 2026". */
+export const nombreMes = (mes: string) => `${MESES_LARGO[Number(mes.slice(5, 7)) - 1]} ${mes.slice(0, 4)}`;
 
 /** Fecha local de hoy, AAAA-MM-DD (para los <input type="date">). */
 export const hoyISO = (): string => {
@@ -54,9 +131,9 @@ export function netoGasto(g: { monto_neto: number | string | null; monto_total: 
     return { neto: total, estimado: false };
 }
 
-/** Un gasto queda "por completar" si le falta el proveedor o a qué se imputa. */
-export const porCompletar = (g: { proveedor: string | null; partida_id: number | null; categoria: CostoCategoria | null }) =>
-    !g.proveedor || (!g.partida_id && !g.categoria);
+/** Un gasto queda "por completar" si le falta el proveedor (salvo una planilla) o a qué se imputa. */
+export const porCompletar = (g: { proveedor: string | null; partida_id: number | null; categoria: CostoCategoria | null; tipo_documento?: CostoTipoDocumento }) =>
+    (!g.proveedor && g.tipo_documento !== 'planilla') || (!g.partida_id && !g.categoria);
 
 export type Semaforo = 'ok' | 'cerca' | 'pasado' | 'sin';
 

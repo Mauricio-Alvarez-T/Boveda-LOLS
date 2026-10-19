@@ -397,6 +397,7 @@ const ObraCostos: React.FC<{
             {modal?.tipo === 'gasto' && (
                 <GastoModal obraId={obraId} gasto={modal.gasto} partidas={detalle.partidas}
                     partidaInicial={modal.partidaInicial} categoriaInicial={modal.categoriaInicial}
+                    proveedores={[...new Set(detalle.gastos.map(g => g.proveedor).filter((p): p is string => !!p))]}
                     onClose={() => setModal(null)} onGuardado={alGuardar} />
             )}
             {modal?.tipo === 'foto' && <FotoGastoViewer gasto={modal.gasto} onClose={() => setModal(null)} />}

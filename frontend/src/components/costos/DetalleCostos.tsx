@@ -6,7 +6,7 @@ import { IconButton } from '../ui/IconButton';
 import { Chip } from '../ui/Chip';
 import { fmtMoney, fmtNumber, fmtFechaCorta } from '../../utils/format';
 import { cn } from '../../utils/cn';
-import { CATEGORIAS, TIPOS_DOC, hoyISO, netoGasto, porCompletar } from './costosConfig';
+import { CATEGORIAS, CATEGORIAS_GG, CATEGORIAS_MANO_OBRA, CATEGORIAS_SUELDO, TIPOS_DOC, hoyISO, netoGasto, porCompletar, nombreGasto, nombreCategoria, nombreMes } from './costosConfig';
 import { BarraAvance, PctGastado } from './piezas';
 import type { CostoCategoria, CostoDetalleObra, CostoGasto, CostoPartida } from '../../types/entities';
 
@@ -14,8 +14,12 @@ import type { CostoCategoria, CostoDetalleObra, CostoGasto, CostoPartida } from 
 export type VistaDetalle =
     | { tipo: 'capitulo'; capitulo: string; partidaId?: number }
     | { tipo: 'gastos_generales' }
+    | { tipo: 'mano_obra' }
     | { tipo: 'sin_asignar' }
-    | { tipo: 'modificaciones' };
+    | { tipo: 'modificaciones' }
+    /** Una categoría en un mes (AAAA-MM) o en toda la obra (mes null), desde «Gastos mes a mes». */
+    | { tipo: 'categoria'; categoria: CostoCategoria | 'sin_categoria'; mes: string | null };
+
 
 export interface AccionesDetalle {
     /** Gasto nuevo con la partida o la categoría ya elegida. */
@@ -59,29 +63,50 @@ export const DetalleCostos: React.FC<Props> = ({ detalle, vista, bloqueada, acci
         return <DetalleModificaciones detalle={detalle} gastosPorPartida={gastosPorPartida} bloqueada={bloqueada} acciones={acciones} onClose={onClose} />;
     }
 
-    const esGG = vista.tipo === 'gastos_generales';
-    const gastos = detalle.gastos.filter(g => !g.partida_id && (esGG ? g.categoria === 'gastos_generales' : g.categoria !== 'gastos_generales'));
+    // Listas planas: gastos generales, mano de obra y sin asignar (sin partida), o una categoría en un mes.
+    const sinPartida = detalle.gastos.filter(g => !g.partida_id);
+    let titulo: string, descripcion: string, gastos: CostoGasto[], categoriaNueva: CostoCategoria | null = null;
+    let presupuestado: number | null = null;
+    if (vista.tipo === 'gastos_generales') {
+        titulo = 'Gastos generales';
+        descripcion = 'Administración de obra, instalación de faenas (arriendos, servicios, escombros, combustible) y permisos, cargados sin partida.';
+        gastos = sinPartida.filter(g => g.categoria && CATEGORIAS_GG.has(g.categoria));
+        presupuestado = detalle.resumen.gastos_generales;
+        categoriaNueva = 'gastos_generales';
+    } else if (vista.tipo === 'mano_obra') {
+        titulo = 'Mano de obra';
+        descripcion = 'Sueldos, anticipos y subcontratistas sin partida. No tiene un presupuesto aparte: la mano de obra va dentro del precio unitario de cada partida.';
+        gastos = sinPartida.filter(g => g.categoria && CATEGORIAS_MANO_OBRA.has(g.categoria));
+        categoriaNueva = 'sueldos';
+    } else if (vista.tipo === 'sin_asignar') {
+        titulo = 'Gastos sin partida';
+        descripcion = 'Cuentan en el total gastado, pero en ningún capítulo. Asígnalos a una partida para que el Resumen sea exacto.';
+        gastos = sinPartida.filter(g => !g.categoria || (!CATEGORIAS_GG.has(g.categoria) && !CATEGORIAS_MANO_OBRA.has(g.categoria)));
+    } else {
+        const cat = vista.categoria;
+        titulo = nombreCategoria(cat === 'sin_categoria' ? null : cat);
+        descripcion = vista.mes ? `Gastos de ${nombreMes(vista.mes)}.` : 'Gastos de toda la obra.';
+        gastos = detalle.gastos.filter(g => (cat === 'sin_categoria' ? !g.categoria : g.categoria === cat) && (!vista.mes || g.fecha.slice(0, 7) === vista.mes));
+        categoriaNueva = cat === 'sin_categoria' ? null : cat;
+    }
     const gastado = gastos.reduce((s, g) => s + netoGasto(g).neto, 0);
+    const conPresupuesto = presupuestado !== null;
     return (
-        <Modal isOpen onClose={onClose} size="lg" icon={Receipt}
-            title={esGG ? 'Gastos generales' : 'Gastos sin partida'}
-            description={esGG
-                ? 'Lo que no va a una partida: arriendo de faena, profesionales, permisos, seguros.'
-                : 'Cuentan en el total gastado, pero en ningún capítulo. Asígnalos a una partida para que el Resumen sea exacto.'}>
+        <Modal isOpen onClose={onClose} size="lg" icon={Receipt} title={titulo} description={descripcion}>
             <div className="flex flex-col gap-4">
-                <Cifras items={esGG
-                    ? [['Presupuestado', fmtMoney(detalle.resumen.gastos_generales) || '$0'], ['Gastado', fmtMoney(gastado) || '$0'],
-                        [gastado > detalle.resumen.gastos_generales ? 'Pasado' : 'Queda', fmtMoney(Math.abs(detalle.resumen.gastos_generales - gastado)) || '$0']]
-                    : [['Gastado', fmtMoney(gastado) || '$0'], ['Documentos', String(gastos.length)]]}
-                    barra={esGG ? { presupuestado: detalle.resumen.gastos_generales, gastado } : undefined} />
+                <Cifras items={conPresupuesto
+                    ? [['Presupuestado', fmtMoney(presupuestado) || '$0'], ['Gastado', fmtMoney(gastado) || '$0'],
+                        [gastado > presupuestado! ? 'Pasado' : 'Queda', fmtMoney(Math.abs(presupuestado! - gastado)) || '$0']]
+                    : [['Gastado (neto)', fmtMoney(gastado) || '$0'], ['Documentos', String(gastos.length)]]}
+                    barra={conPresupuesto ? { presupuestado: presupuestado!, gastado } : undefined} peligro={conPresupuesto && gastado > presupuestado!} />
                 {!bloqueada && (
-                    <Button onClick={() => acciones.cargarFactura({ categoria: esGG ? 'gastos_generales' : null })} leftIcon={<Plus className="h-4 w-4" />} className="sm:self-start">
-                        Cargar factura{esGG ? ' de gastos generales' : ''}
+                    <Button onClick={() => acciones.cargarFactura({ categoria: categoriaNueva })} leftIcon={<Plus className="h-4 w-4" />} className="sm:self-start">
+                        {categoriaNueva && CATEGORIAS_SUELDO.has(categoriaNueva) ? 'Cargar planilla' : 'Cargar factura'}{categoriaNueva ? ` · ${CATEGORIAS[categoriaNueva]}` : ''}
                     </Button>
                 )}
                 {gastos.length
                     ? <ListaGastos gastos={gastos} bloqueada={bloqueada} acciones={acciones} />
-                    : <p className="rounded-xl bg-muted/50 px-3 py-4 text-center text-sm text-muted-foreground">{esGG ? 'Todavía no hay gastos generales cargados.' : 'No hay gastos sin partida.'}</p>}
+                    : <p className="rounded-xl bg-muted/50 px-3 py-4 text-center text-sm text-muted-foreground">No hay gastos acá todavía.</p>}
             </div>
         </Modal>
     );
@@ -255,7 +280,7 @@ const ListaGastos: React.FC<{ gastos: CostoGasto[]; bloqueada: boolean; acciones
                         <button type="button" onClick={abrir} disabled={bloqueada && !g.tiene_foto}
                             className="flex min-w-0 flex-1 flex-col gap-1 px-3 py-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 disabled:cursor-default rounded-xl">
                             <span className="flex items-start justify-between gap-3">
-                                <span className={cn('min-w-0 truncate text-sm font-semibold', g.proveedor ? 'text-brand-dark' : 'text-muted-foreground')}>{g.proveedor || 'Sin proveedor'}</span>
+                                <span className={cn('min-w-0 truncate text-sm font-semibold', g.proveedor || g.tipo_documento === 'planilla' ? 'text-brand-dark' : 'text-muted-foreground')}>{nombreGasto(g)}</span>
                                 <span className="shrink-0 text-sm font-bold text-brand-dark tabular-nums">{fmtMoney(g.monto_total)}</span>
                             </span>
                             <span className="flex flex-wrap items-center justify-between gap-x-3 text-caption text-muted-foreground tabular-nums">
@@ -274,7 +299,7 @@ const ListaGastos: React.FC<{ gastos: CostoGasto[]; bloqueada: boolean; acciones
                         </button>
                         {g.tiene_foto && (
                             <span className="flex items-center pr-1">
-                                <IconButton icon={<ImageIcon className="h-4 w-4" />} aria-label={`Ver la foto de la factura de ${g.proveedor || 'este gasto'}`} onClick={() => acciones.verFoto(g)} />
+                                <IconButton icon={<ImageIcon className="h-4 w-4" />} aria-label={`Ver la foto de ${nombreGasto(g)}`} onClick={() => acciones.verFoto(g)} />
                             </span>
                         )}
                     </li>
