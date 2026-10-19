@@ -2,6 +2,7 @@
  * /api/documentos-alertas — alertas de documentos sin firmar (plan Gestiones B7, mig 115).
  *
  *  GET  /pendientes      [documentos.entrega.registrar]      lo que supera su umbral (Bandeja + Documentos físicos)
+ *  GET  /mios            [documentos.entrega.portar]         lo atrasado de MIS lotes: el cartel del Inicio del supervisor
  *  GET  /config          [sistema.alertas_documentos.gestionar] categorías con sus días
  *  PUT  /config/:id      [sistema.alertas_documentos.gestionar] etiqueta / activo / dias_aviso / dias_critico
  * Las categorías son fijas (seed de la mig 115): no se crean ni se borran desde la UI. El CRUD genérico
@@ -18,10 +19,16 @@ const service = require('../services/documentosAlertas.service');
 
 const PERM_CONFIG = 'sistema.alertas_documentos.gestionar';
 const PERM_PENDIENTES = 'documentos.entrega.registrar';
+const PERM_PORTAR = 'documentos.entrega.portar';
 
 // cacheControl(60): 3 queries con DATEDIFF → ETag de 60s; el resultado cambia por día, no por segundo.
 router.get('/pendientes', auth, checkPermission(PERM_PENDIENTES), cacheControl(60), async (req, res, next) => {
     try { res.json({ data: await service.pendientes() }); } catch (err) { next(err); }
+});
+
+// El portador (supervisor que lleva los documentos a obra) ve SOLO lo suyo: el cartel de atrasos del Inicio.
+router.get('/mios', auth, checkPermission(PERM_PORTAR), cacheControl(60), async (req, res, next) => {
+    try { res.json({ data: await service.misAtrasos(req.user.id) }); } catch (err) { next(err); }
 });
 
 const configService = createCrudService('documentos_alertas_config', {

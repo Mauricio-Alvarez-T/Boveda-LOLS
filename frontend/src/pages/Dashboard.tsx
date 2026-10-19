@@ -29,6 +29,7 @@ import QuickActions from '../components/dashboard/widgets/QuickActions';
 import AbsenceAlerts, { type TrabajadorConAlerta } from '../components/dashboard/widgets/AbsenceAlerts';
 import ObraRanking from '../components/dashboard/widgets/ObraRanking';
 import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
+import { AvisoAtrasosPortador } from '../components/documentos-fisicos/AvisoAtrasosPortador';
 
 // ─── Types ───
 interface DocExpiryItem {
@@ -221,6 +222,8 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="space-y-6">
+            {/* Cartel de atrasos del supervisor que lleva documentos a firmar (pedido de RRHH, 2026-10-19). */}
+            <AvisoAtrasosPortador />
             {/* ScopeBadge: ámbito activo + frescura + refrescar */}
             <div className="flex items-center justify-between gap-3">
                 <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
