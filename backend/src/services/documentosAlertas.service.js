@@ -59,6 +59,33 @@ const SELECT_LOTES = `
      GROUP BY l.id, l.estado, l.portador_id, up.nombre, l.creado_en, l.retirado_en
      ORDER BY dias DESC, l.id ASC`;
 
+// «Mis atrasos» del portador (2026-10-19, pedido de RRHH): los documentos de SUS lotes abiertos que ya
+// superan el aviso de su tipo. Mismo umbral y misma cuenta de días (desde fecha_generacion) que la Bandeja.
+const SELECT_MIS_DOCS = `
+    SELECT d.id, d.estado, d.fecha_generacion, d.lote_id,
+           td.codigo AS tipo_codigo, td.nombre AS tipo_nombre,
+           t.id AS trabajador_id, t.nombres, t.apellido_paterno, t.apellido_materno,
+           o.nombre AS obra_nombre,
+           c.dias_aviso, c.dias_critico,
+           DATEDIFF(CURDATE(), d.fecha_generacion) AS dias,
+           l.estado AS lote_estado
+      FROM documentos d
+      JOIN documentos_lotes l ON l.id = d.lote_id AND l.portador_id = ? AND l.estado IN ('pendiente_retiro', 'en_terreno')
+      JOIN tipos_documento td ON td.id = d.tipo_documento_id
+      JOIN documentos_alertas_config c ON c.categoria = td.codigo AND c.activo = 1
+      JOIN trabajadores t ON t.id = d.trabajador_id AND t.es_prueba = 0
+      LEFT JOIN obras o ON o.id = t.obra_id
+     WHERE d.activo = TRUE AND d.origen = 'generado'
+       AND d.estado IN ('descargado', 'en_terreno')
+       AND d.fecha_generacion IS NOT NULL
+       AND DATEDIFF(CURDATE(), d.fecha_generacion) >= c.dias_aviso
+     ORDER BY dias DESC, d.id ASC`;
+
+// Sus lotes abiertos con su antigüedad (sin retirar desde creado_en, en terreno desde retirado_en).
+const SELECT_MIS_LOTES = SELECT_LOTES.replace(
+    "WHERE l.estado IN ('pendiente_retiro', 'en_terreno')",
+    "WHERE l.estado IN ('pendiente_retiro', 'en_terreno') AND l.portador_id = ?");
+
 function etapaDe(row) {
     if (row.estado === 'generado') return 'sin_imprimir';
     if (row.estado === 'en_terreno') return 'en_terreno';
@@ -154,7 +181,55 @@ const documentosAlertasService = {
         }
         return out;
     },
+
+    /**
+     * Lo atrasado del PORTADOR que consulta (el supervisor que lleva los documentos a firmar a la obra):
+     * el cartel grande del Inicio. Solo sus lotes; mismos umbrales que configura RRHH.
+     *  · documentos: de sus lotes, ya pasados del aviso de su tipo (con `critical` desde el crítico).
+     *  · lotes: los que lo esperan en oficina sin retirar o llevan en terreno más que el aviso del lote.
+     *  · por_devolver: todos los documentos que tiene en lotes abiertos (atrasados o no).
+     */
+    async misAtrasos(userId) {
+        const vacioMio = () => ({ documentos: { total: 0, criticos: 0, items: [] }, lotes: { sin_retirar: [], en_terreno: [] }, por_devolver: 0 });
+        let docs, lotes, config;
+        try {
+            [[docs], [lotes], [config]] = await Promise.all([
+                db.query(SELECT_MIS_DOCS, [userId]),
+                db.query(SELECT_MIS_LOTES, [userId]),
+                db.query('SELECT categoria, activo, dias_aviso, dias_critico FROM documentos_alertas_config WHERE categoria IN (?, ?)', [CAT_LOTE_SIN_CONFIRMAR, CAT_LOTE_EN_TERRENO]),
+            ]);
+        } catch (err) {
+            if (esErrorEsquema(err)) return vacioMio();
+            throw err;
+        }
+        const out = vacioMio();
+        for (const r of docs) {
+            const dias = toNum(r.dias);
+            const critical = dias >= toNum(r.dias_critico);
+            out.documentos.total++;
+            if (critical) out.documentos.criticos++;
+            out.documentos.items.push({
+                documento_id: r.id, tipo_codigo: r.tipo_codigo, tipo_nombre: r.tipo_nombre, dias, critical,
+                dias_critico: toNum(r.dias_critico),
+                trabajador: { id: r.trabajador_id, nombre: nombreCompleto(r) },
+                obra_nombre: r.obra_nombre ?? null, lote_id: r.lote_id ?? null,
+                en_oficina: r.lote_estado === 'pendiente_retiro',
+            });
+        }
+        const cfg = new Map(config.map(c => [c.categoria, c]));
+        for (const l of lotes) {
+            out.por_devolver += toNum(l.documentos);
+            const sinRetirar = l.estado === 'pendiente_retiro';
+            const c = cfg.get(sinRetirar ? CAT_LOTE_SIN_CONFIRMAR : CAT_LOTE_EN_TERRENO);
+            if (!c || !toNum(c.activo)) continue;
+            const dias = toNum(l.dias);
+            if (dias < toNum(c.dias_aviso)) continue;
+            (sinRetirar ? out.lotes.sin_retirar : out.lotes.en_terreno)
+                .push({ lote_id: l.id, documentos: toNum(l.documentos), dias, critical: dias >= toNum(c.dias_critico) });
+        }
+        return out;
+    },
 };
 
 module.exports = documentosAlertasService;
-module.exports._interno = { etapaDe, SELECT_DOCS, SELECT_LOTES };
+module.exports._interno = { etapaDe, SELECT_DOCS, SELECT_LOTES, SELECT_MIS_DOCS, SELECT_MIS_LOTES };

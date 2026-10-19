@@ -165,3 +165,50 @@ describe('config (CRUD acotado)', () => {
         expect(res.status).toBe(400);
     });
 });
+
+describe('GET /mios — cartel de atrasos del portador (supervisor), 2026-10-19', () => {
+    const tokenPortador = jwt.sign({ id: 7, email: 'jhoan@lols.cl', rol_id: 4, rv: 1, p: ['documentos.entrega.portar'] }, SECRET);
+    const LOTES_CFG = [{ categoria: 'LOTE_SIN_CONFIRMAR', activo: 1, dias_aviso: 1, dias_critico: 3 }, { categoria: 'LOTE_EN_TERRENO', activo: 1, dias_aviso: 7, dias_critico: 14 }];
+
+    test('sin documentos.entrega.portar → 403 (RRHH usa /pendientes)', async () => {
+        const res = await request(app).get(`${BASE}/mios`).set('Authorization', `Bearer ${tokenRRHH}`);
+        expect(res.status).toBe(403);
+        expect(db.query).not.toHaveBeenCalled();
+    });
+
+    test('solo SUS lotes: el id del usuario va en las dos consultas', async () => {
+        db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]).mockResolvedValueOnce([LOTES_CFG]);
+        const res = await request(app).get(`${BASE}/mios`).set('Authorization', `Bearer ${tokenPortador}`);
+        expect(res.status).toBe(200);
+        const [sqlDocs, pDocs] = db.query.mock.calls[0];
+        const [sqlLotes, pLotes] = db.query.mock.calls[1];
+        expect(sqlDocs).toMatch(/l\.portador_id = \?/);
+        expect(sqlDocs).toMatch(/DATEDIFF\(CURDATE\(\), d\.fecha_generacion\)/);   // misma cuenta que la Bandeja
+        expect(sqlDocs).toMatch(/es_prueba = 0/);
+        expect(sqlLotes).toMatch(/l\.portador_id = \?/);
+        expect(pDocs).toEqual([7]);
+        expect(pLotes).toEqual([7]);
+    });
+
+    test('documentos atrasados con crítico; lotes sin retirar o en terreno pasados del aviso; total por devolver', async () => {
+        db.query
+            .mockResolvedValueOnce([[DOC({ dias: '15', lote_id: 8, lote_estado: 'en_terreno' }), DOC({ id: 12, dias: '4', tipo_codigo: 'ODI_D40', tipo_nombre: 'ODI', lote_id: 8, lote_estado: 'en_terreno' })]])
+            .mockResolvedValueOnce([[
+                { id: 8, estado: 'en_terreno', dias: '3', documentos: '16' },        // 3 días en terreno: bajo el aviso (7)
+                { id: 9, estado: 'pendiente_retiro', dias: '4', documentos: '2' },   // 4 días sin retirar: crítico (3)
+            ]])
+            .mockResolvedValueOnce([LOTES_CFG]);
+        const r = await service.misAtrasos(7);
+        expect(r.documentos).toMatchObject({ total: 2, criticos: 1 });
+        expect(r.documentos.items[0]).toMatchObject({ documento_id: 11, dias: 15, critical: true, trabajador: { nombre: 'Pérez Soto Juan' }, en_oficina: false });
+        expect(r.documentos.items[1]).toMatchObject({ documento_id: 12, critical: false });
+        expect(r.lotes.en_terreno).toEqual([]);
+        expect(r.lotes.sin_retirar).toEqual([{ lote_id: 9, documentos: 2, dias: 4, critical: true }]);
+        expect(r.por_devolver).toBe(18);
+    });
+
+    test('sin las migraciones (1146) → vacío, nunca 500', async () => {
+        db.query.mockRejectedValue(err1146());
+        await expect(service.misAtrasos(7)).resolves.toEqual({ documentos: { total: 0, criticos: 0, items: [] }, lotes: { sin_retirar: [], en_terreno: [] }, por_devolver: 0 });
+    });
+});

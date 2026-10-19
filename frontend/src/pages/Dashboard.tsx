@@ -30,6 +30,7 @@ import InicioHero from '../components/dashboard/widgets/InicioHero';
 import AsistenciaPendiente from '../components/dashboard/widgets/AsistenciaPendiente';
 import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
 import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
+import { AvisoAtrasosPortador } from '../components/documentos-fisicos/AvisoAtrasosPortador';
 
 // ─── Types ───
 interface DocExpiryItem {
@@ -251,6 +252,8 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="space-y-6">
+            {/* Cartel de atrasos del supervisor que lleva documentos a firmar (pedido de RRHH, 2026-10-19). */}
+            <AvisoAtrasosPortador />
             {ready && data ? (
                 <InicioHero
                     resumen={resumen}

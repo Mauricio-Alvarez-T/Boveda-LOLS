@@ -796,6 +796,17 @@ físicos); sin correo en v1 (un cron de email sería un follow-up con el patrón
   resume por etapa y, desplegada, lista trabajador · tipo · días · portador y los lotes atascados (con
   "Abrir"). Store de módulo `useDocumentosAlertas` (gate `registrar`); lógica pura en
   `documentos-fisicos/documentosAlertas.ts` (+ test).
+- **Cartel del supervisor en el Inicio** (pedido de Matías, RRHH, 2026-10-19; contexto: el gerente no
+  supo de un contrato que llevaba 15 días sin volver porque las alertas solo las veía RRHH). Quien tiene
+  `documentos.entrega.portar` ve arriba del Inicio un cartel grande (`AvisoAtrasosPortador`) con **lo
+  suyo**: los documentos de sus lotes abiertos que ya pasaron el aviso de su tipo (mismos umbrales y
+  misma cuenta desde `fecha_generacion`), y sus lotes sin retirar o en terreno pasados del aviso del
+  lote. Rojo si hay algo crítico, ámbar si solo aviso; lista los 5 más atrasados (tipo, trabajador,
+  obra, días) y lleva a Gestiones → Documentos físicos. **No se cierra**: se va cuando RRHH registra lo
+  que volvió firmado. API `GET /api/documentos-alertas/mios` [`documentos.entrega.portar`, `cacheControl(60)`]
+  → `{ documentos{total, criticos, items[]}, lotes{sin_retirar[], en_terreno[]}, por_devolver }`;
+  degradación 1146/1054 → vacío. Lo **impreso sin lote** (sin portador) no le aparece a ningún
+  supervisor: es de RRHH (franja de Documentos físicos).
 
 ## Empresas: representante legal (mig 110)
 
