@@ -6,7 +6,8 @@
  *
  * Se siembra UNA vez por obra: si la obra ya existe no se toca, así lo que se edite o borre
  * mientras se prueba no reaparece en el tick siguiente. Si las tablas de costos aún no existen
- * (la mig 122 no corrió), no hace nada.
+ * (la mig 122 no corrió), no hace nada. Lo mismo vale para el complemento de superficie y cobros
+ * (EXTRAS, mig 123): una vez por obra, con su marca en el historial.
  *
  * `db` se inyecta como parámetro → testeable sin base real.
  */
@@ -78,6 +79,37 @@ const OBRAS_DEMO = [
 
 const NOMBRES_DEMO = OBRAS_DEMO.map(o => o.nombre);
 
+/**
+ * Complemento del 2026-10-19 (mig 123): superficie y cobros al mandante, para que el flujo de caja
+ * y la comparación por m² tengan algo que mostrar. Se aplica UNA vez por obra (marca en el
+ * historial), también a las obras demo que ya existían.
+ * Cobro: [días desde hoy (negativo = ya pasó), qué se cobra, neto, lleva IVA, % de retención, cobrado]
+ */
+const MARCA_EXTRAS = 'Datos de ejemplo de test: cobros y superficie';
+const EXTRAS = {
+    'Obra demo 1': {
+        m2: 210,
+        cobros: [
+            [-45, 'Anticipo (10 %)', 3000000, true, 0, true],
+            [-20, 'EP 1', 8000000, true, 5, true],
+            [10, 'EP 2', 6500000, true, 5, false],
+        ],
+    },
+    'Obra demo 2': {
+        m2: 120,
+        cobros: [
+            [-40, 'EP 1', 7000000, true, 5, true],
+            [-12, 'EP 2', 8000000, true, 5, true],
+            [3, 'EP 3', 5500000, true, 5, false],
+            [45, 'Devolución de retenciones', 1025000, false, 0, false],
+        ],
+    },
+    'Obra demo 3': {
+        m2: 450,
+        cobros: [[7, 'Anticipo (10 %)', 1000000, true, 0, false]],
+    },
+};
+
 /** AAAA-MM-DD local, `dias` desde hoy (negativo = atrás). */
 function fecha(dias, hoy = new Date()) {
     const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + dias);
@@ -87,17 +119,79 @@ function fecha(dias, hoy = new Date()) {
 
 const sinTablas = e => e && (e.code === 'ER_NO_SUCH_TABLE' || e.errno === 1146);
 
-/** ¿Falta alguna de las 3 obras de ejemplo? false también si las tablas de costos no existen. */
-async function pendiente(db) {
+async function existeTabla(db, tabla) {
     try {
-        await db.query('SELECT 1 FROM costo_presupuestos LIMIT 1');
+        await db.query(`SELECT 1 FROM ${tabla} LIMIT 1`);
+        return true;
     } catch (e) {
         if (sinTablas(e)) return false;
         throw e;
     }
+}
+
+/** ¿Falta alguna de las 3 obras de ejemplo? */
+async function faltanObras(db) {
     const [rows] = await db.query('SELECT nombre FROM obras WHERE nombre IN (?)', [NOMBRES_DEMO]);
     const hay = new Set(rows.map(r => r.nombre));
     return NOMBRES_DEMO.some(n => !hay.has(n));
+}
+
+/** Obras demo ya creadas a las que todavía no se les agregó superficie y cobros (sin la marca). */
+async function obrasSinExtras(db) {
+    if (!(await existeTabla(db, 'costo_cobros'))) return [];
+    const [obras] = await db.query(
+        `SELECT o.id AS obra_id, o.nombre, p.id AS presupuesto_id
+           FROM obras o JOIN costo_presupuestos p ON p.obra_id = o.id
+          WHERE o.nombre IN (?)`, [NOMBRES_DEMO]);
+    if (!obras.length) return [];
+    const [marcas] = await db.query(
+        'SELECT DISTINCT obra_id FROM costo_historial WHERE obra_id IN (?) AND resumen LIKE ?',
+        [obras.map(o => o.obra_id), `${MARCA_EXTRAS}%`]);
+    const con = new Set(marcas.map(m => m.obra_id));
+    return obras.filter(o => !con.has(o.obra_id) && EXTRAS[o.nombre]);
+}
+
+/** ¿Hay algo que sembrar? false también si las tablas de costos no existen (mig 122 sin correr). */
+async function pendiente(db) {
+    if (!(await existeTabla(db, 'costo_presupuestos'))) return false;
+    if (await faltanObras(db)) return true;
+    return (await obrasSinExtras(db)).length > 0;
+}
+
+/** Superficie y cobros de una obra demo, con su marca en el historial (en la transacción de `q`). */
+async function sembrarExtras(q, obra, usuarioId, hoy) {
+    const ex = EXTRAS[obra.nombre];
+    await q.query('UPDATE costo_presupuestos SET superficie_m2 = ? WHERE id = ? AND superficie_m2 IS NULL', [ex.m2, obra.presupuesto_id]);
+    for (const [dias, glosa, neto, conIva, retPct, cobrado] of ex.cobros) {
+        const f = fecha(dias, hoy);
+        const iva = conIva ? Math.round(neto * 0.19) : 0;
+        await q.query(
+            `INSERT INTO costo_cobros (obra_id, fecha, glosa, monto_neto, iva, retencion, estado, fecha_cobro, creado_por)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [obra.obra_id, f, glosa, neto, iva, Math.round(neto * retPct / 100), cobrado ? 'cobrado' : 'por_cobrar', cobrado ? f : null, usuarioId]);
+    }
+    await q.query(
+        `INSERT INTO costo_historial (obra_id, entidad, entidad_id, accion, resumen, usuario_id)
+         VALUES (?, 'presupuesto', ?, 'importar', ?, NULL)`,
+        [obra.obra_id, obra.presupuesto_id, `${MARCA_EXTRAS}: ${ex.cobros.length} cobros y ${ex.m2} m²`]);
+    return ex.cobros.length;
+}
+
+/** Corre `fn(q)` en una transacción propia si el pool la ofrece (en los tests, directo). */
+async function enTransaccion(db, fn) {
+    const conn = typeof db.getConnection === 'function' ? await db.getConnection() : null;
+    const q = conn || db;
+    try {
+        if (conn) await conn.beginTransaction();
+        const r = await fn(q);
+        if (conn) await conn.commit();
+        return r;
+    } catch (e) {
+        if (conn) { try { await conn.rollback(); } catch { /* nada que deshacer */ } }
+        throw e;
+    } finally {
+        if (conn) conn.release();
+    }
 }
 
 /**
@@ -105,7 +199,7 @@ async function pendiente(db) {
  * Devuelve cuántas obras, partidas y gastos sembró.
  */
 async function sembrar(db, { hoy = new Date() } = {}) {
-    const resumen = { obras: 0, partidas: 0, gastos: 0 };
+    const resumen = { obras: 0, partidas: 0, gastos: 0, cobros: 0 };
     if (!(await pendiente(db))) return resumen;
 
     const [existentes] = await db.query('SELECT nombre FROM obras WHERE nombre IN (?)', [NOMBRES_DEMO]);
@@ -115,10 +209,10 @@ async function sembrar(db, { hoy = new Date() } = {}) {
     const [[empresa]] = await db.query(
         "SELECT id FROM empresas ORDER BY (rut = '44.000.900-K') DESC, id ASC LIMIT 1");
     const [[usuario]] = await db.query('SELECT id FROM usuarios ORDER BY (rol_id = 1) DESC, id ASC LIMIT 1');
-    if (!empresa || !usuario) return resumen;
+    if (!usuario) return resumen;
 
     for (const o of OBRAS_DEMO) {
-        if (hay.has(o.nombre)) continue;
+        if (hay.has(o.nombre) || !empresa) continue;
         // Una transacción por obra: si algo falla a medias no queda una obra demo sin presupuesto
         // (y como se siembra solo lo que falta, una obra a medias no se volvería a completar).
         const conn = typeof db.getConnection === 'function' ? await db.getConnection() : null;
@@ -172,7 +266,12 @@ async function sembrar(db, { hoy = new Date() } = {}) {
             if (conn) conn.release();
         }
     }
+
+    // Superficie y cobros (las recién creadas y las que ya existían sin la marca).
+    for (const obra of await obrasSinExtras(db)) {
+        resumen.cobros += await enTransaccion(db, q => sembrarExtras(q, obra, usuario.id, hoy));
+    }
     return resumen;
 }
 
-module.exports = { OBRAS_DEMO, NOMBRES_DEMO, pendiente, sembrar, _interno: { fecha } };
+module.exports = { OBRAS_DEMO, NOMBRES_DEMO, EXTRAS, MARCA_EXTRAS, pendiente, sembrar, _interno: { fecha } };

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { History, Plus, Pencil, Trash2, FileSpreadsheet } from 'lucide-react';
+import { History, Plus, Pencil, Trash2, FileSpreadsheet, Lock, LockOpen } from 'lucide-react';
 import api from '../../services/api';
 import { EmptyState } from '../ui/EmptyState';
 import { fmtMoney } from '../../utils/format';
@@ -7,7 +7,7 @@ import { fmtFechaHora } from '../../utils/fechas';
 import { CATEGORIAS, ESTADOS_PAGO, TIPOS_DOC } from './costosConfig';
 import type { CostoHistorial, CostoPartida } from '../../types/entities';
 
-const ICONO = { crear: Plus, editar: Pencil, borrar: Trash2, importar: FileSpreadsheet } as const;
+const ICONO = { crear: Plus, editar: Pencil, borrar: Trash2, importar: FileSpreadsheet, cerrar: Lock, reabrir: LockOpen } as const;
 
 const CAMPO: Record<string, string> = {
     capitulo: 'Capítulo', codigo: 'Ítem', descripcion: 'Descripción', unidad: 'Unidad', cantidad: 'Cantidad',
@@ -15,9 +15,10 @@ const CAMPO: Record<string, string> = {
     gg_pct: 'Gastos generales %', imprevistos_pct: 'Imprevistos %', utilidad_pct: 'Utilidad %', iva_pct: 'IVA %', observacion: 'Observación',
     fecha: 'Fecha', tipo_documento: 'Documento', proveedor: 'Proveedor', folio: 'Folio', monto_total: 'Total', monto_neto: 'Neto', iva: 'IVA',
     categoria: 'Categoría', partida_id: 'Partida', estado_pago: 'Pago', fecha_vencimiento: 'Vencimiento', fecha_pago: 'Fecha de pago',
+    superficie_m2: 'Superficie (m²)', glosa: 'Qué se cobra', retencion: 'Retención', estado: 'Estado', fecha_cobro: 'Fecha de cobro',
 };
 
-const DINERO = new Set(['precio_unitario', 'monto_total', 'monto_neto', 'iva']);
+const DINERO = new Set(['precio_unitario', 'monto_total', 'monto_neto', 'iva', 'retencion']);
 
 function valor(campo: string, v: unknown, partidas: Map<number, string>): string {
     if (v === null || v === undefined || v === '') return '(vacío)';
@@ -27,6 +28,7 @@ function valor(campo: string, v: unknown, partidas: Map<number, string>): string
     if (campo === 'estado_pago') return ESTADOS_PAGO[v as keyof typeof ESTADOS_PAGO] || String(v);
     if (campo === 'partida_id') return partidas.get(Number(v)) || `partida #${v} (ya no existe)`;
     if (campo === 'origen') return v === 'modificacion' ? 'Modificación' : 'Original';
+    if (campo === 'estado') return v === 'cobrado' ? 'Cobrado' : v === 'por_cobrar' ? 'Por cobrar' : String(v);
     return String(v).slice(0, 120);
 }
 

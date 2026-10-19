@@ -224,9 +224,21 @@ function borrarArchivo(ruta) {
     try { fs.unlinkSync(path.join(UPLOADS_DIR, ruta)); } catch { /* ya no estaba */ }
 }
 
+/** Obra cerrada (cierre de obra, mig 123): sus montos quedan congelados → 409 hasta reabrirla. */
+function noCerrada(fila) {
+    if (fila && fila.cerrado_at) {
+        throw err(409, 'La obra está cerrada: sus montos quedaron congelados. Para corregir algo, reábrela desde la pestaña Cierre.', { code: 'COSTO_OBRA_CERRADA' });
+    }
+}
+
+/** Lo que entra de un cobro: neto + IVA − retención. */
+const totalCobro = c => Math.round((Number(c.monto_neto) || 0) + (Number(c.iva) || 0) - (Number(c.retencion) || 0));
+
 module.exports = {
     TIPOS_DOC, CATEGORIAS, ESTADOS_PAGO, MAX_IMPORTAR,
     calcularTotales, netoDeGasto, num,
+    /** Para costosCaja.service y costosCierre.service (mismas reglas, un solo lugar). */
+    _h: { err, num, texto, fechaISO, ymd, hoy, registrar, diferencias, obraOFalla, presupuestoDe, noCerrada, totalCobro, netoDeGasto },
 
     /**
      * Obras AGREGADAS al módulo (tienen presupuesto creado o algún gasto), con su resumen corto.
@@ -300,6 +312,7 @@ module.exports = {
     async quitarObra(obraId, userId) {
         const obra = await obraOFalla(obraId);
         const pres = await presupuestoDe(obraId);
+        noCerrada(pres);
         const [[c]] = await db.query(
             `SELECT (SELECT COUNT(*) FROM costo_partidas WHERE presupuesto_id = ?) AS partidas,
                     (SELECT COUNT(*) FROM costo_gastos WHERE obra_id = ?) AS gastos`, [pres?.id || 0, obraId]
@@ -328,6 +341,24 @@ module.exports = {
               WHERE g.obra_id = ?
               ORDER BY g.fecha DESC, g.id DESC`, [obraId]
         );
+        const [cobrosFilas] = await db.query(
+            `SELECT c.*, u.nombre AS creado_por_nombre FROM costo_cobros c LEFT JOIN usuarios u ON u.id = c.creado_por
+              WHERE c.obra_id = ? ORDER BY c.fecha ASC, c.id ASC`, [obraId]
+        );
+        const cobros = (cobrosFilas || []).map(c => ({ ...c, fecha: ymd(c.fecha), fecha_cobro: ymd(c.fecha_cobro), total: totalCobro(c) }));
+        const resumenCobros = { cobrado: { n: 0, neto: 0, total: 0 }, por_cobrar: { n: 0, neto: 0, total: 0 }, retenido: 0 };
+        for (const c of cobros) {
+            const b = c.estado === 'cobrado' ? resumenCobros.cobrado : resumenCobros.por_cobrar;
+            b.n++; b.neto += Number(c.monto_neto) || 0; b.total += c.total;
+            resumenCobros.retenido += Number(c.retencion) || 0;
+        }
+        let cierre = null;
+        if (pres?.cerrado_at) {
+            const [[quien]] = pres.cerrado_por ? await db.query('SELECT nombre FROM usuarios WHERE id = ?', [pres.cerrado_por]) : [[null]];
+            let resumenCierre = null;
+            try { resumenCierre = pres.cierre_resumen ? JSON.parse(pres.cierre_resumen) : null; } catch { resumenCierre = null; }
+            cierre = { cerrado_at: pres.cerrado_at, cerrado_por_nombre: quien?.nombre || null, resumen: resumenCierre, lecciones: pres.cierre_lecciones || null };
+        }
 
         const totales = calcularTotales(pres, partidas);
         const gastadoPorPartida = new Map();
@@ -364,10 +395,14 @@ module.exports = {
 
         return {
             obra: { id: obra.id, nombre: obra.nombre, finalizada: !!obra.finalizada },
-            presupuesto: pres,
+            // El JSON del cierre va aparte (en `cierre`), no dentro del presupuesto.
+            presupuesto: pres ? (({ cierre_resumen: _r, cierre_lecciones: _l, ...resto }) => resto)(pres) : null,
             partidas: conGasto,
             gastos: gastos.map(sinRuta),
+            cobros,
+            cierre,
             resumen: {
+                cobros: resumenCobros,
                 ...totales,
                 gastado_neto: gastado,
                 gastado_estimado: estimado,
@@ -397,12 +432,21 @@ module.exports = {
             nuevo[c] = n;
         }
         if (data.observacion !== undefined) nuevo.observacion = texto(data.observacion, 500);
+        if (data.superficie_m2 !== undefined) {
+            const m2 = num(data.superficie_m2);
+            if (m2 !== null && (Number.isNaN(m2) || m2 <= 0)) throw err(400, 'La superficie tiene que ser un número mayor que cero (m²).', { code: 'COSTO_SUPERFICIE' });
+            nuevo.superficie_m2 = m2;
+        }
         const cambios = diferencias(pres, nuevo, Object.keys(nuevo));
+        // Cerrada: los porcentajes quedan congelados; la superficie y la observación se pueden corregir.
+        if (pres.cerrado_at && Object.keys(cambios).some(c => c.endsWith('_pct'))) noCerrada(pres);
         if (Object.keys(cambios).length) {
             const sets = Object.keys(nuevo).map(c => `${c} = ?`).join(', ');
             await db.query(`UPDATE costo_presupuestos SET ${sets}, actualizado_por = ? WHERE id = ?`, [...Object.values(nuevo), userId, pres.id]);
+            const soloSuperficie = Object.keys(cambios).every(c => c === 'superficie_m2');
             await registrar(null, { obra_id: obraId, entidad: 'presupuesto', entidad_id: pres.id, accion: 'editar',
-                resumen: 'Cambió los porcentajes del presupuesto', detalle: cambios, usuario_id: userId });
+                resumen: soloSuperficie ? `Cambió la superficie a ${nuevo.superficie_m2 ?? '—'} m²` : 'Cambió los datos del presupuesto',
+                detalle: cambios, usuario_id: userId });
         }
         return this.detalleObra(obraId);
     },
@@ -411,6 +455,7 @@ module.exports = {
         await obraOFalla(obraId);
         const p = leerPartida(data);
         const pres = await presupuestoDe(obraId, { crear: true, userId });
+        noCerrada(pres);
         const [[m]] = await db.query('SELECT COALESCE(MAX(orden), 0) AS m FROM costo_partidas WHERE presupuesto_id = ?', [pres.id]);
         const [r] = await db.query(
             `INSERT INTO costo_partidas (presupuesto_id, capitulo, codigo, descripcion, unidad, cantidad, precio_unitario, origen, motivo, orden, creado_por)
@@ -425,9 +470,10 @@ module.exports = {
 
     async editarPartida(id, data, userId) {
         const [[actual]] = await db.query(
-            `SELECT cp.*, pr.obra_id FROM costo_partidas cp JOIN costo_presupuestos pr ON pr.id = cp.presupuesto_id WHERE cp.id = ?`, [id]
+            `SELECT cp.*, pr.obra_id, pr.cerrado_at FROM costo_partidas cp JOIN costo_presupuestos pr ON pr.id = cp.presupuesto_id WHERE cp.id = ?`, [id]
         );
         if (!actual) throw err(404, 'Partida no encontrada');
+        noCerrada(actual);
         const p = leerPartida(data, { parcial: true });
         const cambios = diferencias(actual, p, Object.keys(p));
         if (!Object.keys(cambios).length) return { id, sin_cambios: true };
@@ -441,9 +487,10 @@ module.exports = {
     /** Borra la partida; los gastos que tenía quedan sin partida (no se borran). */
     async borrarPartida(id, userId) {
         const [[actual]] = await db.query(
-            `SELECT cp.*, pr.obra_id FROM costo_partidas cp JOIN costo_presupuestos pr ON pr.id = cp.presupuesto_id WHERE cp.id = ?`, [id]
+            `SELECT cp.*, pr.obra_id, pr.cerrado_at FROM costo_partidas cp JOIN costo_presupuestos pr ON pr.id = cp.presupuesto_id WHERE cp.id = ?`, [id]
         );
         if (!actual) throw err(404, 'Partida no encontrada');
+        noCerrada(actual);
         const [[c]] = await db.query('SELECT COUNT(*) AS n FROM costo_gastos WHERE partida_id = ?', [id]);
         await db.query('DELETE FROM costo_partidas WHERE id = ?', [id]);
         const huerfanos = Number(c?.n) || 0;
@@ -468,6 +515,7 @@ module.exports = {
             catch (e) { throw err(400, `Fila ${i + 1}: ${e.message}`, { code: e.code }); }
         });
         const pres = await presupuestoDe(obraId, { crear: true, userId });
+        noCerrada(pres);
 
         const conn = await db.getConnection();
         try {
@@ -511,7 +559,7 @@ module.exports = {
             if (g.estado_pago === 'pagada' && !g.fecha_pago) g.fecha_pago = hoy();
             await verificarPartidaDeObra(g.partida_id, obraId);
             // Un gasto deja la obra agregada al módulo (aparece en la portada).
-            await presupuestoDe(obraId, { crear: true, userId });
+            noCerrada(await presupuestoDe(obraId, { crear: true, userId }));
             const foto = file ? {
                 foto_nombre: file.originalname, foto_ruta: path.relative(UPLOADS_DIR, file.path),
                 foto_mime: file.mimetype, foto_tamano: file.size,
@@ -532,8 +580,10 @@ module.exports = {
     },
 
     async editarGasto(id, data, userId) {
-        const [[actual]] = await db.query('SELECT * FROM costo_gastos WHERE id = ?', [id]);
+        const [[actual]] = await db.query(
+            'SELECT g.*, pr.cerrado_at FROM costo_gastos g LEFT JOIN costo_presupuestos pr ON pr.obra_id = g.obra_id WHERE g.id = ?', [id]);
         if (!actual) throw err(404, 'Gasto no encontrado');
+        noCerrada(actual);
         const g = leerGasto(data, { parcial: true });
         if (g.partida_id !== undefined) await verificarPartidaDeObra(g.partida_id, actual.obra_id);
         // Pagada sin fecha de pago = pagada hoy (si ya tenía una y no la tocaron, se conserva).
@@ -550,8 +600,11 @@ module.exports = {
 
     async reemplazarFoto(id, file, userId) {
         if (!file) throw err(400, 'No se recibió la foto', { code: 'COSTO_SIN_FOTO' });
-        const [[actual]] = await db.query('SELECT id, obra_id, foto_ruta FROM costo_gastos WHERE id = ?', [id]);
-        if (!actual) { try { fs.unlinkSync(file.path); } catch { /* */ } throw err(404, 'Gasto no encontrado'); }
+        const [[actual]] = await db.query(
+            'SELECT g.id, g.obra_id, g.foto_ruta, pr.cerrado_at FROM costo_gastos g LEFT JOIN costo_presupuestos pr ON pr.obra_id = g.obra_id WHERE g.id = ?', [id]);
+        if (!actual || actual.cerrado_at) { try { fs.unlinkSync(file.path); } catch { /* */ } }
+        if (!actual) throw err(404, 'Gasto no encontrado');
+        noCerrada(actual);
         const ruta = path.relative(UPLOADS_DIR, file.path);
         await db.query('UPDATE costo_gastos SET foto_nombre = ?, foto_ruta = ?, foto_mime = ?, foto_tamano = ?, actualizado_por = ? WHERE id = ?',
             [file.originalname, ruta, file.mimetype, file.size, userId, id]);
@@ -569,8 +622,10 @@ module.exports = {
     },
 
     async borrarGasto(id, userId) {
-        const [[actual]] = await db.query('SELECT * FROM costo_gastos WHERE id = ?', [id]);
+        const [[actual]] = await db.query(
+            'SELECT g.*, pr.cerrado_at FROM costo_gastos g LEFT JOIN costo_presupuestos pr ON pr.obra_id = g.obra_id WHERE g.id = ?', [id]);
         if (!actual) throw err(404, 'Gasto no encontrado');
+        noCerrada(actual);
         await db.query('DELETE FROM costo_gastos WHERE id = ?', [id]);
         borrarArchivo(actual.foto_ruta);
         await registrar(null, { obra_id: actual.obra_id, entidad: 'gasto', entidad_id: id, accion: 'borrar',

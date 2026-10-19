@@ -967,6 +967,10 @@ export interface CostoPresupuesto {
     utilidad_pct: number | string;
     iva_pct: number | string;
     observacion?: string | null;
+    /** Superficie construida (mig 123), para el costo por m². */
+    superficie_m2?: number | string | null;
+    /** Cierre de obra (mig 123): con fecha, los montos quedan congelados. */
+    cerrado_at?: string | null;
 }
 
 export interface CostoPartida {
@@ -1034,6 +1038,105 @@ export interface CostoResumen {
     vencidas: { n: number; monto: number };
     capitulos: { capitulo: string; presupuestado: number; gastado: number; partidas: number }[];
     partidas_excedidas: { id: number; capitulo: string; descripcion: string; presupuestado: number; gastado: number }[];
+    cobros: {
+        cobrado: { n: number; neto: number; total: number };
+        por_cobrar: { n: number; neto: number; total: number };
+        retenido: number;
+    };
+}
+
+/** Cobro al mandante (mig 123): lo que entra = neto + IVA − retención. */
+export interface CostoCobro {
+    id: number;
+    obra_id: number;
+    fecha: string;
+    glosa: string;
+    monto_neto: number | string;
+    iva: number | string;
+    retencion: number | string;
+    estado: 'por_cobrar' | 'cobrado';
+    fecha_cobro: string | null;
+    observacion: string | null;
+    /** Calculado por el backend. */
+    total: number;
+    creado_por_nombre?: string | null;
+}
+
+/** Números finales de una obra al cerrarla (costosCierre.service · resumenCierre). */
+export interface CostoCierreResumen {
+    fecha: string;
+    superficie_m2: number | null;
+    presupuesto: { costo_directo: number; gastos_generales: number; imprevistos: number; costo_presupuestado: number; utilidad: number; neto: number };
+    real: { gastado_neto: number; gastado_estimado: boolean; por_categoria: Record<string, number>; gastos_generales_gastado: number; sin_asignar: number };
+    venta: { neto: number; fuente: 'cobros' | 'presupuesto'; cobrado_neto: number; por_cobrar_neto: number; retenido: number };
+    margen: { presupuestado: number; pct_presupuestado: number | null; real: number; pct_real: number | null };
+    desviacion_costo: number;
+    desviacion_pct: number | null;
+    capitulos: { capitulo: string; presupuestado: number; gastado: number }[];
+    excedidas: { id: number; capitulo: string; descripcion: string; presupuestado: number; gastado: number }[];
+    pendientes: { por_pagar: { n: number; monto: number }; por_completar: number; por_cobrar: { n: number; total: number } };
+}
+
+export interface CostoCierre {
+    cerrado_at: string;
+    cerrado_por_nombre: string | null;
+    resumen: CostoCierreResumen | null;
+    lecciones: string | null;
+}
+
+export interface CostoMovimientoFlujo {
+    tipo: 'cobro' | 'pago';
+    id: number;
+    obra_id: number;
+    obra_nombre: string;
+    fecha: string | null;
+    fecha_documento?: string | null;
+    detalle: string;
+    monto: number;
+}
+
+export interface CostoBaldeFlujo {
+    clave: string;
+    desde: string | null;
+    hasta: string | null;
+    entradas: number;
+    salidas: number;
+    neto: number;
+    items: CostoMovimientoFlujo[];
+}
+
+export interface CostoFlujo {
+    hoy: string;
+    semanas: CostoBaldeFlujo[];
+    atrasado: CostoBaldeFlujo;
+    mas_adelante: CostoBaldeFlujo;
+    sin_fecha: CostoBaldeFlujo;
+    totales: { entradas: number; salidas: number };
+}
+
+export interface CostoComparacionObra {
+    obra_id: number;
+    nombre: string;
+    finalizada: boolean;
+    cerrada: boolean;
+    cerrado_at: string | null;
+    superficie_m2: number | null;
+    partidas: number;
+    costo_presupuestado: number;
+    gastado_neto: number;
+    gastado_estimado: boolean;
+    venta_neto: number;
+    venta_fuente: 'cobros' | 'presupuesto';
+    margen_pct_presupuestado: number | null;
+    margen_pct_real: number | null;
+    desviacion_pct: number | null;
+    por_m2: { presupuestado: number | null; real: number | null; venta: number | null };
+    por_categoria: Record<string, number>;
+}
+
+export interface CostoComparacion {
+    obras: CostoComparacionObra[];
+    promedio_cerradas: { obras: number; costo_real_m2: number | null; costo_presupuestado_m2: number | null; margen_pct_real: number | null } | null;
 }
 
 export interface CostoDetalleObra {
@@ -1041,14 +1144,16 @@ export interface CostoDetalleObra {
     presupuesto: CostoPresupuesto | null;
     partidas: CostoPartida[];
     gastos: CostoGasto[];
+    cobros: CostoCobro[];
+    cierre: CostoCierre | null;
     resumen: CostoResumen;
 }
 
 export interface CostoHistorial {
     id: number;
-    entidad: 'presupuesto' | 'partida' | 'gasto';
+    entidad: 'presupuesto' | 'partida' | 'gasto' | 'cobro';
     entidad_id: number | null;
-    accion: 'crear' | 'editar' | 'borrar' | 'importar';
+    accion: 'crear' | 'editar' | 'borrar' | 'importar' | 'cerrar' | 'reabrir';
     resumen: string;
     detalle: Record<string, unknown> | null;
     usuario_nombre: string | null;

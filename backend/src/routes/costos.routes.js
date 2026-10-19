@@ -4,6 +4,8 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const uploadCostos = require('../middleware/upload-costos');
 const svc = require('../services/costos.service');
+const caja = require('../services/costosCaja.service');
+const cierre = require('../services/costosCierre.service');
 
 /**
  * Costos de obra (mig 122, docs/reglas/costos.md). Todo pide `costos.gestionar`
@@ -76,6 +78,39 @@ router.get('/gastos/:id/foto', ...gate, async (req, res, next) => {
 
 router.delete('/gastos/:id', ...gate, async (req, res, next) => {
     try { res.json({ data: await svc.borrarGasto(id(req.params.id), req.user.id) }); } catch (e) { next(e); }
+});
+
+// ── Cobros al mandante y flujo de caja (mig 123) ──
+router.post('/obras/:obraId/cobros', ...gate, async (req, res, next) => {
+    try { res.status(201).json({ data: await caja.crearCobro(id(req.params.obraId), req.body || {}, req.user.id) }); } catch (e) { next(e); }
+});
+
+router.put('/cobros/:id', ...gate, async (req, res, next) => {
+    try { res.json({ data: await caja.editarCobro(id(req.params.id), req.body || {}, req.user.id) }); } catch (e) { next(e); }
+});
+
+router.delete('/cobros/:id', ...gate, async (req, res, next) => {
+    try { res.json({ data: await caja.borrarCobro(id(req.params.id), req.user.id) }); } catch (e) { next(e); }
+});
+
+router.get('/flujo', ...gate, async (req, res, next) => {
+    try {
+        const obraId = req.query.obra_id ? id(req.query.obra_id) : null;
+        res.json({ data: await caja.flujoCaja({ semanas: req.query.semanas, obraId }) });
+    } catch (e) { next(e); }
+});
+
+// ── Cierre de obra y comparación (mig 123) ──
+router.post('/obras/:obraId/cerrar', ...gate, async (req, res, next) => {
+    try { res.json({ data: await cierre.cerrarObra(id(req.params.obraId), req.body || {}, req.user.id) }); } catch (e) { next(e); }
+});
+
+router.post('/obras/:obraId/reabrir', ...gate, async (req, res, next) => {
+    try { res.json({ data: await cierre.reabrirObra(id(req.params.obraId), req.body || {}, req.user.id) }); } catch (e) { next(e); }
+});
+
+router.get('/comparacion', ...gate, async (req, res, next) => {
+    try { res.json({ data: await cierre.comparacion() }); } catch (e) { next(e); }
 });
 
 router.get('/obras/:obraId/historial', ...gate, async (req, res, next) => {

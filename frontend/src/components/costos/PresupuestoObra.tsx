@@ -6,6 +6,7 @@ import { SearchBar } from '../ui/SearchBar';
 import { EmptyState } from '../ui/EmptyState';
 import { fmtMoney, fmtNumber } from '../../utils/format';
 import { BarraAvance, PctGastado } from './piezas';
+import { cn } from '../../utils/cn';
 import type { CostoDetalleObra, CostoPartida } from '../../types/entities';
 
 interface Props {
@@ -14,6 +15,8 @@ interface Props {
     onAgregarPartida: () => void;
     onEditarPartida: (p: CostoPartida) => void;
     onPorcentajes: () => void;
+    /** Obra cerrada: sin agregar, importar ni editar partidas (solo ver y corregir la superficie). */
+    bloqueada?: boolean;
 }
 
 /**
@@ -21,7 +24,8 @@ interface Props {
  * modificaciones (obras extra, cambios) se marcan para distinguirlas del original.
  * En el celular y la tablet cada partida es una tarjeta; en el escritorio (lg), una tabla.
  */
-export const PresupuestoObra: React.FC<Props> = ({ detalle, onImportar, onAgregarPartida, onEditarPartida, onPorcentajes }) => {
+export const PresupuestoObra: React.FC<Props> = ({ detalle, onImportar, onAgregarPartida, onEditarPartida: editar, onPorcentajes, bloqueada = false }) => {
+    const onEditarPartida = (p: CostoPartida) => { if (!bloqueada) editar(p); };
     const [busqueda, setBusqueda] = useState('');
 
     const grupos = useMemo(() => {
@@ -42,9 +46,9 @@ export const PresupuestoObra: React.FC<Props> = ({ detalle, onImportar, onAgrega
 
     const acciones = (
         <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" onClick={onAgregarPartida} leftIcon={<ListPlus className="h-4 w-4" />}>Agregar partida</Button>
-            <Button size="sm" variant="glass" onClick={onImportar} leftIcon={<FileSpreadsheet className="h-4 w-4" />}>Importar Excel</Button>
-            <Button size="sm" variant="glass" onClick={onPorcentajes} leftIcon={<Percent className="h-4 w-4" />}>Porcentajes</Button>
+            {!bloqueada && <Button size="sm" onClick={onAgregarPartida} leftIcon={<ListPlus className="h-4 w-4" />}>Agregar partida</Button>}
+            {!bloqueada && <Button size="sm" variant="glass" onClick={onImportar} leftIcon={<FileSpreadsheet className="h-4 w-4" />}>Importar Excel</Button>}
+            <Button size="sm" variant="glass" onClick={onPorcentajes} leftIcon={<Percent className="h-4 w-4" />}>Datos: % y m²</Button>
         </div>
     );
 
@@ -90,7 +94,7 @@ export const PresupuestoObra: React.FC<Props> = ({ detalle, onImportar, onAgrega
                         </thead>
                         <tbody>
                             {g.partidas.map(p => (
-                                <tr key={p.id} onClick={() => onEditarPartida(p)} className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/40">
+                                <tr key={p.id} onClick={() => onEditarPartida(p)} className={cn('border-b border-border last:border-0', !bloqueada && 'cursor-pointer hover:bg-muted/40')}>
                                     <td className="px-4 py-2.5 align-top text-muted-foreground tabular-nums">{p.codigo || '—'}</td>
                                     <td className="px-2 py-2.5 align-top">
                                         {/* eslint-disable-next-line no-restricted-syntax -- acceso por teclado a la fila (la fila entera es clicable con el mouse) */}

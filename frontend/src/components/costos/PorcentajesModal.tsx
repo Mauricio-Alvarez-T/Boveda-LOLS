@@ -14,6 +14,8 @@ interface Props {
     obraId: number;
     presupuesto: CostoPresupuesto | null;
     costoDirecto: number;
+    /** Obra cerrada: los porcentajes quedan congelados; la superficie y la observación, no. */
+    bloqueada?: boolean;
     onClose: () => void;
     onGuardado: () => void;
 }
@@ -30,8 +32,8 @@ type Clave = typeof CAMPOS[number]['key'];
 const aTexto = (v: number | string | null | undefined, porDefecto: string) =>
     v === null || v === undefined || v === '' ? porDefecto : String(Number(v)).replace('.', ',');
 
-/** Porcentajes del presupuesto, con la cuenta a la vista mientras se escriben. */
-export const PorcentajesModal: React.FC<Props> = ({ obraId, presupuesto, costoDirecto, onClose, onGuardado }) => {
+/** Datos del presupuesto: porcentajes (con la cuenta a la vista) y superficie para el costo por m². */
+export const PorcentajesModal: React.FC<Props> = ({ obraId, presupuesto, costoDirecto, bloqueada = false, onClose, onGuardado }) => {
     const [valores, setValores] = useState<Record<Clave, string>>({
         gg_pct: aTexto(presupuesto?.gg_pct, '0'),
         imprevistos_pct: aTexto(presupuesto?.imprevistos_pct, '0'),
@@ -39,6 +41,7 @@ export const PorcentajesModal: React.FC<Props> = ({ obraId, presupuesto, costoDi
         iva_pct: aTexto(presupuesto?.iva_pct, '19'),
     });
     const [observacion, setObservacion] = useState(presupuesto?.observacion || '');
+    const [m2, setM2] = useState(presupuesto?.superficie_m2 ? String(Number(presupuesto.superficie_m2)).replace('.', ',') : '');
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +57,11 @@ export const PorcentajesModal: React.FC<Props> = ({ obraId, presupuesto, costoDi
 
     const guardar = async () => {
         const datos: Record<string, number | string> = { observacion };
+        const superficie = m2.trim() ? aNumero(m2) : null;
+        if (m2.trim() && (superficie === null || superficie <= 0)) { setError('La superficie tiene que ser un número mayor que cero (m²).'); return; }
+        datos.superficie_m2 = superficie ?? '';
         for (const c of CAMPOS) {
+            if (bloqueada) break;
             const v = aNumero(valores[c.key]);
             if (v === null || v < 0 || v > 100) { setError(`"${c.label}" tiene que ser un porcentaje entre 0 y 100.`); return; }
             datos[c.key] = v;
@@ -63,10 +70,10 @@ export const PorcentajesModal: React.FC<Props> = ({ obraId, presupuesto, costoDi
         setGuardando(true);
         try {
             await api.put(`/costos/obras/${obraId}/presupuesto`, datos);
-            toast.success('Porcentajes guardados');
+            toast.success('Datos del presupuesto guardados');
             onGuardado();
         } catch (e) {
-            setError(mensajeError(e, 'No se pudieron guardar los porcentajes.'));
+            setError(mensajeError(e, 'No se pudieron guardar los datos del presupuesto.'));
         } finally {
             setGuardando(false);
         }
@@ -84,7 +91,7 @@ export const PorcentajesModal: React.FC<Props> = ({ obraId, presupuesto, costoDi
             onClose={onClose}
             size="md"
             icon={Percent}
-            title="Porcentajes del presupuesto"
+            title="Datos del presupuesto"
             footer={
                 <div className="flex w-full justify-end gap-2">
                     <Button variant="ghost" onClick={onClose}>Cancelar</Button>
@@ -93,14 +100,23 @@ export const PorcentajesModal: React.FC<Props> = ({ obraId, presupuesto, costoDi
             }
         >
             <div className="flex flex-col gap-4">
+                <div className="max-w-[14rem]">
+                    <label htmlFor="pres-m2" className={ETIQUETA}>Superficie construida</label>
+                    <div className="relative">
+                        <input id="pres-m2" value={m2} onChange={e => setM2(e.target.value)} inputMode="decimal" placeholder="Ej.: 1.250" className={CAMPO + ' pr-10 tabular-nums'} />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">m²</span>
+                    </div>
+                    <p className="mt-1 text-caption text-muted-foreground">Para comparar obras por su costo por m².</p>
+                </div>
+                {bloqueada && <p className="text-xs text-muted-foreground">La obra está cerrada: los porcentajes quedaron congelados.</p>}
                 <div className="grid grid-cols-2 gap-3">
                     {CAMPOS.map(c => (
                         <div key={c.key}>
                             <label htmlFor={`pct-${c.key}`} className={ETIQUETA}>{c.label}</label>
                             <div className="relative">
-                                <input id={`pct-${c.key}`} value={valores[c.key]} inputMode="decimal"
+                                <input id={`pct-${c.key}`} value={valores[c.key]} inputMode="decimal" disabled={bloqueada}
                                     onChange={e => setValores(v => ({ ...v, [c.key]: e.target.value }))}
-                                    className={CAMPO + ' pr-8 tabular-nums'} />
+                                    className={CAMPO + ' pr-8 tabular-nums disabled:opacity-60'} />
                                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
                             </div>
                             <p className="mt-1 text-caption text-muted-foreground">{c.ayuda}</p>

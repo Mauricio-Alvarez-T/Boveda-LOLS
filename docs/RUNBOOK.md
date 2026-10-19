@@ -1255,7 +1255,8 @@ QA sin datos que mirar. Lo sembrado va con `es_prueba = 0`.
    descargar e imprimir funcionen. Además (2026-10-16) las **3 obras de ejemplo de Presupuestos**
    («Obra demo 1/2/3», con presupuesto y gastos; `saneoCostos.service.js`): **una vez por obra**, y si
    es lo único pendiente el modo `--auto` las siembra solas, sin purga ni siembra general.
-   `datos-status.txt` lo dice (`· 3 obras demo de Presupuestos`).
+   `datos-status.txt` lo dice (`· 3 obras demo de Presupuestos`). Desde la mig 123 se les agrega
+   **superficie y cobros** una vez por obra (`· N cobros demo`), también a las que ya existían.
 
 ### Las tres guardas
 

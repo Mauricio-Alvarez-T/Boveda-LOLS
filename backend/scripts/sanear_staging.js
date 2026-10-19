@@ -146,16 +146,16 @@ async function main() {
     }
 
     // ── Obras de ejemplo de Presupuestos (una vez por obra) ──
-    let obrasDemo = 0;
+    let demo = '';
     if (hayCostosPendientes) {
         const c = await costosDemo.sembrar(db);
-        obrasDemo = c.obras;
+        demo = [c.obras ? `${c.obras} obras demo de Presupuestos` : '', c.cobros ? `${c.cobros} cobros demo` : ''].filter(Boolean).join(' · ');
         log.ok(`Presupuestos de ejemplo: ${resumir(c)}`);
     }
 
     const final = await saneo.detectar(db, { graciaHoras: GRACIA });
     log.ok(`Estado final: ${final.ficticios} trabajadores ficticios · ${final.total} foráneos`);
-    console.log(`RESUMEN · ${purgados ? 'LIMPIEZA' : 'OK'} · ${purgados} purgados · ${sembrados} sembrados · ${final.total} foráneos${obrasDemo ? ` · ${obrasDemo} obras demo de Presupuestos` : ''}`);
+    console.log(`RESUMEN · ${purgados ? 'LIMPIEZA' : 'OK'} · ${purgados} purgados · ${sembrados} sembrados · ${final.total} foráneos${demo ? ` · ${demo}` : ''}`);
 }
 
 main()

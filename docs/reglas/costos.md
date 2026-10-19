@@ -27,7 +27,10 @@ secretaria"), y se pierden datos. **Es un ESQUELETO**: Marcos le pregunta a Rodr
   gastos → 409 `COSTO_OBRA_CON_DATOS` (no es una vía para borrar información).
 - **En test** hay tres obras de ejemplo, «Obra demo 1», «Obra demo 2» y «Obra demo 3», con
   presupuesto y gastos (`saneoCostos.service.js`, lo corre `sanear_staging.js --sembrar`; producción
-  nunca). Se siembran una vez por obra: lo que se edite o borre al probar no reaparece.
+  nunca). Se siembran una vez por obra: lo que se edite o borre al probar no reaparece. Desde la
+  mig 123 también llevan **superficie y cobros** (Obra demo 1: 210 m², anticipo, EP 1 y EP 2; Obra
+  demo 2: 120 m², EP 1–3 y devolución de retenciones; Obra demo 3: 450 m², anticipo), una sola vez
+  por obra (marca «Datos de ejemplo de test: cobros y superficie» en el historial).
 
 ## Presupuesto (itemizado chileno)
 
@@ -86,6 +89,57 @@ secretaria"), y se pierden datos. **Es un ESQUELETO**: Marcos le pregunta a Rodr
 - Montos y números en formato chileno ("45.000", "1.234,5", "$ 89.900") (`num` del service,
   `aNumero` del front).
 
+## Cobros al mandante (mig 123)
+
+- `costo_cobros`: lo que se espera **cobrar** (anticipo, cada estado de pago, factura de venta,
+  devolución de retenciones), con fecha esperada, neto, IVA y **retención**. Lo que **entra a la
+  caja = neto + IVA − retención** (`totalCobro`). La retención no puede superar neto + IVA (400
+  `COSTO_COBRO_RETENCION`). Cobrado sin fecha de cobro = cobrado hoy.
+- Es **mínimo a propósito**: los estados de pago completos (avance por partida, anticipo, tope de
+  retención) se definen con Rodrigo; cuando existan, generarán estos cobros.
+- Pestaña **Cobros** de cada obra (`costosCaja.service.js`, `POST /obras/:id/cobros`,
+  `PUT|DELETE /cobros/:id`). El formulario sugiere el EP que sigue al último («EP 3» → «EP 4»).
+
+## Flujo de caja (mig 123)
+
+- Portada › **Flujo de caja** (`GET /api/costos/flujo?semanas=&obra_id=`). Cruza, por semana de
+  **lunes a domingo** desde la actual, lo que **entra** (cobros por cobrar, por fecha esperada) con
+  lo que **sale** (gastos por pagar, por **fecha de vencimiento**, con IVA: es plata del banco).
+- **Atrasado** (vencido sin pagar y lo que se debía cobrar y no llegó) va primero y se suma como si
+  se resolviera ya. **Sin fecha** (gasto sin vencimiento) va aparte, avisado: no cae en ninguna
+  semana. **Más adelante** = después del horizonte (8 o 12 semanas, o 6 meses; el backend acota a
+  4–26).
+- El **saldo del banco** es opcional y **no se guarda**; sin él, el acumulado parte en $0 y solo dice
+  si lo que entra alcanza para lo que sale. «Semana más justa» = el acumulado más bajo.
+- Agrupación en `armarFlujo` (función pura, con test).
+
+## Cierre de obra (mig 123)
+
+- Pestaña **Cierre**: antes de cerrar avisa (no bloquea) lo pendiente: obra no finalizada, gastos
+  por completar, facturas por pagar, cobros por cobrar, venta sin cobros, netos estimados.
+- **Cerrar** (`POST /obras/:id/cerrar`, `costosCierre.service.js`) guarda en
+  `costo_presupuestos.cierre_resumen` (JSON) los **números finales**: presupuesto, gastado por
+  categoría, venta, margen presupuestado y real, desviación, capítulos, partidas excedidas y
+  pendientes; más **qué aprendimos** y la **superficie**.
+- **Venta** = neto de todos los cobros; si no hay ninguno, el neto del presupuesto (costo +
+  utilidad), marcado «según el presupuesto»: el margen sale del papel.
+- **Cerrada = montos congelados**: partidas, gastos, fotos, cobros, importación y porcentajes
+  responden 409 `COSTO_OBRA_CERRADA` (`noCerrada`). La superficie y la observación sí se corrigen.
+  La pantalla oculta las acciones y muestra el aviso.
+- **Reabrir** (`POST /obras/:id/reabrir`) exige motivo; el cierre anterior queda en el historial
+  (acciones `cerrar` / `reabrir`).
+
+## Comparar obras y costo por m² (mig 123)
+
+- Portada › **Comparar obras** (`GET /api/costos/comparacion`). Superficie construida en
+  `costo_presupuestos.superficie_m2` (Presupuesto › «Datos: % y m²», o al cerrar).
+- Por obra: m², costo **presupuestado** y **real** por m², desviación, margen presupuestado y
+  real, y en qué categoría se fue la plata (%).
+- **Promedio = solo obras CERRADAS con superficie**, ponderado por m² (total ÷ total): es la base
+  para cotizar. Las **en curso** muestran su costo por m² de hoy marcado **parcial**; su desviación
+  y margen real dicen «al cerrar» (lo gastado a medias contra el presupuesto completo no significa
+  nada).
+
 ## Historial
 
 - Cada alta, edición, borrado e importación queda en `costo_historial` con quién y cuándo. Las
@@ -97,7 +151,7 @@ secretaria"), y se pierden datos. **Es un ESQUELETO**: Marcos le pregunta a Rodr
 
 ## «Lo que viene» — prototipo solo en test
 
-- Botón **«Lo que viene (ejemplo)»** en la portada de Presupuestos → `/costos?vista=propuesta`. Existe
+- Botón **«Lo que viene (ejemplo)»** en la pestaña Obras de la portada → `/costos?vista=propuesta`. Existe
   **solo con `VITE_ENTORNO=staging`** (en producción ni el botón ni la vista se renderizan).
 - Muestra con **datos inventados** («Obra de ejemplo», edificio de 5 pisos) cómo se verían las mejoras
   propuestas el 16-10 tras comparar con MásConstruye: estados de pago al mandante (con el EP 8
