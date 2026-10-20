@@ -50,7 +50,7 @@ describe('resumenDelDia (tarjeta verde del Inicio)', () => {
         expect(resumenDelDia(todas, { vehiculosVencidos: 0, otrosPendientes: 0, diaSemana: VIERNES }))
             .toMatchObject({ titulo: 'Asistencia de hoy guardada en todas las obras', detalle: 'Todo al día.', sinGuardar: [] });
         expect(resumenDelDia(todas, { vehiculosVencidos: 0, otrosPendientes: 2, diaSemana: VIERNES }).detalle)
-            .toBe('Quedan 2 pendientes en la bandeja.');
+            .toBe('Quedan 2 pendientes por revisar.');
         expect(resumenDelDia(todas, { vehiculosVencidos: 2, otrosPendientes: 2, diaSemana: VIERNES }).detalle)
             .toBe('Además hay 2 vencimientos de vehículos.');
     });

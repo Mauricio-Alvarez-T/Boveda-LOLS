@@ -29,7 +29,7 @@ interface Opciones {
     obraId?: number | null;
     /** Vencimientos de vehículos YA vencidos (los por vencer no van a la frase). */
     vehiculosVencidos: number;
-    /** Filas de la bandeja que no son asistencia ni vehículos (documentos, inventario, …). */
+    /** Pendientes que no son asistencia ni vehículos: la bandeja «Otros pendientes» más las alertas de documentos físicos. */
     otrosPendientes: number;
     /** `Date#getDay()` de hoy: 0 = domingo, 6 = sábado. */
     diaSemana: number;
@@ -99,7 +99,7 @@ export function resumenDelDia(estado: Record<string, EstadoObraHoy>, opciones: O
         ...base,
         titulo: 'Asistencia de hoy guardada en todas las obras',
         detalle: extraVehiculos || (otrosPendientes > 0
-            ? `Quedan ${otrosPendientes} ${plural(otrosPendientes, 'pendiente', 'pendientes')} en la bandeja.`
+            ? `Quedan ${otrosPendientes} ${plural(otrosPendientes, 'pendiente', 'pendientes')} por revisar.`
             : 'Todo al día.'),
     };
 }
