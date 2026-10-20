@@ -556,7 +556,8 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       lun 5, lun 12 y mar 13», reglas en píldoras chicas y un **mini calendario de lunes a viernes**
       (`semanasDelMes`: «2 lunes» se lee como columna, «2 seguidos» como celdas juntas; faltas en rojo,
       futuro punteado, anillo en hoy) + «Ver en asistencia». Reemplazó a la tabla con tira del mes → **Hoy** (ausentes en barra apilada por motivo:
-      F rojo, LM azul, V gris, PSG ámbar; obras sin guardar) junto a **Próximos 14 días** (empiezan o
+      F rojo, LM azul, V gris, PSG ámbar; obras sin guardar) junto a **Próximos 14 días** (con límite: en escritorio toma el alto de la columna de al lado y en
+      celular 520 px; lo cortado se desvanece y «Ver los N» lo despliega; empiezan o
       terminan licencias/vacaciones —«vuelve el lun 26 oct»— y feriados) → **Este mes** (descuentos por
       trabajador y horas extra por obra, cada uno con su permiso; los descuentos avisan que el cálculo
       oficial es el Excel) → **Tendencia y obras** (fase 3: ausentismo de 6 meses en área azul con las

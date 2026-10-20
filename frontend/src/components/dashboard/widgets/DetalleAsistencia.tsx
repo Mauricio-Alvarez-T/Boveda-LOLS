@@ -108,7 +108,7 @@ const DetalleAsistencia: React.FC<Props> = ({
                 </section>
 
                 {(cargandoMes || mesExtra?.proximos) && (
-                    <section className="min-w-0 space-y-3" aria-labelledby="inicio-asistencia-proximos-t">
+                    <section className="flex min-w-0 flex-col gap-3" aria-labelledby="inicio-asistencia-proximos-t">
                         <h3 id="inicio-asistencia-proximos-t" className={ROTULO}>Próximos 14 días</h3>
                         {mesExtra?.proximos
                             ? <ProximosDias datos={mesExtra.proximos} hoy={mesExtra.hoy} />

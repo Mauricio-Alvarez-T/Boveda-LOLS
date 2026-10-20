@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useReducedMotion } from 'framer-motion';
 import { ArrowRight, ChevronDown, Lock, TrendingUp } from 'lucide-react';
@@ -20,34 +20,77 @@ const CARD = 'rounded-3xl bg-card p-6 text-foreground shadow-[var(--shadow-md)]'
 const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
 
 // ─── Próximos 14 días ───
-export const ProximosDias: React.FC<{ datos: NonNullable<DetalleAsistenciaApi['proximos']>; hoy: string }> = ({ datos, hoy }) => (
-    <div className={cn(CARD, 'py-3')}>
-        {datos.eventos.length === 0 ? (
-            <p className="py-3 text-sm text-muted-foreground">Nada programado: ni licencias ni vacaciones que empiecen o terminen, ni feriados.</p>
-        ) : (
-            <ol>
-                {datos.eventos.map((e, i) => {
-                    const f = bloqueFecha(e.fecha, hoy);
-                    const d = describirEvento(e);
-                    return (
-                        <li key={`${e.tipo}-${e.fecha}-${'rut' in e ? e.rut : e.nombre}-${i}`}
-                            className="flex gap-4 border-t border-border py-3 first:border-t-0">
-                            <span className="w-11 shrink-0 text-center">
-                                <span className="block text-label font-semibold uppercase text-muted-foreground">{f.relativo ?? f.dia}</span>
-                                <span className="block text-xl font-bold leading-tight tabular-nums">{f.num}</span>
-                            </span>
-                            <span className="min-w-0 flex-1">
-                                <Chip tone={d.tono} label={d.rotulo} />
-                                <span className="mt-1 block truncate text-sm font-semibold">{d.texto}</span>
-                                <span className="block truncate text-xs text-muted-foreground">{d.detalle}</span>
-                            </span>
-                        </li>
-                    );
-                })}
-            </ol>
-        )}
-    </div>
-);
+/**
+ * Próximos 14 días con LÍMITE (dueño 2026-10-20: «se extiende mucho y rompe la cuadrícula»). En escritorio
+ * la tarjeta toma el alto de la columna de al lado (va en un contenedor absoluto que no empuja la fila) y en
+ * celular un alto máximo; lo que no cabe se desvanece abajo y «Ver los N» la despliega entera.
+ */
+export const ProximosDias: React.FC<{ datos: NonNullable<DetalleAsistenciaApi['proximos']>; hoy: string }> = ({ datos, hoy }) => {
+    const [abierto, setAbierto] = useState(false);
+    const [desborda, setDesborda] = useState(false);
+    const listaRef = useRef<HTMLDivElement>(null);
+    const idLista = useId();
+    // ¿Hay eventos cortados? Se mide al cambiar el tamaño del recorte o de la lista.
+    useEffect(() => {
+        const el = listaRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return;
+        const medir = () => setDesborda(el.scrollHeight > el.clientHeight + 1);
+        const ro = new ResizeObserver(medir);
+        ro.observe(el);
+        if (el.firstElementChild) ro.observe(el.firstElementChild);
+        medir();
+        return () => ro.disconnect();
+    }, [abierto, datos.eventos.length]);
+    const n = datos.eventos.length;
+    return (
+        <div className={cn('relative', !abierto && 'lg:min-h-[280px] lg:flex-1')}>
+            <div className={cn(!abierto && 'lg:absolute lg:inset-0')}>
+                <div className={cn(CARD, 'flex flex-col py-3', !abierto && 'lg:h-full')}>
+                    {n === 0 ? (
+                        <p className="py-3 text-sm text-muted-foreground">Nada programado: ni licencias ni vacaciones que empiecen o terminen, ni feriados.</p>
+                    ) : (
+                        <div ref={listaRef} id={idLista}
+                            className={cn('relative min-h-0 flex-1', !abierto && 'max-h-[520px] overflow-hidden lg:max-h-none')}>
+                            <ol>
+                                {datos.eventos.map((e, i) => {
+                                    const f = bloqueFecha(e.fecha, hoy);
+                                    const d = describirEvento(e);
+                                    return (
+                                        <li key={`${e.tipo}-${e.fecha}-${'rut' in e ? e.rut : e.nombre}-${i}`}
+                                            className="flex gap-4 border-t border-border py-3 first:border-t-0">
+                                            <span className="w-11 shrink-0 text-center">
+                                                <span className="block text-label font-semibold uppercase text-muted-foreground">{f.relativo ?? f.dia}</span>
+                                                <span className="block text-xl font-bold leading-tight tabular-nums">{f.num}</span>
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                <Chip tone={d.tono} label={d.rotulo} />
+                                                <span className="mt-1 block truncate text-sm font-semibold">{d.texto}</span>
+                                                <span className="block truncate text-xs text-muted-foreground">{d.detalle}</span>
+                                            </span>
+                                        </li>
+                                    );
+                                })}
+                            </ol>
+                            {!abierto && desborda && (
+                                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" aria-hidden />
+                            )}
+                        </div>
+                    )}
+                    {(desborda || abierto) && (
+                        <div className="flex justify-center border-t border-border pt-2">
+                            {/* eslint-disable-next-line no-restricted-syntax -- desplegar la lista */}
+                            <button type="button" onClick={() => setAbierto(v => !v)} aria-expanded={abierto} aria-controls={idLista}
+                                className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-section font-semibold text-green-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 dark:text-green-300">
+                                {abierto ? 'Ver menos' : `Ver los ${n}`}
+                                <ChevronDown className={cn('h-4 w-4 transition-transform duration-200 motion-reduce:transition-none', abierto && 'rotate-180')} aria-hidden />
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // ─── Descuentos del mes ───
 const VISIBLES = 8;
