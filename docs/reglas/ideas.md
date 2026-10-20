@@ -86,14 +86,23 @@ seleccionada en ese momento), `dispositivo` (celular/computador por ancho) y `na
 ## Crédito público
 
 `GET /api/ideas/hechas`: las últimas ideas `hecha`, con **nombre de pila + inicial** del autor
-("Idea de Paula R."). Se muestra en el formulario, bajo los tipos. Es lo que mantiene viva la
-participación; si algún día no se quiere, se quita el componente `HechasRecientes`.
+("Idea de Paula R."). **Sacado del formulario el 20-10-2026** (Marcos: no le interesa); el endpoint
+sigue en el backend por si se quiere volver a mostrar en otro lugar.
 
 ## UI
 
 - **"Buzón de ideas"**: último ítem del menú lateral, bajo Configuración (Marcos, 15-10), para todos.
   No es una página: abre `ProponerMejoraModal`; con novedades lleva un número ámbar y abre directo en
   "Mis ideas". El nombre vive en una sola constante, `ETIQUETA_BUZON_IDEAS` (`ideasConfig.ts`).
+- **Tres columnas desde 1024 px** (Marcos, 20-10): a la izquierda un panel con los tres tipos, uno debajo
+  del otro; al lado, **Proponer** y **Mis ideas** como dos columnas, cada una con su propio scroll. El tipo se
+  cambia en el panel (no hay "Cambiar tipo") y Enviar va al pie de la columna Proponer. Más angosto
+  (celular, tablet) siguen las pestañas Proponer / Mis ideas. «Algo no funciona» usa el ícono de
+  herramientas (`Wrench`), no el bicho.
+- **Recuadro del pantallazo** (Marcos, 20-10): punteado, «Arrastra aquí tu pantallazo», con el botón
+  «Subir pantallazo» adentro. Se suelta un archivo (computador, o arrastrando desde Fotos en el iPhone) o se
+  pega con Ctrl+V; una imagen soltada fuera del recuadro no hace que el navegador la abra encima del
+  formulario.
 - Ítem **"Revisar ideas"** solo para revisores (la bandeja `/ideas`), con número ámbar de pendientes
   (`useIdeasPendientes`, store compartido). Se llama distinto del buzón para no confundirlos.
 - Bandeja (`pages/Ideas.tsx`): pendientes primero y de la más antigua; al decidir una pendiente
