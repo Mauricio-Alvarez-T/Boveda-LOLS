@@ -28,7 +28,7 @@ import DocumentosInicio from '../components/dashboard/widgets/DocumentosInicio';
 import { resumenDocumentosInicio } from '../components/dashboard/widgets/resumenDocumentosInicio';
 import AsistenciaInicio from '../components/dashboard/widgets/AsistenciaInicio';
 import DetalleAsistencia from '../components/dashboard/widgets/DetalleAsistencia';
-import { ID_SECCION, type AusentesHoy, type SeccionAsistencia } from '../components/dashboard/widgets/resumenAsistenciaHoy';
+import type { AusentesHoy } from '../components/dashboard/widgets/resumenAsistenciaHoy';
 import type { DetalleAsistenciaApi } from '../components/dashboard/widgets/resumenAsistenciaDetalle';
 import InventarioInicio, { FilaInventarioInicio } from '../components/dashboard/widgets/InventarioInicio';
 import { resumenInventarioInicio, type FilaInventario, type ResumenInventarioApi } from '../components/dashboard/widgets/resumenInventarioInicio';
@@ -369,19 +369,13 @@ const Dashboard: React.FC = () => {
     // Al entrar no hay detalle abierto (dueño 2026-10-20: «que abajo no haya nada»); pinchar una tarjeta lo
     // abre y pincharla de nuevo lo cierra.
     const activo: Modulo | null = elegido && visibles.includes(elegido) ? elegido : null;
-    const detalleRef = useRef<HTMLElement>(null);
+    // Abrir el detalle NO mueve la pantalla (dueño 2026-10-20: el salto repentino desorienta). El detalle
+    // aparece bajo las tarjetas y la tarjeta elegida se pinta verde; el usuario baja cuando quiere.
     const verMas = useCallback((m: Modulo) => {
-        if (elegido === m) { setElegido(null); return; }
-        setElegido(m);
-        const reducir = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-        window.requestAnimationFrame(() => detalleRef.current?.scrollIntoView({ behavior: reducir ? 'auto' : 'smooth', block: 'start' }));
-    }, [elegido]);
-    const abrirSeccion = useCallback((s: SeccionAsistencia) => {
-        setElegido('asistencia');
-        const reducir = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-        window.requestAnimationFrame(() => document.getElementById(ID_SECCION[s])
-            ?.scrollIntoView({ behavior: reducir ? 'auto' : 'smooth', block: 'start' }));
+        setElegido(actual => (actual === m ? null : m));
     }, []);
+    // Las cifras de la tarjeta abren el detalle (sin cerrarlo si ya estaba abierto) y tampoco mueven la pantalla.
+    const abrirSeccion = useCallback(() => setElegido('asistencia'), []);
     // Detalle de Asistencia, fase 2: se pide SOLO al abrirlo (no pesa en el resumen) y al cambiar de obra o
     // pulsar «Actualizar» con el detalle abierto.
     const [mesAsistencia, setMesAsistencia] = useState<DetalleAsistenciaApi | null>(null);
@@ -463,7 +457,7 @@ const Dashboard: React.FC = () => {
 
             {/* ─── Detalle del módulo elegido (se irá sumando más información y gráficos) ─── */}
             {activo === 'asistencia' && (
-                <DetalleModulo ref={detalleRef} icon={CheckSquare} titulo="Asistencia"
+                <DetalleModulo icon={CheckSquare} titulo="Asistencia"
                     descripcion={`Lo que exige acción en ${mes}, el día de hoy y la tendencia`}
                     accion={{ texto: 'Ir a Asistencia', onClick: () => navigate('/asistencia') }}>
                     <DetalleAsistencia faltas={data?.faltasMes ?? null} ausentes={data?.ausentesHoy ?? null} obras={obrasHoy}
@@ -493,7 +487,7 @@ const Dashboard: React.FC = () => {
             )}
 
             {activo === 'gestiones' && (
-                <DetalleModulo ref={detalleRef} icon={SearchCheck} titulo="Gestiones"
+                <DetalleModulo icon={SearchCheck} titulo="Gestiones"
                     descripcion={canRegistrarEntregas ? 'Documentos físicos fuera de plazo y el resto de los pendientes' : 'Pendientes de trabajadores, solicitudes y documentos'}
                     accion={{ texto: 'Ir a Gestiones', onClick: () => navigate('/consultas?tab=inicio') }}>
                     <div className={cn('grid grid-cols-1 gap-6', canRegistrarEntregas && 'lg:grid-cols-2')}>
@@ -522,7 +516,7 @@ const Dashboard: React.FC = () => {
             )}
 
             {activo === 'inventario' && (
-                <DetalleModulo ref={detalleRef} icon={Package} titulo="Inventario"
+                <DetalleModulo icon={Package} titulo="Inventario"
                     descripcion="Solicitudes que te tocan y alertas de transferencias"
                     accion={{ texto: 'Ir a Inventario', onClick: () => navigate('/inventario?tab=transferencias') }}>
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -547,7 +541,7 @@ const Dashboard: React.FC = () => {
             )}
 
             {activo === 'vehiculos' && (
-                <DetalleModulo ref={detalleRef} icon={Truck} titulo="Vehículos"
+                <DetalleModulo icon={Truck} titulo="Vehículos"
                     descripcion="Todos los vencimientos de los próximos 30 días"
                     accion={{ texto: 'Ir a Vehículos', onClick: () => navigate('/vehiculos') }}>
                     <Panel>

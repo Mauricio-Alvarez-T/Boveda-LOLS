@@ -525,7 +525,8 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     **detalle del módulo elegido**. Cada tarjeta es la puerta: cifra grande, **lo primero (3 filas)** y el
     botón **«Ver más ↓»** (`BotonVerMas`); el detalle se despliega bajo las cuatro (`DetalleModulo`, una
     sección a la vez) con la lista completa y el resto del módulo —listas, gráficos— que se irá sumando.
-    **Al entrar no hay nada abajo**: el detalle se abre al pinchar una tarjeta (toda la tarjeta es
+    **Al entrar no hay nada abajo** y **abrir el detalle no mueve la pantalla** (sin scroll automático:
+    el salto desorienta, dueño 2026-10-20): el detalle se abre al pinchar una tarjeta (toda la tarjeta es
     pinchable; sus filas y botones mandan sobre ella) o su «Ver más», y se cierra pinchándola de nuevo
     («Ocultar ↑»). **La tarjeta abierta se pinta entera de verde LOLS** (`.tarjeta-activa`: green-700,
     oscuro green-900, letra blanca; redefine los tokens neutros adentro). Sobre verde el rojo y el verde
