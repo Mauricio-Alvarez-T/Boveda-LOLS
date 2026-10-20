@@ -1,7 +1,8 @@
 import React from 'react';
 import { Package } from 'lucide-react';
 import { cn } from '../../../utils/cn';
-import { EncabezadoTarjeta, CifraTarjeta, CIFRA_SOBRE_VERDE, useTarjetaActiva } from './EncabezadoTarjeta';
+import { EncabezadoTarjeta, CifraTarjeta } from './EncabezadoTarjeta';
+import { CIFRA_SOBRE_VERDE, useTarjetaActiva } from './tarjetaActiva';
 import { BotonVerMas } from './BotonVerMas';
 import type { FilaInventario, ModeloInventarioInicio, TonoInventario } from './resumenInventarioInicio';
 

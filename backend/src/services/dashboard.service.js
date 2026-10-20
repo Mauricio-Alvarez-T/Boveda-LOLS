@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const asistenciaService = require('./asistencia.service');
 const logger = require('../utils/logger-structured');
+const { hoyChile, ayerChile } = require('../utils/fechaChile');
 
 /**
  * Helper: check if user can see a module
@@ -195,7 +196,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
 
     // ── 3. ASISTENCIA (si tiene permiso) ──
     if (canSee(permisos, 'asistencia')) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = hoyChile();
         // Regla "fila vigente": con duplicados del mismo día en otras obras
         // (traslado TO+A o histórico) cuenta solo la fila más nueva — cada
         // trabajador aporta 1 al conteo del día (docs/reglas/asistencia.md).
@@ -231,7 +232,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         result.counters.ausentes_hoy = stats.total - presentCount;
 
         // Delta: comparar con ayer
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        const yesterday = ayerChile();
         const [attendanceYesterday] = await pool.query(
             `SELECT ea.es_presente, COUNT(*) as count
              FROM asistencias a
@@ -249,18 +250,33 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         result.deltas.asistencia_delta = yesterdayRate > 0 ? attendanceRate - yesterdayRate : 0;
         result.deltas.ausentes_delta = stats.total > 0 ? (stats.total - presentCount) - yesterdayAbsent : 0;
 
-        // Detalle de ausentes del día
-        const [ausentesDetalle] = await pool.query(`
-            SELECT t.nombres, t.apellido_paterno, ea.nombre as estado, o.nombre as obra
+        // Ausentes del día, todos (tope 500), con su código de estado: la tarjeta «Asistencia» los resume por
+        // motivo («5 F · 4 LM · 3 otros») y el detalle los agrupa. `ausentesDetalle` conserva sus 20 de antes.
+        const [ausentesRows] = await pool.query(`
+            SELECT t.id AS trabajador_id, t.rut, t.nombres, t.apellido_paterno, t.apellido_materno,
+                   ea.codigo, ea.nombre as estado, o.nombre as obra
             FROM asistencias a
             JOIN trabajadores t ON a.trabajador_id = t.id
             JOIN estados_asistencia ea ON a.estado_id = ea.id
             LEFT JOIN obras o ON a.obra_id = o.id
             WHERE a.fecha = ? AND t.es_prueba = 0 AND ea.es_presente = 0 ${vigente} ${asistFilter}
             ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC
-            LIMIT 20
+            LIMIT 500
         `, [today, ...params]);
-        result.ausentesDetalle = ausentesDetalle;
+        result.ausentesDetalle = ausentesRows.slice(0, 20)
+            .map(r => ({ nombres: r.nombres, apellido_paterno: r.apellido_paterno, estado: r.estado, obra: r.obra }));
+        const porCodigo = new Map();
+        for (const r of ausentesRows) {
+            const g = porCodigo.get(r.codigo) || { codigo: r.codigo, nombre: r.estado, n: 0 };
+            g.n += 1;
+            porCodigo.set(r.codigo, g);
+        }
+        result.ausentesHoy = {
+            fecha: today,
+            total: result.counters.ausentes_hoy,
+            porEstado: [...porCodigo.values()].sort((x, y) => y.n - x.n || String(x.codigo).localeCompare(String(y.codigo))),
+            lista: ausentesRows,
+        };
 
         // Tendencia 7 días
         const [trendData] = await pool.query(`
@@ -330,7 +346,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
 
     // ── 4. OBRA RANKING ──
     if (canSee(permisos, 'trabajadores')) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = hoyChile();
         const [obraRankingRows] = await pool.query(`
             SELECT 
                 o.id, o.nombre,
@@ -461,9 +477,9 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
     // ── ALERTAS DE INASISTENCIA DEL MES ──
     if (canSee(permisos, 'asistencia')) {
         try {
-            const now = new Date();
+            const [anio, mes] = hoyChile().split('-').map(Number);
             const obraIdParam = obraId ? obraId : 'ALL';
-            const reiterados = await asistenciaService.getAlertasFaltas(obraIdParam, now.getMonth() + 1, now.getFullYear());
+            const reiterados = await asistenciaService.getAlertasFaltas(obraIdParam, mes, anio);
             // Más faltas arriba; a igualdad, quien gatilla más reglas y luego por apellido.
             const ordenados = [...reiterados].sort((x, y) =>
                 y.total_faltas - x.total_faltas

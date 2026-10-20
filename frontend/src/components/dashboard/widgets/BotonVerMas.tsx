@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { Button } from '../../ui/Button';
-import { useTarjetaActiva } from './EncabezadoTarjeta';
+import { useTarjetaActiva } from './tarjetaActiva';
 
 /** Id de la sección de detalle bajo las tarjetas del Inicio (destino de `aria-controls`). */
 export const ID_DETALLE_INICIO = 'inicio-detalle';

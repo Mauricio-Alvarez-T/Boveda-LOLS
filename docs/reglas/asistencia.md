@@ -110,6 +110,12 @@ reciente y `alertas` vacío si no gatillan regla). La tarjeta **«Asistencia» d
 tarjeta (obra · faltas: días + chips de regla, rojo = 2 seguidos) y la lista completa con RUT en el
 detalle; la fila abre Asistencia con `?q=RUT`. `trabajadoresConAlertas` (top 20) se mantiene.
 
+Desde la tarjeta «Pulso del día» (2026-10-20) `/dashboard/summary` trae además **`ausentesHoy =
+{ fecha, total, porEstado: [{ codigo, nombre, n }] (más numeroso primero), lista (tope 500) }`**: los no
+presentes de hoy con la regla de fila vigente; `ausentesDetalle` conserva sus 20 de antes. **«Hoy» es el
+día de Chile** (`utils/fechaChile.js`, `America/Santiago`): con `toISOString()` el Inicio preguntaba desde
+las ~21:00 por el día siguiente; lo mismo vale para «ayer», el ranking de obras y el mes de las faltas.
+
 ## Lista de trabajadores en actividades sugeridas (`actividades_sugeridas`, mig 038/040/116)
 
 Antes "Sábados extra". **Jefatura 2026-09-21: eliminar toda referencia a que los trabajos

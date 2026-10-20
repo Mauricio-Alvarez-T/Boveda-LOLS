@@ -1,6 +1,7 @@
-import React, { createContext, useContext } from 'react';
+import React from 'react';
 import { cn } from '../../../utils/cn';
 import { NumeroRodante } from '../../ui/NumeroRodante';
+import { CIFRA_SOBRE_VERDE, useTarjetaActiva, type TonoTarjeta } from './tarjetaActiva';
 
 /**
  * Encabezado común de las tarjetas del Inicio (propuesta H, dueño 2026-10-16; diseno.md §9.14):
@@ -10,24 +11,7 @@ import { NumeroRodante } from '../../ui/NumeroRodante';
  * azul = informativo, verde = al día, neutro = solo dato. Si una tarjeta no tiene nada que avisar,
  * su tono es verde o neutro, nunca rojo "por estilo".
  */
-export type TonoTarjeta = 'rojo' | 'ambar' | 'azul' | 'verde' | 'neutro';
-
-/**
- * true dentro de la tarjeta elegida del Inicio, que se pinta entera de verde LOLS (dueño 2026-10-20).
- * Sobre verde el rojo y el verde no se leen, así que: círculo BLANCO con el ícono en su color (el
- * significado sigue en el ícono) y cifras en amarillo claro si avisan algo (rojo/ámbar) o en blanco si no.
- */
-export const TarjetaActiva = createContext(false);
-export const useTarjetaActiva = () => useContext(TarjetaActiva);
-
-/** Color de un número que avisa algo, sobre la tarjeta verde: amarillo claro (≈6:1 sobre green-700). */
-export const CIFRA_SOBRE_VERDE: Record<TonoTarjeta, string> = {
-    rojo: 'text-yellow-300',
-    ambar: 'text-yellow-300',
-    azul: 'text-white',
-    verde: 'text-white',
-    neutro: 'text-white',
-};
+export type { TonoTarjeta };
 
 const ICONO_SOBRE_VERDE: Record<TonoTarjeta, string> = {
     rojo: 'bg-white text-red-600',

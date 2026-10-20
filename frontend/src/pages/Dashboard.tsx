@@ -10,7 +10,7 @@ import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { Skeleton, SkeletonText } from '../components/ui/Skeleton';
 import { Button } from '../components/ui/Button';
-import { CheckSquare, FileWarning, Package, RefreshCw, SearchCheck, Truck, UserX } from 'lucide-react';
+import { CheckSquare, FileWarning, Package, RefreshCw, SearchCheck, Truck } from 'lucide-react';
 
 // Widgets
 import VehicleExpiries from '../components/dashboard/widgets/VehicleExpiries';
@@ -23,19 +23,20 @@ import { useDocumentosAlertas } from '../hooks/useDocumentosAlertas';
 import { filasBandejaAlertas } from '../components/documentos-fisicos/documentosAlertas';
 import type { DashboardAlerta } from '../hooks/inventario/useDashboardEjecutivo';
 import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
-import AbsencesToday from '../components/dashboard/widgets/AbsencesToday';
 import ObraRanking from '../components/dashboard/widgets/ObraRanking';
 import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
-import AsistenciaPendiente from '../components/dashboard/widgets/AsistenciaPendiente';
 import DocumentosInicio from '../components/dashboard/widgets/DocumentosInicio';
 import { resumenDocumentosInicio } from '../components/dashboard/widgets/resumenDocumentosInicio';
-import FaltasMes, { FilaFalta } from '../components/dashboard/widgets/FaltasMes';
+import AsistenciaInicio from '../components/dashboard/widgets/AsistenciaInicio';
+import DetalleAsistencia from '../components/dashboard/widgets/DetalleAsistencia';
+import { ID_SECCION, type AusentesHoy, type SeccionAsistencia } from '../components/dashboard/widgets/resumenAsistenciaHoy';
 import InventarioInicio, { FilaInventarioInicio } from '../components/dashboard/widgets/InventarioInicio';
 import { resumenInventarioInicio, type FilaInventario, type ResumenInventarioApi } from '../components/dashboard/widgets/resumenInventarioInicio';
 import TarjetaPendientes from '../components/dashboard/widgets/TarjetaPendientes';
 import DocumentosAtrasadosLista from '../components/dashboard/widgets/DocumentosAtrasadosLista';
 import { DetalleModulo } from '../components/dashboard/widgets/DetalleModulo';
-import { EncabezadoTarjeta, TarjetaActiva } from '../components/dashboard/widgets/EncabezadoTarjeta';
+import { EncabezadoTarjeta } from '../components/dashboard/widgets/EncabezadoTarjeta';
+import { TarjetaActiva } from '../components/dashboard/widgets/tarjetaActiva';
 import { nombreMes, type FaltasMesData, type TrabajadorFaltas } from '../components/dashboard/widgets/resumenFaltasMes';
 import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
 import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
@@ -94,6 +95,8 @@ interface DashboardData {
     trabajadoresConAlertas: TrabajadorFaltas[];
     /** Reiterados del mes con su total real (tarjeta «Asistencia»); null si el backend no pudo calcularlo. */
     faltasMes?: FaltasMesData | null;
+    /** Ausentes de hoy completos y por motivo (tarjeta y detalle de Asistencia, 2026-10-20). */
+    ausentesHoy?: AusentesHoy | null;
     saludo: { nombre: string; resumen: string; totalAlertas: number };
 }
 
@@ -288,7 +291,6 @@ const Dashboard: React.FC = () => {
     const ready = !loading && !!data;
     const showFaltas = shown.has('absence_alerts');
     const showTrend = shown.has('chart_attendance_trend');
-    const showAusentes = shown.has('list_absences_today');
     const showVencVehiculos = shown.has('vehiculo_vencimientos');
     const showRanking = shown.has('obra_ranking') && selectedObra == null; // solo ámbito "Todas"
 
@@ -315,7 +317,6 @@ const Dashboard: React.FC = () => {
     );
     // `asistencia_hoy` solo llega con permiso de asistencia (dashboard.service, bloque 3).
     const conAsistencia = typeof data?.counters.asistencia_hoy === 'number';
-    const verObrasSinGuardar = ready && conAsistencia && resumen.total > 0 && !resumen.finDeSemana;
 
     // ─── Inicio por módulos (dueño 2026-10-20; diseno.md §9.14) ───
     // Una tarjeta por apartado —Asistencia, Gestiones, Inventario, Vehículos— con lo primero de cada uno y
@@ -368,9 +369,20 @@ const Dashboard: React.FC = () => {
         const reducir = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         window.requestAnimationFrame(() => detalleRef.current?.scrollIntoView({ behavior: reducir ? 'auto' : 'smooth', block: 'start' }));
     }, [elegido]);
+    const abrirSeccion = useCallback((s: SeccionAsistencia) => {
+        setElegido('asistencia');
+        const reducir = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        window.requestAnimationFrame(() => document.getElementById(ID_SECCION[s])
+            ?.scrollIntoView({ behavior: reducir ? 'auto' : 'smooth', block: 'start' }));
+    }, []);
     const irATrabajador = (rut: string) => navigate(`/asistencia?q=${encodeURIComponent(rut)}`);
     const irAFilaInventario = (f: FilaInventario) => navigate(`/inventario?tab=transferencias&estado=${f.estado}`);
     const mes = nombreMes(hoy);
+    // Obras con y sin asistencia guardada hoy, para la tarjeta y el detalle de Asistencia.
+    const obrasHoy = conAsistencia ? {
+        total: resumen.total, guardadas: resumen.guardadas, sinGuardar: resumen.sinGuardar, finDeSemana: resumen.finDeSemana,
+    } : null;
+    const fechaAsistencia = { anio: hoy.getFullYear(), mes: hoy.getMonth() + 1, hoyDia: hoy.getDate() };
 
     return (
         <div className="space-y-6">
@@ -382,8 +394,10 @@ const Dashboard: React.FC = () => {
                 <div className={cn('grid gap-6 items-stretch', COLUMNAS[visibles.length])}>
                     {showFaltas && (
                         <Panel className="h-full" activa={activo === 'asistencia'} onClick={() => verMas('asistencia')}>
-                            {ready && data?.faltasMes
-                                ? <FaltasMes data={data.faltasMes} mes={mes} onTrabajador={irATrabajador}
+                            {ready && data
+                                ? <AsistenciaInicio faltas={data.faltasMes ?? null} ausentes={data.ausentesHoy ?? null} obras={obrasHoy}
+                                    fechaTexto={fechaDelDia(hoy)} mesNombre={mes} {...fechaAsistencia}
+                                    onTrabajador={irATrabajador} onObras={() => navigate('/asistencia')} onSeccion={abrirSeccion}
                                     activo={activo === 'asistencia'} onVerMas={() => verMas('asistencia')} />
                                 : <SkeletonText lines={5} />}
                         </Panel>
@@ -419,60 +433,36 @@ const Dashboard: React.FC = () => {
             {/* ─── Detalle del módulo elegido (se irá sumando más información y gráficos) ─── */}
             {activo === 'asistencia' && (
                 <DetalleModulo ref={detalleRef} icon={CheckSquare} titulo="Asistencia"
-                    descripcion={`Faltas reiteradas de ${mes}, el día de hoy y la tendencia`}
+                    descripcion={`Lo que exige acción en ${mes}, el día de hoy y la tendencia`}
                     accion={{ texto: 'Ir a Asistencia', onClick: () => navigate('/asistencia') }}>
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                        <Panel className="lg:col-span-2">
-                            <EncabezadoTarjeta icon={UserX} tono={(data?.faltasMes?.reiterados ?? 0) > 0 ? 'rojo' : 'verde'}
-                                titulo={`Faltas reiteradas de ${mes}`}
-                                subtitulo="Art. 160 N°3: 2 lunes, 3 o más días o 2 días seguidos en el mes calendario"
-                                extra={data?.faltasMes && <span className="text-sm font-semibold tabular-nums text-muted-foreground">{data.faltasMes.reiterados} en total</span>} />
-                            {!ready || !data?.faltasMes
-                                ? <SkeletonText lines={4} />
-                                : data.faltasMes.lista.length === 0
-                                    ? <p className="text-sm text-muted-foreground">Nadie tiene faltas reiteradas este mes.</p>
-                                    : (
-                                        <div className="grid grid-cols-1 gap-x-8 xl:grid-cols-2">
-                                            {data.faltasMes.lista.map(t => <FilaFalta key={t.trabajador_id} t={t} conRut onClick={() => irATrabajador(t.rut)} />)}
-                                        </div>
-                                    )}
-                            {data?.faltasMes && data.faltasMes.reiterados > data.faltasMes.lista.length && (
-                                <p className="mt-3 text-caption text-muted-foreground">
-                                    Mostrando {data.faltasMes.lista.length} de {data.faltasMes.reiterados}. El resto, en Asistencia.
-                                </p>
-                            )}
-                        </Panel>
-                        {verObrasSinGuardar && (
-                            <Panel>
-                                <AsistenciaPendiente sinGuardar={resumen.sinGuardar} total={resumen.total} onNavigate={() => navigate('/asistencia')} />
-                            </Panel>
+                    <DetalleAsistencia faltas={data?.faltasMes ?? null} ausentes={data?.ausentesHoy ?? null} obras={obrasHoy}
+                        mesNombre={mes} {...fechaAsistencia} cargando={!ready}
+                        onTrabajador={irATrabajador} onAsistencia={() => navigate('/asistencia')}>
+                        {(showTrend || canActividades || showRanking) && (
+                            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                                {showTrend && (
+                                    <Panel className="lg:col-span-2">
+                                        {ready && data
+                                            ? <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />
+                                            : <Skeleton className="h-48 w-full" />}
+                                    </Panel>
+                                )}
+                                {/* Trae sus datos (tiene selector de semana), por eso no depende de `ready`. */}
+                                {canActividades && (
+                                    <Panel>
+                                        <ActividadesSemana />
+                                    </Panel>
+                                )}
+                                {showRanking && (
+                                    <Panel className={canActividades ? undefined : 'lg:col-span-2'}>
+                                        {ready && data
+                                            ? <ObraRanking data={data.obraRanking ?? []} onNavigate={(id) => navigate(`/consultas?obra_id=${id}`)} />
+                                            : <SkeletonText lines={5} />}
+                                    </Panel>
+                                )}
+                            </div>
                         )}
-                        {showAusentes && ready && data && (
-                            <Panel>
-                                <AbsencesToday data={data.ausentesDetalle ?? []} total={data.counters.ausentes_hoy} />
-                            </Panel>
-                        )}
-                        {showTrend && (
-                            <Panel className="lg:col-span-2">
-                                {ready && data
-                                    ? <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />
-                                    : <Skeleton className="h-48 w-full" />}
-                            </Panel>
-                        )}
-                        {/* Trae sus datos (tiene selector de semana), por eso no depende de `ready`. */}
-                        {canActividades && (
-                            <Panel>
-                                <ActividadesSemana />
-                            </Panel>
-                        )}
-                        {showRanking && (
-                            <Panel className={canActividades ? undefined : 'lg:col-span-2'}>
-                                {ready && data
-                                    ? <ObraRanking data={data.obraRanking ?? []} onNavigate={(id) => navigate(`/consultas?obra_id=${id}`)} />
-                                    : <SkeletonText lines={5} />}
-                            </Panel>
-                        )}
-                    </div>
+                    </DetalleAsistencia>
                 </DetalleModulo>
             )}
 

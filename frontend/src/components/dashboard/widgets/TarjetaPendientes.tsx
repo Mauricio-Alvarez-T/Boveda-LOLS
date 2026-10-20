@@ -1,7 +1,8 @@
 import React from 'react';
 import { AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '../../../utils/cn';
-import { EncabezadoTarjeta, CifraTarjeta, useTarjetaActiva, type TonoTarjeta } from './EncabezadoTarjeta';
+import { EncabezadoTarjeta, CifraTarjeta } from './EncabezadoTarjeta';
+import { useTarjetaActiva, type TonoTarjeta } from './tarjetaActiva';
 import { BotonVerMas } from './BotonVerMas';
 import type { BandejaItem } from './BandejaDelDia';
 

@@ -518,14 +518,23 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     oscuro green-900, letra blanca; redefine los tokens neutros adentro). Sobre verde el rojo y el verde
     no se leen: el círculo pasa a **blanco con el ícono en su color** (el significado sigue ahí) y las
     cifras que avisan (rojo/ámbar) pasan a **amarillo claro** (`yellow-300`); las demás, blancas
-    (contexto `TarjetaActiva` en `EncabezadoTarjeta.tsx`). Los chips conservan su fondo claro. Ya **no hay tarjeta
+    (contexto `TarjetaActiva` en `tarjetaActiva.ts`). **El amarillo sobre green-700 mide 3,8:1**: solo para
+    cifras ≥ 19 px en negrita; un texto chico de aviso va en blanco. Los chips conservan su fondo claro. Ya **no hay tarjeta
     verde** (la excepción de superficie grande verde se fue con ella) ni bloques fijos debajo («Otros
     pendientes», tendencia, acciones rápidas): todo vive en el detalle de su módulo. «Actualizar» y la
     fecha pasan al encabezado de la página. **El encabezado global no tiene marco** (toda la app, idea de la
     propuesta L del lienzo): mismo fondo que la página, sin borde ni sombra, alineado con el contenido.
-    - **Asistencia** (`FaltasMes`): trabajadores con faltas REITERADAS del mes (Art. 160 N°3: 2 lunes, 3
-      días o 2 seguidos), reglas como chips (rojo = 2 seguidos). Detalle: lista completa con RUT y días,
-      obras sin guardar hoy, ausentes del día, tendencia 7 días, actividades sugeridas, ranking de obras.
+    - **Asistencia** (`AsistenciaInicio`, «Pulso del día» + tira del mes; elegida por el dueño en el
+      lienzo de bocetos el 2026-10-20): barra «N de M obras guardaron hoy» (un segmento por obra hasta 24;
+      «Faltan X e Y»), dos cifras —**ausentes hoy** con su desglose «5 F · 4 LM · 3 otros» y **faltas
+      reiteradas** del mes (Art. 160 N°3)— y los 3 reiterados más urgentes (2 seguidos primero,
+      `ordenarReiterados`), cada uno con su regla principal y su **`TiraMes`**: una barra por día del mes,
+      faltas en rojo (amarillo sobre verde), rayita bajo los lunes, anillo en hoy. Las cifras abren el
+      detalle en su sección. Detalle «Por urgencia» (`DetalleAsistencia`): 4 números clave (reiterados,
+      ausentes hoy, licencias médicas hoy, obras sin guardar) → **Requiere acción** (tabla de reiterados
+      con RUT, obra, reglas, tira y «Ver en asistencia») → **Hoy** (ausentes en barra apilada por motivo:
+      F rojo, LM azul, V gris, PSG ámbar; obras sin guardar) → **Tendencia y obras** (tendencia 7 días,
+      actividades sugeridas, ranking). Las cifras usan `NumeroRodante` (sin count-up, §9.4).
     - **Gestiones**: para quien registra entregas, `DocumentosInicio` (documentos físicos fuera de plazo,
       críticos, etapas, «dónde están ahora»); sin ese permiso, `TarjetaPendientes` con sus pendientes
       (solicitudes, documentos por vencer, contratos, sin documentos, lotes del portador). Detalle:

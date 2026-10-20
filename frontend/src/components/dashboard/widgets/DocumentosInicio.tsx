@@ -2,7 +2,8 @@ import React from 'react';
 import { FileCheck2, FileWarning } from 'lucide-react';
 import { NumeroRodante } from '../../ui/NumeroRodante';
 import { cn } from '../../../utils/cn';
-import { EncabezadoTarjeta, CifraTarjeta, useTarjetaActiva } from './EncabezadoTarjeta';
+import { EncabezadoTarjeta, CifraTarjeta } from './EncabezadoTarjeta';
+import { useTarjetaActiva } from './tarjetaActiva';
 import { BotonVerMas } from './BotonVerMas';
 import type { ResumenDocumentosInicio } from './resumenDocumentosInicio';
 
