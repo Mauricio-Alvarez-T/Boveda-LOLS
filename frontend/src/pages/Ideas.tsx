@@ -8,6 +8,8 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { SearchBar } from '../components/ui/SearchBar';
 import { PestanasElasticas } from '../components/ui/PestanasElasticas';
 import { IdeaDetalle } from '../components/ideas/IdeaDetalle';
+import { ProponerMejoraModal } from '../components/ideas/ProponerMejoraModal';
+import { Button } from '../components/ui/Button';
 import { TIPOS, ESTADOS, impacto, hace, primerNombre, ETIQUETA_BUZON_IDEAS } from '../components/ideas/ideasConfig';
 import { useIdeasPendientes } from '../hooks/useIdeas';
 import { cn } from '../utils/cn';
@@ -69,13 +71,21 @@ const IdeasPage: React.FC = () => {
     const [seleccionId, setSeleccionId] = useState<number | null>(null);
     const [verDetalleMovil, setVerDetalleMovil] = useState(false);
     const detalleRef = useRef<HTMLDivElement>(null);
+    // Quien revisa no tiene "Buzón de ideas" en el menú (un solo botón, Marcos 20-10): si quiere
+    // proponer algo, lo hace desde aquí.
+    const [proponer, setProponer] = useState(false);
+    const accionProponer = useMemo(() => (
+        <Button variant="secondary" size="sm" onClick={() => setProponer(true)} leftIcon={<Lightbulb className="h-4 w-4" />}>
+            Proponer una idea
+        </Button>
+    ), []);
 
     // Celular: al abrir una idea, el detalle ocupa la pantalla desde arriba.
     useEffect(() => {
         if (verDetalleMovil) detalleRef.current?.scrollIntoView({ block: 'start' });
     }, [verDetalleMovil, seleccionId]);
 
-    useStandardHeader({ title: 'Ideas para Bóveda', icon: Lightbulb, badgeCount: resumen.pendiente });
+    useStandardHeader({ title: 'Ideas para Bóveda', icon: Lightbulb, badgeCount: resumen.pendiente, actions: puedeRevisar ? accionProponer : undefined });
 
     const cargar = useCallback(async () => {
         try {
@@ -255,6 +265,7 @@ const IdeasPage: React.FC = () => {
                     </div>
                 </div>
             )}
+            <ProponerMejoraModal isOpen={proponer} onClose={() => setProponer(false)} />
         </div>
     );
 };

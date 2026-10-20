@@ -91,7 +91,11 @@ sigue en el backend por si se quiere volver a mostrar en otro lugar.
 
 ## UI
 
-- **"Buzón de ideas"**: último ítem del menú lateral, bajo Configuración (Marcos, 15-10), para todos.
+- **Un solo botón para quien revisa** (Marcos, 20-10: él y Mauricio reciben las ideas, no las mandan):
+  con `ideas.revisar` el menú muestra solo **"Revisar ideas"** (la bandeja) y no "Buzón de ideas"; si
+  quieren proponer algo, la bandeja tiene **"Proponer una idea"** en la cabecera (abre el mismo modal).
+- **"Buzón de ideas"**: último ítem del menú lateral, bajo Configuración (Marcos, 15-10), para todos los
+  que no revisan.
   No es una página: abre `ProponerMejoraModal`; con novedades lleva un número ámbar y abre directo en
   "Mis ideas". El nombre vive en una sola constante, `ETIQUETA_BUZON_IDEAS` (`ideasConfig.ts`).
 - **Tres columnas desde 1024 px** (Marcos, 20-10): a la izquierda un panel con los tres tipos, uno debajo

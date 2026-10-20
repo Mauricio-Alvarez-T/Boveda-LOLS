@@ -233,10 +233,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                     </NavLink>
                 ))}
 
-                {/* Buzón de ideas: último del menú, para todos. No es una página — abre el
-                    modal — así que imita a un ítem inactivo (sin estado "activo"). Con
-                    novedades en "Mis ideas" lleva un número ámbar, como los demás contadores. */}
-                {/* eslint-disable-next-line no-restricted-syntax -- ítem de menú que abre un modal; mismo layout que NavLink, Button no lo soporta */}
+                {/* Buzón de ideas: último del menú, para todos MENOS quien revisa (Marcos 20-10: él y
+                    Mauricio reciben las ideas, no las mandan → un solo botón, "Revisar ideas"; si
+                    quieren proponer, la bandeja tiene "Proponer una idea"). No es una página — abre
+                    el modal — así que imita a un ítem inactivo (sin estado "activo"). Con novedades
+                    en "Mis ideas" lleva un número ámbar, como los demás contadores. */}
+                {!hasPermission('ideas.revisar') && (
+                // eslint-disable-next-line no-restricted-syntax -- ítem de menú que abre un modal; mismo layout que NavLink, Button no lo soporta
                 <button
                     type="button"
                     onClick={() => { setMobileOpen(false); setShowIdeas(true); }}
@@ -264,6 +267,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                         )
                     )}
                 </button>
+                )}
             </nav>
 
             {/* Footer: tema + usuario */}
