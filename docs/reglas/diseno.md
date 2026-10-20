@@ -431,7 +431,8 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     `'framer-motion'`). Prohibido sumar `gsap`, `ogl`, `three`, `motion` o `@hugeicons`. Cada archivo
     derivado lleva en el encabezado la línea de procedencia
     `// Idea: <Componente> de React Bits (reactbits.dev, MIT + Commons Clause). Reescrito; sin código copiado.`
-    (hoy: `MarcaEstado`, `NumeroRodante`, `useBordesScroll`, `BordeScroll`, `PestanasElasticas`, y como comentario junto al
+    (hoy: `MarcaEstado`, `NumeroRodante`, `useBordesScroll`, `BordeScroll`, `PestanasElasticas`, `NovedadesModal`,
+    `AvisoPendiente`, y como comentario junto al
     conector de `WizardStepper` y al panel de `NuevoMovimientoWizardView`). Si alguna vez se copia
     código, el archivo lleva en el encabezado «Copyright (c) 2026 David Haz» con el texto de permiso, y
     se agrega una entrada en `frontend/THIRD_PARTY_NOTICES.md` (hoy no existe porque no se copió nada).
@@ -444,6 +445,18 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     Magnet, bordes eléctricos).
     RubberSegment salió de esta lista el 2026-10-16 porque el dueño lo pidió para las pestañas de
     Inventario (§9.12), sin el arrastre del indicador.
+    **Sumados el 2026-10-20** (revisión del catálogo completo de reactbits.dev con Marcos):
+    - **Carousel → `novedades/NovedadesModal`**: «Novedades de Bóveda», lo nuevo de cada entrega en
+      tarjetas que se pasan con el dedo, las flechas o los puntos. Se abre sola UNA vez por persona y
+      entrega al entrar al Inicio (marca en `localStorage`: comodidad, no registro). Sin avance automático;
+      la tarjeta entra 24 px desde el lado al que se avanza, en 200 ms (como §9.7). El contenido vive en
+      `config/novedades.ts`: solo lo que ya está en el ambiente donde se muestra, escrito para quien usa
+      Bóveda; una tarjeta con `permiso` la ve solo quien lo tiene.
+    - **Star Border → `ui/AvisoPendiente`**: el Guardar de Asistencia avisa cuando falta guardar (el día de
+      la obra sin registros guardados, o cambios desde la última carga; en «Todas las obras» no). Una luz
+      ámbar da dos vueltas al borde (`.luz-pendiente`, 2,4 s, CSS) y queda un punto ámbar mientras siga
+      pendiente; las vueltas se repiten solo al pasar de «al día» a «pendiente». Ámbar = pendiente.
+      Con «reducir movimiento», solo el punto.
 12. **Pestañas de sección: `ui/PestanasElasticas`** (idea: RubberSegment). Al cambiar de pestaña el
     indicador verde se estira en 190 ms (ease-out) hasta cubrir su posición actual y la pestaña de
     destino: el borde de adelante queda ya en su lugar. A los 150 ms el borde de atrás lo sigue con un

@@ -229,6 +229,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                 handleSave={handleSave}
                 saving={saving}
                 saveStatus={saveStatus}
+                pendiente={attendanceData.pendienteGuardar}
                 loading={loading}
                 hasWorkers={workers.length > 0}
                 hasPermission={hasPermission}

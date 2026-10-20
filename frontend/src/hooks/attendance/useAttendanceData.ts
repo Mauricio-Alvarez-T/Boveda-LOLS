@@ -21,6 +21,8 @@ export function useAttendanceData() {
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(false);
+    const [registrosGuardados, setRegistrosGuardados] = useState(0);
+    const [hayCambios, setHayCambios] = useState(false);
     const [workers, setWorkers] = useState<Trabajador[]>([]);
     const [attendance, setAttendance] = useState<Record<number, Partial<Asistencia>>>({});
     const [horariosObra, setHorariosObra] = useState<ConfiguracionHorario[]>([]);
@@ -139,6 +141,9 @@ export function useAttendanceData() {
 
             const attendanceData = attendanceRes.data.data;
             const existing = attendanceData.registros;
+            // Para el aviso de «falta guardar» del botón Guardar: lo que ya está guardado de este día.
+            setRegistrosGuardados(existing.length);
+            setHayCambios(false);
             setFeriadoActual(attendanceData.feriado || null);
             setHorariosObra(schedulesRes.data.data || []);
 
@@ -258,6 +263,7 @@ export function useAttendanceData() {
     }, [fetchAttendanceInfo, defaultEstado, selectedObra, hasPermission]);
 
     const updateAttendance = (workerId: number, data: Partial<Asistencia>) => {
+        setHayCambios(true);
         setAttendance(prev => ({
             ...prev,
             [workerId]: { ...prev[workerId], ...data }
@@ -356,6 +362,9 @@ export function useAttendanceData() {
     const dayOfWeek = new Date(date + 'T12:00:00').getDay();
     const isSaturday = dayOfWeek === 6;
     const isSunday = dayOfWeek === 0;
+    // «Falta guardar» (2026-10-20): el día de esta obra no tiene nada guardado, o se cambió algo desde la
+    // última carga. En «Todas las obras» no se avisa (cada obra guarda la suya).
+    const pendienteGuardar = !!selectedObra && !loading && workers.length > 0 && (registrosGuardados === 0 || hayCambios);
 
     return {
         date, setDate, navigateDate,
@@ -372,5 +381,6 @@ export function useAttendanceData() {
         fetchAttendanceInfo,
         summary,
         isSaturday, isSunday,
+        pendienteGuardar,
     };
 }

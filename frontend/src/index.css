@@ -67,6 +67,22 @@
     .gira-telefono { animation: gira-telefono 2s ease-in-out infinite; }
 }
 
+/* Falta guardar (ui/AvisoPendiente): la luz ámbar da dos vueltas al borde del botón y se apaga. Con
+   «reducir movimiento» no se dibuja (queda el punto). */
+.luz-pendiente {
+    stroke-dasharray: 16 84;
+    stroke-dashoffset: 0;
+    opacity: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+    .luz-pendiente { animation: luz-pendiente 2.4s linear forwards; }
+}
+@keyframes luz-pendiente {
+    0%   { stroke-dashoffset: 0; opacity: 1; }
+    92%  { opacity: 1; }
+    100% { stroke-dashoffset: -200; opacity: 0; }
+}
+
 /* ──────────────────────────────────────────────────────────────────
    Design tokens
    Los tokens que generan las utilidades (bg-card, text-foreground,

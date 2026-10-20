@@ -42,6 +42,7 @@ import { nombreMes, type FaltasMesData, type TrabajadorFaltas } from '../compone
 import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
 import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
 import { AvisoAtrasosPortador } from '../components/documentos-fisicos/AvisoAtrasosPortador';
+import { NovedadesModal } from '../components/novedades/NovedadesModal';
 
 // ─── Types ───
 interface DocExpiryItem {
@@ -409,6 +410,8 @@ const Dashboard: React.FC = () => {
         <div className="space-y-6">
             {/* Cartel de atrasos del supervisor que lleva documentos a firmar (pedido de RRHH, 2026-10-19). */}
             <AvisoAtrasosPortador />
+            {/* Lo nuevo de la última entrega, una vez por persona (config/novedades.ts). */}
+            <NovedadesModal />
 
             {/* Una tarjeta por apartado, todas en una línea desde 1280 px (2×2 en tablet, una bajo otra en celular). */}
             {visibles.length > 0 && (
