@@ -47,6 +47,8 @@ interface Props {
     titulo?: string;
     /** Texto cuando no queda nada (por defecto «Bandeja vacía»). */
     vacio?: { titulo: string; descripcion: string };
+    /** Grupo que arranca desplegado (por defecto Vehículos). En el detalle de Inventario del Inicio, «inventario». */
+    grupoAbierto?: string;
 }
 
 // Color = significado (WCAG AA): crítico = rojo · pendiente/por vencer = ámbar ·
@@ -112,12 +114,12 @@ const GroupHeader: React.FC<{ collapsed: boolean; icon: React.ElementType; label
         );
     };
 
-const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, inventoryItems = [], vehiculoItems = [], solicitudItems = [], documentosFisicosItems = [], onNavigate, titulo = 'Bandeja del día', vacio }) => {
+const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, inventoryItems = [], vehiculoItems = [], solicitudItems = [], documentosFisicosItems = [], onNavigate, titulo = 'Bandeja del día', vacio, grupoAbierto = GRUPO_ABIERTO_POR_DEFECTO }) => {
     // Solo Vehículos arranca abierto (pedido de obra 2026-08-24): es el aviso que
     // se mira primero. El resto se abre al hacer clic. La clave ausente significa
     // "usar el default", así que un grupo nuevo nace cerrado sin tocar nada más.
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-    const estaColapsado = (key: string) => collapsed[key] ?? key !== GRUPO_ABIERTO_POR_DEFECTO;
+    const estaColapsado = (key: string) => collapsed[key] ?? key !== grupoAbierto;
 
     // Grupos externos declarados UNA vez: de esta lista salen el conteo del encabezado, el
     // "Bandeja vacía" y el render. Antes se listaban por separado y los documentos físicos
@@ -148,7 +150,7 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
         );
     }
 
-    const toggle = (key: string) => setCollapsed(prev => ({ ...prev, [key]: !(prev[key] ?? key !== GRUPO_ABIERTO_POR_DEFECTO) }));
+    const toggle = (key: string) => setCollapsed(prev => ({ ...prev, [key]: !(prev[key] ?? key !== grupoAbierto) }));
 
     /** Grupo de tareas del backend (asistencia / documentos / contratos). */
     const renderGrupoTareas = (group: typeof GROUPS[number]) => {

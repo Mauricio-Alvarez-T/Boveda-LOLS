@@ -1,21 +1,22 @@
 import React from 'react';
 import { FileCheck2, FileWarning } from 'lucide-react';
-import { Button } from '../../ui/Button';
 import { NumeroRodante } from '../../ui/NumeroRodante';
 import { cn } from '../../../utils/cn';
 import { EncabezadoTarjeta, CifraTarjeta } from './EncabezadoTarjeta';
+import { BotonVerMas } from './BotonVerMas';
 import type { ResumenDocumentosInicio } from './resumenDocumentosInicio';
 
 /**
- * Inicio — documentos físicos por firmar (pedido del dueño 2026-10-20). Ocupa el lugar de «Asistencia
- * pendiente» para quien registra entregas (RRHH): la asistencia ya la cuenta la tarjeta verde, y esto es
- * lo que RRHH mira primero en Gestiones → Documentos físicos. Arriba lo atrasado (cifra + etapas donde se
- * atasca, rojo si hay críticos); abajo, dónde están los papeles ahora, con los mismos puntos de color que
- * los carriles del tablero (ámbar = en oficina, azul = en terreno).
+ * Tarjeta «Gestiones» del Inicio para quien registra entregas (RRHH) — documentos físicos por firmar
+ * (dueño 2026-10-20): lo que RRHH mira primero en Gestiones → Documentos físicos. Arriba lo atrasado
+ * (cifra + etapas donde se atasca, rojo si hay críticos); abajo, dónde están los papeles ahora, con los
+ * mismos puntos de color que los carriles del tablero (ámbar = en oficina, azul = en terreno). «Ver más»
+ * abre debajo el detalle de Gestiones.
  */
 interface Props {
     resumen: ResumenDocumentosInicio;
-    onNavigate: () => void;
+    activo: boolean;
+    onVerMas: () => void;
 }
 
 const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
@@ -33,15 +34,15 @@ const Lugar: React.FC<{ punto: string; titulo: string; valor: number | null; uni
     </div>
 );
 
-const DocumentosInicio: React.FC<Props> = ({ resumen: r, onNavigate }) => {
+const DocumentosInicio: React.FC<Props> = ({ resumen: r, activo, onVerMas }) => {
     const n = r.fueraDePlazo;
     return (
         <div className="flex h-full flex-col">
             <EncabezadoTarjeta
                 icon={r.tono === 'verde' ? FileCheck2 : FileWarning}
                 tono={r.tono}
-                titulo="Documentos físicos"
-                subtitulo="Papeles por firmar y dónde están"
+                titulo="Gestiones"
+                subtitulo="Documentos físicos: por firmar y dónde están"
                 extra={r.criticos > 0 && (
                     <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-bold tabular-nums text-white">
                         {r.criticos} {plural(r.criticos, 'crítico', 'críticos')}
@@ -82,10 +83,8 @@ const DocumentosInicio: React.FC<Props> = ({ resumen: r, onNavigate }) => {
                 </div>
             </div>
 
-            <div className="mt-auto pt-4">
-                <Button variant="link" size="sm" onClick={onNavigate} className="text-green-700 dark:text-green-300">
-                    Ir a Documentos físicos
-                </Button>
+            <div className="mt-auto flex justify-end pt-4">
+                <BotonVerMas activo={activo} onClick={onVerMas} modulo="Gestiones" />
             </div>
         </div>
     );

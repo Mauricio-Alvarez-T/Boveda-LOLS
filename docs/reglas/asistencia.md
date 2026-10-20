@@ -104,11 +104,11 @@ fechas DD/MM/YYYY) vía `GET /asistencias/alertas/:obraId?mes&anio` (permiso `as
 
 `getAlertasFaltas` es un filtro de **`getFaltasMes(obraId, mes, anio)`**, que devuelve a TODOS los
 trabajadores con al menos una `F` en el mes (fechas, `total_faltas`, `obra_nombre` de su falta más
-reciente y `alertas` vacío si no gatillan regla). El Inicio la usa para la tarjeta **«Faltas del mes»**
-(dueño 2026-10-20: "era un dato muy usado en versiones anteriores"): `/dashboard/summary` trae
-`faltasMes = { trabajadores, faltas, reiteradas, lista (30, más faltas arriba) }`; la tarjeta muestra
-5 filas (obra · días), rojo = reiterado, ámbar = falta suelta, y la fila abre Asistencia con `?q=RUT`.
-La cifra «Faltas reiteradas» de la tarjeta verde sale de `faltasMes.reiteradas` (ya no se corta en 20).
+reciente y `alertas` vacío si no gatillan regla). La tarjeta **«Asistencia» del Inicio** (dueño
+2026-10-20: "era un dato muy usado en versiones anteriores"; precisó que van SOLO los reiterados) usa
+`/dashboard/summary` → `faltasMes = { reiterados, lista (200, más faltas arriba) }`: 3 filas en la
+tarjeta (obra · faltas: días + chips de regla, rojo = 2 seguidos) y la lista completa con RUT en el
+detalle; la fila abre Asistencia con `?q=RUT`. `trabajadoresConAlertas` (top 20) se mantiene.
 
 ## Lista de trabajadores en actividades sugeridas (`actividades_sugeridas`, mig 038/040/116)
 

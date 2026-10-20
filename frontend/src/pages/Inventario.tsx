@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, ArrowRight, LayoutGrid, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt, Eye, EyeOff } from 'lucide-react';
 import { MixerTruck } from '../components/icons/MixerTruck';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { flagOff } from '../utils/flags';
 import { useAuth } from '../context/AuthContext';
@@ -123,6 +124,9 @@ const ExportExcelDropdown: React.FC<{ stockData: StockObraData }> = ({ stockData
 
 const InventarioPage: React.FC = () => {
     const { hasPermission } = useAuth();
+    // Enlaces desde el Inicio (tarjeta «Inventario», 2026-10-20): ?tab=transferencias&estado=pendiente abre
+    // esa pestaña con ese filtro. Solo se lee al entrar; si la pestaña no está permitida, manda el primer tab.
+    const [searchParams] = useSearchParams();
     const { obras, selectedObra } = useObra();
     // Modo Bodega Virtual (por usuario): ocultar → mostrar → sumar. Afecta
     // Ejecutivo, Resumen, Obra/Bod. y Facturas.
@@ -142,6 +146,8 @@ const InventarioPage: React.FC = () => {
     // verá la pestaña montada en el primer render y disparará la llamada al API
     // → 403 → toast confuso. El init lazy evita ese efecto.
     const [activeTab, setActiveTab] = useState<TabKey>(() => {
+        const pedido = tabs.find(t => t.key === searchParams.get('tab') && (!t.requiresPerm || hasPermission(t.requiresPerm)));
+        if (pedido) return pedido.key;
         const first = tabs.find(t => !t.requiresPerm || hasPermission(t.requiresPerm));
         return (first?.key ?? 'resumen_ejecutivo') as TabKey;
     });
@@ -151,7 +157,8 @@ const InventarioPage: React.FC = () => {
     const [hideEmptyUbic, setHideEmptyUbic] = useState(false);
     // Intent de navegación desde el Resumen Ejecutivo hacia Transferencias.
     // Se consume como props iniciales del Panel; cambia de valor fuerza remount via `key`.
-    const [trfNavIntent, setTrfNavIntent] = useState<{ estado?: string; id?: number | null; nonce: number }>({ nonce: 0 });
+    const [trfNavIntent, setTrfNavIntent] = useState<{ estado?: string; id?: number | null; nonce: number }>(
+        () => ({ estado: searchParams.get('estado') ?? undefined, nonce: 0 }));
 
     // El subtítulo del header muestra el tab activo como breadcrumb (→ Tab)
     // para que el usuario sepa dónde está sin mirar las pestañas.

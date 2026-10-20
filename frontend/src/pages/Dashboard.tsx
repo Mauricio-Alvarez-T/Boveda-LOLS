@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +9,8 @@ import { cn } from '../utils/cn';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { Skeleton, SkeletonText } from '../components/ui/Skeleton';
+import { Button } from '../components/ui/Button';
+import { CheckSquare, FileWarning, Package, RefreshCw, SearchCheck, Truck, UserX } from 'lucide-react';
 
 // Widgets
 import VehicleExpiries from '../components/dashboard/widgets/VehicleExpiries';
@@ -22,14 +24,18 @@ import { filasBandejaAlertas } from '../components/documentos-fisicos/documentos
 import type { DashboardAlerta } from '../hooks/inventario/useDashboardEjecutivo';
 import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
 import AbsencesToday from '../components/dashboard/widgets/AbsencesToday';
-import QuickActions from '../components/dashboard/widgets/QuickActions';
 import ObraRanking from '../components/dashboard/widgets/ObraRanking';
 import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
-import InicioHero from '../components/dashboard/widgets/InicioHero';
 import AsistenciaPendiente from '../components/dashboard/widgets/AsistenciaPendiente';
 import DocumentosInicio from '../components/dashboard/widgets/DocumentosInicio';
 import { resumenDocumentosInicio } from '../components/dashboard/widgets/resumenDocumentosInicio';
-import FaltasMes from '../components/dashboard/widgets/FaltasMes';
+import FaltasMes, { FilaFalta } from '../components/dashboard/widgets/FaltasMes';
+import InventarioInicio, { FilaInventarioInicio } from '../components/dashboard/widgets/InventarioInicio';
+import { resumenInventarioInicio, type FilaInventario, type ResumenInventarioApi } from '../components/dashboard/widgets/resumenInventarioInicio';
+import TarjetaPendientes from '../components/dashboard/widgets/TarjetaPendientes';
+import DocumentosAtrasadosLista from '../components/dashboard/widgets/DocumentosAtrasadosLista';
+import { DetalleModulo } from '../components/dashboard/widgets/DetalleModulo';
+import { EncabezadoTarjeta } from '../components/dashboard/widgets/EncabezadoTarjeta';
 import { nombreMes, type FaltasMesData, type TrabajadorFaltas } from '../components/dashboard/widgets/resumenFaltasMes';
 import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
 import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
@@ -86,14 +92,14 @@ interface DashboardData {
     attendanceStatus: Record<string, AttendanceStatusEntry>;
     // Faltas reiteradas del mes (Art. 160 N°3); incluye fechas[] (strip de evidencia).
     trabajadoresConAlertas: TrabajadorFaltas[];
-    /** Todos los que faltaron en el mes (tarjeta «Faltas del mes»); null si el backend no pudo calcularlo. */
+    /** Reiterados del mes con su total real (tarjeta «Asistencia»); null si el backend no pudo calcularlo. */
     faltasMes?: FaltasMesData | null;
     saludo: { nombre: string; resumen: string; totalAlertas: number };
 }
 
-// ─── Panel: tarjeta blanca del Inicio H (2026-10-16): sin borde, sombra suave (en oscuro la sombra
+// ─── Panel: tarjeta blanca del Inicio (2026-10-16): sin borde, sombra suave (en oscuro la sombra
 // trae su anillo de 1 px), esquinas grandes. El color va en el círculo de cada encabezado
-// (EncabezadoTarjeta), nunca en el fondo; la única superficie verde es la tarjeta del día.
+// (EncabezadoTarjeta), nunca en el fondo.
 const Panel: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
     <div className={cn('rounded-3xl bg-card p-6 shadow-[var(--shadow-md)]', className)}>{children}</div>
 );
@@ -155,12 +161,6 @@ const Dashboard: React.FC = () => {
     // Widgets que el usuario puede ver (gating por permiso granular). El layout es
     // fijo; el permiso decide qué zonas se montan, no el orden.
     const shown = useMemo(() => new Set(visibleWidgets.map(w => w.id)), [visibleWidgets]);
-
-    // ─── Page Header (solo el rótulo de sección) ───
-    const headerTitle = useMemo(() => (
-        <h1 className="text-base font-semibold text-foreground">Inicio</h1>
-    ), []);
-    useSetPageHeader(headerTitle);
 
     // ─── Fetch Data (reutilizable para el botón refrescar) ───
     const fetchSummary = useCallback(async () => {
@@ -230,11 +230,39 @@ const Dashboard: React.FC = () => {
 
     useEffect(() => { fetchImpresos(); }, [fetchImpresos]);
 
+    // Inventario: lo que le toca a quien mira según su perfil (tarjeta «Inventario», dueño 2026-10-20).
+    const [resumenInv, setResumenInv] = useState<ResumenInventarioApi | null>(null);
+    const fetchResumenInv = useCallback(async () => {
+        if (!canInventario) { setResumenInv(null); return; }
+        try {
+            const res = await api.get<ApiResponse<ResumenInventarioApi>>('/transferencias/inicio');
+            setResumenInv(res.data.data ?? null);
+        } catch {
+            setResumenInv(null);
+        }
+    }, [canInventario]);
+
+    useEffect(() => { fetchResumenInv(); }, [fetchResumenInv]);
+
     const { refetch: refetchAlertasDocs } = alertasDocs;
     const { refetch: refetchLotes } = lotes;
     const refreshAll = useCallback(() => {
-        fetchSummary(); fetchInventory(); fetchImpresos(); refetchAlertasDocs(); refetchLotes();
-    }, [fetchSummary, fetchInventory, fetchImpresos, refetchAlertasDocs, refetchLotes]);
+        fetchSummary(); fetchInventory(); fetchImpresos(); fetchResumenInv(); refetchAlertasDocs(); refetchLotes();
+    }, [fetchSummary, fetchInventory, fetchImpresos, fetchResumenInv, refetchAlertasDocs, refetchLotes]);
+
+    // ─── Encabezado: rótulo, fecha y «Actualizar» (antes vivían en la tarjeta verde, que se fue el 2026-10-20) ───
+    const hora = lastUpdated ? lastUpdated.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : null;
+    const headerTitle = useMemo(() => (
+        <div className="flex min-w-0 items-center gap-3">
+            <h1 className="text-base font-semibold text-foreground">Inicio</h1>
+            <span className="hidden truncate text-sm text-muted-foreground md:inline">{fechaDelDia(new Date())}</span>
+            <Button variant="ghost" size="sm" onClick={refreshAll} isLoading={loading} aria-label="Actualizar"
+                title={hora ? `Actualizado ${hora}` : undefined} leftIcon={<RefreshCw className="h-4 w-4" aria-hidden />}>
+                <span className="hidden sm:inline">Actualizar</span>
+            </Button>
+        </div>
+    ), [refreshAll, loading, hora]);
+    useSetPageHeader(headerTitle);
 
     // Skeletons por-widget. `ready` narrowea `data` a no-null en cada zona.
     const ready = !loading && !!data;
@@ -244,9 +272,7 @@ const Dashboard: React.FC = () => {
     const showVencVehiculos = shown.has('vehiculo_vencimientos');
     const showRanking = shown.has('obra_ranking') && selectedObra == null; // solo ámbito "Todas"
 
-    // ─── Inicio H (propuesta «Marca LOLS», dueño 2026-10-16; diseno.md §9.14) ───
-    // La asistencia pendiente y los vehículos tienen tarjeta propia; la bandeja queda con el resto
-    // («Otros pendientes») para no mostrar lo mismo dos veces.
+    // Pendientes que no son asistencia (documentos por vencer, contratos de 10 meses): van al detalle de Gestiones.
     const otrasTareas = useMemo(
         () => (data?.pendingTasks ?? []).filter(t => t.category !== 'asistencia'),
         [data?.pendingTasks],
@@ -257,6 +283,7 @@ const Dashboard: React.FC = () => {
     );
     const hoy = new Date();
     const diaSemana = hoy.getDay();
+    // Obras con y sin asistencia guardada hoy (detalle de Asistencia).
     const resumen = useMemo(
         () => resumenDelDia(data?.attendanceStatus ?? {}, {
             obraId: selectedObra?.id ?? null,
@@ -268,142 +295,230 @@ const Dashboard: React.FC = () => {
     );
     // `asistencia_hoy` solo llega con permiso de asistencia (dashboard.service, bloque 3).
     const conAsistencia = typeof data?.counters.asistencia_hoy === 'number';
-    const verAsistenciaPendiente = ready && conAsistencia && resumen.total > 0 && !resumen.finDeSemana;
-    // Documentos físicos (dueño 2026-10-20): para RRHH ocupa el lugar de «Asistencia pendiente» —la cifra de
-    // obras ya está en la tarjeta verde— y sus filas salen de la bandeja para no contarlas dos veces a la vista.
-    // Quien no registra entregas sigue viendo la nube de obras sin guardar.
-    const verDocumentos = canRegistrarEntregas;
+    const verObrasSinGuardar = ready && conAsistencia && resumen.total > 0 && !resumen.finDeSemana;
+
+    // ─── Inicio por módulos (dueño 2026-10-20; diseno.md §9.14) ───
+    // Una tarjeta por apartado —Asistencia, Gestiones, Inventario, Vehículos— con lo primero de cada uno y
+    // «Ver más»; debajo se despliega el detalle del módulo elegido (parte abierto el primero visible).
     const resumenDocs = useMemo(
         () => resumenDocumentosInicio(alertasDocs.alertas, lotes.pendientes, impresosSinAsignar),
         [alertasDocs.alertas, lotes.pendientes, impresosSinAsignar],
     );
-    // Faltas del mes (dueño 2026-10-20): cuarta tarjeta con TODOS los que faltaron; reemplaza al detalle de
-    // reiterados de la columna lateral, que solo aparecía si había alguno. Sin dato del backend, no se monta.
-    const verFaltasMes = showFaltas && (!ready || data?.faltasMes != null);
-    const tarjetas = [showVencVehiculos, verDocumentos || verAsistenciaPendiente, canActividades, verFaltasMes].filter(Boolean).length;
-    // Detalle de ausentes solo cuando hay alguno: el «0» ya se lee en la tarjeta verde.
-    const verAusentesDetalle = ready && showAusentes && (data?.counters.ausentes_hoy ?? 0) > 0;
-    const columnaLateral = verAusentesDetalle;
+    const modeloInv = useMemo(() => resumenInventarioInicio(resumenInv), [resumenInv]);
+    // Gestiones para quien NO registra entregas: sus pendientes de siempre (solicitudes, documentos por
+    // vencer, contratos, trabajadores sin documentos, sus lotes de portador), los más graves primero.
+    const gestionesItems = useMemo((): BandejaItem[] => {
+        const orden = { critical: 0, warning: 1, info: 2 } as const;
+        const sinDocs = data?.counters.trabajadoresSinDocs ?? 0;
+        return [
+            ...solicitudItems,
+            ...(canRegistrarEntregas ? [] : documentosFisicosItems),
+            ...otrasTareas.map(t => ({ severity: t.severity, title: t.title, description: t.description, ruta: t.action.ruta })),
+            ...(sinDocs > 0 ? [{
+                severity: 'warning' as const,
+                title: `${sinDocs} trabajador${sinDocs === 1 ? '' : 'es'} sin documentos obligatorios`,
+                description: 'Completar su carpeta en Gestiones',
+                ruta: '/consultas?completitud=faltantes',
+            }] : []),
+        ].sort((a, b) => orden[a.severity] - orden[b.severity]);
+    }, [solicitudItems, canRegistrarEntregas, documentosFisicosItems, otrasTareas, data?.counters.trabajadoresSinDocs]);
+    const totalGestiones = useMemo(
+        () => contarBandeja(otrasTareas, data?.counters.trabajadoresSinDocs ?? 0, [solicitudItems, canRegistrarEntregas ? [] : documentosFisicosItems]).total,
+        [otrasTareas, data?.counters.trabajadoresSinDocs, solicitudItems, canRegistrarEntregas, documentosFisicosItems],
+    );
+
+    type Modulo = 'asistencia' | 'gestiones' | 'inventario' | 'vehiculos';
+    const verGestiones = canRegistrarEntregas || permisos.includes('trabajadores.ver')
+        || permisos.includes('trabajadores.solicitud.crear') || canAprobarSolicitudes
+        || permisos.includes('documentos.entrega.portar');
+    const visibles: Modulo[] = [
+        ...(showFaltas ? ['asistencia' as const] : []),
+        ...(verGestiones ? ['gestiones' as const] : []),
+        ...(canInventario ? ['inventario' as const] : []),
+        ...(showVencVehiculos ? ['vehiculos' as const] : []),
+    ];
+    const [elegido, setElegido] = useState<Modulo | null>(null);
+    const activo: Modulo | null = elegido && visibles.includes(elegido) ? elegido : visibles[0] ?? null;
+    const detalleRef = useRef<HTMLElement>(null);
+    const verMas = useCallback((m: Modulo) => {
+        setElegido(m);
+        const reducir = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        window.requestAnimationFrame(() => detalleRef.current?.scrollIntoView({ behavior: reducir ? 'auto' : 'smooth', block: 'start' }));
+    }, []);
+    const irATrabajador = (rut: string) => navigate(`/asistencia?q=${encodeURIComponent(rut)}`);
+    const irAFilaInventario = (f: FilaInventario) => navigate(`/inventario?tab=transferencias&estado=${f.estado}`);
+    const marco = (m: Modulo) => cn('h-full', activo === m && 'ring-2 ring-green-600/40 dark:ring-green-400/40');
+    const mes = nombreMes(hoy);
 
     return (
         <div className="space-y-6">
             {/* Cartel de atrasos del supervisor que lleva documentos a firmar (pedido de RRHH, 2026-10-19). */}
             <AvisoAtrasosPortador />
-            {ready && data ? (
-                <InicioHero
-                    resumen={resumen}
-                    fecha={fechaDelDia(hoy)}
-                    ambito={selectedObra ? selectedObra.nombre : 'Todas las obras'}
-                    presentesPct={conAsistencia ? data.counters.asistencia_hoy ?? 0 : null}
-                    ausentes={showAusentes ? data.counters.ausentes_hoy ?? 0 : null}
-                    faltas={showFaltas ? data.faltasMes?.reiteradas ?? data.trabajadoresConAlertas?.length ?? 0 : null}
-                    actualizado={lastUpdated ? lastUpdated.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : null}
-                    cargando={loading}
-                    onActualizar={refreshAll}
-                    onAsistencia={conAsistencia ? () => navigate('/asistencia') : undefined}
-                    onVehiculos={showVencVehiculos && vencimientos.items.length > 0 ? () => navigate('/vehiculos') : undefined}
-                />
-            ) : (
-                <div className="h-60 rounded-3xl bg-green-700/80 dark:bg-green-900 motion-safe:animate-pulse" aria-hidden />
-            )}
 
-            {/* Tarjetas con círculo de color: vehículos, documentos físicos (o asistencia pendiente), actividades y
-                faltas del mes. Con las cuatro: 2×2 y, en pantallas anchas, una fila de 4 (con auto-fit la
-                cuarta quedaba sola en una fila a un tercio de ancho). Con menos, se reparten solas. */}
-            {tarjetas > 0 && (
-                <div className={cn('grid gap-6 items-stretch', tarjetas >= 4
+            {/* Una tarjeta por apartado. Con las cuatro: 2×2 y, en pantallas anchas, una fila de 4; con menos,
+                se reparten solas. */}
+            {visibles.length > 0 && (
+                <div className={cn('grid gap-6 items-stretch', visibles.length >= 4
                     ? 'grid-cols-1 md:grid-cols-2 min-[1700px]:grid-cols-4'
                     : 'grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))]')}>
+                    {showFaltas && (
+                        <Panel className={marco('asistencia')}>
+                            {ready && data?.faltasMes
+                                ? <FaltasMes data={data.faltasMes} mes={mes} onTrabajador={irATrabajador}
+                                    activo={activo === 'asistencia'} onVerMas={() => verMas('asistencia')} />
+                                : <SkeletonText lines={5} />}
+                        </Panel>
+                    )}
+                    {verGestiones && (
+                        <Panel className={marco('gestiones')}>
+                            {canRegistrarEntregas
+                                ? <DocumentosInicio resumen={resumenDocs} activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')} />
+                                : ready
+                                    ? <TarjetaPendientes icon={SearchCheck} titulo="Gestiones" subtitulo="Trabajadores, solicitudes y documentos"
+                                        items={gestionesItems} total={totalGestiones} onNavigate={(r) => navigate(r)}
+                                        activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')} modulo="Gestiones" />
+                                    : <SkeletonText lines={5} />}
+                        </Panel>
+                    )}
+                    {canInventario && (
+                        <Panel className={marco('inventario')}>
+                            <InventarioInicio modelo={modeloInv} onFila={irAFilaInventario}
+                                activo={activo === 'inventario'} onVerMas={() => verMas('inventario')} />
+                        </Panel>
+                    )}
                     {showVencVehiculos && (
-                        <Panel>
+                        <Panel className={marco('vehiculos')}>
                             {vencimientos.loading && vencimientos.items.length === 0
                                 ? <SkeletonText lines={5} />
-                                : <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')} />}
-                        </Panel>
-                    )}
-                    {verDocumentos ? (
-                        <Panel>
-                            <DocumentosInicio resumen={resumenDocs} onNavigate={() => navigate('/consultas?tab=fisicos')} />
-                        </Panel>
-                    ) : verAsistenciaPendiente && (
-                        <Panel>
-                            <AsistenciaPendiente sinGuardar={resumen.sinGuardar} total={resumen.total} onNavigate={() => navigate('/asistencia')} />
-                        </Panel>
-                    )}
-                    {/* Trae sus datos (tiene selector de semana), por eso no depende de `ready`. */}
-                    {canActividades && (
-                        <Panel>
-                            <ActividadesSemana />
-                        </Panel>
-                    )}
-                    {verFaltasMes && (
-                        <Panel>
-                            {ready && data?.faltasMes
-                                ? <FaltasMes
-                                    data={data.faltasMes}
-                                    mes={nombreMes(hoy)}
-                                    onTrabajador={(rut) => navigate(`/asistencia?q=${encodeURIComponent(rut)}`)}
-                                    onNavigate={() => navigate('/asistencia')}
-                                />
-                                : <SkeletonText lines={5} />}
+                                : <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')}
+                                    activo={activo === 'vehiculos'} onVerMas={() => verMas('vehiculos')} />}
                         </Panel>
                     )}
                 </div>
             )}
 
-            {/* Otros pendientes (izq) + detalle de faltas y ausentes cuando los hay (der). */}
-            <div className={cn('grid grid-cols-1 gap-6 items-start', columnaLateral && 'lg:grid-cols-[1.5fr_1fr]')}>
-                <Panel>
-                    {ready && data
-                        ? <BandejaDelDia
-                            titulo="Otros pendientes"
-                            vacio={{ titulo: 'Nada más por resolver hoy', descripcion: 'Sin pendientes de documentos, contratos, inventario ni solicitudes.' }}
-                            tasks={otrasTareas}
-                            trabajadoresSinDocs={data.counters.trabajadoresSinDocs}
-                            inventoryItems={invItems}
-                            solicitudItems={solicitudItems}
-                            documentosFisicosItems={verDocumentos ? [] : documentosFisicosItems}
-                            onNavigate={(route) => navigate(route)}
-                        />
-                        : <SkeletonText lines={6} />}
-                </Panel>
-
-                {columnaLateral && data && (
-                    <div className="space-y-6 lg:sticky lg:top-6">
-                        {verAusentesDetalle && (
+            {/* ─── Detalle del módulo elegido (se irá sumando más información y gráficos) ─── */}
+            {activo === 'asistencia' && (
+                <DetalleModulo ref={detalleRef} icon={CheckSquare} titulo="Asistencia"
+                    descripcion={`Faltas reiteradas de ${mes}, el día de hoy y la tendencia`}
+                    accion={{ texto: 'Ir a Asistencia', onClick: () => navigate('/asistencia') }}>
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <Panel className="lg:col-span-2">
+                            <EncabezadoTarjeta icon={UserX} tono={(data?.faltasMes?.reiterados ?? 0) > 0 ? 'rojo' : 'verde'}
+                                titulo={`Faltas reiteradas de ${mes}`}
+                                subtitulo="Art. 160 N°3: 2 lunes, 3 o más días o 2 días seguidos en el mes calendario"
+                                extra={data?.faltasMes && <span className="text-sm font-semibold tabular-nums text-muted-foreground">{data.faltasMes.reiterados} en total</span>} />
+                            {!ready || !data?.faltasMes
+                                ? <SkeletonText lines={4} />
+                                : data.faltasMes.lista.length === 0
+                                    ? <p className="text-sm text-muted-foreground">Nadie tiene faltas reiteradas este mes.</p>
+                                    : (
+                                        <div className="grid grid-cols-1 gap-x-8 xl:grid-cols-2">
+                                            {data.faltasMes.lista.map(t => <FilaFalta key={t.trabajador_id} t={t} conRut onClick={() => irATrabajador(t.rut)} />)}
+                                        </div>
+                                    )}
+                            {data?.faltasMes && data.faltasMes.reiterados > data.faltasMes.lista.length && (
+                                <p className="mt-3 text-caption text-muted-foreground">
+                                    Mostrando {data.faltasMes.lista.length} de {data.faltasMes.reiterados}. El resto, en Asistencia.
+                                </p>
+                            )}
+                        </Panel>
+                        {verObrasSinGuardar && (
+                            <Panel>
+                                <AsistenciaPendiente sinGuardar={resumen.sinGuardar} total={resumen.total} onNavigate={() => navigate('/asistencia')} />
+                            </Panel>
+                        )}
+                        {showAusentes && ready && data && (
                             <Panel>
                                 <AbsencesToday data={data.ausentesDetalle ?? []} total={data.counters.ausentes_hoy} />
                             </Panel>
                         )}
+                        {showTrend && (
+                            <Panel className="lg:col-span-2">
+                                {ready && data
+                                    ? <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />
+                                    : <Skeleton className="h-48 w-full" />}
+                            </Panel>
+                        )}
+                        {/* Trae sus datos (tiene selector de semana), por eso no depende de `ready`. */}
+                        {canActividades && (
+                            <Panel>
+                                <ActividadesSemana />
+                            </Panel>
+                        )}
+                        {showRanking && (
+                            <Panel className={canActividades ? undefined : 'lg:col-span-2'}>
+                                {ready && data
+                                    ? <ObraRanking data={data.obraRanking ?? []} onNavigate={(id) => navigate(`/consultas?obra_id=${id}`)} />
+                                    : <SkeletonText lines={5} />}
+                            </Panel>
+                        )}
                     </div>
-                )}
-            </div>
-
-            {/* Contexto de asistencia: tendencia 7d. */}
-            {showTrend && (
-                <Panel>
-                    {ready && data
-                        ? <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />
-                        : <Skeleton className="h-48 w-full" />}
-                </Panel>
+                </DetalleModulo>
             )}
 
-            {/* Ranking de obras (comparativa multi-obra; solo en ámbito "Todas") */}
-            {showRanking && (
-                <Panel>
-                    {ready && data
-                        ? <ObraRanking data={data.obraRanking ?? []} onNavigate={(id) => navigate(`/consultas?obra_id=${id}`)} />
-                        : <SkeletonText lines={5} />}
-                </Panel>
+            {activo === 'gestiones' && (
+                <DetalleModulo ref={detalleRef} icon={SearchCheck} titulo="Gestiones"
+                    descripcion={canRegistrarEntregas ? 'Documentos físicos fuera de plazo y el resto de los pendientes' : 'Pendientes de trabajadores, solicitudes y documentos'}
+                    accion={{ texto: 'Ir a Gestiones', onClick: () => navigate('/consultas?tab=inicio') }}>
+                    <div className={cn('grid grid-cols-1 gap-6', canRegistrarEntregas && 'lg:grid-cols-2')}>
+                        {canRegistrarEntregas && (
+                            <Panel>
+                                <EncabezadoTarjeta icon={FileWarning} tono={resumenDocs.tono} titulo="Documentos físicos fuera de plazo"
+                                    subtitulo="Por etapa, con quién los tiene y hace cuántos días" />
+                                <DocumentosAtrasadosLista alertas={alertasDocs.alertas} onAbrir={() => navigate('/consultas?tab=fisicos')} />
+                            </Panel>
+                        )}
+                        <Panel>
+                            {ready && data
+                                ? <BandejaDelDia
+                                    titulo="Otros pendientes"
+                                    vacio={{ titulo: 'Nada más por resolver', descripcion: 'Sin solicitudes, documentos por vencer, contratos ni trabajadores sin documentos.' }}
+                                    tasks={otrasTareas}
+                                    trabajadoresSinDocs={data.counters.trabajadoresSinDocs}
+                                    solicitudItems={solicitudItems}
+                                    documentosFisicosItems={canRegistrarEntregas ? [] : documentosFisicosItems}
+                                    onNavigate={(route) => navigate(route)}
+                                />
+                                : <SkeletonText lines={6} />}
+                        </Panel>
+                    </div>
+                </DetalleModulo>
             )}
 
-            {/* Acciones rápidas (footer) */}
-            {shown.has('quick_actions') && (
-                <Panel>
-                    {ready
-                        ? <QuickActions permisos={permisos} onNavigate={(route) => navigate(route)} />
-                        : <Skeleton className="h-10 w-full" />}
-                </Panel>
+            {activo === 'inventario' && (
+                <DetalleModulo ref={detalleRef} icon={Package} titulo="Inventario"
+                    descripcion="Solicitudes que te tocan y alertas de transferencias"
+                    accion={{ texto: 'Ir a Inventario', onClick: () => navigate('/inventario?tab=transferencias') }}>
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <Panel>
+                            <EncabezadoTarjeta icon={Package} tono={modeloInv.tono} titulo="Solicitudes" subtitulo="Según tu perfil: aprobar, despachar, recibir y las tuyas" />
+                            {modeloInv.filas.length === 0
+                                ? <p className="text-sm text-muted-foreground">{resumenInv ? 'Tu perfil no tiene solicitudes por revisar.' : 'Cargando…'}</p>
+                                : <div>{modeloInv.filas.map(f => <FilaInventarioInicio key={f.clave} f={f} onClick={() => irAFilaInventario(f)} />)}</div>}
+                        </Panel>
+                        <Panel>
+                            <BandejaDelDia
+                                titulo="Alertas de inventario"
+                                vacio={{ titulo: 'Sin alertas', descripcion: 'Ninguna transferencia atrasada, rechazada ni con diferencias.' }}
+                                tasks={[]}
+                                inventoryItems={invItems}
+                                grupoAbierto="inventario"
+                                onNavigate={(route) => navigate(route)}
+                            />
+                        </Panel>
+                    </div>
+                </DetalleModulo>
+            )}
+
+            {activo === 'vehiculos' && (
+                <DetalleModulo ref={detalleRef} icon={Truck} titulo="Vehículos"
+                    descripcion="Todos los vencimientos de los próximos 30 días"
+                    accion={{ texto: 'Ir a Vehículos', onClick: () => navigate('/vehiculos') }}>
+                    <Panel>
+                        <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')} maxFilas={Number.POSITIVE_INFINITY} />
+                    </Panel>
+                </DetalleModulo>
             )}
         </div>
     );

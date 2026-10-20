@@ -1,6 +1,7 @@
 /**
- * Frase del día para la tarjeta verde del Inicio (propuesta H, dueño 2026-10-16;
- * diseno.md §9.14). Pura y sin DOM para poder testearla.
+ * Estado de la asistencia de hoy por obra para el Inicio (nació con la tarjeta verde del 2026-10-16;
+ * desde el 2026-10-20 el Inicio usa total / guardadas / sinGuardar / finDeSemana en el detalle de
+ * Asistencia, y la frase queda disponible). Pura y sin DOM para poder testearla.
  *
  * La asistencia pendiente cuenta TODAS las obras activas que lista el backend
  * (`attendanceStatus`), igual que la Bandeja de antes: con una obra elegida en el

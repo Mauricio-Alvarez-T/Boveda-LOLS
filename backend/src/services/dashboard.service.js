@@ -463,21 +463,16 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         try {
             const now = new Date();
             const obraIdParam = obraId ? obraId : 'ALL';
-            const faltas = await asistenciaService.getFaltasMes(obraIdParam, now.getMonth() + 1, now.getFullYear());
+            const reiterados = await asistenciaService.getAlertasFaltas(obraIdParam, now.getMonth() + 1, now.getFullYear());
             // Más faltas arriba; a igualdad, quien gatilla más reglas y luego por apellido.
-            const ordenadas = [...faltas].sort((x, y) =>
+            const ordenados = [...reiterados].sort((x, y) =>
                 y.total_faltas - x.total_faltas
                 || y.alertas.length - x.alertas.length
                 || String(x.apellido_paterno || '').localeCompare(String(y.apellido_paterno || ''), 'es'));
-            const reiteradas = ordenadas.filter(t => t.alertas.length > 0);
-            result.trabajadoresConAlertas = reiteradas.slice(0, 20);
-            // Tarjeta «Faltas del mes» del Inicio (2026-10-20): todos los que faltaron, no solo los reiterados.
-            result.faltasMes = {
-                trabajadores: ordenadas.length,
-                faltas: ordenadas.reduce((acc, t) => acc + t.total_faltas, 0),
-                reiteradas: reiteradas.length,
-                lista: ordenadas.slice(0, 30),
-            };
+            result.trabajadoresConAlertas = ordenados.slice(0, 20);
+            // Tarjeta «Asistencia» del Inicio (2026-10-20): los reiterados del Art. 160 N°3 (2 lunes,
+            // 3 días o 2 seguidos) con su total real (`trabajadoresConAlertas` se corta en 20) y la lista para el detalle.
+            result.faltasMes = { reiterados: ordenados.length, lista: ordenados.slice(0, 200) };
         } catch (e) {
             logger.error('[Dashboard] Error fetching alertas de faltas', { err: e.message });
             result.trabajadoresConAlertas = [];

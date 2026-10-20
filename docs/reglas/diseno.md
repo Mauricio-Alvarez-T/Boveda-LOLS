@@ -507,28 +507,31 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     componente se remonta con `key`: así aparece quieto en la nueva lista en vez de «viajar» desde una
     posición de la lista anterior. Las sub-pestañas de escritorio de Configuración también lo usan desde la regla 13.
 
-14. **Inicio «Marca LOLS» (propuesta H del lienzo de diseño, elegida por el dueño 2026-10-16).**
-    El Inicio abre con **una tarjeta verde** (`InicioHero`): fecha y ámbito arriba, la frase del día
-    como título («15 obras aún no guardan la asistencia de hoy»), el estado como detalle, y a la
-    derecha la barra «obras con asistencia guardada», presentes, ausentes y faltas reiteradas. Es la
-    **única superficie grande verde de la app** (excepción explícita a la regla 1 del DS): usa
-    `green-700` (oscuro: `green-900`), no `brand-primary`, porque con letra blanca chica el verde de
-    marca no pasa AA. Su botón «Ir a Asistencia» es blanco con letra verde. La frase sale de
-    `utils/resumenInicio.ts` (`resumenDelDia`, con test): fin de semana no cobra la asistencia,
-    singular/plural, la obra elegida se cuenta en el detalle y sin permiso de asistencia la frase habla
-    de la bandeja. Debajo, **tarjetas blancas sin borde** (`rounded-3xl`, sombra `--shadow-md`) con
-    `EncabezadoTarjeta`: **círculo de color sólido** con el ícono en blanco + título `text-base`, y
-    `CifraTarjeta`: número grande en el mismo color (rampa 700/300). Tonos: rojo = vencido, ámbar =
-    pendiente, azul = informativo, verde = al día, neutro = solo dato. Tarjetas: Vehículos
-    (`VehicleExpiries`), **Documentos físicos** (`DocumentosInicio`, dueño 2026-10-20: para quien
-    registra entregas reemplaza a «Asistencia pendiente», cuya cifra ya está en la tarjeta verde —
-    documentos sin firmar fuera de plazo, críticos, etapas donde se atascan y «dónde están ahora»:
-    impresos sin lote, lotes en oficina, lotes en terreno; lógica en `resumenDocumentosInicio.ts` con
-    test) o, sin ese permiso, Asistencia pendiente (`AsistenciaPendiente`, nube de obras), y Actividades
-    sugeridas (barras por cargo), y **Faltas del mes** (`FaltasMes`, dueño 2026-10-20: todos los que
-    faltaron en el mes, rojo = reiterado Art. 160; reemplaza al detalle de reiterados de la columna
-    lateral). Con las cuatro, la grilla es 2×2 y desde 1700 px una fila de 4 (con `auto-fit` la cuarta
-    quedaba sola a un tercio de ancho); con menos, `auto-fit`. La bandeja pasa a **«Otros pendientes»**
-    (sin asistencia, vehículos ni documentos físicos, que ya tienen tarjeta) y el detalle de ausentes
-    **solo aparece si hay alguno**: el 0 ya se lee en la tarjeta verde. Reemplaza los «Destacados» del
-    2026-08-25.
+14. **Inicio por módulos (dueño 2026-10-20; reemplaza al Inicio «Marca LOLS» del 2026-10-16).**
+    Arriba, **una tarjeta por apartado** —Asistencia, Gestiones, Inventario, Vehículos— y, debajo, el
+    **detalle del módulo elegido**. Cada tarjeta es la puerta: cifra grande, **lo primero (3 filas)** y el
+    botón **«Ver más ↓»** (`BotonVerMas`); el detalle se despliega bajo las cuatro (`DetalleModulo`, una
+    sección a la vez, parte abierta la primera visible) con la lista completa y el resto del módulo
+    —listas, gráficos— que se irá sumando. La tarjeta elegida lleva un anillo verde. Ya **no hay tarjeta
+    verde** (la excepción de superficie grande verde se fue con ella) ni bloques fijos debajo («Otros
+    pendientes», tendencia, acciones rápidas): todo vive en el detalle de su módulo. «Actualizar» y la
+    fecha pasan al encabezado de la página.
+    - **Asistencia** (`FaltasMes`): trabajadores con faltas REITERADAS del mes (Art. 160 N°3: 2 lunes, 3
+      días o 2 seguidos), reglas como chips (rojo = 2 seguidos). Detalle: lista completa con RUT y días,
+      obras sin guardar hoy, ausentes del día, tendencia 7 días, actividades sugeridas, ranking de obras.
+    - **Gestiones**: para quien registra entregas, `DocumentosInicio` (documentos físicos fuera de plazo,
+      críticos, etapas, «dónde están ahora»); sin ese permiso, `TarjetaPendientes` con sus pendientes
+      (solicitudes, documentos por vencer, contratos, sin documentos, lotes del portador). Detalle:
+      documentos atrasados por etapa (`DocumentosAtrasadosLista`) + «Otros pendientes» (bandeja).
+    - **Inventario** (`InventarioInicio`, `GET /api/transferencias/inicio`): lo que le toca según el
+      perfil —por aprobar y diferencias (aprobador), por despachar / por recibir (bodega), sus solicitudes
+      en curso—; cada fila abre Inventario → Solicitudes con su filtro (`?tab=transferencias&estado=`).
+      Detalle: todos los grupos + alertas de transferencias.
+    - **Vehículos** (`VehicleExpiries`, 3 filas en la tarjeta): sin cambios de contenido; detalle con
+      todos los vencimientos de 30 días.
+    Piel común: **tarjetas blancas sin borde** (`rounded-3xl`, sombra `--shadow-md`) con
+    `EncabezadoTarjeta` (**círculo de color sólido** + título `text-base`) y `CifraTarjeta` (número grande
+    en el mismo color, rampa 700/300). Tonos: rojo = vencido o grave, ámbar = pendiente, azul =
+    informativo, verde = al día, neutro = solo dato. Con cuatro tarjetas la grilla es 2×2 y desde 1700 px
+    una fila de 4; con menos, `auto-fit`. Lógica pura con test: `resumenFaltasMes.ts`,
+    `resumenDocumentosInicio.ts`, `resumenInventarioInicio.ts`.

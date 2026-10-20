@@ -791,12 +791,12 @@ físicos); sin correo en v1 (un cron de email sería un follow-up con el patrón
   filas **cuentan** en el encabezado de la Bandeja ("N pendientes · M críticas") y en el "Bandeja
   vacía" (fix 2026-10-16: antes se pintaban sin contarse y quien solo tenía lotes pendientes veía la
   bandeja vacía). Los grupos externos se declaran una vez en `BandejaDelDia` (`externos`) y de ahí
-  salen conteo (`bandejaConteo.ts`, con test) y render. **Desde 2026-10-20 RRHH ya no las ve en la
-  bandeja sino en la tarjeta «Documentos físicos» del Inicio** (`DocumentosInicio`, en el lugar de
-  «Asistencia pendiente»): cifra de documentos fuera de plazo, píldora de críticos, etapas donde se atascan
-  y «dónde están ahora» (impresos sin lote vía `GET /documentos-lotes/disponibles`, lotes en oficina y en
-  terreno vía `useLotesPendientes`); el «Actualizar» de la tarjeta verde también la refresca. Esas alertas
-  siguen sumando a los pendientes de la frase del día. El portador conserva su fila en la bandeja. En la
+  salen conteo (`bandejaConteo.ts`, con test) y render. **Desde 2026-10-20 RRHH las ve en la tarjeta
+  «Gestiones» del Inicio** (`DocumentosInicio`): cifra de documentos fuera de plazo, píldora de críticos,
+  etapas donde se atascan y «dónde están ahora» (impresos sin lote vía `GET /documentos-lotes/disponibles`,
+  lotes en oficina y en terreno vía `useLotesPendientes`); su «Ver más» abre el detalle de Gestiones con la
+  lista completa por etapa (`DocumentosAtrasadosLista`) y «Otros pendientes». El «Actualizar» del
+  encabezado del Inicio también la refresca. El portador sigue viendo sus lotes como pendiente. En la
   pestaña Documentos físicos, la franja **"Documentos sin firmar fuera de plazo"** (`AlertasDocumentosStrip`)
   resume por etapa y, desplegada, lista trabajador · tipo · días · portador y los lotes atascados (con
   "Abrir"). Store de módulo `useDocumentosAlertas` (gate `registrar`); lógica pura en

@@ -23,9 +23,8 @@ description: >-
 2. **El verde (`#029E4D`) es SOLO para ACCIÓN** + **encabezados de subsección** (excepción). Botón
    primario, anillo de foco, ítem de nav activo, fila/elemento seleccionado, micro-indicadores
    positivos (delta ↑). **Nunca** como FONDO de superficies grandes ni como "tinte" decorativo.
-   **EXCEPCIÓN (decisión dueño 2026-10-16):** la tarjeta del día del Inicio (`InicioHero`) es verde
-   (`green-700`, letra blanca) — la única superficie grande verde; ver `docs/reglas/diseno.md` §9.14.
-   Las tarjetas del Inicio llevan un círculo de color sólido con el ícono (`EncabezadoTarjeta`).
+   Las tarjetas del Inicio llevan un círculo de color sólido con el ícono (`EncabezadoTarjeta`); la
+   tarjeta verde del día (2026-10-16) se eliminó el 2026-10-20 — ver `docs/reglas/diseno.md` §9.14.
    **EXCEPCIÓN (decisión usuario 2026-06-15):** los encabezados de columna de tabla (`<thead>`/`<th>`)
    y las barras de sección **con contenedor** (cabeceras de card, botones colapsables, barras de grupo)
    llevan **FONDO `bg-brand-primary` + texto `text-white`** (como el tab activo). NO aplica al título

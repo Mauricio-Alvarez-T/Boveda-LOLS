@@ -111,10 +111,10 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
   vence ("Revisión de gases: venció hace 16d").
 - **Cuarto lugar donde aparece: la tarjeta «Vehículos» del Inicio** (Inicio H, 2026-10-16; antes era
   el primer grupo de la "Bandeja del día"): cifra grande de vencidos (o por vencer), círculo rojo si
-  algo venció, ámbar si solo hay por vencer, verde si no hay nada en 30 días, y hasta 5 filas
-  "PATENTE · Revisión de gases" + "venció hace 16d" que llevan a /vehiculos. La tarjeta verde del día
-  suma "Además hay N vencimientos de vehículos" y el botón «Ver vehículos». La bandeja ya no los lista
-  (sería mostrar lo mismo dos veces).
+  algo venció, ámbar si solo hay por vencer, verde si no hay nada en 30 días, y 3 filas
+  "PATENTE · Revisión de gases" + "venció hace 16d" que llevan a /vehiculos (2026-10-20: el Inicio pasó a
+  una tarjeta por módulo; su «Ver más» abre debajo todos los vencimientos de 30 días). La bandeja ya no
+  los lista (sería mostrar lo mismo dos veces).
 - `useVencimientosVehiculos` es un **store de módulo** (`useSyncExternalStore`), no estado por
   componente: hay 3 consumidores montados a la vez (menú, página, bandeja). Con un `useState` por hook
   eran 3 requests y 3 verdades distintas — al guardar un documento se actualizaba el contador de la

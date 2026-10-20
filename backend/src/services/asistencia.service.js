@@ -2915,8 +2915,8 @@ const asistenciaService = {
 
     /**
      * Todos los trabajadores con al menos una falta (F) en el mes, con sus fechas y las alertas
-     * que gatillan (`alertas` vacío si no llegan a ninguna regla). La tarjeta «Faltas del mes» del
-     * Inicio (2026-10-20) los lista a todos; `getAlertasFaltas` se queda con los reiterados.
+     * que gatillan (`alertas` vacío si no llegan a ninguna regla). `getAlertasFaltas` se queda con los
+     * reiterados (los que usa la tarjeta «Asistencia» del Inicio, 2026-10-20).
      * `obra_nombre` = obra de su falta más reciente.
      */
     async getFaltasMes(obraId, mes, anio) {

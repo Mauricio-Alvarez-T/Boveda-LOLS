@@ -1,8 +1,9 @@
 /**
- * Tarjeta «Faltas del mes» del Inicio (pedido del dueño 2026-10-20: «era un dato muy usado en versiones
+ * Tarjeta «Asistencia» del Inicio (pedido del dueño 2026-10-20: «era un dato muy usado en versiones
  * anteriores»). Lógica PURA, sin DOM, para poder testearla. Los datos llegan de /dashboard/summary
- * (`faltasMes`, backend `asistenciaService.getFaltasMes`): todos los trabajadores con al menos una falta
- * injustificada (F) en el mes, con más faltas arriba.
+ * (`faltasMes`, backend `asistenciaService.getAlertasFaltas`): los trabajadores con faltas injustificadas
+ * (F) REITERADAS en el mes calendario —2 lunes, 3 días o 2 días seguidos (Art. 160 N°3)—, con más faltas
+ * arriba. El dueño lo precisó así: las faltas sueltas no van.
  */
 
 export interface AlertaFalta {
@@ -25,19 +26,28 @@ export interface TrabajadorFaltas {
 }
 
 export interface FaltasMesData {
-    trabajadores: number;
-    faltas: number;
-    /** Trabajadores que gatillan alguna regla (2 seguidas, 2 lunes o 3 en el mes). */
-    reiteradas: number;
-    /** Los primeros 30, ordenados por cantidad de faltas. */
+    /** Total real de reiterados (la lista llega cortada en 200). */
+    reiterados: number;
+    /** Los primeros 200, ordenados por cantidad de faltas. */
     lista: TrabajadorFaltas[];
 }
 
-export type TonoFaltas = 'rojo' | 'ambar' | 'verde';
+/**
+ * Rótulo corto de cada regla, en el orden en que se leen. «2 seguidas» va en rojo (lo más grave); las
+ * otras dos en ámbar, como en el aviso del WhatsApp diario.
+ */
+export const REGLA_FALTA: Record<AlertaFalta['tipo'], { texto: string; grave: boolean }> = {
+    consecutivas: { texto: '2 días seguidos', grave: true },
+    lunes: { texto: '2 lunes', grave: false },
+    acumuladas: { texto: '3 o más días', grave: false },
+};
 
-/** Rojo si alguien ya es reiterado; ámbar si hay faltas sueltas; verde si nadie faltó. */
-export function tonoFaltas(d: Pick<FaltasMesData, 'trabajadores' | 'reiteradas'>): TonoFaltas {
-    return d.reiteradas > 0 ? 'rojo' : d.trabajadores > 0 ? 'ambar' : 'verde';
+const ORDEN_REGLAS: AlertaFalta['tipo'][] = ['consecutivas', 'lunes', 'acumuladas'];
+
+/** Reglas que gatilla un trabajador, ordenadas y sin repetir. */
+export function reglasDe(t: Pick<TrabajadorFaltas, 'alertas'>): AlertaFalta['tipo'][] {
+    const tipos = new Set(t.alertas.map(a => a.tipo));
+    return ORDEN_REGLAS.filter(r => tipos.has(r));
 }
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];

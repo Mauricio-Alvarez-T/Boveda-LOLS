@@ -117,6 +117,21 @@ Implementación: `backend/src/services/transferencia.service.js`.
 - Filtros del histórico: estado (los 7), fecha desde/hasta, solicitante (solo `ver_todas`),
   código con debounce 300ms. Click en fila → vuelve al master-detail con la TRF abierta.
 
+## Tarjeta «Inventario» del Inicio (`GET /api/transferencias/inicio`, 2026-10-20)
+
+`transferenciaService.resumenInicio(user)` cuenta lo que le toca a quien mira, según su perfil; lo que
+el perfil no puede hacer viene `null` y la tarjeta no lo muestra. Cada grupo trae `{ total, dias }`
+(antigüedad de la más vieja). Excluye obras de prueba y finalizadas, como el resto del módulo.
+- `por_aprobar` y `discrepancias` (`transferencias.aprobar`): globales, igual que `GET /pendientes` y la
+  pestaña «Diferencias» (transferencias con diferencias `pendiente` y `diferencia <> 0`).
+- `por_despachar` (`despachar`, estado `aprobada`) y `por_recibir` (`recibir`, `en_transito` o
+  `recepcion_parcial`): con el alcance del listado — sin `ver_todas`, las propias + las destinadas a su
+  bodega (mig 097).
+- `mis_solicitudes`: las propias en curso (pendiente, aprobada, en tránsito).
+La ruta va ANTES de `/:id`. Cada fila abre Inventario → Solicitudes con su filtro:
+`/inventario?tab=transferencias&estado=pendiente|aprobada|discrepancias|todas` (Inventario lee `tab` y
+`estado` solo al entrar). Lógica del frontend en `resumenInventarioInicio.ts` (con test).
+
 ## Discrepancias
 
 - Auto-creadas al recibir si `cantidad_recibida ≠ cantidad_enviada`. Vista propia (chip

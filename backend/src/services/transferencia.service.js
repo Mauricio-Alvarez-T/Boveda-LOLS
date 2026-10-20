@@ -1816,6 +1816,62 @@ const transferenciaService = {
         return this.getAll({ estado: 'pendiente', limit: 50 });
     },
 
+    /**
+     * Tarjeta «Inventario» del Inicio (dueño 2026-10-20): lo que le toca a ESTE usuario según su perfil.
+     * Cada cifra es null cuando el perfil no puede actuar sobre ella (la tarjeta no la muestra):
+     *   - por_aprobar   (transferencias.aprobar): pendientes de aprobación, todas — igual que GET /pendientes.
+     *   - discrepancias (transferencias.aprobar): transferencias con diferencias pendientes de resolver,
+     *                   igual que la pestaña «Diferencias» (que gatea con el mismo permiso).
+     *   - por_despachar (transferencias.despachar) y por_recibir (transferencias.recibir): con el mismo
+     *                   alcance que el listado (sin ver_todas: las propias + las destinadas a su bodega).
+     *   - mis_solicitudes: las propias que siguen en curso (pendiente, aprobada o en tránsito).
+     * `dias` = antigüedad de la más vieja de cada grupo (desde solicitud, aprobación o despacho).
+     */
+    async resumenInicio(user = {}) {
+        const p = Array.isArray(user.p) ? user.p : [];
+        const tiene = (k) => p.includes(k);
+        const verTodas = tiene('inventario.transferencias.ver_todas');
+        let alcance = '';
+        const alcanceParams = [];
+        if (!verTodas) {
+            alcance = user.bodega_id
+                ? ' AND (t.solicitante_id = ? OR t.destino_bodega_id = ?)'
+                : ' AND t.solicitante_id = ?';
+            alcanceParams.push(user.id);
+            if (user.bodega_id) alcanceParams.push(user.bodega_id);
+        }
+        const base = 'FROM transferencias t WHERE t.activo = 1' + EXCLUIR_OBRAS_PRUEBA;
+        const grupo = (n, dias) => ({ total: Number(n) || 0, dias: dias == null ? null : Number(dias) });
+
+        const consultas = {
+            por_aprobar: tiene('inventario.transferencias.aprobar')
+                ? db.query(`SELECT COUNT(*) AS n, MAX(DATEDIFF(CURDATE(), t.fecha_solicitud)) AS dias ${base} AND t.estado = 'pendiente'`)
+                : null,
+            discrepancias: tiene('inventario.transferencias.aprobar')
+                ? db.query(`SELECT COUNT(DISTINCT t.id) AS n, MAX(DATEDIFF(CURDATE(), t.fecha_recepcion)) AS dias
+                            FROM transferencias t JOIN transferencia_discrepancias d ON d.transferencia_id = t.id
+                            WHERE t.activo = 1${EXCLUIR_OBRAS_PRUEBA} AND d.estado = 'pendiente' AND d.diferencia <> 0`)
+                : null,
+            por_despachar: tiene('inventario.transferencias.despachar')
+                ? db.query(`SELECT COUNT(*) AS n, MAX(DATEDIFF(CURDATE(), t.fecha_aprobacion)) AS dias ${base} AND t.estado = 'aprobada'${alcance}`, alcanceParams)
+                : null,
+            por_recibir: tiene('inventario.transferencias.recibir')
+                ? db.query(`SELECT COUNT(*) AS n, MAX(DATEDIFF(CURDATE(), t.fecha_despacho)) AS dias ${base} AND t.estado IN ('en_transito', 'recepcion_parcial')${alcance}`, alcanceParams)
+                : null,
+            mis_solicitudes: user.id
+                ? db.query(`SELECT COUNT(*) AS n, MAX(DATEDIFF(CURDATE(), t.fecha_solicitud)) AS dias ${base} AND t.estado IN ('pendiente', 'aprobada', 'en_transito', 'recepcion_parcial') AND t.solicitante_id = ?`, [user.id])
+                : null,
+        };
+        const claves = Object.keys(consultas);
+        const resultados = await Promise.all(claves.map(k => consultas[k]));
+        const out = {};
+        claves.forEach((k, i) => {
+            const r = resultados[i];
+            out[k] = r ? grupo(r[0]?.[0]?.n, r[0]?.[0]?.dias) : null;
+        });
+        return out;
+    },
+
     async getMisSolicitudes(userId, query = {}) {
         const { limit, offset } = normalizePagination(query);
         const [rows] = await db.query(`
