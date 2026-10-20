@@ -28,6 +28,8 @@ import ObraRanking from '../components/dashboard/widgets/ObraRanking';
 import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
 import InicioHero from '../components/dashboard/widgets/InicioHero';
 import AsistenciaPendiente from '../components/dashboard/widgets/AsistenciaPendiente';
+import DocumentosInicio from '../components/dashboard/widgets/DocumentosInicio';
+import { resumenDocumentosInicio } from '../components/dashboard/widgets/resumenDocumentosInicio';
 import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
 import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
 import { AvisoAtrasosPortador } from '../components/documentos-fisicos/AvisoAtrasosPortador';
@@ -143,6 +145,8 @@ const Dashboard: React.FC = () => {
             ? filasBandejaAlertas(alertasDocs.alertas)
             : filasBandejaLotes(lotes.pendientes).map(f => ({ ...f, ruta: '/consultas?tab=fisicos' }))
     ), [canRegistrarEntregas, alertasDocs.alertas, lotes.pendientes]);
+    // Impresos que aún no van en ningún lote (la cifra de la cabecera de Documentos físicos). Solo RRHH.
+    const [impresosSinAsignar, setImpresosSinAsignar] = useState<number | null>(null);
     const { visibleWidgets } = useDashboardLayout(user?.id ?? 0, permisos);
 
     // Widgets que el usuario puede ver (gating por permiso granular). El layout es
@@ -210,7 +214,24 @@ const Dashboard: React.FC = () => {
 
     useEffect(() => { fetchInventory(); }, [fetchInventory]);
 
-    const refreshAll = useCallback(() => { fetchSummary(); fetchInventory(); }, [fetchSummary, fetchInventory]);
+    // Global, como la cabecera de Gestiones → Documentos físicos (no se recorta por la obra elegida).
+    const fetchImpresos = useCallback(async () => {
+        if (!canRegistrarEntregas) { setImpresosSinAsignar(null); return; }
+        try {
+            const res = await api.get<ApiResponse<unknown[]>>('/documentos-lotes/disponibles');
+            setImpresosSinAsignar(res.data.data?.length ?? 0);
+        } catch {
+            setImpresosSinAsignar(null);
+        }
+    }, [canRegistrarEntregas]);
+
+    useEffect(() => { fetchImpresos(); }, [fetchImpresos]);
+
+    const { refetch: refetchAlertasDocs } = alertasDocs;
+    const { refetch: refetchLotes } = lotes;
+    const refreshAll = useCallback(() => {
+        fetchSummary(); fetchInventory(); fetchImpresos(); refetchAlertasDocs(); refetchLotes();
+    }, [fetchSummary, fetchInventory, fetchImpresos, refetchAlertasDocs, refetchLotes]);
 
     // Skeletons por-widget. `ready` narrowea `data` a no-null en cada zona.
     const ready = !loading && !!data;
@@ -245,6 +266,14 @@ const Dashboard: React.FC = () => {
     // `asistencia_hoy` solo llega con permiso de asistencia (dashboard.service, bloque 3).
     const conAsistencia = typeof data?.counters.asistencia_hoy === 'number';
     const verAsistenciaPendiente = ready && conAsistencia && resumen.total > 0 && !resumen.finDeSemana;
+    // Documentos físicos (dueño 2026-10-20): para RRHH ocupa el lugar de «Asistencia pendiente» —la cifra de
+    // obras ya está en la tarjeta verde— y sus filas salen de la bandeja para no contarlas dos veces a la vista.
+    // Quien no registra entregas sigue viendo la nube de obras sin guardar.
+    const verDocumentos = canRegistrarEntregas;
+    const resumenDocs = useMemo(
+        () => resumenDocumentosInicio(alertasDocs.alertas, lotes.pendientes, impresosSinAsignar),
+        [alertasDocs.alertas, lotes.pendientes, impresosSinAsignar],
+    );
     // Detalle de faltas y ausentes solo cuando hay algo: el «0» ya se lee en la tarjeta verde.
     const verFaltasDetalle = ready && showFaltas && (data?.trabajadoresConAlertas?.length ?? 0) > 0;
     const verAusentesDetalle = ready && showAusentes && (data?.counters.ausentes_hoy ?? 0) > 0;
@@ -272,8 +301,8 @@ const Dashboard: React.FC = () => {
                 <div className="h-60 rounded-3xl bg-green-700/80 dark:bg-green-900 motion-safe:animate-pulse" aria-hidden />
             )}
 
-            {/* Tarjetas con círculo de color: vehículos, asistencia pendiente y actividades. */}
-            {(showVencVehiculos || verAsistenciaPendiente || canActividades) && (
+            {/* Tarjetas con círculo de color: vehículos, documentos físicos (o asistencia pendiente) y actividades. */}
+            {(showVencVehiculos || verDocumentos || verAsistenciaPendiente || canActividades) && (
                 <div className="grid gap-6 items-stretch grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))]">
                     {showVencVehiculos && (
                         <Panel>
@@ -282,7 +311,11 @@ const Dashboard: React.FC = () => {
                                 : <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')} />}
                         </Panel>
                     )}
-                    {verAsistenciaPendiente && (
+                    {verDocumentos ? (
+                        <Panel>
+                            <DocumentosInicio resumen={resumenDocs} onNavigate={() => navigate('/consultas?tab=fisicos')} />
+                        </Panel>
+                    ) : verAsistenciaPendiente && (
                         <Panel>
                             <AsistenciaPendiente sinGuardar={resumen.sinGuardar} total={resumen.total} onNavigate={() => navigate('/asistencia')} />
                         </Panel>
@@ -307,7 +340,7 @@ const Dashboard: React.FC = () => {
                             trabajadoresSinDocs={data.counters.trabajadoresSinDocs}
                             inventoryItems={invItems}
                             solicitudItems={solicitudItems}
-                            documentosFisicosItems={documentosFisicosItems}
+                            documentosFisicosItems={verDocumentos ? [] : documentosFisicosItems}
                             onNavigate={(route) => navigate(route)}
                         />
                         : <SkeletonText lines={6} />}

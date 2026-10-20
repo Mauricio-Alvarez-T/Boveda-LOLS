@@ -520,7 +520,11 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     `EncabezadoTarjeta`: **círculo de color sólido** con el ícono en blanco + título `text-base`, y
     `CifraTarjeta`: número grande en el mismo color (rampa 700/300). Tonos: rojo = vencido, ámbar =
     pendiente, azul = informativo, verde = al día, neutro = solo dato. Tarjetas: Vehículos
-    (`VehicleExpiries`), Asistencia pendiente (`AsistenciaPendiente`, nube de obras) y Actividades
-    sugeridas (barras por cargo). La bandeja pasa a **«Otros pendientes»** (sin asistencia ni
-    vehículos, que ya tienen tarjeta) y el detalle de faltas y de ausentes **solo aparece si hay algo**:
+    (`VehicleExpiries`), **Documentos físicos** (`DocumentosInicio`, dueño 2026-10-20: para quien
+    registra entregas reemplaza a «Asistencia pendiente», cuya cifra ya está en la tarjeta verde —
+    documentos sin firmar fuera de plazo, críticos, etapas donde se atascan y «dónde están ahora»:
+    impresos sin lote, lotes en oficina, lotes en terreno; lógica en `resumenDocumentosInicio.ts` con
+    test) o, sin ese permiso, Asistencia pendiente (`AsistenciaPendiente`, nube de obras), y Actividades
+    sugeridas (barras por cargo). La bandeja pasa a **«Otros pendientes»** (sin asistencia, vehículos ni
+    documentos físicos, que ya tienen tarjeta) y el detalle de faltas y de ausentes **solo aparece si hay algo**:
     el 0 ya se lee en la tarjeta verde. Reemplaza los «Destacados» del 2026-08-25.
