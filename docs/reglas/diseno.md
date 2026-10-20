@@ -517,7 +517,8 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     («Ocultar ↑»). La tarjeta abierta lleva un anillo verde. Ya **no hay tarjeta
     verde** (la excepción de superficie grande verde se fue con ella) ni bloques fijos debajo («Otros
     pendientes», tendencia, acciones rápidas): todo vive en el detalle de su módulo. «Actualizar» y la
-    fecha pasan al encabezado de la página.
+    fecha pasan al encabezado de la página. **El encabezado global no tiene marco** (toda la app, idea de la
+    propuesta L del lienzo): mismo fondo que la página, sin borde ni sombra, alineado con el contenido.
     - **Asistencia** (`FaltasMes`): trabajadores con faltas REITERADAS del mes (Art. 160 N°3: 2 lunes, 3
       días o 2 seguidos), reglas como chips (rojo = 2 seguidos). Detalle: lista completa con RUT y días,
       obras sin guardar hoy, ausentes del día, tendencia 7 días, actividades sugeridas, ranking de obras.

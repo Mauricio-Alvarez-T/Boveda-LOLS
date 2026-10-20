@@ -51,8 +51,9 @@ export const MainLayout: React.FC = () => {
                 {/* Franja de entorno: solo en staging (VITE_ENTORNO), encima de todo. */}
                 <EntornoBanner />
 
-                {/* Top Navbar — fixed above scroll area */}
-                <header className="shrink-0 h-14 md:h-16 border-b border-border bg-card/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-8 z-50 shadow-sm relative gap-2">
+                {/* Top Navbar — fixed above scroll area. Sin marco (dueño 2026-10-20, idea de la propuesta L del
+                    lienzo): mismo fondo que la página, sin borde ni sombra, alineado con el contenido (md:px-5). */}
+                <header className="shrink-0 h-14 md:h-16 bg-background flex items-center justify-between px-3 md:px-5 z-50 relative gap-2">
                     {/* Mobile Hamburger */}
                     <IconButton
                         variant="ghost"
