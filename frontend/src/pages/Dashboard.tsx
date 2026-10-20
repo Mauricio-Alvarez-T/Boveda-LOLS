@@ -446,12 +446,12 @@ const Dashboard: React.FC = () => {
     const compactas: Record<Modulo, React.ReactNode> = {
         asistencia: (
             <TarjetaCompacta icon={CheckSquare} tono={tonoAsistencia} titulo="Asistencia" cifra={reiteradosN}
-                detalle={`${plural(reiteradosN ?? 0, 'falta reiterada', 'faltas reiteradas')} · ${data?.ausentesHoy?.total ?? 0} ausentes hoy`}
+                detalle={plural(reiteradosN ?? 0, 'falta reiterada', 'faltas reiteradas')}
                 onClick={() => verMas('asistencia')} />
         ),
         gestiones: canRegistrarEntregas ? (
             <TarjetaCompacta icon={FileWarning} tono={tonoGestiones} titulo="Gestiones" cifra={resumenDocs.fueraDePlazo}
-                detalle="documentos fuera de plazo" onClick={() => verMas('gestiones')} />
+                detalle="fuera de plazo" onClick={() => verMas('gestiones')} />
         ) : (
             <TarjetaCompacta icon={SearchCheck} tono={tonoGestiones} titulo="Gestiones" cifra={ready ? totalGestiones : null}
                 detalle={plural(totalGestiones, 'pendiente', 'pendientes')} onClick={() => verMas('gestiones')} />
@@ -464,9 +464,7 @@ const Dashboard: React.FC = () => {
             <TarjetaCompacta icon={Truck} titulo="Vehículos"
                 tono={vehiculosVencidos > 0 ? 'rojo' : porVencerVeh > 0 ? 'ambar' : 'verde'}
                 cifra={vencimientos.loading && vencimientos.items.length === 0 ? null : vehiculosVencidos > 0 ? vehiculosVencidos : porVencerVeh}
-                detalle={vehiculosVencidos > 0
-                    ? `${plural(vehiculosVencidos, 'vencido', 'vencidos')}${porVencerVeh > 0 ? ` · ${porVencerVeh} por vencer` : ''}`
-                    : 'por vencer en 30 días'}
+                detalle={vehiculosVencidos > 0 ? plural(vehiculosVencidos, 'vencido', 'vencidos') : 'por vencer'}
                 onClick={() => verMas('vehiculos')} />
         ),
     };

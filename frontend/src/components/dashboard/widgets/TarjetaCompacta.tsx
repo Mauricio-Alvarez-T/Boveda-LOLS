@@ -9,7 +9,7 @@ interface Props {
     icon: React.ElementType;
     tono: TonoTarjeta;
     titulo: string;
-    /** Qué cuenta la cifra, en una línea: «faltas reiteradas · 4 ausentes hoy». */
+    /** Qué cuenta la cifra, en dos o tres palabras (la franja es angosta): «faltas reiteradas». */
     detalle: string;
     /** null = todavía cargando («—», nunca un 0 falso). */
     cifra: number | null;
