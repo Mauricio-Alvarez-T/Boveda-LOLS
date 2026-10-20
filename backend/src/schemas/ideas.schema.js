@@ -1,9 +1,9 @@
 /**
  * Schemas de /api/ideas (validateBody, mini-DSL propio).
  *
- * Las reglas que dependen del tipo (la idea exige frecuencia/alcance/beneficio y un
- * problema contado con algo de detalle; la falla exige "qué esperabas") no caben en
- * el DSL y se validan en el service, con los mismos mínimos que muestra el formulario.
+ * Desde el 20-10-2026 el formulario manda solo el tipo y UN texto (`detalle`); el título
+ * (`resumen`) lo saca el service de la primera línea si no viene. Los demás campos se
+ * siguen aceptando (opcionales) por compatibilidad.
  */
 
 const TIPOS = ['idea', 'cuesta', 'falla'];
@@ -16,7 +16,7 @@ const MOTIVOS = ['preferencia', 'ya_existe', 'regla_negocio', 'no_compensa', 'du
 // POST /ideas
 const crear = {
     tipo: { required: true, type: 'string', in: TIPOS },
-    resumen: { required: true, type: 'string', minLength: 1, maxLength: 200 },
+    resumen: { type: 'string', maxLength: 200 },
     detalle: { required: true, type: 'string', minLength: 1, maxLength: 4000 },
     esperado: { type: 'string', maxLength: 2000 },
     frecuencia: { type: 'string', in: FRECUENCIAS },

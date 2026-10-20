@@ -7,14 +7,30 @@ const emailService = require('./email.service');
  * Ideas para Bóveda — buzón de mejoras (mig 120, docs/reglas/ideas.md).
  *
  * Cualquiera propone (con nombre); Marcos y Mauricio (`ideas.revisar`) las revisan
- * una a una. La regla de producto que manda todo el diseño: **mejoras del sistema,
- * no mañas** — por eso una idea no entra sin el problema de hoy, cada cuánto pasa,
- * a quién afecta y qué se ganaría.
+ * una a una. Desde el 20-10-2026 el formulario es corto (Marcos: "la persona no se
+ * motiva si tiene que completar un formulario tan largo"): el tipo, UN texto y, si
+ * quiere, un pantallazo. Lo que filtra las mañas es la revisión, no el formulario.
  */
 
 const err = (statusCode, message, extra = {}) => Object.assign(new Error(message), { statusCode, ...extra });
 const limpio = v => (typeof v === 'string' ? v.trim() : v);
 const vacioANull = v => (v === '' || v === undefined ? null : v);
+
+/**
+ * Título para la bandeja, el correo y "Mis ideas" (`resumen`, VARCHAR 200) cuando la idea
+ * llega en un solo texto: su primera línea, cortada en una palabra si pasa de 120 caracteres.
+ */
+const TITULO_MAX = 120;
+function tituloDe(texto) {
+    const linea = String(texto || '').trim().split(/\r?\n/)[0].trim();
+    if (linea.length <= TITULO_MAX) return linea;
+    const corte = linea.slice(0, TITULO_MAX);
+    const espacio = corte.lastIndexOf(' ');
+    return `${(espacio > 60 ? corte.slice(0, espacio) : corte).replace(/[\s,;:.-]+$/, '')}…`;
+}
+
+/** ¿La idea llegó en un solo texto? (su título es el comienzo del texto; las viejas traen dos). */
+const unSoloTexto = (idea) => String(idea.detalle || '').startsWith(String(idea.resumen || '').replace(/…$/, ''));
 
 
 /**
@@ -97,37 +113,25 @@ module.exports = {
     TRANSICIONES,
 
     /**
-     * Crea una idea. Reglas por tipo que el DSL no alcanza a expresar:
-     *  · idea/cuesta: resumen ≥ 10, problema ≥ 40, y frecuencia + alcance + beneficio.
-     *  · falla: qué hacía ≥ 10, qué pasó ≥ 40, y qué esperaba (obligatorio).
+     * Crea una idea. Lo único obligatorio es el texto (`detalle`), sin mínimo de caracteres
+     * (Marcos 15-10: "la persona tiene que escribir lo que siente") pero no vacío. Si no
+     * viene `resumen`, el título se saca de la primera línea del texto. `esperado`,
+     * frecuencia, alcance y beneficio ya no se piden; si llegan, se guardan como antes.
      * Si es falla, avisa por correo a los revisores; el correo nunca hace fallar el alta.
      */
     async crear(data, usuario, req) {
         const tipo = data.tipo;
-        const resumen = limpio(data.resumen) || '';
         const detalle = limpio(data.detalle) || '';
         const esperado = vacioANull(limpio(data.esperado));
         const frecuencia = vacioANull(data.frecuencia);
         const alcance = vacioANull(data.alcance);
         const beneficio = vacioANull(data.beneficio);
 
-        // Sin mínimo de caracteres (Marcos 15-10: "la persona tiene que escribir lo que siente"):
-        // basta con que no venga vacío.
-        if (!resumen) {
-            throw err(400, tipo === 'falla' ? 'Cuéntanos qué estabas haciendo.'
-                : tipo === 'idea' ? 'Cuéntanos qué se te ocurre.' : 'Cuéntanos qué te gustaría que cambie.', { code: 'IDEA_RESUMEN_VACIO' });
-        }
         if (!detalle) {
             throw err(400, tipo === 'falla' ? 'Cuéntanos qué pasó.'
-                : tipo === 'idea' ? 'Cuéntanos cómo te lo imaginas.' : 'Cuéntanos qué te cuesta o qué no entiendes.', { code: 'IDEA_DETALLE_VACIO' });
+                : tipo === 'idea' ? 'Cuéntanos qué se te ocurre.' : 'Cuéntanos qué te cuesta.', { code: 'IDEA_DETALLE_VACIO' });
         }
-        if (tipo === 'falla') {
-            if (!esperado) throw err(400, 'Cuéntanos qué esperabas que pasara.', { code: 'IDEA_FALTA_ESPERADO' });
-        } else if (!frecuencia || !alcance || !beneficio) {
-            throw err(400, tipo === 'idea'
-                ? 'Marca cada cuánto lo usarías, quién lo usaría y qué ganaríamos.'
-                : 'Marca cada cuánto te pasa, a quién afecta y qué ganaríamos.', { code: 'IDEA_FALTAN_SENALES' });
-        }
+        const resumen = (limpio(data.resumen) || tituloDe(detalle)).slice(0, 200);
 
         const foto = leerFoto(data.foto);
         const navegador = String(req?.headers?.['user-agent'] || '').slice(0, 255) || null;
@@ -195,6 +199,13 @@ module.exports = {
 
         const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         const donde = [idea.pantalla_nombre, idea.obra_nombre].filter(Boolean).join(' · ') || 'sin pantalla';
+        // Desde el 20-10 llega un solo texto (qué pasó); las fallas viejas traen además qué
+        // estaba haciendo y qué esperaba.
+        const campos = [
+            ...(unSoloTexto(idea) ? [] : [['Qué estaba haciendo', idea.resumen]]),
+            ['Qué pasó', idea.detalle],
+            ...(idea.esperado ? [['Qué esperaba', idea.esperado]] : []),
+        ];
         await emailService.sendSystemEmail({
             to: para,
             fromName: 'Bóveda LOLS — Ideas',
@@ -204,17 +215,13 @@ module.exports = {
                 `${idea.autor_nombre} (${idea.autor_rol || 'sin rol'}) reportó que algo no funciona.`,
                 `Dónde: ${donde} · ${idea.dispositivo === 'movil' ? 'celular' : 'computador'}`,
                 '',
-                `Qué estaba haciendo: ${idea.resumen}`,
-                `Qué pasó: ${idea.detalle}`,
-                `Qué esperaba: ${idea.esperado || '—'}`,
+                ...campos.map(([k, v]) => `${k}: ${v}`),
                 '',
                 'Revísalo en Bóveda → Ideas.',
             ].join('\n'),
             html: `<p><strong>${esc(idea.autor_nombre)}</strong> (${esc(idea.autor_rol || 'sin rol')}) reportó que algo no funciona.</p>
                    <p style="color:#5E5E62">Dónde: ${esc(donde)} · ${idea.dispositivo === 'movil' ? 'celular' : 'computador'}</p>
-                   <p><strong>Qué estaba haciendo:</strong> ${esc(idea.resumen)}</p>
-                   <p><strong>Qué pasó:</strong> ${esc(idea.detalle)}</p>
-                   <p><strong>Qué esperaba:</strong> ${esc(idea.esperado || '—')}</p>
+                   ${campos.map(([k, v]) => `<p><strong>${k}:</strong> ${esc(v)}</p>`).join('\n                   ')}
                    <p>Revísalo en Bóveda → Ideas.</p>`,
         });
     },
