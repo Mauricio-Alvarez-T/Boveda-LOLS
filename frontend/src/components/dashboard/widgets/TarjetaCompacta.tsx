@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ArrowRight, ChevronDown } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { NumeroRodante } from '../../ui/NumeroRodante';
 import { PestanasElasticas } from '../../ui/PestanasElasticas';
@@ -118,4 +118,19 @@ export const BarraModulos: React.FC<{ items: AccesoModulo[]; activo: string | nu
             }}
         />
     </nav>
+);
+
+/**
+ * Módulo en curso, en el centro del encabezado del CELULAR (dueño 2026-10-20): reemplaza al encabezado del
+ * detalle («Asistencia» + «Ir a Asistencia») para ganar alto. Una píldora verde LOLS que dice dónde se está
+ * y, al tocarla, lleva al módulo completo.
+ */
+export const ModuloEnCurso: React.FC<{ icon: React.ElementType; titulo: string; onIr: () => void }> = ({ icon: Icon, titulo, onIr }) => (
+    // eslint-disable-next-line no-restricted-syntax -- píldora del encabezado
+    <button type="button" onClick={onIr} aria-label={`Ir a ${titulo}`}
+        className="inline-flex h-9 max-w-full items-center gap-2 rounded-full bg-green-700 pl-3 pr-3.5 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(21,128,61,0.30)] transition-colors duration-200 hover:bg-green-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-700/40 focus-visible:ring-offset-2 motion-reduce:transition-none dark:bg-green-600 dark:hover:bg-green-700">
+        <Icon className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="truncate">{titulo}</span>
+        <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
+    </button>
 );

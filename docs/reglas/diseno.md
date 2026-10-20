@@ -537,8 +537,9 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     y una barra de accesos fija abajo (`BarraModulos`) cambia entre ellos —blanca, íconos y nombres en gris,
     el módulo en curso en verde LOLS sobre una píldora que viaja con el indicador elástico de
     `PestanasElasticas` (§9.12); cifra en burbuja solo si avisa (rojo/ámbar/azul); tocar la abierta no la
-    cierra; si se había bajado más allá, el módulo nuevo se ve desde su comienzo—. El encabezado del detalle
-    omite su frase descriptiva en el celular. **La tarjeta abierta se pinta entera de verde LOLS** (`.tarjeta-activa`: green-700,
+    cierra; si se había bajado más allá, el módulo nuevo se ve desde su comienzo—. En el celular el detalle
+    no lleva su fila de título: el módulo en curso sube al **centro del encabezado** como una píldora verde
+    LOLS (`ModuloEnCurso`: ícono, nombre y flecha; lleva al módulo completo), vía `useSetCentroMovil`. **La tarjeta abierta se pinta entera de verde LOLS** (`.tarjeta-activa`: green-700,
     oscuro green-900, letra blanca; redefine los tokens neutros adentro). Sobre verde el rojo y el verde
     no se leen: el círculo pasa a **blanco con el ícono en su color** (el significado sigue ahí) y las
     cifras que avisan (rojo/ámbar) pasan a **amarillo claro** (`yellow-300`); las demás, blancas

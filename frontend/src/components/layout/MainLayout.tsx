@@ -13,7 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 export const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
-    const { title, actions } = usePageHeader();
+    const { title, actions, centroMovil } = usePageHeader();
     const { user } = useAuth();
     const location = useLocation();
 
@@ -67,8 +67,8 @@ export const MainLayout: React.FC = () => {
                     <div className="hidden md:flex flex-1 min-w-0 items-center overflow-hidden">
                         {title}
                     </div>
-                    {/* Spacer on mobile to push actions right */}
-                    <div className="flex-1 md:hidden" />
+                    {/* Centro en el celular: lo que ponga la página (el Inicio, su módulo en curso); si no, espacio. */}
+                    <div className="flex min-w-0 flex-1 justify-center md:hidden">{centroMovil}</div>
 
                     <div className="flex items-center justify-end gap-1.5 md:gap-3 min-w-0">
                         {/* Page Actions Injected */}

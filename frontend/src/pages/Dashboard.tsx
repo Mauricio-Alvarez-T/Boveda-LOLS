@@ -6,7 +6,7 @@ import { useObra } from '../context/ObraContext';
 import api from '../services/api';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
-import { useSetPageHeader } from '../context/PageHeaderContext';
+import { useSetCentroMovil, useSetPageHeader } from '../context/PageHeaderContext';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { SkeletonText } from '../components/ui/Skeleton';
@@ -38,7 +38,7 @@ import DocumentosAtrasadosLista from '../components/dashboard/widgets/Documentos
 import { DetalleModulo } from '../components/dashboard/widgets/DetalleModulo';
 import { EncabezadoTarjeta } from '../components/dashboard/widgets/EncabezadoTarjeta';
 import { TarjetaActiva, type TonoTarjeta } from '../components/dashboard/widgets/tarjetaActiva';
-import { BarraModulos, ColaGota, TarjetaCompacta, type AccesoModulo } from '../components/dashboard/widgets/TarjetaCompacta';
+import { BarraModulos, ColaGota, ModuloEnCurso, TarjetaCompacta, type AccesoModulo } from '../components/dashboard/widgets/TarjetaCompacta';
 import { ID_DETALLE_INICIO } from '../components/dashboard/widgets/BotonVerMas';
 import { nombreMes, type FaltasMesData, type TrabajadorFaltas } from '../components/dashboard/widgets/resumenFaltasMes';
 import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
@@ -474,6 +474,17 @@ const Dashboard: React.FC = () => {
             if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: 'start' });
         });
     };
+    // Celular: el módulo en curso va al centro del encabezado (en vez de la fila de título del detalle).
+    const iconoEnCurso = activo ? resumenes[activo].icon : null;
+    const tituloEnCurso = activo ? resumenes[activo].titulo : null;
+    const centroMovil = useMemo(() => {
+        if (!esCelular || !activo || !iconoEnCurso || !tituloEnCurso) return null;
+        const ruta: Record<Modulo, string> = {
+            asistencia: '/asistencia', gestiones: '/consultas?tab=inicio', inventario: '/inventario?tab=transferencias', vehiculos: '/vehiculos',
+        };
+        return <ModuloEnCurso icon={iconoEnCurso} titulo={tituloEnCurso} onIr={() => navigate(ruta[activo])} />;
+    }, [esCelular, activo, iconoEnCurso, tituloEnCurso, navigate]);
+    useSetCentroMovil(centroMovil);
     // La cola solo se ve cuando las tarjetas van en UNA fila (si no, apuntaría a la tarjeta de abajo).
     const colaVisible = visibles.length <= 1 ? '' : visibles.length === 2 ? 'hidden sm:block' : 'hidden xl:block';
 
