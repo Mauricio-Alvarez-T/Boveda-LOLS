@@ -36,7 +36,8 @@ import TarjetaPendientes from '../components/dashboard/widgets/TarjetaPendientes
 import DocumentosAtrasadosLista from '../components/dashboard/widgets/DocumentosAtrasadosLista';
 import { DetalleModulo } from '../components/dashboard/widgets/DetalleModulo';
 import { EncabezadoTarjeta } from '../components/dashboard/widgets/EncabezadoTarjeta';
-import { TarjetaActiva } from '../components/dashboard/widgets/tarjetaActiva';
+import { TarjetaActiva, type TonoTarjeta } from '../components/dashboard/widgets/tarjetaActiva';
+import { ColaGota, TarjetaCompacta } from '../components/dashboard/widgets/TarjetaCompacta';
 import { nombreMes, type FaltasMesData, type TrabajadorFaltas } from '../components/dashboard/widgets/resumenFaltasMes';
 import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
 import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
@@ -104,21 +105,48 @@ interface DashboardData {
 // ─── Panel: tarjeta blanca del Inicio (2026-10-16): sin borde, sombra suave (en oscuro la sombra
 // trae su anillo de 1 px), esquinas grandes. El color va en el círculo de cada encabezado
 // (EncabezadoTarjeta), nunca en el fondo.
-const Panel: React.FC<{ children: React.ReactNode; className?: string; onClick?: () => void; activa?: boolean }> = ({ children, className, onClick, activa = false }) => (
-    <div
-        className={cn('rounded-3xl bg-card text-foreground p-6 shadow-[var(--shadow-md)]',
-            onClick && 'cursor-pointer transition-[background-color,box-shadow] duration-200 hover:ring-1 hover:ring-border',
-            activa && 'tarjeta-activa', className)}
-        // Tarjeta entera pinchable (atajo con mouse/dedo): los botones y enlaces de adentro mandan sobre ella.
-        // Con teclado, el camino es su botón «Ver más».
-        onClick={onClick ? (e) => {
-            if ((e.target as HTMLElement).closest('button, a, input, select, textarea, [role="button"]')) return;
-            onClick();
-        } : undefined}
-    >
-        <TarjetaActiva.Provider value={activa}>{children}</TarjetaActiva.Provider>
+/**
+ * Contenido que se pliega y despliega animando la altura (fila de grid de 0fr a 1fr, 250 ms; en seco con
+ * «reducir movimiento»). Plegado queda `inert`: ni Tab ni lector de pantalla entran.
+ */
+const Plegable: React.FC<{ abierto: boolean; llena?: boolean; children: React.ReactNode }> = ({ abierto, llena, children }) => (
+    <div inert={!abierto}
+        className={cn('grid transition-[grid-template-rows,opacity] duration-[250ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none',
+            abierto ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0', llena && abierto && 'flex-1')}>
+        <div className="min-h-0 overflow-hidden">{children}</div>
     </div>
 );
+
+const Panel: React.FC<{
+    children: React.ReactNode; className?: string; onClick?: () => void; activa?: boolean;
+    /** Con un detalle abierto, las tarjetas se pliegan a su franja `resumen` (dueño 2026-10-20). */
+    compacta?: boolean; resumen?: React.ReactNode;
+    /** Clases de visibilidad de la cola de gota de la tarjeta elegida (solo con las tarjetas en una fila). */
+    cola?: string;
+}> = ({ children, className, onClick, activa = false, compacta = false, resumen, cola }) => {
+    const plegada = compacta && resumen !== undefined;
+    return (
+        <div
+            className={cn('relative flex flex-col rounded-3xl bg-card text-foreground shadow-[var(--shadow-md)]',
+                'transition-[background-color,box-shadow,padding] duration-[250ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none',
+                plegada ? 'px-5 py-4' : 'p-6',
+                onClick && 'cursor-pointer hover:ring-1 hover:ring-border',
+                activa && 'tarjeta-activa', className)}
+            // Tarjeta entera pinchable (atajo con mouse/dedo): los botones y enlaces de adentro mandan sobre ella.
+            // Con teclado, el camino es su botón «Ver más» (o la franja, que es un botón).
+            onClick={onClick ? (e) => {
+                if ((e.target as HTMLElement).closest('button, a, input, select, textarea, [role="button"]')) return;
+                onClick();
+            } : undefined}
+        >
+            <TarjetaActiva.Provider value={activa}>
+                {resumen !== undefined && <Plegable abierto={plegada}>{resumen}</Plegable>}
+                <Plegable abierto={!plegada} llena>{children}</Plegable>
+            </TarjetaActiva.Provider>
+            {activa && plegada && cola !== undefined && <ColaGota className={cola} />}
+        </div>
+    );
+};
 
 /** Columnas de la fila de tarjetas según cuántas ve el perfil: todas en una línea desde 1280 px. */
 const COLUMNAS: Record<number, string> = {
@@ -407,6 +435,44 @@ const Dashboard: React.FC = () => {
     } : null;
     const fechaAsistencia = { anio: hoy.getFullYear(), mes: hoy.getMonth() + 1, hoyDia: hoy.getDate() };
 
+    // ─── Franjas compactas (tarjetas plegadas mientras hay un detalle abierto, dueño 2026-10-20) ───
+    const reiteradosN = ready ? (data?.faltasMes?.reiterados ?? 0) : null;
+    const tonoAsistencia: TonoTarjeta = (reiteradosN ?? 0) > 0 ? 'rojo'
+        : obrasHoy && !obrasHoy.finDeSemana && obrasHoy.sinGuardar.length > 0 ? 'ambar' : 'verde';
+    const tonoGestiones: TonoTarjeta = canRegistrarEntregas ? resumenDocs.tono
+        : gestionesItems.some(i => i.severity === 'critical') ? 'rojo' : totalGestiones > 0 ? 'ambar' : 'verde';
+    const porVencerVeh = vencimientos.items.length - vehiculosVencidos;
+    const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
+    const compactas: Record<Modulo, React.ReactNode> = {
+        asistencia: (
+            <TarjetaCompacta icon={CheckSquare} tono={tonoAsistencia} titulo="Asistencia" cifra={reiteradosN}
+                detalle={`${plural(reiteradosN ?? 0, 'falta reiterada', 'faltas reiteradas')} · ${data?.ausentesHoy?.total ?? 0} ausentes hoy`}
+                onClick={() => verMas('asistencia')} />
+        ),
+        gestiones: canRegistrarEntregas ? (
+            <TarjetaCompacta icon={FileWarning} tono={tonoGestiones} titulo="Gestiones" cifra={resumenDocs.fueraDePlazo}
+                detalle="documentos fuera de plazo" onClick={() => verMas('gestiones')} />
+        ) : (
+            <TarjetaCompacta icon={SearchCheck} tono={tonoGestiones} titulo="Gestiones" cifra={ready ? totalGestiones : null}
+                detalle={plural(totalGestiones, 'pendiente', 'pendientes')} onClick={() => verMas('gestiones')} />
+        ),
+        inventario: (
+            <TarjetaCompacta icon={Package} tono={modeloInv.tono} titulo="Inventario" cifra={modeloInv.cifra}
+                detalle={modeloInv.etiqueta} onClick={() => verMas('inventario')} />
+        ),
+        vehiculos: (
+            <TarjetaCompacta icon={Truck} titulo="Vehículos"
+                tono={vehiculosVencidos > 0 ? 'rojo' : porVencerVeh > 0 ? 'ambar' : 'verde'}
+                cifra={vencimientos.loading && vencimientos.items.length === 0 ? null : vehiculosVencidos > 0 ? vehiculosVencidos : porVencerVeh}
+                detalle={vehiculosVencidos > 0
+                    ? `${plural(vehiculosVencidos, 'vencido', 'vencidos')}${porVencerVeh > 0 ? ` · ${porVencerVeh} por vencer` : ''}`
+                    : 'por vencer en 30 días'}
+                onClick={() => verMas('vehiculos')} />
+        ),
+    };
+    // La cola solo se ve cuando las tarjetas van en UNA fila (si no, apuntaría a la tarjeta de abajo).
+    const colaVisible = visibles.length <= 1 ? '' : visibles.length === 2 ? 'hidden sm:block' : 'hidden xl:block';
+
     return (
         <div className="space-y-6">
             {/* Cartel de atrasos del supervisor que lleva documentos a firmar (pedido de RRHH, 2026-10-19). */}
@@ -417,8 +483,10 @@ const Dashboard: React.FC = () => {
             {/* Una tarjeta por apartado, todas en una línea desde 1280 px (2×2 en tablet, una bajo otra en celular). */}
             {visibles.length > 0 && (
                 <div className={cn('grid gap-6 items-stretch', COLUMNAS[visibles.length])}>
+                    {/* Con un detalle abierto, todas se pliegan a su franja (`compacta`) y la elegida lleva la cola. */}
                     {showFaltas && (
-                        <Panel className="h-full" activa={activo === 'asistencia'} onClick={() => verMas('asistencia')}>
+                        <Panel className="h-full" activa={activo === 'asistencia'} onClick={() => verMas('asistencia')}
+                            compacta={activo !== null} resumen={compactas.asistencia} cola={colaVisible}>
                             {ready && data
                                 ? <AsistenciaInicio faltas={data.faltasMes ?? null} ausentes={data.ausentesHoy ?? null} obras={obrasHoy}
                                     fechaTexto={fechaDelDia(hoy)} mesNombre={mes}
@@ -428,7 +496,8 @@ const Dashboard: React.FC = () => {
                         </Panel>
                     )}
                     {verGestiones && (
-                        <Panel className="h-full" activa={activo === 'gestiones'} onClick={() => verMas('gestiones')}>
+                        <Panel className="h-full" activa={activo === 'gestiones'} onClick={() => verMas('gestiones')}
+                            compacta={activo !== null} resumen={compactas.gestiones} cola={colaVisible}>
                             {canRegistrarEntregas
                                 ? <DocumentosInicio resumen={resumenDocs} activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')} />
                                 : ready
@@ -439,13 +508,15 @@ const Dashboard: React.FC = () => {
                         </Panel>
                     )}
                     {canInventario && (
-                        <Panel className="h-full" activa={activo === 'inventario'} onClick={() => verMas('inventario')}>
+                        <Panel className="h-full" activa={activo === 'inventario'} onClick={() => verMas('inventario')}
+                            compacta={activo !== null} resumen={compactas.inventario} cola={colaVisible}>
                             <InventarioInicio modelo={modeloInv} onFila={irAFilaInventario}
                                 activo={activo === 'inventario'} onVerMas={() => verMas('inventario')} />
                         </Panel>
                     )}
                     {showVencVehiculos && (
-                        <Panel className="h-full" activa={activo === 'vehiculos'} onClick={() => verMas('vehiculos')}>
+                        <Panel className="h-full" activa={activo === 'vehiculos'} onClick={() => verMas('vehiculos')}
+                            compacta={activo !== null} resumen={compactas.vehiculos} cola={colaVisible}>
                             {vencimientos.loading && vencimientos.items.length === 0
                                 ? <SkeletonText lines={5} />
                                 : <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')}

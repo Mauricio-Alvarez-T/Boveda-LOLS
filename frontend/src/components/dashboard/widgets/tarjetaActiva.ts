@@ -23,3 +23,30 @@ export const CIFRA_SOBRE_VERDE: Record<TonoTarjeta, string> = {
     verde: 'text-white',
     neutro: 'text-white',
 };
+
+/** Círculo sobre la tarjeta verde: blanco, con el ícono en su color (el significado sigue ahí). */
+export const ICONO_SOBRE_VERDE: Record<TonoTarjeta, string> = {
+    rojo: 'bg-white text-red-600',
+    ambar: 'bg-white text-amber-600',
+    azul: 'bg-white text-blue-600',
+    verde: 'bg-white text-green-700',
+    neutro: 'bg-white text-green-800',
+};
+
+/** Círculo del encabezado: color SÓLIDO con el ícono en blanco. */
+export const CIRCULO_TARJETA: Record<TonoTarjeta, string> = {
+    rojo: 'bg-red-600 text-white',
+    ambar: 'bg-amber-600 text-white',
+    azul: 'bg-blue-600 text-white',
+    verde: 'bg-green-700 text-white',
+    neutro: 'bg-muted text-muted-foreground',
+};
+
+/** Color de la cifra grande: rampa 700/300 (texto con color que pasa AA en claro y oscuro). */
+export const CIFRA_TARJETA: Record<TonoTarjeta, string> = {
+    rojo: 'text-red-700 dark:text-red-300',
+    ambar: 'text-amber-700 dark:text-amber-300',
+    azul: 'text-blue-700 dark:text-blue-300',
+    verde: 'text-green-700 dark:text-green-300',
+    neutro: 'text-foreground',
+};

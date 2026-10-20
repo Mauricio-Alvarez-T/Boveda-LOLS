@@ -489,3 +489,14 @@
 .dark .tarjeta-activa {
   --card: #14532d;          /* green-900 */
 }
+
+/* Cola de gota de la tarjeta elegida del Inicio (dueño 2026-10-20; diseno.md §9.14): baja desde la
+   tarjeta hacia el detalle, estirándose, cuando las tarjetas ya se plegaron. Sin «reducir movimiento»
+   aparece en seco. */
+@keyframes cola-gota {
+    from { transform: scaleY(0); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .cola-gota { transform-origin: top center; animation: cola-gota 180ms cubic-bezier(0.2, 0.8, 0.2, 1) 120ms both; }
+}

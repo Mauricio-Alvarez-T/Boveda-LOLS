@@ -528,7 +528,12 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     **Al entrar no hay nada abajo** y **abrir el detalle no mueve la pantalla** (sin scroll automático:
     el salto desorienta, dueño 2026-10-20): el detalle se abre al pinchar una tarjeta (toda la tarjeta es
     pinchable; sus filas y botones mandan sobre ella) o su «Ver más», y se cierra pinchándola de nuevo
-    («Ocultar ↑»). **La tarjeta abierta se pinta entera de verde LOLS** (`.tarjeta-activa`: green-700,
+    («Ocultar ↑»). **Con un detalle abierto, las tarjetas se pliegan** a una franja (`TarjetaCompacta`:
+    ícono, título, lo que cuenta y su cifra, flecha) animando la altura en 250 ms (fila de grid 1fr→0fr,
+    `inert` lo plegado; en seco con «reducir movimiento») y funcionan como pestañas: otra franja cambia el
+    detalle, la elegida lo cierra y todo vuelve a crecer. **Bajo la elegida, una cola de gota** (`ColaGota`,
+    SVG con `fill: var(--card)`) baja hacia el detalle y dice de qué tarjeta es; solo se ve con las
+    tarjetas en una fila. **La tarjeta abierta se pinta entera de verde LOLS** (`.tarjeta-activa`: green-700,
     oscuro green-900, letra blanca; redefine los tokens neutros adentro). Sobre verde el rojo y el verde
     no se leen: el círculo pasa a **blanco con el ícono en su color** (el significado sigue ahí) y las
     cifras que avisan (rojo/ámbar) pasan a **amarillo claro** (`yellow-300`); las demás, blancas
