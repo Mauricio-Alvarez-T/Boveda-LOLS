@@ -309,13 +309,18 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
             });
         }
 
-        // Attendance status per obra
+        // Estado de la asistencia de hoy por obra. Solo cuentan las obras que DEBEN marcarla: activas, no
+        // finalizadas ni de prueba, que participan en Asistencia (mig 075) y con al menos un trabajador
+        // activo (2026-10-20: antes una obra vacía figuraba para siempre como «sin guardar»).
         const [attendanceStatusRows] = await pool.query(`
             SELECT o.id as obra_id, o.nombre as obra_nombre,
                    COUNT(a.id) as registros
             FROM obras o
             LEFT JOIN asistencias a ON a.obra_id = o.id AND a.fecha = ?
             WHERE o.activa = 1 AND o.es_prueba = 0 AND o.finalizada = 0
+              AND o.participa_asistencia = 1
+              AND EXISTS (SELECT 1 FROM trabajadores t
+                          WHERE t.obra_id = o.id AND t.activo = 1 AND t.es_prueba = 0)
             GROUP BY o.id, o.nombre
         `, [today]);
 

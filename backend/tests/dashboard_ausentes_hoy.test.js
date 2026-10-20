@@ -61,6 +61,25 @@ describe('dashboard.getSummary — ausentesHoy', () => {
         expect(r.ausentesDetalle[0]).toEqual({ nombres: 'N', apellido_paterno: 'P1', estado: 'Falta', obra: 'TOESCA' });
     });
 
+    test('obras sin guardar: solo las que participan en asistencia y tienen trabajadores activos', async () => {
+        jest.spyOn(asistenciaService, 'getFaltasMes').mockResolvedValue([]);
+        pool.query.mockImplementation(async (sql) => {
+            if (sql.includes('COUNT(a.id) as registros')) {
+                return [[{ obra_id: 38, obra_nombre: 'Obra Demo Centro', registros: 10 }, { obra_id: 40, obra_nombre: 'Obra Demo Poniente', registros: 0 }]];
+            }
+            return [[]];
+        });
+        const r = await dashboardService.getSummary(null, permisos, 'Test');
+        const [sql] = pool.query.mock.calls.find(([s]) => s.includes('COUNT(a.id) as registros'));
+        expect(sql).toContain('o.participa_asistencia = 1');
+        expect(sql).toMatch(/EXISTS \(SELECT 1 FROM trabajadores t\s+WHERE t\.obra_id = o\.id AND t\.activo = 1/);
+        expect(r.attendanceStatus).toEqual({
+            38: { nombre: 'Obra Demo Centro', guardada: true },
+            40: { nombre: 'Obra Demo Poniente', guardada: false },
+        });
+        expect(r.pendingTasks.filter(t => t.category === 'asistencia').map(t => t.description)).toEqual(['Obra: Obra Demo Poniente']);
+    });
+
     test('pregunta por el día de Chile', async () => {
         jest.spyOn(asistenciaService, 'getFaltasMes').mockResolvedValue([]);
         await dashboardService.getSummary(null, permisos, 'Test');

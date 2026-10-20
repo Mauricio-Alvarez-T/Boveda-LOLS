@@ -115,6 +115,10 @@ Desde la tarjeta «Pulso del día» (2026-10-20) `/dashboard/summary` trae adem�
 presentes de hoy con la regla de fila vigente; `ausentesDetalle` conserva sus 20 de antes. **«Hoy» es el
 día de Chile** (`utils/fechaChile.js`, `America/Santiago`): con `toISOString()` el Inicio preguntaba desde
 las ~21:00 por el día siguiente; lo mismo vale para «ayer», el ranking de obras y el mes de las faltas.
+**Obras sin guardar hoy** (`attendanceStatus`, tarjeta y detalle de Asistencia, pendientes del Inicio):
+solo cuentan las obras que deben marcar — activas, no finalizadas ni de prueba, con
+`participa_asistencia = 1` y **al menos un trabajador activo** (2026-10-20: antes una obra sin
+trabajadores figuraba siempre como pendiente).
 
 **`GET /api/dashboard/asistencia?obra_id=`** (`asistencia.ver`; `inicioAsistencia.service`, fase 2 del
 detalle del Inicio, se pide al abrirlo). Tres bloques, cada uno `null` sin su permiso o si falla:
