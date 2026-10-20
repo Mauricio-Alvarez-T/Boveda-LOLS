@@ -2,8 +2,9 @@
  * Tests de Ideas para Bóveda (mig 120, docs/reglas/ideas.md).
  *
  * Lo que fijan:
- *   · sin mínimo de caracteres (15-10), pero nada vacío; una idea sin frecuencia /
- *     alcance / beneficio NO entra; una falla sin "qué esperabas" tampoco,
+ *   · formulario corto (20-10): basta el tipo y UN texto, sin mínimo de caracteres pero
+ *     no vacío; sin resumen, el título sale de la primera línea; frecuencia, alcance,
+ *     beneficio y "qué esperabas" ya no se exigen (si llegan, se guardan),
  *   · proponer no pide permiso (basta estar logueado); la bandeja y revisar sí
  *     (`ideas.revisar`) → 403 sin él,
  *   · "Mis ideas" nunca expone la nota interna ni el navegador,
@@ -76,17 +77,30 @@ describe('ideasService.crear — mejoras, no mañas', () => {
             .rejects.toMatchObject({ statusCode: 400, code: 'IDEA_DETALLE_VACIO' });
     });
 
-    test('sin frecuencia, alcance o beneficio no entra', async () => {
-        for (const falta of ['frecuencia', 'alcance', 'beneficio']) {
-            await expect(svc.crear({ ...IDEA_OK, [falta]: undefined }, usuario, {}))
-                .rejects.toMatchObject({ statusCode: 400, code: 'IDEA_FALTAN_SENALES' });
+    test('formulario corto: basta el tipo y un texto (sin resumen ni señales)', async () => {
+        for (const tipo of ['idea', 'cuesta', 'falla']) {
+            db.query.mockResolvedValueOnce([{ insertId: 60 }]);
+            await expect(svc.crear({ tipo, detalle: 'El botón Guardar no se ve en el celular' }, usuario, {}))
+                .resolves.toMatchObject({ id: 60, tipo });
         }
-        expect(db.query).not.toHaveBeenCalled();
+        const params = db.query.mock.calls[0][1];
+        expect(params[2]).toBe('El botón Guardar no se ve en el celular');   // resumen = el texto (corto)
+        expect(params.slice(4, 8)).toEqual([null, null, null, null]);        // esperado y señales vacíos
     });
 
-    test('resumen vacío no entra', async () => {
-        await expect(svc.crear({ ...IDEA_OK, resumen: '  ' }, usuario, {}))
-            .rejects.toMatchObject({ statusCode: 400, code: 'IDEA_RESUMEN_VACIO' });
+    test('sin resumen, el título es la primera línea, cortada en una palabra si es larga', async () => {
+        db.query.mockResolvedValueOnce([{ insertId: 61 }]);
+        await svc.crear({ tipo: 'cuesta', detalle: '  Me cuesta encontrar el botón\nestá muy abajo  ' }, usuario, {});
+        expect(db.query.mock.calls[0][1][2]).toBe('Me cuesta encontrar el botón');
+        expect(db.query.mock.calls[0][1][3]).toBe('Me cuesta encontrar el botón\nestá muy abajo');
+
+        const largo = 'Cuando cierro la asistencia del día quiero que Bóveda me muestre un resumen con los que faltaron, los atrasos y las horas extra de cada uno';
+        db.query.mockResolvedValueOnce([{ insertId: 62 }]);
+        await svc.crear({ tipo: 'idea', detalle: largo }, usuario, {});
+        const titulo = db.query.mock.calls[1][1][2];
+        expect(titulo.length).toBeLessThanOrEqual(121);
+        expect(titulo.endsWith('…')).toBe(true);
+        expect(largo.startsWith(titulo.slice(0, -1))).toBe(true);           // corta en una palabra, sin inventar
     });
 
     test('"Tengo una idea" guarda cómo lo hace hoy; "Algo me cuesta" no usa ese campo', async () => {
@@ -99,20 +113,38 @@ describe('ideasService.crear — mejoras, no mañas', () => {
         expect(db.query.mock.calls[1][1][4]).toBeNull();
     });
 
-    test('una falla exige "qué esperabas" y no guarda las señales de idea', async () => {
+    test('una falla ya no exige "qué esperabas" (si viene se guarda) y no guarda señales de idea', async () => {
         const falla = {
             tipo: 'falla',
             resumen: 'Estaba guardando la asistencia de la obra',
             detalle: 'Toqué Guardar y salió un error rojo, después la lista quedó vacía y tuve que marcar de nuevo.',
             frecuencia: 'diaria',
         };
-        await expect(svc.crear(falla, usuario, {})).rejects.toMatchObject({ code: 'IDEA_FALTA_ESPERADO' });
+        db.query.mockResolvedValueOnce([{ insertId: 41 }]);
+        await expect(svc.crear(falla, usuario, {})).resolves.toMatchObject({ id: 41 });
 
+        await flush(); await flush();               // deja pasar el aviso por correo de la primera
+        db.query.mockReset().mockResolvedValue([[]]);
         db.query.mockResolvedValueOnce([{ insertId: 42 }]);
         await svc.crear({ ...falla, esperado: 'Que se guardara y quedara marcado en verde.' }, usuario, {});
-        const params = db.query.mock.calls[0][1];
+        const params = db.query.mock.calls.find(c => /INSERT INTO ideas/.test(c[0]))[1];
         expect(params[4]).toBe('Que se guardara y quedara marcado en verde.');
         expect(params[5]).toBeNull();               // frecuencia no aplica a falla
+    });
+
+    test('el correo de una falla de un solo texto no repite el título ni pide "qué esperaba"', async () => {
+        const texto = 'Toqué Guardar en la asistencia y salió un error rojo';
+        db.query
+            .mockResolvedValueOnce([{ insertId: 47 }])
+            .mockResolvedValueOnce([[{ id: 47, autor_nombre: 'Paula Rojas', autor_rol: 'RRHH', resumen: texto, detalle: texto, esperado: null, pantalla_nombre: 'Asistencia', dispositivo: 'movil' }]])
+            .mockResolvedValueOnce([[{ email: 'marcos@lols.cl' }]])
+            .mockResolvedValueOnce([[{ foto: null }]]);
+        await svc.crear({ tipo: 'falla', detalle: texto }, usuario, {});
+        await flush(); await flush();
+        const correo = emailService.sendSystemEmail.mock.calls[0][0];
+        expect(correo.text).toContain(`Qué pasó: ${texto}`);
+        expect(correo.text).not.toContain('Qué estaba haciendo');
+        expect(correo.text).not.toContain('Qué esperaba');
     });
 
     test('una falla avisa por correo a los revisores; si el SMTP falla, el alta igual queda', async () => {
@@ -216,6 +248,14 @@ describe('Rutas /api/ideas — gates', () => {
         const r = await request(app).post('/api/ideas').set('Authorization', `Bearer ${token([])}`).send(IDEA_OK);
         expect(r.status).toBe(201);
         expect(r.body.data.id).toBe(50);
+    });
+
+    test('el formulario corto pasa el schema: solo tipo y texto → 201', async () => {
+        db.query.mockResolvedValueOnce([{ insertId: 51 }]);
+        const r = await request(app).post('/api/ideas').set('Authorization', `Bearer ${token([])}`)
+            .send({ tipo: 'cuesta', detalle: 'No encuentro dónde se descarga el reporte', pantalla_nombre: 'Asistencia' });
+        expect(r.status).toBe(201);
+        expect(r.body.data.id).toBe(51);
     });
 
     test('sin sesión → 401', async () => {

@@ -12,55 +12,38 @@ import type { IdeaTipo, IdeaEstado, IdeaMotivo, IdeaFrecuencia, IdeaAlcance, Ide
 export const ETIQUETA_BUZON_IDEAS = 'Buzón de ideas';
 
 /**
- * Preguntas del formulario según el tipo. Sin mínimo de caracteres (Marcos 15-10:
- * "la persona tiene que escribir lo que siente"): basta con que no quede vacío.
- * "Tengo una idea" pregunta distinto que "Algo me cuesta": es algo NUEVO, no un
- * problema de algo que ya existe.
+ * El formulario según el tipo: UNA sola casilla y el pantallazo (Marcos 20-10-2026: "es muy
+ * largo… la persona no se motiva si tiene que completar un formulario tan largo"). Antes pedía
+ * resumen, detalle, "qué esperabas" y frecuencia/alcance/beneficio; esas columnas siguen en la BD
+ * para las ideas viejas y la bandeja las muestra si vienen. Basta con que el texto no quede vacío.
  */
 export interface TextosFormulario {
-    resumen: { label: string; placeholder: string };
-    detalle: { label: string; placeholder: string };
-    /** idea: cómo lo hace hoy (opcional) · falla: qué esperaba (obligatorio) · cuesta: no aplica. */
-    esperado?: { label: string; placeholder: string; obligatorio: boolean };
-    frecuencia?: string;
-    alcance?: string;
-    beneficio?: string;
-    ejemplo?: { no: string; si: string };
-    /** Para el medidor y el aviso junto al botón: "falta contarnos …". */
-    falta: { resumen: string; detalle: string; esperado?: string; senales?: string; beneficio?: string };
+    label: string;
+    placeholder: string;
+    /** Junto al botón deshabilitado: "Para enviar, cuéntanos …". */
+    falta: string;
+    /** Bajo "Pantallazo": de qué parte sirve la captura. */
+    pantallazo: string;
 }
 
 export const FORMULARIOS: Record<IdeaTipo, TextosFormulario> = {
     idea: {
-        resumen: { label: '¿Qué se te ocurre?', placeholder: 'Ej: Que Bóveda me avise cuando a un trabajador le vence un documento' },
-        detalle: { label: '¿Cómo te lo imaginas?', placeholder: 'Dónde estaría, qué haría y qué verías en la pantalla.' },
-        esperado: { label: '¿Cómo lo haces hoy, sin esto?', placeholder: 'Ej: Reviso a mano el Excel de documentos cada lunes', obligatorio: false },
-        frecuencia: '¿Cada cuánto lo usarías?',
-        alcance: '¿Quién lo usaría?',
-        beneficio: '¿Qué ganaríamos?',
-        ejemplo: {
-            no: '"Que Bóveda sea más moderna."',
-            si: '"Que al cerrar la asistencia me llegue un resumen por WhatsApp, para no tener que contarla a mano."',
-        },
-        falta: { resumen: 'qué se te ocurre', detalle: 'cómo te lo imaginas', senales: 'cada cuánto lo usarías y quién', beneficio: 'qué ganaríamos' },
+        label: '¿Qué se te ocurre?',
+        placeholder: 'Ej: Que Bóveda me avise cuando a un trabajador le vence un documento.',
+        falta: 'qué se te ocurre',
+        pantallazo: 'De la pantalla donde te gustaría que estuviera.',
     },
     cuesta: {
-        resumen: { label: '¿Qué te gustaría que cambie?', placeholder: 'Ej: Que el botón Guardar quede siempre a la vista en el celular' },
-        detalle: { label: '¿Qué te cuesta o qué no entiendes?', placeholder: 'Cuéntalo como si se lo explicaras a alguien que no ve tu pantalla.' },
-        frecuencia: '¿Cada cuánto te pasa?',
-        alcance: '¿A quién afecta?',
-        beneficio: '¿Qué ganaríamos?',
-        ejemplo: {
-            no: '"Cambiar el botón de lugar."',
-            si: '"En el celular el botón Guardar queda abajo y no se ve. Dos veces creí que había guardado y no se guardó."',
-        },
-        falta: { resumen: 'qué te gustaría que cambie', detalle: 'qué te cuesta', senales: 'cada cuánto te pasa y a quién afecta', beneficio: 'qué ganaríamos' },
+        label: '¿Qué te cuesta?',
+        placeholder: 'Ej: En el celular el botón Guardar queda abajo y no se ve.',
+        falta: 'qué te cuesta',
+        pantallazo: 'De la parte que te cuesta o que no entiendes.',
     },
     falla: {
-        resumen: { label: '¿Qué estabas haciendo?', placeholder: 'Ej: Estaba guardando la asistencia de la obra' },
-        detalle: { label: '¿Qué pasó?', placeholder: 'Ej: Toqué Guardar, salió un error rojo y la lista quedó vacía.' },
-        esperado: { label: '¿Qué esperabas que pasara?', placeholder: 'Ej: Que se guardara y quedara marcado en verde.', obligatorio: true },
-        falta: { resumen: 'qué estabas haciendo', detalle: 'qué pasó', esperado: 'qué esperabas que pasara' },
+        label: '¿Qué pasó?',
+        placeholder: 'Ej: Toqué Guardar en la asistencia y salió un error rojo.',
+        falta: 'qué pasó',
+        pantallazo: 'Del error o de lo que salió mal.',
     },
 };
 
@@ -177,6 +160,14 @@ export function impacto(idea: Pick<Idea, 'tipo' | 'frecuencia' | 'alcance'>): { 
         posiblePreferencia: idea.alcance === 'solo_yo' && idea.frecuencia === 'ocasional',
     };
 }
+
+/**
+ * ¿La idea llegó en un solo texto? Desde el 20-10-2026 el formulario manda solo `detalle` y el
+ * servidor saca el título (`resumen`) de su primera línea; las ideas de antes traen dos textos
+ * distintos. Mismo criterio que `unSoloTexto` en ideas.service.js.
+ */
+export const unSoloTexto = (idea: Pick<Idea, 'resumen' | 'detalle'>) =>
+    String(idea.detalle || '').startsWith(String(idea.resumen || '').replace(/…$/, ''));
 
 /** "hace 3 días", "hoy", "ayer". */
 export function hace(fecha: string | null | undefined): string {

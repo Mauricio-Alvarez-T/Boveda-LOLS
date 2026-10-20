@@ -8,28 +8,32 @@ y la revisan una a una cuando tienen tiempo.
 
 - **Con nombre, nunca anónimas.** La idea queda atada al usuario logueado (`ideas.usuario_id`); el
   formulario lo dice a la vista ("Se enviará con tu nombre: …").
-- **Mejoras del sistema, no mañas** — pero **sin mínimo de caracteres** (Marcos 15-10: "la persona
-  tiene que escribir lo que siente que le cuesta, no entiende o quiere cambiar"; el 14-10 había ≥10 y
-  ≥40). Lo que filtra las mañas son las preguntas, no el largo: ningún campo puede ir **vacío**
-  (`IDEA_RESUMEN_VACIO`, `IDEA_DETALLE_VACIO`) y `idea`/`cuesta` exigen además cada cuánto, a quién y
-  qué se ganaría (`IDEA_FALTAN_SENALES`). Los revisores aplican los cinco criterios y el aviso
-  "¿preferencia?".
-- **Cada tipo pregunta distinto** (Marcos 15-10: "tengo una idea es algo nuevo"). Textos en
-  `FORMULARIOS` (`ideasConfig.ts`); las columnas son genéricas:
+- **Formulario corto: el tipo, UN texto y el pantallazo** (Marcos 20-10: "es muy largo… la persona
+  no se motiva si tiene que completar un formulario tan largo"). **Sin mínimo de caracteres**
+  (Marcos 15-10: "la persona tiene que escribir lo que siente") pero **no vacío**
+  (`IDEA_DETALLE_VACIO`). Lo que filtra las mañas es la revisión (cinco criterios), no el formulario.
+  Una pregunta por tipo (`FORMULARIOS` en `ideasConfig.ts`):
 
-  | Columna | `idea` (algo nuevo) | `cuesta` (algo que ya existe) | `falla` |
-  |---|---|---|---|
-  | `resumen` | ¿Qué se te ocurre? | ¿Qué te gustaría que cambie? | ¿Qué estabas haciendo? |
-  | `detalle` | ¿Cómo te lo imaginas? | ¿Qué te cuesta o qué no entiendes? | ¿Qué pasó? |
-  | `esperado` | ¿Cómo lo haces hoy, sin esto? (opcional) | — | ¿Qué esperabas que pasara? (obligatorio) |
-  | `frecuencia` | ¿Cada cuánto lo usarías? | ¿Cada cuánto te pasa? | — |
-  | `alcance` | ¿Quién lo usaría? (Solo yo…) | ¿A quién afecta? (Solo a mí…) | — |
-  | `beneficio` | ¿Qué ganaríamos? | ¿Qué ganaríamos? | — |
+  | Tipo | Pregunta (`detalle`) | Pantallazo |
+  |---|---|---|
+  | `idea` (algo nuevo) | ¿Qué se te ocurre? | De la pantalla donde te gustaría que estuviera |
+  | `cuesta` (algo que ya existe) | ¿Qué te cuesta? | De la parte que te cuesta o que no entiendes |
+  | `falla` | ¿Qué pasó? | Del error o de lo que salió mal |
 
-  Cada uno con su ejemplo "así no / así sí".
-- **"Algo no funciona" (`falla`)** pide qué estaba haciendo, qué pasó y qué esperaba; no lleva
-  señales. Avisa **al tiro por correo** a los revisores (`sendSystemEmail`, sin `await`: un SMTP
-  caído nunca hace fallar el envío).
+  - **El título (`resumen`) lo saca el servidor** de la primera línea del texto, cortada en una
+    palabra si pasa de 120 caracteres (`tituloDe`). Si un cliente lo manda, se respeta.
+  - **Ya no se piden** `esperado` ni las señales (`frecuencia`, `alcance`, `beneficio`); las columnas
+    siguen para las ideas de antes del 20-10 y, si llegan, se guardan. Por eso la bandeja ya no
+    tiene "impacto" ni "¿preferencia?" en las ideas nuevas: se decide leyendo.
+  - **Un texto o dos:** `unSoloTexto()` (mismo criterio en `ideas.service.js` e `ideasConfig.ts`)
+    detecta si el título es el comienzo del texto. Así la bandeja y el correo muestran un solo
+    bloque en las nuevas y los dos campos de antes en las viejas.
+  - Historia: 14-10 pedía ≥10 y ≥40 caracteres; 15-10 sin mínimos, pero con cinco preguntas, señales y
+    ejemplos "así no / así sí"; 20-10 una sola casilla.
+- **"Algo no funciona" (`falla`)** avisa **al tiro por correo** a los revisores (`sendSystemEmail`,
+  sin `await`: un SMTP caído nunca hace fallar el envío), con el texto y el pantallazo adjunto.
+- **Pegar el pantallazo:** en el computador, una imagen pegada con **Ctrl+V** en cualquier parte del
+  formulario queda como pantallazo (si lo pegado no es imagen, se pega el texto normal).
 - **Foto opcional, miniatura de ~5 KB** (mig 121, Marcos 15-10: "tenemos poca memoria"; el 14-10 se
   había decidido sin adjuntos por lo mismo). Se comprime **en el teléfono** antes de subir
   (`comprimirMiniatura` en `utils/compressImage.ts`: busca el lado más grande que entre en 5 KB, WEBP o
@@ -108,6 +112,7 @@ evitó `cn()` en esos casos (`<Meta>` y las píldoras siguen con clases fijas). 
 
 ## Tests
 
-`backend/tests/ideas.test.js` (sin mínimos pero nada vacío, la idea guarda "cómo lo hace hoy",
-falla sin "qué esperabas", correo que no rompe el alta, foto (formato, peso, quién la ve), Mis ideas sin nota interna, crédito, transiciones y motivo, gates 401/403).
+`backend/tests/ideas.test.js` (formulario corto: solo tipo + texto, título desde la primera línea,
+sin mínimos pero nada vacío, la idea guarda "cómo lo hace hoy" si llega, correo de falla de un solo
+texto, correo que no rompe el alta, foto (formato, peso, quién la ve), Mis ideas sin nota interna, crédito, transiciones y motivo, gates 401/403).
 `backend/tests/permisos_hierarchy_sync.test.js` cubre que `ideas.revisar` esté en la jerarquía.

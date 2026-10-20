@@ -12,7 +12,7 @@ import api from '../../services/api';
 import type { Idea, IdeaEstado, IdeaMotivo } from '../../types/entities';
 import {
     TIPOS, ESTADOS, MOTIVOS, FRECUENCIAS, ALCANCES, ALCANCES_IDEA, BENEFICIOS, CRITERIOS,
-    impacto, hace, fechaCorta, primerNombre,
+    impacto, unSoloTexto, hace, fechaCorta, primerNombre,
 } from './ideasConfig';
 
 interface Props {
@@ -135,11 +135,21 @@ export const IdeaDetalle: React.FC<Props> = ({ idea, parecidas, onSeleccionar, o
 
             {/* Lo que propone */}
             <section className="rounded-card border border-border bg-card p-4 md:p-5">
-                <p className={ETIQUETA}>{idea.tipo === 'falla' ? 'Qué estaba haciendo' : idea.tipo === 'idea' ? 'Qué se le ocurre' : 'Qué le gustaría que cambie'}</p>
-                <h3 className="text-title-sm font-bold tracking-tight text-brand-dark leading-snug">{idea.resumen}</h3>
+                {unSoloTexto(idea) ? (
+                    // Desde el 20-10 llega en un solo texto (el título es su primera línea).
+                    <>
+                        <p className={ETIQUETA}>{idea.tipo === 'falla' ? 'Qué pasó' : idea.tipo === 'idea' ? 'Qué se le ocurre' : 'Qué le cuesta'}</p>
+                        <p className="text-base text-brand-dark leading-relaxed whitespace-pre-wrap">{idea.detalle}</p>
+                    </>
+                ) : (
+                    <>
+                        <p className={ETIQUETA}>{idea.tipo === 'falla' ? 'Qué estaba haciendo' : idea.tipo === 'idea' ? 'Qué se le ocurre' : 'Qué le gustaría que cambie'}</p>
+                        <h3 className="text-title-sm font-bold tracking-tight text-brand-dark leading-snug">{idea.resumen}</h3>
 
-                <p className={`${ETIQUETA} mt-4`}>{idea.tipo === 'falla' ? 'Qué pasó' : idea.tipo === 'idea' ? 'Cómo se lo imagina' : 'Qué le cuesta o no entiende'}</p>
-                <p className="text-sm text-brand-dark leading-relaxed whitespace-pre-wrap">{idea.detalle}</p>
+                        <p className={`${ETIQUETA} mt-4`}>{idea.tipo === 'falla' ? 'Qué pasó' : idea.tipo === 'idea' ? 'Cómo se lo imagina' : 'Qué le cuesta o no entiende'}</p>
+                        <p className="text-sm text-brand-dark leading-relaxed whitespace-pre-wrap">{idea.detalle}</p>
+                    </>
+                )}
 
                 {idea.esperado && idea.tipo !== 'cuesta' && (
                     <>
@@ -148,7 +158,8 @@ export const IdeaDetalle: React.FC<Props> = ({ idea, parecidas, onSeleccionar, o
                     </>
                 )}
 
-                {idea.tipo !== 'falla' && (
+                {/* Las señales solo vienen en las ideas de antes del 20-10 (el formulario ya no las pide). */}
+                {idea.tipo !== 'falla' && (idea.frecuencia || idea.alcance || idea.beneficio) && (
                     <div className="mt-4 pt-4 border-t border-border">
                         <div className="flex flex-wrap items-center gap-1.5">
                             {idea.frecuencia && <Meta>{FRECUENCIAS[idea.frecuencia]}</Meta>}

@@ -19,9 +19,9 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useObra } from '../../context/ObraContext';
 import { useMisIdeasResumen } from '../../hooks/useIdeas';
-import type { Idea, IdeaHecha, IdeaTipo, IdeaFrecuencia, IdeaAlcance, IdeaBeneficio } from '../../types/entities';
+import type { Idea, IdeaHecha, IdeaTipo } from '../../types/entities';
 import {
-    TIPOS, ESTADOS, MOTIVOS, FRECUENCIAS, ALCANCES, ALCANCES_IDEA, BENEFICIOS, FORMULARIOS,
+    TIPOS, ESTADOS, MOTIVOS, FORMULARIOS,
     nombrePantalla, hace, fechaCorta, primerNombre,
 } from './ideasConfig';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
@@ -40,28 +40,12 @@ const esMovil = () => typeof window !== 'undefined' && window.matchMedia('(max-w
 const CAMPO = 'w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary placeholder:text-muted-foreground/70';
 const ETIQUETA = 'block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2';
 
-/** Grupo de opciones de un toque (frecuencia, alcance, beneficio). */
-function Opciones<T extends string>({ valor, opciones, onChange }: { valor: T | null; opciones: Record<T, string>; onChange: (v: T) => void }) {
-    return (
-        <div className="flex flex-wrap gap-1.5">
-            {(Object.keys(opciones) as T[]).map(k => (
-                <Button key={k} type="button" size="sm" variant={valor === k ? 'primary' : 'secondary'}
-                    className="text-xs" onClick={() => onChange(k)} aria-pressed={valor === k}>
-                    {opciones[k]}
-                </Button>
-            ))}
-        </div>
-    );
-}
-
 /**
  * "Proponer una mejora": el lado del usuario de Ideas para Bóveda (mig 120).
  *
- * El formulario está armado contra las mañas: una idea no se puede enviar sin el
- * problema de hoy contado con algo de detalle, cada cuánto pasa, a quién afecta y
- * qué se ganaría. El medidor "qué tan clara está" muestra lo que falta en vez de
- * esconderlo detrás de un error al enviar. La pantalla, la obra y el dispositivo
- * se capturan solos.
+ * Corto a propósito (Marcos 20-10-2026: un formulario largo desmotiva): elegir el tipo,
+ * escribir con sus palabras en UNA casilla y, si quiere, un pantallazo (también se puede
+ * pegar con Ctrl+V). La pantalla, la obra y el dispositivo se capturan solos.
  */
 export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaInicial = 'nueva' }) => {
     const { user } = useAuth();
@@ -72,12 +56,7 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
     const [pestana, setPestana] = useState<'nueva' | 'mias'>(pestanaInicial);
     const [paso, setPaso] = useState<'tipo' | 'form' | 'enviada'>('tipo');
     const [tipo, setTipo] = useState<IdeaTipo | null>(null);
-    const [resumen, setResumen] = useState('');
-    const [detalle, setDetalle] = useState('');
-    const [esperado, setEsperado] = useState('');
-    const [frecuencia, setFrecuencia] = useState<IdeaFrecuencia | null>(null);
-    const [alcance, setAlcance] = useState<IdeaAlcance | null>(null);
-    const [beneficio, setBeneficio] = useState<IdeaBeneficio | null>(null);
+    const [texto, setTexto] = useState('');
     const [enviando, setEnviando] = useState(false);
     // Foto opcional (mig 121): se comprime acá mismo a ~5 KB; lo que se ve es lo que se manda.
     const [foto, setFoto] = useState<Miniatura | null>(null);
@@ -87,15 +66,25 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
     const fotoUrl = useMemo(() => (foto ? URL.createObjectURL(foto.blob) : null), [foto]);
     useEffect(() => () => { if (fotoUrl) URL.revokeObjectURL(fotoUrl); }, [fotoUrl]);
 
-    const elegirFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const f = e.target.files?.[0];
-        e.target.value = '';
-        if (!f) return;
+    const cargarFoto = async (f: File) => {
         setComprimiendo(true);
         const mini = await comprimirMiniatura(f, { maxBytes: 5 * 1024 });
         setComprimiendo(false);
         if (!mini) { toast.error('No se pudo leer esa imagen. Prueba con otra foto o captura.'); return; }
         setFoto(mini);
+    };
+    const elegirFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const f = e.target.files?.[0];
+        e.target.value = '';
+        if (f) cargarFoto(f);
+    };
+    // En el computador lo más rápido es sacar la captura (Win+Shift+S) y pegarla con Ctrl+V en
+    // cualquier parte del formulario. Si lo pegado no es una imagen, se pega el texto como siempre.
+    const pegarFoto = (e: React.ClipboardEvent) => {
+        const imagen = Array.from(e.clipboardData?.files || []).find(f => f.type.startsWith('image/'));
+        if (!imagen) return;
+        e.preventDefault();
+        cargarFoto(imagen);
     };
 
     // La pantalla desde donde se abrió: se fija al abrir, no cambia mientras se escribe.
@@ -112,46 +101,24 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
     }, [isOpen]);
 
     const reiniciar = () => {
-        setPaso('tipo'); setTipo(null); setResumen(''); setDetalle(''); setEsperado('');
-        setFrecuencia(null); setAlcance(null); setBeneficio(null);
+        setPaso('tipo'); setTipo(null); setTexto('');
         setFoto(null); setVerFoto(false);
     };
     const cerrar = () => { onClose(); setTimeout(reiniciar, 250); };
 
     const esFalla = tipo === 'falla';
     const textos = FORMULARIOS[tipo || 'cuesta'];
-    // Lo que falta, en el orden en que se llena el formulario.
-    // Lo que falta, en el orden del formulario. Sin mínimo de caracteres: basta con no dejarlo vacío.
-    const pasos = useMemo(() => {
-        if (!tipo) return [];
-        const f = FORMULARIOS[tipo].falta;
-        return esFalla
-            ? [
-                { listo: resumen.trim().length > 0, falta: f.resumen },
-                { listo: detalle.trim().length > 0, falta: f.detalle },
-                { listo: esperado.trim().length > 0, falta: f.esperado || '' },
-            ]
-            : [
-                { listo: resumen.trim().length > 0, falta: f.resumen },
-                { listo: detalle.trim().length > 0, falta: f.detalle },
-                { listo: !!frecuencia && !!alcance, falta: f.senales || '' },
-                { listo: !!beneficio, falta: f.beneficio || '' },
-            ];
-    }, [tipo, esFalla, resumen, detalle, esperado, frecuencia, alcance, beneficio]);
-    const listos = pasos.filter(p => p.listo).length;
-    const completo = pasos.length > 0 && listos === pasos.length;
-    const siguienteFalta = pasos.find(p => !p.listo)?.falta;
+    // Sin mínimo de caracteres: basta con que no quede vacío.
+    const completo = !!tipo && texto.trim().length > 0;
 
     const enviar = async () => {
         if (!tipo || !completo) return;
         setEnviando(true);
         try {
+            // El título para la bandeja lo saca el servidor de la primera línea del texto.
             await api.post('/ideas', {
                 tipo,
-                resumen: resumen.trim(),
-                detalle: detalle.trim(),
-                ...(esFalla ? { esperado: esperado.trim() } : { frecuencia, alcance, beneficio }),
-                ...(tipo === 'idea' && esperado.trim() ? { esperado: esperado.trim() } : {}),
+                detalle: texto.trim(),
                 pantalla: contexto.pantalla || undefined,
                 pantalla_nombre: contexto.pantallaNombre || undefined,
                 obra_id: selectedObra?.id || undefined,
@@ -180,10 +147,9 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
             description={<span>Se enviará con tu nombre: <strong className="text-brand-dark">{user?.nombre}</strong>{user?.rol ? ` · ${user.rol}` : ''}</span>}
             footer={pestana === 'nueva' && paso === 'form' ? (
                 <div className="flex flex-col gap-2 w-full">
-                    {/* Lo que falta, junto al botón: en el celular el medidor queda fuera de la
-                        vista y un "Enviar" gris sin explicación no dice qué hacer. */}
-                    {!completo && siguienteFalta && (
-                        <p className="text-caption text-muted-foreground text-right">Para enviar, falta contarnos {siguienteFalta}.</p>
+                    {/* Junto al botón: un "Enviar" gris sin explicación no dice qué hacer. */}
+                    {!completo && (
+                        <p className="text-caption text-muted-foreground text-right">Para enviar, cuéntanos {textos.falta}.</p>
                     )}
                     <div className="flex items-center justify-between gap-3">
                         <Button variant="ghost" size="sm" onClick={() => setPaso('tipo')} leftIcon={<ArrowLeft className="h-4 w-4" />}>
@@ -281,96 +247,35 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
                         </div>
                     )}
 
-                    {/* Paso 2: el formulario según el tipo */}
+                    {/* Paso 2: una sola casilla y el pantallazo. Pegar una imagen (Ctrl+V) en
+                        cualquier parte del formulario la toma como pantallazo. */}
                     {paso === 'form' && tipo && (
-                        <>
+                        <div className="flex flex-col gap-5" onPaste={pegarFoto}>
                             <div className="flex items-center gap-2">
                                 <Meta tono={tipo === 'falla' ? 'peligro' : 'neutro'} icon={React.createElement(TIPOS[tipo].icon, { className: 'h-3 w-3' })}>{TIPOS[tipo].label}</Meta>
                                 {esFalla && <span className="text-caption text-muted-foreground">Les llega al tiro por correo a Marcos y Mauricio.</span>}
                             </div>
 
                             <div>
-                                <label htmlFor="idea-resumen" className={ETIQUETA}>{textos.resumen.label}</label>
-                                <input
-                                    id="idea-resumen"
-                                    value={resumen}
-                                    onChange={e => setResumen(e.target.value)}
-                                    maxLength={200}
-                                    autoFocus
-                                    placeholder={textos.resumen.placeholder}
-                                    className={cn(CAMPO, 'h-11')}
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="idea-detalle" className={ETIQUETA}>{textos.detalle.label}</label>
+                                <label htmlFor="idea-texto" className={ETIQUETA}>{textos.label}</label>
                                 <textarea
-                                    id="idea-detalle"
-                                    value={detalle}
-                                    onChange={e => setDetalle(e.target.value)}
+                                    id="idea-texto"
+                                    value={texto}
+                                    onChange={e => setTexto(e.target.value)}
                                     rows={4}
                                     maxLength={4000}
-                                    placeholder={textos.detalle.placeholder}
+                                    autoFocus
+                                    placeholder={textos.placeholder}
                                     className={CAMPO}
                                 />
-                                {textos.ejemplo && (
-                                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        <div className="rounded-xl border border-border bg-background px-3 py-2">
-                                            <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Así no</p>
-                                            <p className="text-xs text-muted-foreground">{textos.ejemplo.no}</p>
-                                        </div>
-                                        <div className="rounded-xl border border-border bg-background px-3 py-2">
-                                            <p className="text-micro font-bold uppercase tracking-wider text-success mb-0.5">Así sí</p>
-                                            <p className="text-xs text-muted-foreground">{textos.ejemplo.si}</p>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
-
-                            {textos.esperado && (
-                                <div>
-                                    <label htmlFor="idea-esperado" className={ETIQUETA}>
-                                        {textos.esperado.label}
-                                        {!textos.esperado.obligatorio && <span className="font-normal normal-case tracking-normal"> (opcional)</span>}
-                                    </label>
-                                    <textarea
-                                        id="idea-esperado"
-                                        value={esperado}
-                                        onChange={e => setEsperado(e.target.value)}
-                                        rows={2}
-                                        maxLength={2000}
-                                        placeholder={textos.esperado.placeholder}
-                                        className={CAMPO}
-                                    />
-                                </div>
-                            )}
-
-                            {!esFalla && (
-                                <>
-                                    <div>
-                                        <p className={ETIQUETA}>{textos.frecuencia}</p>
-                                        <Opciones valor={frecuencia} opciones={FRECUENCIAS} onChange={setFrecuencia} />
-                                    </div>
-                                    <div>
-                                        <p className={ETIQUETA}>{textos.alcance}</p>
-                                        <Opciones valor={alcance} opciones={tipo === 'idea' ? ALCANCES_IDEA : ALCANCES} onChange={setAlcance} />
-                                    </div>
-                                    <div>
-                                        <p className={ETIQUETA}>{textos.beneficio}</p>
-                                        <Opciones valor={beneficio} opciones={BENEFICIOS} onChange={setBeneficio} />
-                                    </div>
-                                </>
-                            )}
 
                             {/* Pantallazo, opcional: lo que se ve explica más rápido que lo que se escribe */}
                             <div>
                                 <p className={`${ETIQUETA} mb-0.5`}>Pantallazo <span className="font-normal normal-case tracking-normal">(opcional)</span></p>
                                 <p className="text-caption text-muted-foreground mb-2">
-                                    {tipo === 'falla'
-                                        ? 'De lo que salió mal o del mensaje de error.'
-                                        : tipo === 'idea'
-                                            ? 'De la pantalla donde te gustaría que estuviera lo nuevo.'
-                                            : 'De la parte que te cuesta o que no entiendes.'}
+                                    {textos.pantallazo}
+                                    {contexto.dispositivo === 'escritorio' && ' También puedes pegarlo con Ctrl+V.'}
                                 </p>
                                 <input ref={galeriaRef} type="file" accept="image/*" className="hidden" onChange={elegirFoto} />
                                 {comprimiendo ? (
@@ -405,27 +310,7 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
                                         descripcion={`Vista previa — ${foto.ancho}×${foto.alto} px, todavía no se ha enviado`} onClose={() => setVerFoto(false)} />
                                 )}
                             </div>
-
-                            {/* Medidor: qué tan clara está la propuesta */}
-                            <div className="rounded-card border border-border bg-background p-3.5">
-                                <div className="flex items-center justify-between gap-3 mb-2">
-                                    <span className="text-xs font-bold text-brand-dark">
-                                        {completo ? 'Lista para enviar' : 'Qué tan clara está tu propuesta'}
-                                    </span>
-                                    <span className="text-micro font-bold text-muted-foreground tabular-nums">{listos} de {pasos.length}</span>
-                                </div>
-                                <div className="flex gap-1">
-                                    {pasos.map((p, i) => (
-                                        <span key={i} className={cn('h-1.5 flex-1 rounded-full transition-colors duration-300', p.listo ? 'bg-brand-primary' : 'bg-border')} />
-                                    ))}
-                                </div>
-                                <p className="mt-2 text-caption text-muted-foreground">
-                                    {completo
-                                        ? (esFalla ? 'Con esto podemos reproducirlo.' : 'Bien justificada: con esto la podemos evaluar.')
-                                        : `Falta contarnos ${siguienteFalta}.`}
-                                </p>
-                            </div>
-                        </>
+                        </div>
                     )}
                 </div>
             )}
