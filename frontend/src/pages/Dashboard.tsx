@@ -37,7 +37,8 @@ import DocumentosAtrasadosLista from '../components/dashboard/widgets/Documentos
 import { DetalleModulo } from '../components/dashboard/widgets/DetalleModulo';
 import { EncabezadoTarjeta } from '../components/dashboard/widgets/EncabezadoTarjeta';
 import { TarjetaActiva, type TonoTarjeta } from '../components/dashboard/widgets/tarjetaActiva';
-import { ColaGota, TarjetaCompacta } from '../components/dashboard/widgets/TarjetaCompacta';
+import { BarraModulos, ColaGota, TarjetaCompacta, type AccesoModulo } from '../components/dashboard/widgets/TarjetaCompacta';
+import { ID_DETALLE_INICIO } from '../components/dashboard/widgets/BotonVerMas';
 import { nombreMes, type FaltasMesData, type TrabajadorFaltas } from '../components/dashboard/widgets/resumenFaltasMes';
 import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
 import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
@@ -443,36 +444,37 @@ const Dashboard: React.FC = () => {
         : gestionesItems.some(i => i.severity === 'critical') ? 'rojo' : totalGestiones > 0 ? 'ambar' : 'verde';
     const porVencerVeh = vencimientos.items.length - vehiculosVencidos;
     const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
-    const compactas: Record<Modulo, React.ReactNode> = {
-        asistencia: (
-            <TarjetaCompacta icon={CheckSquare} tono={tonoAsistencia} titulo="Asistencia" cifra={reiteradosN}
-                detalle={plural(reiteradosN ?? 0, 'falta reiterada', 'faltas reiteradas')}
-                onClick={() => verMas('asistencia')} />
-        ),
-        gestiones: canRegistrarEntregas ? (
-            <TarjetaCompacta icon={FileWarning} tono={tonoGestiones} titulo="Gestiones" cifra={resumenDocs.fueraDePlazo}
-                detalle="fuera de plazo" onClick={() => verMas('gestiones')} />
-        ) : (
-            <TarjetaCompacta icon={SearchCheck} tono={tonoGestiones} titulo="Gestiones" cifra={ready ? totalGestiones : null}
-                detalle={plural(totalGestiones, 'pendiente', 'pendientes')} onClick={() => verMas('gestiones')} />
-        ),
-        inventario: (
-            <TarjetaCompacta icon={Package} tono={modeloInv.tono} titulo="Inventario" cifra={modeloInv.cifra}
-                detalle={modeloInv.etiqueta} onClick={() => verMas('inventario')} />
-        ),
-        vehiculos: (
-            <TarjetaCompacta icon={Truck} titulo="Vehículos"
-                tono={vehiculosVencidos > 0 ? 'rojo' : porVencerVeh > 0 ? 'ambar' : 'verde'}
-                cifra={vencimientos.loading && vencimientos.items.length === 0 ? null : vehiculosVencidos > 0 ? vehiculosVencidos : porVencerVeh}
-                detalle={vehiculosVencidos > 0 ? plural(vehiculosVencidos, 'vencido', 'vencidos') : 'por vencer'}
-                onClick={() => verMas('vehiculos')} />
-        ),
+    // Lo que muestra cada módulo plegado: la franja (pantallas anchas) y el botón de la barra (celular).
+    const resumenes: Record<Modulo, Omit<AccesoModulo, 'clave'> & { detalle: string }> = {
+        asistencia: { icon: CheckSquare, tono: tonoAsistencia, titulo: 'Asistencia', cifra: reiteradosN,
+            detalle: plural(reiteradosN ?? 0, 'falta reiterada', 'faltas reiteradas') },
+        gestiones: canRegistrarEntregas
+            ? { icon: FileWarning, tono: tonoGestiones, titulo: 'Gestiones', cifra: resumenDocs.fueraDePlazo, detalle: 'fuera de plazo' }
+            : { icon: SearchCheck, tono: tonoGestiones, titulo: 'Gestiones', cifra: ready ? totalGestiones : null,
+                detalle: plural(totalGestiones, 'pendiente', 'pendientes') },
+        inventario: { icon: Package, tono: modeloInv.tono, titulo: 'Inventario', cifra: modeloInv.cifra, detalle: modeloInv.etiqueta },
+        vehiculos: { icon: Truck, titulo: 'Vehículos', tono: vehiculosVencidos > 0 ? 'rojo' : porVencerVeh > 0 ? 'ambar' : 'verde',
+            cifra: vencimientos.loading && vencimientos.items.length === 0 ? null : vehiculosVencidos > 0 ? vehiculosVencidos : porVencerVeh,
+            detalle: vehiculosVencidos > 0 ? plural(vehiculosVencidos, 'vencido', 'vencidos') : 'por vencer' },
+    };
+    const compactas = Object.fromEntries((Object.keys(resumenes) as Modulo[]).map(m => [m,
+        <TarjetaCompacta key={m} {...resumenes[m]} onClick={() => verMas(m)} />])) as Record<Modulo, React.ReactNode>;
+    // Barra del celular: cambiar de módulo deja ver el detalle nuevo desde su comienzo si se había bajado más
+    // allá (convención de pestañas); abrir o cerrar no mueve nada.
+    const elegirDesdeBarra = (clave: string) => {
+        const m = clave as Modulo;
+        const cambia = activo !== null && activo !== m;
+        verMas(m);
+        if (cambia) window.requestAnimationFrame(() => {
+            const el = document.getElementById(ID_DETALLE_INICIO);
+            if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: 'start' });
+        });
     };
     // La cola solo se ve cuando las tarjetas van en UNA fila (si no, apuntaría a la tarjeta de abajo).
     const colaVisible = visibles.length <= 1 ? '' : visibles.length === 2 ? 'hidden sm:block' : 'hidden xl:block';
 
     return (
-        <div className="space-y-6">
+        <div className={cn('space-y-6', activo !== null && 'max-sm:pb-24')}>
             {/* Cartel de atrasos del supervisor que lleva documentos a firmar (pedido de RRHH, 2026-10-19). */}
             <AvisoAtrasosPortador />
             {/* Lo nuevo de la última entrega, una vez por persona (config/novedades.ts). */}
@@ -480,7 +482,7 @@ const Dashboard: React.FC = () => {
 
             {/* Una tarjeta por apartado, todas en una línea desde 1280 px (2×2 en tablet, una bajo otra en celular). */}
             {visibles.length > 0 && (
-                <div className={cn('grid gap-6 items-stretch', COLUMNAS[visibles.length])}>
+                <div className={cn('grid gap-6 items-stretch', COLUMNAS[visibles.length], activo !== null && 'max-sm:hidden')}>
                     {/* Con un detalle abierto, todas se pliegan a su franja (`compacta`) y la elegida lleva la cola. */}
                     {showFaltas && (
                         <Panel className="h-full" activa={activo === 'asistencia'} onClick={() => verMas('asistencia')}
@@ -617,6 +619,11 @@ const Dashboard: React.FC = () => {
                         <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')} maxFilas={Number.POSITIVE_INFINITY} />
                     </Panel>
                 </DetalleModulo>
+            )}
+            {/* Celular con un detalle abierto: las tarjetas pasan a una barra de accesos fija abajo. */}
+            {activo !== null && (
+                <BarraModulos activo={activo} onElegir={elegirDesdeBarra}
+                    items={visibles.map(m => ({ clave: m, ...resumenes[m] }))} />
             )}
         </div>
     );

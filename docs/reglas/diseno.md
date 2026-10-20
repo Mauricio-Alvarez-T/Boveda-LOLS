@@ -533,7 +533,10 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     `inert` lo plegado; en seco con «reducir movimiento») y funcionan como pestañas: otra franja cambia el
     detalle, la elegida lo cierra y todo vuelve a crecer. **Bajo la elegida, una cola de gota** (`ColaGota`,
     SVG con `fill: var(--card)`) baja hacia el detalle y dice de qué tarjeta es; solo se ve con las
-    tarjetas en una fila. **La tarjeta abierta se pinta entera de verde LOLS** (`.tarjeta-activa`: green-700,
+    tarjetas en una fila. **En el celular (< 640 px), con un detalle abierto, las tarjetas se ocultan y
+    pasan a una barra de accesos fija abajo** (`BarraModulos`: ícono, nombre y su cifra en una burbuja; el
+    elegido en verde; tocar otro cambia de detalle —y, si se había bajado más allá, muestra el nuevo desde su
+    comienzo—, tocar el verde lo cierra; entra desde abajo en 220 ms, respeta el área segura). **La tarjeta abierta se pinta entera de verde LOLS** (`.tarjeta-activa`: green-700,
     oscuro green-900, letra blanca; redefine los tokens neutros adentro). Sobre verde el rojo y el verde
     no se leen: el círculo pasa a **blanco con el ícono en su color** (el significado sigue ahí) y las
     cifras que avisan (rojo/ámbar) pasan a **amarillo claro** (`yellow-300`); las demás, blancas

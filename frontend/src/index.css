@@ -500,3 +500,13 @@
 @media (prefers-reduced-motion: no-preference) {
     .cola-gota { transform-origin: top center; animation: cola-gota 180ms cubic-bezier(0.2, 0.8, 0.2, 1) 120ms both; }
 }
+
+/* Barra de accesos rápidos del Inicio en el celular (dueño 2026-10-20): entra desde abajo al abrir un
+   detalle. Sin «reducir movimiento» aparece en seco. */
+@keyframes barra-sube {
+    from { transform: translateY(100%); }
+    to   { transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .barra-modulos { animation: barra-sube 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+}
