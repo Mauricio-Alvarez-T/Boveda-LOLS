@@ -83,38 +83,61 @@ export function ordenarReiterados<T extends Pick<TrabajadorFaltas, 'alertas' | '
         || String(x.apellido_paterno ?? '').localeCompare(String(y.apellido_paterno ?? ''), 'es'));
 }
 
-/** Un día de la tira del mes (tarjeta y detalle de Asistencia). */
-export interface DiaTira {
-    dia: number;
-    /** falta = F del trabajador; habil/finde = días ya pasados; futuro = después de hoy. */
-    tipo: 'falta' | 'habil' | 'finde' | 'futuro';
-    lunes: boolean;
+/** Una celda del mini calendario de lunes a viernes (fichas de «Requiere acción»). */
+export interface CeldaCalendario {
+    /** null = hueco antes del día 1 o después del último hábil. */
+    dia: number | null;
+    /** falta = F del trabajador; habil = día pasado sin falta; futuro = después de hoy. */
+    tipo: 'falta' | 'habil' | 'futuro' | 'vacio';
     hoy: boolean;
 }
 
 /**
- * Los días del mes como tira (dueño 2026-10-20: el «2 lunes» se ve de un vistazo). `mes` va de 1 a 12;
- * `hoyDia` es null si el mes ya pasó entero. En UTC para que el día de la semana no dependa de la zona.
+ * El mes en semanas de lunes a viernes (dueño 2026-10-20, opción A del lienzo): 4 a 6 filas de 5 celdas.
+ * Así «2 lunes» se ve como una columna y «2 días seguidos» como dos celdas juntas. `mes` va de 1 a 12;
+ * `hoyDia` es null si el mes ya pasó. En UTC para que el día de la semana no dependa de la zona horaria.
  */
-export function tiraDelMes(fechas: string[] | undefined, anio: number, mes: number, hoyDia: number | null): DiaTira[] {
+export function semanasDelMes(fechas: string[] | undefined, anio: number, mes: number, hoyDia: number | null): CeldaCalendario[][] {
     const faltas = new Set((fechas ?? [])
         .filter(f => Number(f.slice(0, 4)) === anio && Number(f.slice(5, 7)) === mes)
         .map(f => Number(f.slice(8, 10))));
     const largo = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
-    return Array.from({ length: largo }, (_, i) => {
-        const dia = i + 1;
-        const dow = new Date(Date.UTC(anio, mes - 1, dia)).getUTCDay();
-        const tipo: DiaTira['tipo'] = faltas.has(dia) ? 'falta'
-            : hoyDia != null && dia > hoyDia ? 'futuro'
-                : dow === 0 || dow === 6 ? 'finde' : 'habil';
-        return { dia, tipo, lunes: dow === 1, hoy: dia === hoyDia };
+    const vacia = (): CeldaCalendario => ({ dia: null, tipo: 'vacio', hoy: false });
+    const semanas: CeldaCalendario[][] = [];
+    let actual: CeldaCalendario[] | null = null;
+    for (let dia = 1; dia <= largo; dia++) {
+        const col = (new Date(Date.UTC(anio, mes - 1, dia)).getUTCDay() + 6) % 7; // 0 = lunes
+        if (col > 4) continue;
+        if (!actual || col === 0) {
+            actual = Array.from({ length: 5 }, vacia);
+            semanas.push(actual);
+        }
+        actual[col] = {
+            dia,
+            tipo: faltas.has(dia) ? 'falta' : hoyDia != null && dia > hoyDia ? 'futuro' : 'habil',
+            hoy: dia === hoyDia,
+        };
+    }
+    return semanas;
+}
+
+const DIA_CORTO = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+
+/** «Faltó el lun 5, lun 12, mar 13 y mar 20 (hoy).» */
+export function fraseFaltas(fechas: string[] | undefined, hoyIso: string): string {
+    if (!fechas?.length) return 'Sin faltas este mes.';
+    const dias = fechas.map(f => {
+        const [y, m, d] = f.slice(0, 10).split('-').map(Number);
+        return `${DIA_CORTO[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${d}${f.slice(0, 10) === hoyIso ? ' (hoy)' : ''}`;
     });
+    const texto = dias.length === 1 ? dias[0] : `${dias.slice(0, -1).join(', ')} y ${dias[dias.length - 1]}`;
+    return `Faltó el ${texto}.`;
 }
 
 const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
-/** Texto de la tira para lector de pantalla: «Faltas: lunes 5, lunes 12 y martes 13». */
-export function ariaTira(fechas: string[] | undefined): string {
+/** Texto del calendario para lector de pantalla: «Faltas: lunes 5, lunes 12 y martes 13». */
+export function ariaFaltas(fechas: string[] | undefined): string {
     if (!fechas?.length) return 'Sin faltas este mes';
     const dias = fechas.map(f => {
         const [y, m, d] = f.slice(0, 10).split('-').map(Number);

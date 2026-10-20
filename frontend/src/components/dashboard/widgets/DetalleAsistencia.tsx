@@ -1,14 +1,12 @@
 import React from 'react';
-import { ArrowRight } from 'lucide-react';
 import { cn } from '../../../utils/cn';
-import { Chip } from '../../ui/Chip';
 import { NumeroRodante } from '../../ui/NumeroRodante';
 import { SkeletonText } from '../../ui/Skeleton';
 import AsistenciaPendiente from './AsistenciaPendiente';
-import { TiraMes } from './TiraMes';
+import { FichasReiterados } from './FichasReiterados';
 import { DescuentosMes, FaltasPorObra, HorasExtraObras, PatronFinde, ProximosDias, TendenciaMeses } from './DetalleAsistenciaMes';
 import type { DetalleAsistenciaApi } from './resumenAsistenciaDetalle';
-import { ordenarReiterados, reglasDe, REGLA_FALTA, type FaltasMesData } from './resumenFaltasMes';
+import { ordenarReiterados, type FaltasMesData } from './resumenFaltasMes';
 import { colorEstado, gruposAusentes, ID_SECCION, type AusentesHoy, type ObrasHoy } from './resumenAsistenciaHoy';
 
 const CARD = 'rounded-3xl bg-card p-6 text-foreground shadow-[var(--shadow-md)]';
@@ -56,56 +54,17 @@ const DetalleAsistencia: React.FC<Props> = ({
                     <h3 id={`${ID_SECCION.reiterados}-t`} className={ROTULO}>Requiere acción · faltas reiteradas de {mesNombre}</h3>
                     <span className="text-xs text-muted-foreground">Art. 160 N°3: 2 días seguidos, 2 lunes o 3 días en el mes</span>
                 </div>
-                <div className="overflow-x-auto rounded-3xl bg-card shadow-[var(--shadow-md)]">
-                    {reiterados.length === 0 ? (
-                        <p className="p-6 text-sm text-muted-foreground">Nadie con faltas reiteradas en {mesNombre}.</p>
-                    ) : (
-                        <table className="w-full min-w-[820px] text-sm">
-                            <thead>
-                                <tr className="text-left text-label font-semibold uppercase tracking-wide text-muted-foreground">
-                                    <th scope="col" className="px-6 py-3.5 font-semibold">Trabajador</th>
-                                    <th scope="col" className="px-3 py-3.5 font-semibold">Obra</th>
-                                    <th scope="col" className="px-3 py-3.5 font-semibold">Regla</th>
-                                    <th scope="col" className="px-3 py-3.5 font-semibold capitalize">{mesNombre}</th>
-                                    <th scope="col" className="px-3 py-3.5 text-right font-semibold">Faltas</th>
-                                    <th scope="col" className="px-6 py-3.5"><span className="sr-only">Acción</span></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {reiterados.map(t => (
-                                    <tr key={t.trabajador_id} className="border-t border-border transition-colors hover:bg-muted/40">
-                                        <td className="px-6 py-3">
-                                            <span className="block font-semibold">{t.apellido_paterno} {t.nombres}</span>
-                                            <span className="block text-xs tabular-nums text-muted-foreground">{t.rut}</span>
-                                        </td>
-                                        <td className="px-3 py-3 text-section text-muted-foreground">{t.obra_nombre ?? '—'}</td>
-                                        <td className="px-3 py-3">
-                                            <span className="flex flex-wrap gap-1">
-                                                {reglasDe(t).map(r => <Chip key={r} tone={REGLA_FALTA[r].grave ? 'danger' : 'warning'} label={REGLA_FALTA[r].texto} />)}
-                                            </span>
-                                        </td>
-                                        <td className="w-60 px-3 py-3">
-                                            <TiraMes fechas={t.fechas} anio={anio} mes={mes} hoyDia={hoyDia} tamano="md" />
-                                        </td>
-                                        <td className="px-3 py-3 text-right text-xl font-bold tabular-nums text-red-700 dark:text-red-300">{t.total_faltas}</td>
-                                        <td className="whitespace-nowrap px-6 py-3 text-right">
-                                            {/* eslint-disable-next-line no-restricted-syntax -- enlace de fila */}
-                                            <button type="button" onClick={() => onTrabajador(t.rut)}
-                                                className="inline-flex min-h-9 items-center gap-1 rounded-lg px-1 text-section font-semibold text-green-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 dark:text-green-300">
-                                                Ver en asistencia<ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                    {faltas && faltas.reiterados > faltas.lista.length && (
-                        <p className="border-t border-border px-6 py-3 text-xs text-muted-foreground">
-                            Mostrando {faltas.lista.length} de {faltas.reiterados}. El resto, en Asistencia.
-                        </p>
-                    )}
-                </div>
+                {reiterados.length === 0 ? (
+                    <p className={cn(CARD, 'text-sm text-muted-foreground')}>Nadie con faltas reiteradas en {mesNombre}.</p>
+                ) : (
+                    <FichasReiterados lista={reiterados} onTrabajador={onTrabajador} anio={anio} mes={mes} hoyDia={hoyDia}
+                        hoyIso={`${anio}-${String(mes).padStart(2, '0')}-${String(hoyDia).padStart(2, '0')}`} />
+                )}
+                {faltas && faltas.reiterados > faltas.lista.length && (
+                    <p className="text-xs text-muted-foreground">
+                        Mostrando {faltas.lista.length} de {faltas.reiterados}. El resto, en Asistencia.
+                    </p>
+                )}
                 {mesExtra?.patronFinde && <PatronFinde datos={mesExtra.patronFinde} onTrabajador={onTrabajador} />}
             </section>
 

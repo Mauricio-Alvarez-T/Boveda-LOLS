@@ -1,4 +1,4 @@
-import { ariaTira, diasFaltas, nombreMes, ordenarReiterados, reglasDe, REGLA_FALTA, tiraDelMes } from './resumenFaltasMes';
+import { ariaFaltas, diasFaltas, fraseFaltas, nombreMes, ordenarReiterados, reglasDe, REGLA_FALTA, semanasDelMes } from './resumenFaltasMes';
 
 describe('faltasMes', () => {
     test('reglas en orden fijo (seguidas, lunes, 3 o más) y sin repetir', () => {
@@ -36,27 +36,32 @@ describe('faltasMes', () => {
     });
 });
 
-describe('tira del mes y orden de urgencia', () => {
-    test('octubre 2026: 31 días, el 1 es jueves, lunes 5/12/19/26', () => {
-        const tira = tiraDelMes(['2026-10-05', '2026-10-12', '2026-10-13'], 2026, 10, 20);
-        expect(tira).toHaveLength(31);
-        expect(tira.filter(d => d.lunes).map(d => d.dia)).toEqual([5, 12, 19, 26]);
-        expect(tira.filter(d => d.tipo === 'falta').map(d => d.dia)).toEqual([5, 12, 13]);
-        expect(tira[2].tipo).toBe('finde'); // sábado 3
-        expect(tira[20].tipo).toBe('futuro'); // 21
-        expect(tira.filter(d => d.hoy).map(d => d.dia)).toEqual([20]);
+describe('mini calendario y orden de urgencia', () => {
+    test('octubre 2026: 5 semanas; el 1 es jueves, así que la primera parte con 3 huecos', () => {
+        const s = semanasDelMes(['2026-10-05', '2026-10-12', '2026-10-13'], 2026, 10, 20);
+        expect(s).toHaveLength(5);
+        expect(s[0].map(c => c.dia)).toEqual([null, null, null, 1, 2]);
+        expect(s[4].map(c => c.dia)).toEqual([26, 27, 28, 29, 30]);
+        // Los lunes son la primera columna: «2 lunes» se ve como columna.
+        expect(s.map(w => w[0]).filter(c => c.tipo === 'falta').map(c => c.dia)).toEqual([5, 12]);
+        expect(s[2][1]).toEqual({ dia: 13, tipo: 'falta', hoy: false });
+        expect(s[3][1]).toEqual({ dia: 20, tipo: 'habil', hoy: true });
+        expect(s[3][2].tipo).toBe('futuro');
     });
 
-    test('febrero no bisiesto tiene 28 días; fechas de otro mes no cuentan', () => {
-        const tira = tiraDelMes(['2026-01-30', '2026-02-02'], 2026, 2, null);
-        expect(tira).toHaveLength(28);
-        expect(tira.filter(d => d.tipo === 'falta').map(d => d.dia)).toEqual([2]);
-        expect(tira.some(d => d.tipo === 'futuro' || d.hoy)).toBe(false);
+    test('febrero 2026 (el 1 es domingo): 4 semanas justas; fechas de otro mes no cuentan', () => {
+        const s = semanasDelMes(['2026-01-30', '2026-02-02'], 2026, 2, null);
+        expect(s.map(w => w.map(c => c.dia))).toEqual([[2, 3, 4, 5, 6], [9, 10, 11, 12, 13], [16, 17, 18, 19, 20], [23, 24, 25, 26, 27]]);
+        expect(s.flat().filter(c => c.tipo === 'falta').map(c => c.dia)).toEqual([2]);
+        expect(s.flat().some(c => c.tipo === 'futuro' || c.hoy)).toBe(false);
     });
 
-    test('aria de la tira nombra el día de la semana', () => {
-        expect(ariaTira(['2026-10-05', '2026-10-13'])).toBe('Faltas: lunes 5 y martes 13');
-        expect(ariaTira([])).toBe('Sin faltas este mes');
+    test('frase de fechas con «(hoy)», y aria con el día completo', () => {
+        expect(fraseFaltas(['2026-10-05', '2026-10-12', '2026-10-13', '2026-10-20'], '2026-10-20'))
+            .toBe('Faltó el lun 5, lun 12, mar 13 y mar 20 (hoy).');
+        expect(fraseFaltas(['2026-10-14'], '2026-10-20')).toBe('Faltó el mié 14.');
+        expect(ariaFaltas(['2026-10-05', '2026-10-13'])).toBe('Faltas: lunes 5 y martes 13');
+        expect(ariaFaltas([])).toBe('Sin faltas este mes');
     });
 
     test('urgencia: 2 días seguidos primero, luego cantidad de faltas', () => {

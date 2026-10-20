@@ -543,24 +543,26 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     pendientes», tendencia, acciones rápidas): todo vive en el detalle de su módulo. «Actualizar» y la
     fecha pasan al encabezado de la página. **El encabezado global no tiene marco** (toda la app, idea de la
     propuesta L del lienzo): mismo fondo que la página, sin borde ni sombra, alineado con el contenido.
-    - **Asistencia** (`AsistenciaInicio`, «Pulso del día» + tira del mes; elegida por el dueño en el
+    - **Asistencia** (`AsistenciaInicio`, «Pulso del día»; elegida por el dueño en el
       lienzo de bocetos el 2026-10-20): barra «N de M obras guardaron hoy» (un segmento por obra hasta 24;
       «Faltan X e Y»), dos cifras —**ausentes hoy** con su desglose «5 F · 4 LM · 3 otros» y **faltas
       reiteradas** del mes (Art. 160 N°3)— y los 3 reiterados más urgentes (2 seguidos primero,
       `ordenarReiterados`), cada uno con **solo su nombre y su regla principal** en una píldora chica en
-      minúsculas (fiel al boceto B: la tira por trabajador saturaba la tarjeta, dueño 2026-10-20). La
-      **`TiraMes`** (una barra por día del mes, faltas en rojo, rayita bajo los lunes, anillo en hoy)
-      vive solo en la tabla del detalle. Las cifras abren el
-      detalle en su sección. Detalle «Por urgencia» (`DetalleAsistencia`), sin fila de números clave
-      (repetían la tarjeta, dueño 2026-10-20): **Requiere acción** (tabla de reiterados
-      con RUT, obra, reglas, tira y «Ver en asistencia») → **Hoy** (ausentes en barra apilada por motivo:
+      minúsculas (fiel al boceto B: la tira por trabajador saturaba la tarjeta, dueño 2026-10-20). Las
+      cifras abren el detalle. Detalle «Por urgencia» (`DetalleAsistencia`), sin fila de números clave
+      (repetían la tarjeta, dueño 2026-10-20): **Requiere acción** en **fichas por
+      persona** (`FichasReiterados`, opción A del lienzo, dueño 2026-10-20 «tal cual»; 3 por fila en xl):
+      iniciales en círculo (rojo si tiene 2 seguidos), nombre y obra, total de faltas, la frase «Faltó el
+      lun 5, lun 12 y mar 13», reglas en píldoras chicas y un **mini calendario de lunes a viernes**
+      (`semanasDelMes`: «2 lunes» se lee como columna, «2 seguidos» como celdas juntas; faltas en rojo,
+      futuro punteado, anillo en hoy) + «Ver en asistencia». Reemplazó a la tabla con tira del mes → **Hoy** (ausentes en barra apilada por motivo:
       F rojo, LM azul, V gris, PSG ámbar; obras sin guardar) junto a **Próximos 14 días** (empiezan o
       terminan licencias/vacaciones —«vuelve el lun 26 oct»— y feriados) → **Este mes** (descuentos por
       trabajador y horas extra por obra, cada uno con su permiso; los descuentos avisan que el cálculo
       oficial es el Excel) → **Tendencia y obras** (fase 3: ausentismo de 6 meses en área azul con las
       faltas F en línea roja punteada y la diferencia en puntos con el mes anterior —ámbar si sube, verde
       si baja—, faltas del mes por obra en barras rojas; luego actividades sugeridas y ranking. La tendencia de
-      7 días se quitó: la cubre la de 6 meses). Bajo la tabla de reiterados, un aviso ámbar desplegable de **faltas pegadas al fin de
+      7 días se quitó: la cubre la de 6 meses). Bajo las fichas, un aviso ámbar desplegable de **faltas pegadas al fin de
       semana** (no es causal del Art. 160). Las fases 2 y 3 se piden al abrir el detalle
       (`GET /api/dashboard/asistencia`). Las cifras usan
       `NumeroRodante` (sin count-up, §9.4).
