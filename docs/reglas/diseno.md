@@ -533,8 +533,12 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       detalle en su sección. Detalle «Por urgencia» (`DetalleAsistencia`): 4 números clave (reiterados,
       ausentes hoy, licencias médicas hoy, obras sin guardar) → **Requiere acción** (tabla de reiterados
       con RUT, obra, reglas, tira y «Ver en asistencia») → **Hoy** (ausentes en barra apilada por motivo:
-      F rojo, LM azul, V gris, PSG ámbar; obras sin guardar) → **Tendencia y obras** (tendencia 7 días,
-      actividades sugeridas, ranking). Las cifras usan `NumeroRodante` (sin count-up, §9.4).
+      F rojo, LM azul, V gris, PSG ámbar; obras sin guardar) junto a **Próximos 14 días** (empiezan o
+      terminan licencias/vacaciones —«vuelve el lun 26 oct»— y feriados) → **Este mes** (descuentos por
+      trabajador y horas extra por obra, cada uno con su permiso; los descuentos avisan que el cálculo
+      oficial es el Excel) → **Tendencia y obras** (tendencia 7 días, actividades sugeridas, ranking). La
+      fase 2 se pide al abrir el detalle (`GET /api/dashboard/asistencia`). Las cifras usan
+      `NumeroRodante` (sin count-up, §9.4).
     - **Gestiones**: para quien registra entregas, `DocumentosInicio` (documentos físicos fuera de plazo,
       críticos, etapas, «dónde están ahora»); sin ese permiso, `TarjetaPendientes` con sus pendientes
       (solicitudes, documentos por vencer, contratos, sin documentos, lotes del portador). Detalle:

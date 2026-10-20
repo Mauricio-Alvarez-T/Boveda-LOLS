@@ -6,6 +6,8 @@ import { NumeroRodante } from '../../ui/NumeroRodante';
 import { SkeletonText } from '../../ui/Skeleton';
 import AsistenciaPendiente from './AsistenciaPendiente';
 import { TiraMes } from './TiraMes';
+import { DescuentosMes, HorasExtraObras, ProximosDias } from './DetalleAsistenciaMes';
+import type { DetalleAsistenciaApi } from './resumenAsistenciaDetalle';
 import { ordenarReiterados, reglasDe, REGLA_FALTA, type FaltasMesData } from './resumenFaltasMes';
 import { colorEstado, contarEstado, gruposAusentes, ID_SECCION, type AusentesHoy, type ObrasHoy, type SeccionAsistencia } from './resumenAsistenciaHoy';
 
@@ -36,6 +38,11 @@ interface Props {
     mes: number;
     hoyDia: number;
     cargando: boolean;
+    /** Fase 2 (GET /dashboard/asistencia): próximos 14 días, descuentos y horas extra; null mientras carga o si falló. */
+    mesExtra: DetalleAsistenciaApi | null;
+    cargandoMes: boolean;
+    /** El perfil ve descuentos u horas extra (para no mostrar un esqueleto que luego desaparece). */
+    verMes: boolean;
     onTrabajador: (rut: string) => void;
     onAsistencia: () => void;
     /** Tendencia, actividades y ranking de obras (lo que ya existía), al final. */
@@ -45,10 +52,11 @@ interface Props {
 /**
  * Detalle «Asistencia» del Inicio, variante «Por urgencia» (dueño 2026-10-20, elegida en el lienzo de
  * bocetos): cuatro números clave, luego lo que exige acción (reiterados del Art. 160 con su mes en una
- * tira), luego el día de hoy (ausentes por motivo y obras sin guardar) y al final tendencia y obras.
+ * tira), luego el día de hoy (ausentes por motivo y obras sin guardar) junto a lo que viene en 14 días,
+ * después el mes para remuneraciones (descuentos y horas extra, según permisos) y al final tendencia y obras.
  */
 const DetalleAsistencia: React.FC<Props> = ({
-    faltas, ausentes, obras, mesNombre, anio, mes, hoyDia, cargando, onTrabajador, onAsistencia, children,
+    faltas, ausentes, obras, mesNombre, anio, mes, hoyDia, cargando, mesExtra, cargandoMes, verMes, onTrabajador, onAsistencia, children,
 }) => {
     const reiterados = faltas ? ordenarReiterados(faltas.lista) : [];
     const graves = reiterados.filter(t => t.alertas.some(a => a.tipo === 'consecutivas')).length;
@@ -152,13 +160,13 @@ const DetalleAsistencia: React.FC<Props> = ({
                 </div>
             </section>
 
-            <section id={ID_SECCION.hoy} className="scroll-mt-6 space-y-3" aria-labelledby={`${ID_SECCION.hoy}-t`}>
-                <h3 id={`${ID_SECCION.hoy}-t`} className={ROTULO}>Hoy</h3>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <section id={ID_SECCION.hoy} className="min-w-0 scroll-mt-6 space-y-3" aria-labelledby={`${ID_SECCION.hoy}-t`}>
+                    <h3 id={`${ID_SECCION.hoy}-t`} className={ROTULO}>Hoy · ausentes por motivo</h3>
                     <div className={CARD}>
                         <div className="mb-4 flex items-baseline gap-2">
                             <NumeroRodante value={ausentes?.total ?? 0} className="text-4xl font-bold leading-none tracking-tight text-foreground" />
-                            <span className="text-sm text-muted-foreground">{plural(ausentes?.total ?? 0, 'ausente', 'ausentes')} por motivo</span>
+                            <span className="text-sm text-muted-foreground">{plural(ausentes?.total ?? 0, 'ausente', 'ausentes')} hoy</span>
                         </div>
                         {grupos.length === 0 ? (
                             <p className="text-sm text-muted-foreground">Nadie ha faltado hoy en las asistencias guardadas.</p>
@@ -184,13 +192,39 @@ const DetalleAsistencia: React.FC<Props> = ({
                             </>
                         )}
                     </div>
-                    {obras && obras.total > 0 && !obras.finDeSemana && (
+                    {obras && obras.total > 0 && !obras.finDeSemana && obras.sinGuardar.length > 0 && (
                         <div className={CARD}>
                             <AsistenciaPendiente sinGuardar={obras.sinGuardar} total={obras.total} onNavigate={onAsistencia} />
                         </div>
                     )}
-                </div>
-            </section>
+                </section>
+
+                {(cargandoMes || mesExtra?.proximos) && (
+                    <section className="min-w-0 space-y-3" aria-labelledby="inicio-asistencia-proximos-t">
+                        <h3 id="inicio-asistencia-proximos-t" className={ROTULO}>Próximos 14 días</h3>
+                        {mesExtra?.proximos
+                            ? <ProximosDias datos={mesExtra.proximos} hoy={mesExtra.hoy} />
+                            : <div className={CARD}><SkeletonText lines={5} /></div>}
+                    </section>
+                )}
+            </div>
+
+            {((cargandoMes && !mesExtra && verMes) || mesExtra?.descuentos || mesExtra?.horasExtra) && (
+                <section className="space-y-3" aria-labelledby="inicio-asistencia-mes-t">
+                    <h3 id="inicio-asistencia-mes-t" className={ROTULO}>{`Este mes · ${mesNombre}`}</h3>
+                    {cargandoMes && !mesExtra ? (
+                        <div className={CARD}><SkeletonText lines={6} /></div>
+                    ) : (
+                        <div className={cn('grid grid-cols-1 gap-6',
+                            mesExtra?.descuentos && mesExtra?.horasExtra && 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]')}>
+                            {mesExtra?.descuentos && (
+                                <DescuentosMes datos={mesExtra.descuentos} onTrabajador={onTrabajador} onAsistencia={onAsistencia} />
+                            )}
+                            {mesExtra?.horasExtra && <HorasExtraObras datos={mesExtra.horasExtra} mesNombre={mesNombre} />}
+                        </div>
+                    )}
+                </section>
+            )}
 
             {children && (
                 <section className="space-y-3" aria-label="Tendencia y obras">

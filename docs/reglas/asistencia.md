@@ -116,6 +116,16 @@ presentes de hoy con la regla de fila vigente; `ausentesDetalle` conserva sus 20
 día de Chile** (`utils/fechaChile.js`, `America/Santiago`): con `toISOString()` el Inicio preguntaba desde
 las ~21:00 por el día siguiente; lo mismo vale para «ayer», el ranking de obras y el mes de las faltas.
 
+**`GET /api/dashboard/asistencia?obra_id=`** (`asistencia.ver`; `inicioAsistencia.service`, fase 2 del
+detalle del Inicio, se pide al abrirlo). Tres bloques, cada uno `null` sin su permiso o si falla:
+- `proximos` — períodos activos (`asistencia.periodo.ver`) que **empiezan** en (hoy, hoy+14] o
+  **terminan** en [hoy, hoy+14), con `vuelve = fin + 1` (el front lo corre al día hábil), y feriados
+  activos de [hoy, hoy+14]. Trabajadores activos, sin prueba; con obra, la obra actual del trabajador.
+- `descuentos` (`asistencia.exportar_excel`) — días del mes por trabajador en estados con
+  `cuenta_dia_trabajado = 0` (F, LM, PSG…) y días JI aparte; fila vigente, sin prueba. **Referencia**:
+  el cálculo oficial (base 30, relleno de febrero, horas JI) sigue siendo el Excel.
+- `horasExtra` (`asistencia.horas_extra.ver`) — `SUM(horas_extra)` del mes por obra del registro.
+
 ## Lista de trabajadores en actividades sugeridas (`actividades_sugeridas`, mig 038/040/116)
 
 Antes "Sábados extra". **Jefatura 2026-09-21: eliminar toda referencia a que los trabajos

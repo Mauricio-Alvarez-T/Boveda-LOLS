@@ -30,6 +30,7 @@ import { resumenDocumentosInicio } from '../components/dashboard/widgets/resumen
 import AsistenciaInicio from '../components/dashboard/widgets/AsistenciaInicio';
 import DetalleAsistencia from '../components/dashboard/widgets/DetalleAsistencia';
 import { ID_SECCION, type AusentesHoy, type SeccionAsistencia } from '../components/dashboard/widgets/resumenAsistenciaHoy';
+import type { DetalleAsistenciaApi } from '../components/dashboard/widgets/resumenAsistenciaDetalle';
 import InventarioInicio, { FilaInventarioInicio } from '../components/dashboard/widgets/InventarioInicio';
 import { resumenInventarioInicio, type FilaInventario, type ResumenInventarioApi } from '../components/dashboard/widgets/resumenInventarioInicio';
 import TarjetaPendientes from '../components/dashboard/widgets/TarjetaPendientes';
@@ -375,6 +376,26 @@ const Dashboard: React.FC = () => {
         window.requestAnimationFrame(() => document.getElementById(ID_SECCION[s])
             ?.scrollIntoView({ behavior: reducir ? 'auto' : 'smooth', block: 'start' }));
     }, []);
+    // Detalle de Asistencia, fase 2: se pide SOLO al abrirlo (no pesa en el resumen) y al cambiar de obra o
+    // pulsar «Actualizar» con el detalle abierto.
+    const [mesAsistencia, setMesAsistencia] = useState<DetalleAsistenciaApi | null>(null);
+    const [cargandoMesAsistencia, setCargandoMesAsistencia] = useState(false);
+    const asistenciaAbierta = activo === 'asistencia';
+    const fetchMesAsistencia = useCallback(async () => {
+        setCargandoMesAsistencia(true);
+        try {
+            const query = selectedObra ? `?obra_id=${selectedObra.id}` : '';
+            const res = await api.get<ApiResponse<DetalleAsistenciaApi>>(`/dashboard/asistencia${query}`);
+            setMesAsistencia(res.data.data ?? null);
+        } catch {
+            setMesAsistencia(null);
+        } finally {
+            setCargandoMesAsistencia(false);
+        }
+    }, [selectedObra]);
+    useEffect(() => {
+        if (asistenciaAbierta) fetchMesAsistencia();
+    }, [asistenciaAbierta, fetchMesAsistencia, lastUpdated]);
     const irATrabajador = (rut: string) => navigate(`/asistencia?q=${encodeURIComponent(rut)}`);
     const irAFilaInventario = (f: FilaInventario) => navigate(`/inventario?tab=transferencias&estado=${f.estado}`);
     const mes = nombreMes(hoy);
@@ -437,6 +458,8 @@ const Dashboard: React.FC = () => {
                     accion={{ texto: 'Ir a Asistencia', onClick: () => navigate('/asistencia') }}>
                     <DetalleAsistencia faltas={data?.faltasMes ?? null} ausentes={data?.ausentesHoy ?? null} obras={obrasHoy}
                         mesNombre={mes} {...fechaAsistencia} cargando={!ready}
+                        mesExtra={mesAsistencia} cargandoMes={cargandoMesAsistencia}
+                        verMes={permisos.includes('asistencia.exportar_excel') || permisos.includes('asistencia.horas_extra.ver')}
                         onTrabajador={irATrabajador} onAsistencia={() => navigate('/asistencia')}>
                         {(showTrend || canActividades || showRanking) && (
                             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
