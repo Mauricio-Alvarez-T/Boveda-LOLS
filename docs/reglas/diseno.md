@@ -514,7 +514,11 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     sección a la vez) con la lista completa y el resto del módulo —listas, gráficos— que se irá sumando.
     **Al entrar no hay nada abajo**: el detalle se abre al pinchar una tarjeta (toda la tarjeta es
     pinchable; sus filas y botones mandan sobre ella) o su «Ver más», y se cierra pinchándola de nuevo
-    («Ocultar ↑»). La tarjeta abierta lleva un anillo verde. Ya **no hay tarjeta
+    («Ocultar ↑»). **La tarjeta abierta se pinta entera de verde LOLS** (`.tarjeta-activa`: green-700,
+    oscuro green-900, letra blanca; redefine los tokens neutros adentro). Sobre verde el rojo y el verde
+    no se leen: el círculo pasa a **blanco con el ícono en su color** (el significado sigue ahí) y las
+    cifras que avisan (rojo/ámbar) pasan a **amarillo claro** (`yellow-300`); las demás, blancas
+    (contexto `TarjetaActiva` en `EncabezadoTarjeta.tsx`). Los chips conservan su fondo claro. Ya **no hay tarjeta
     verde** (la excepción de superficie grande verde se fue con ella) ni bloques fijos debajo («Otros
     pendientes», tendencia, acciones rápidas): todo vive en el detalle de su módulo. «Actualizar» y la
     fecha pasan al encabezado de la página. **El encabezado global no tiene marco** (toda la app, idea de la

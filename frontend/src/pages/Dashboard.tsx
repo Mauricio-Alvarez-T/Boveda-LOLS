@@ -35,7 +35,7 @@ import { resumenInventarioInicio, type FilaInventario, type ResumenInventarioApi
 import TarjetaPendientes from '../components/dashboard/widgets/TarjetaPendientes';
 import DocumentosAtrasadosLista from '../components/dashboard/widgets/DocumentosAtrasadosLista';
 import { DetalleModulo } from '../components/dashboard/widgets/DetalleModulo';
-import { EncabezadoTarjeta } from '../components/dashboard/widgets/EncabezadoTarjeta';
+import { EncabezadoTarjeta, TarjetaActiva } from '../components/dashboard/widgets/EncabezadoTarjeta';
 import { nombreMes, type FaltasMesData, type TrabajadorFaltas } from '../components/dashboard/widgets/resumenFaltasMes';
 import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
 import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
@@ -100,10 +100,11 @@ interface DashboardData {
 // ─── Panel: tarjeta blanca del Inicio (2026-10-16): sin borde, sombra suave (en oscuro la sombra
 // trae su anillo de 1 px), esquinas grandes. El color va en el círculo de cada encabezado
 // (EncabezadoTarjeta), nunca en el fondo.
-const Panel: React.FC<{ children: React.ReactNode; className?: string; onClick?: () => void }> = ({ children, className, onClick }) => (
+const Panel: React.FC<{ children: React.ReactNode; className?: string; onClick?: () => void; activa?: boolean }> = ({ children, className, onClick, activa = false }) => (
     <div
-        className={cn('rounded-3xl bg-card p-6 shadow-[var(--shadow-md)]',
-            onClick && 'cursor-pointer transition-[box-shadow] hover:ring-1 hover:ring-border', className)}
+        className={cn('rounded-3xl bg-card text-foreground p-6 shadow-[var(--shadow-md)]',
+            onClick && 'cursor-pointer transition-[background-color,box-shadow] duration-200 hover:ring-1 hover:ring-border',
+            activa && 'tarjeta-activa', className)}
         // Tarjeta entera pinchable (atajo con mouse/dedo): los botones y enlaces de adentro mandan sobre ella.
         // Con teclado, el camino es su botón «Ver más».
         onClick={onClick ? (e) => {
@@ -111,7 +112,7 @@ const Panel: React.FC<{ children: React.ReactNode; className?: string; onClick?:
             onClick();
         } : undefined}
     >
-        {children}
+        <TarjetaActiva.Provider value={activa}>{children}</TarjetaActiva.Provider>
     </div>
 );
 
@@ -369,7 +370,6 @@ const Dashboard: React.FC = () => {
     }, [elegido]);
     const irATrabajador = (rut: string) => navigate(`/asistencia?q=${encodeURIComponent(rut)}`);
     const irAFilaInventario = (f: FilaInventario) => navigate(`/inventario?tab=transferencias&estado=${f.estado}`);
-    const marco = (m: Modulo) => cn('h-full', activo === m && 'ring-2 ring-green-600/40 dark:ring-green-400/40');
     const mes = nombreMes(hoy);
 
     return (
@@ -381,7 +381,7 @@ const Dashboard: React.FC = () => {
             {visibles.length > 0 && (
                 <div className={cn('grid gap-6 items-stretch', COLUMNAS[visibles.length])}>
                     {showFaltas && (
-                        <Panel className={marco('asistencia')} onClick={() => verMas('asistencia')}>
+                        <Panel className="h-full" activa={activo === 'asistencia'} onClick={() => verMas('asistencia')}>
                             {ready && data?.faltasMes
                                 ? <FaltasMes data={data.faltasMes} mes={mes} onTrabajador={irATrabajador}
                                     activo={activo === 'asistencia'} onVerMas={() => verMas('asistencia')} />
@@ -389,7 +389,7 @@ const Dashboard: React.FC = () => {
                         </Panel>
                     )}
                     {verGestiones && (
-                        <Panel className={marco('gestiones')} onClick={() => verMas('gestiones')}>
+                        <Panel className="h-full" activa={activo === 'gestiones'} onClick={() => verMas('gestiones')}>
                             {canRegistrarEntregas
                                 ? <DocumentosInicio resumen={resumenDocs} activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')} />
                                 : ready
@@ -400,13 +400,13 @@ const Dashboard: React.FC = () => {
                         </Panel>
                     )}
                     {canInventario && (
-                        <Panel className={marco('inventario')} onClick={() => verMas('inventario')}>
+                        <Panel className="h-full" activa={activo === 'inventario'} onClick={() => verMas('inventario')}>
                             <InventarioInicio modelo={modeloInv} onFila={irAFilaInventario}
                                 activo={activo === 'inventario'} onVerMas={() => verMas('inventario')} />
                         </Panel>
                     )}
                     {showVencVehiculos && (
-                        <Panel className={marco('vehiculos')} onClick={() => verMas('vehiculos')}>
+                        <Panel className="h-full" activa={activo === 'vehiculos'} onClick={() => verMas('vehiculos')}>
                             {vencimientos.loading && vencimientos.items.length === 0
                                 ? <SkeletonText lines={5} />
                                 : <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')}

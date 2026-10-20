@@ -1,7 +1,7 @@
 import React from 'react';
 import { Package } from 'lucide-react';
 import { cn } from '../../../utils/cn';
-import { EncabezadoTarjeta, CifraTarjeta } from './EncabezadoTarjeta';
+import { EncabezadoTarjeta, CifraTarjeta, CIFRA_SOBRE_VERDE, useTarjetaActiva } from './EncabezadoTarjeta';
 import { BotonVerMas } from './BotonVerMas';
 import type { FilaInventario, ModeloInventarioInicio, TonoInventario } from './resumenInventarioInicio';
 
@@ -13,7 +13,9 @@ const NUMERO: Record<TonoInventario, string> = {
 };
 
 /** Fila de un grupo de solicitudes (por aprobar, diferencias, …): abre la pestaña Solicitudes filtrada. */
-export const FilaInventarioInicio: React.FC<{ f: FilaInventario; onClick: () => void }> = ({ f, onClick }) => (
+export const FilaInventarioInicio: React.FC<{ f: FilaInventario; onClick: () => void }> = ({ f, onClick }) => {
+    const sobreVerde = useTarjetaActiva();
+    return (
     // eslint-disable-next-line no-restricted-syntax -- fila de lista (toda la fila navega)
     <button
         type="button"
@@ -24,9 +26,10 @@ export const FilaInventarioInicio: React.FC<{ f: FilaInventario; onClick: () => 
             <p className="text-sm font-semibold text-foreground truncate">{f.texto}</p>
             {f.detalle && <p className="text-xs text-muted-foreground truncate">{f.detalle}</p>}
         </div>
-        <span className={cn('shrink-0 text-xl font-bold tabular-nums', NUMERO[f.tono])}>{f.total}</span>
+        <span className={cn('shrink-0 text-xl font-bold tabular-nums', sobreVerde ? CIFRA_SOBRE_VERDE[f.tono] : NUMERO[f.tono])}>{f.total}</span>
     </button>
-);
+    );
+};
 
 interface Props {
     modelo: ModeloInventarioInicio;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '../../../utils/cn';
-import { EncabezadoTarjeta, CifraTarjeta, type TonoTarjeta } from './EncabezadoTarjeta';
+import { EncabezadoTarjeta, CifraTarjeta, useTarjetaActiva, type TonoTarjeta } from './EncabezadoTarjeta';
 import { BotonVerMas } from './BotonVerMas';
 import type { BandejaItem } from './BandejaDelDia';
 
@@ -34,6 +34,7 @@ const COLOR = {
  * ingreso, documentos por vencer, contratos, trabajadores sin documentos, lotes del portador).
  */
 const TarjetaPendientes: React.FC<Props> = ({ icon, titulo, subtitulo, items, total, onNavigate, activo, onVerMas, modulo }) => {
+    const sobreVerde = useTarjetaActiva();
     const criticas = items.filter(i => i.severity === 'critical').length;
     const tono: TonoTarjeta = criticas > 0 ? 'rojo' : total > 0 ? 'ambar' : 'verde';
     const visibles = items.slice(0, MAX_FILAS);
@@ -55,7 +56,7 @@ const TarjetaPendientes: React.FC<Props> = ({ icon, titulo, subtitulo, items, to
                                 onClick={() => it.ruta && onNavigate(it.ruta)}
                                 className="flex w-full items-start gap-3 border-t border-border py-2.5 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 -mx-2 px-2 rounded-lg"
                             >
-                                <Icono className={cn('mt-0.5 h-4 w-4 shrink-0', COLOR[it.severity])} aria-hidden />
+                                <Icono className={cn('mt-0.5 h-4 w-4 shrink-0', sobreVerde ? (it.severity === 'info' ? 'text-white' : 'text-yellow-300') : COLOR[it.severity])} aria-hidden />
                                 <div className="min-w-0 flex-1">
                                     <p className="text-sm font-semibold text-foreground truncate">{it.title}</p>
                                     {it.description && <p className="text-xs text-muted-foreground truncate">{it.description}</p>}

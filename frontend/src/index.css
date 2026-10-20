@@ -455,3 +455,21 @@
 [data-sonner-toast][data-styled="true"] [data-close-button] svg {
   color: #FFFFFF !important;
 }
+
+/* ── Tarjeta elegida del Inicio (dueño 2026-10-20; diseno.md §9.14) ─────────────────────────────
+   Se pinta entera de verde LOLS, como la antigua tarjeta del día. Los tokens neutros se redefinen
+   adentro, así sus textos, bordes y fondos suaves se adaptan sin tocar cada componente; lo que lleva
+   color propio (círculo, cifra, números) lo resuelve el contexto `TarjetaActiva`. green-700 y no
+   brand-primary: con letra blanca chica el verde de marca no pasa AA. */
+.tarjeta-activa {
+  --card: #15803d;          /* green-700 */
+  --foreground: #ffffff;
+  --muted-foreground: #dcfce7; /* green-100: 4,6:1 sobre green-700 */
+  --border: rgb(255 255 255 / 0.22);
+  --muted: rgb(255 255 255 / 0.14);
+  --brand-dark: #ffffff;
+  color: #ffffff;
+}
+.dark .tarjeta-activa {
+  --card: #14532d;          /* green-900 */
+}

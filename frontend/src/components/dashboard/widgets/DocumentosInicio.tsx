@@ -2,7 +2,7 @@ import React from 'react';
 import { FileCheck2, FileWarning } from 'lucide-react';
 import { NumeroRodante } from '../../ui/NumeroRodante';
 import { cn } from '../../../utils/cn';
-import { EncabezadoTarjeta, CifraTarjeta } from './EncabezadoTarjeta';
+import { EncabezadoTarjeta, CifraTarjeta, useTarjetaActiva } from './EncabezadoTarjeta';
 import { BotonVerMas } from './BotonVerMas';
 import type { ResumenDocumentosInicio } from './resumenDocumentosInicio';
 
@@ -36,6 +36,7 @@ const Lugar: React.FC<{ punto: string; titulo: string; valor: number | null; uni
 
 const DocumentosInicio: React.FC<Props> = ({ resumen: r, activo, onVerMas }) => {
     const n = r.fueraDePlazo;
+    const sobreVerde = useTarjetaActiva();
     return (
         <div className="flex h-full flex-col">
             <EncabezadoTarjeta
@@ -44,7 +45,7 @@ const DocumentosInicio: React.FC<Props> = ({ resumen: r, activo, onVerMas }) => 
                 titulo="Gestiones"
                 subtitulo="Documentos físicos: por firmar y dónde están"
                 extra={r.criticos > 0 && (
-                    <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-bold tabular-nums text-white">
+                    <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums', sobreVerde ? 'bg-white text-red-700' : 'bg-red-600 text-white')}>
                         {r.criticos} {plural(r.criticos, 'crítico', 'críticos')}
                     </span>
                 )}
