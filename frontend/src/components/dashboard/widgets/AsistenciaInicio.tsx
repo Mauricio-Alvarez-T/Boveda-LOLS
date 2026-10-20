@@ -1,12 +1,10 @@
 import React from 'react';
 import { CheckSquare } from 'lucide-react';
 import { cn } from '../../../utils/cn';
-import { Chip } from '../../ui/Chip';
 import { NumeroRodante } from '../../ui/NumeroRodante';
 import { EncabezadoTarjeta } from './EncabezadoTarjeta';
 import { CIFRA_SOBRE_VERDE, useTarjetaActiva, type TonoTarjeta } from './tarjetaActiva';
 import { BotonVerMas } from './BotonVerMas';
-import { TiraMes } from './TiraMes';
 import { ordenarReiterados, reglasDe, REGLA_FALTA, type FaltasMesData } from './resumenFaltasMes';
 import { desgloseAusentes, listaObras, segmentosObras, type AusentesHoy, type ObrasHoy, type SeccionAsistencia } from './resumenAsistenciaHoy';
 
@@ -19,10 +17,6 @@ interface Props {
     fechaTexto: string;
     /** «octubre». */
     mesNombre: string;
-    anio: number;
-    /** 1-12. */
-    mes: number;
-    hoyDia: number;
     onTrabajador: (rut: string) => void;
     onObras: () => void;
     /** Abre el detalle (sin cerrarlo si ya estaba abierto) y lleva a la sección. */
@@ -40,10 +34,11 @@ const ZONA = 'block w-full text-left rounded-lg -mx-2 px-2 transition-colors hov
 /**
  * Tarjeta «Asistencia» del Inicio, variante «Pulso del día» con la tira del mes (dueño 2026-10-20, elegida
  * en el lienzo de bocetos). Arriba cuántas obras guardaron hoy; luego ausentes de hoy y faltas reiteradas
- * del mes (Art. 160 N°3); abajo los 3 reiterados más urgentes, cada uno con su mes en una tira.
+ * del mes (Art. 160 N°3); abajo los 3 reiterados más urgentes con su regla. La tira del mes por
+ * trabajador vive solo en el detalle: en la tarjeta saturaba (dueño 2026-10-20, fiel al boceto B).
  */
 const AsistenciaInicio: React.FC<Props> = ({
-    faltas, ausentes, obras, fechaTexto, mesNombre, anio, mes, hoyDia,
+    faltas, ausentes, obras, fechaTexto, mesNombre,
     onTrabajador, onObras, onSeccion, activo, onVerMas,
 }) => {
     const sobreVerde = useTarjetaActiva();
@@ -59,6 +54,11 @@ const AsistenciaInicio: React.FC<Props> = ({
     const vacio = sobreVerde ? 'bg-yellow-300' : 'bg-amber-500';
     const avisoTexto = sobreVerde ? 'text-white' : 'text-amber-700 dark:text-amber-300';
     const cifraAlerta = sobreVerde ? CIFRA_SOBRE_VERDE.rojo : 'text-red-700 dark:text-red-300';
+    // Etiqueta de la regla, como en el boceto B: pequeña y en minúsculas. Rojo solo «2 días seguidos»;
+    // sobre la tarjeta verde, fondo blanco (el color del texto conserva el significado).
+    const pildora = (grave: boolean) => sobreVerde
+        ? cn('bg-white', grave ? 'text-red-700' : 'text-green-800')
+        : grave ? 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300' : 'bg-muted text-zinc-700 dark:text-zinc-300';
 
     return (
         <div className="flex h-full flex-col">
@@ -120,14 +120,15 @@ const AsistenciaInicio: React.FC<Props> = ({
                     // eslint-disable-next-line no-restricted-syntax -- fila de lista (toda la fila navega)
                     <button key={t.trabajador_id} type="button" onClick={() => onTrabajador(t.rut)}
                         title={t.alertas.map(a => a.mensaje).join(' · ')}
-                        className={cn(ZONA, 'py-2')}>
-                        <span className="flex items-center gap-2">
-                            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
-                                {t.apellido_paterno} {t.nombres}
-                            </span>
-                            {regla && <Chip tone={REGLA_FALTA[regla].grave ? 'danger' : 'warning'} label={REGLA_FALTA[regla].texto} className="shrink-0" />}
+                        className={cn(ZONA, 'flex min-h-10 items-center gap-2 py-2')}>
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+                            {t.apellido_paterno} {t.nombres}
                         </span>
-                        <TiraMes fechas={t.fechas} anio={anio} mes={mes} hoyDia={hoyDia} className="mt-1.5" />
+                        {regla && (
+                            <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-label font-semibold', pildora(REGLA_FALTA[regla].grave))}>
+                                {REGLA_FALTA[regla].texto}
+                            </span>
+                        )}
                     </button>
                 );
             })}

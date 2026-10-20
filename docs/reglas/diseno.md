@@ -541,8 +541,10 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       lienzo de bocetos el 2026-10-20): barra «N de M obras guardaron hoy» (un segmento por obra hasta 24;
       «Faltan X e Y»), dos cifras —**ausentes hoy** con su desglose «5 F · 4 LM · 3 otros» y **faltas
       reiteradas** del mes (Art. 160 N°3)— y los 3 reiterados más urgentes (2 seguidos primero,
-      `ordenarReiterados`), cada uno con su regla principal y su **`TiraMes`**: una barra por día del mes,
-      faltas en rojo (amarillo sobre verde), rayita bajo los lunes, anillo en hoy. Las cifras abren el
+      `ordenarReiterados`), cada uno con **solo su nombre y su regla principal** en una píldora chica en
+      minúsculas (fiel al boceto B: la tira por trabajador saturaba la tarjeta, dueño 2026-10-20). La
+      **`TiraMes`** (una barra por día del mes, faltas en rojo, rayita bajo los lunes, anillo en hoy)
+      vive solo en la tabla del detalle. Las cifras abren el
       detalle en su sección. Detalle «Por urgencia» (`DetalleAsistencia`): 4 números clave (reiterados,
       ausentes hoy, licencias médicas hoy, obras sin guardar) → **Requiere acción** (tabla de reiterados
       con RUT, obra, reglas, tira y «Ver en asistencia») → **Hoy** (ausentes en barra apilada por motivo:

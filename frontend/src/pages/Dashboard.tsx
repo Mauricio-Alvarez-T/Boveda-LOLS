@@ -132,7 +132,7 @@ const COLUMNAS: Record<number, string> = {
 // ─── Dashboard ───
 const Dashboard: React.FC = () => {
     const { user } = useAuth();
-    const { selectedObra } = useObra();
+    const { selectedObra, isLoading: cargandoObras } = useObra();
     const navigate = useNavigate();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -188,11 +188,18 @@ const Dashboard: React.FC = () => {
     const shown = useMemo(() => new Set(visibleWidgets.map(w => w.id)), [visibleWidgets]);
 
     // ─── Fetch Data (reutilizable para el botón refrescar) ───
+    // Turno de la última petición (2026-10-20): al entrar, el resumen se pedía con «todas las obras» antes
+    // de que el selector restaurara la obra guardada, y si esa respuesta llegaba DESPUÉS de la buena la
+    // pisaba (se veía la obra elegida arriba con los datos de todas). Solo la respuesta del último turno
+    // escribe, y no se pide nada hasta que el selector cargó.
+    const turnoResumen = useRef(0);
     const fetchSummary = useCallback(async () => {
+        const turno = ++turnoResumen.current;
         setLoading(true);
         try {
             const query = selectedObra ? `?obra_id=${selectedObra.id}` : '';
             const res = await api.get<ApiResponse<DashboardData>>(`/dashboard/summary${query}`);
+            if (turno !== turnoResumen.current) return;
             const raw = res.data.data;
             // Defensive defaults for new fields (backward compat with old backend)
             setData({
@@ -211,13 +218,13 @@ const Dashboard: React.FC = () => {
             });
             setLastUpdated(new Date());
         } catch {
-            toast.error('Error al cargar resumen del dashboard');
+            if (turno === turnoResumen.current) toast.error('Error al cargar resumen del dashboard');
         } finally {
-            setLoading(false);
+            if (turno === turnoResumen.current) setLoading(false);
         }
     }, [selectedObra]);
 
-    useEffect(() => { fetchSummary(); }, [fetchSummary]);
+    useEffect(() => { if (!cargandoObras) fetchSummary(); }, [fetchSummary, cargandoObras]);
 
     // Inventario: fetch DIFERIDO y gated por permiso (no bloquea la bandeja de
     // asistencia/docs; si falla o no hay permiso, simplemente no agrega filas).
@@ -382,16 +389,18 @@ const Dashboard: React.FC = () => {
     const [mesAsistencia, setMesAsistencia] = useState<DetalleAsistenciaApi | null>(null);
     const [cargandoMesAsistencia, setCargandoMesAsistencia] = useState(false);
     const asistenciaAbierta = activo === 'asistencia';
+    const turnoMes = useRef(0);
     const fetchMesAsistencia = useCallback(async () => {
+        const turno = ++turnoMes.current;
         setCargandoMesAsistencia(true);
         try {
             const query = selectedObra ? `?obra_id=${selectedObra.id}` : '';
             const res = await api.get<ApiResponse<DetalleAsistenciaApi>>(`/dashboard/asistencia${query}`);
-            setMesAsistencia(res.data.data ?? null);
+            if (turno === turnoMes.current) setMesAsistencia(res.data.data ?? null);
         } catch {
-            setMesAsistencia(null);
+            if (turno === turnoMes.current) setMesAsistencia(null);
         } finally {
-            setCargandoMesAsistencia(false);
+            if (turno === turnoMes.current) setCargandoMesAsistencia(false);
         }
     }, [selectedObra]);
     useEffect(() => {
@@ -420,7 +429,7 @@ const Dashboard: React.FC = () => {
                         <Panel className="h-full" activa={activo === 'asistencia'} onClick={() => verMas('asistencia')}>
                             {ready && data
                                 ? <AsistenciaInicio faltas={data.faltasMes ?? null} ausentes={data.ausentesHoy ?? null} obras={obrasHoy}
-                                    fechaTexto={fechaDelDia(hoy)} mesNombre={mes} {...fechaAsistencia}
+                                    fechaTexto={fechaDelDia(hoy)} mesNombre={mes}
                                     onTrabajador={irATrabajador} onObras={() => navigate('/asistencia')} onSeccion={abrirSeccion}
                                     activo={activo === 'asistencia'} onVerMas={() => verMas('asistencia')} />
                                 : <SkeletonText lines={5} />}
