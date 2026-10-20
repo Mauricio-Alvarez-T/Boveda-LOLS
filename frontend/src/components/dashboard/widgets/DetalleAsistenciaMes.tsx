@@ -210,7 +210,7 @@ export const TendenciaMeses: React.FC<{ meses: MesTendencia[] }> = ({ meses }) =
             )}
             <div className="h-[200px] w-full" role="img" aria-label={`Ausentismo por mes: ${descripcion || 'sin datos'}`}>
                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={datos} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                    <AreaChart data={datos} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                         <defs>
                             <linearGradient id={idGradiente} x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor={AZUL} stopOpacity={0.18} />
@@ -219,7 +219,7 @@ export const TendenciaMeses: React.FC<{ meses: MesTendencia[] }> = ({ meses }) =
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                         <XAxis dataKey="etiqueta" axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} />
-                        <YAxis axisLine={false} tickLine={false} width={44} tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                        <YAxis axisLine={false} tickLine={false} width={48} tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                             tickFormatter={(v: number) => `${v} %`} domain={[0, 'auto']} allowDecimals={false} />
                         <Tooltip isAnimationActive={!reduce} content={<TooltipTendencia />} cursor={{ stroke: 'var(--border)' }} />
                         <Area type="monotone" dataKey="tasa" stroke={AZUL} strokeWidth={2.5} fill={`url(#${idGradiente})`}
