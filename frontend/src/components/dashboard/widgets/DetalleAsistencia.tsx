@@ -6,7 +6,7 @@ import { NumeroRodante } from '../../ui/NumeroRodante';
 import { SkeletonText } from '../../ui/Skeleton';
 import AsistenciaPendiente from './AsistenciaPendiente';
 import { TiraMes } from './TiraMes';
-import { DescuentosMes, HorasExtraObras, ProximosDias } from './DetalleAsistenciaMes';
+import { DescuentosMes, FaltasPorObra, HorasExtraObras, PatronFinde, ProximosDias, TendenciaMeses } from './DetalleAsistenciaMes';
 import type { DetalleAsistenciaApi } from './resumenAsistenciaDetalle';
 import { ordenarReiterados, reglasDe, REGLA_FALTA, type FaltasMesData } from './resumenFaltasMes';
 import { colorEstado, contarEstado, gruposAusentes, ID_SECCION, type AusentesHoy, type ObrasHoy, type SeccionAsistencia } from './resumenAsistenciaHoy';
@@ -158,6 +158,7 @@ const DetalleAsistencia: React.FC<Props> = ({
                         </p>
                     )}
                 </div>
+                {mesExtra?.patronFinde && <PatronFinde datos={mesExtra.patronFinde} onTrabajador={onTrabajador} />}
             </section>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -226,9 +227,18 @@ const DetalleAsistencia: React.FC<Props> = ({
                 </section>
             )}
 
-            {children && (
-                <section className="space-y-3" aria-label="Tendencia y obras">
-                    <h3 className={ROTULO}>Tendencia y obras</h3>
+            {(mesExtra?.tendencia || mesExtra?.faltasObra || cargandoMes || children) && (
+                <section className="space-y-3" aria-labelledby="inicio-asistencia-tendencia-t">
+                    <h3 id="inicio-asistencia-tendencia-t" className={ROTULO}>Tendencia y obras</h3>
+                    {cargandoMes && !mesExtra ? (
+                        <div className={CARD}><SkeletonText lines={6} /></div>
+                    ) : (mesExtra?.tendencia || mesExtra?.faltasObra) && (
+                        <div className={cn('grid grid-cols-1 gap-6',
+                            mesExtra?.tendencia && mesExtra?.faltasObra && 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]')}>
+                            {mesExtra?.tendencia && <TendenciaMeses meses={mesExtra.tendencia} />}
+                            {mesExtra?.faltasObra && <FaltasPorObra obras={mesExtra.faltasObra} mesNombre={mesNombre} />}
+                        </div>
+                    )}
                     {children}
                 </section>
             )}

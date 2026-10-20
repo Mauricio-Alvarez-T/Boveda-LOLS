@@ -34,7 +34,56 @@ export interface DetalleAsistenciaApi {
     proximos: { desde: string; hasta: string; eventos: EventoProximo[] } | null;
     descuentos: { desde: string; hasta: string; columnas: string[]; trabajadores: number; dias: number; lista: FilaDescuento[] } | null;
     horasExtra: { desde: string; hasta: string; total: number; porObra: { obra_id: number; obra: string; horas: number; trabajadores: number }[] } | null;
+    /** Fase 3: ausentismo de los últimos 6 meses (el último, parcial). */
+    tendencia?: MesTendencia[] | null;
+    /** Fase 3: faltas del mes por obra. */
+    faltasObra?: { obra_id: number; obra: string; faltas: number; registros: number; trabajadores: number; tasa: number }[] | null;
+    /** Fase 3: faltas pegadas al fin de semana. */
+    patronFinde?: { desde: string; hasta: string; dias: number; minimo: number; lista: TrabajadorPatron[] } | null;
 }
+
+export interface MesTendencia {
+    /** 'YYYY-MM'. */
+    mes: string;
+    registros: number;
+    ausencias: number;
+    faltas: number;
+    /** % de días hábiles registrados con ausencia (sin vacaciones); null = sin registros ese mes. */
+    tasa: number | null;
+    tasaFaltas: number | null;
+    parcial: boolean;
+}
+
+export interface TrabajadorPatron {
+    trabajador_id: number;
+    rut: string;
+    nombres: string;
+    apellido_paterno: string;
+    obra?: string | null;
+    n: number;
+    fechas: string[];
+}
+
+/** «4,4 %». */
+export const fmtPct = (n: number) => `${n.toLocaleString('es-CL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+
+/** «may» de '2026-05'. */
+export const mesCorto = (ym: string) => MESES[Number(ym.slice(5, 7)) - 1] ?? ym;
+
+/**
+ * Cifra principal de la tendencia: el último mes con datos y su diferencia con el mes con datos anterior
+ * (en puntos). `delta` positivo = más ausentismo (peor).
+ */
+export function resumenTendencia(meses: MesTendencia[]): { actual: MesTendencia | null; delta: number | null } {
+    const con = meses.filter(m => m.tasa != null);
+    const actual = con[con.length - 1] ?? null;
+    const anterior = con[con.length - 2] ?? null;
+    const delta = actual && anterior ? Math.round(((actual.tasa as number) - (anterior.tasa as number)) * 10) / 10 : null;
+    return { actual, delta };
+}
+
+/** «vie 4 sep · lun 5 oct». */
+export const fechasPatron = (fechas: string[]) => fechas.map(fechaCorta).join(' · ');
 
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];

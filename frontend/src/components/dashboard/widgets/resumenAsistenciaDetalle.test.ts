@@ -1,4 +1,6 @@
-import { anchoRelativo, bloqueFecha, describirEvento, fechaCorta, fmtHoras, habilDesde } from './resumenAsistenciaDetalle';
+import {
+    anchoRelativo, bloqueFecha, describirEvento, fechaCorta, fechasPatron, fmtHoras, fmtPct, habilDesde, mesCorto, resumenTendencia,
+} from './resumenAsistenciaDetalle';
 
 const persona = { trabajador_id: 1, rut: '1-9', nombres: 'Jorge', apellido_paterno: 'Rivera', obra: 'TOESCA' };
 
@@ -29,6 +31,22 @@ describe('detalle de asistencia, fase 2', () => {
     test('feriado', () => {
         expect(describirEvento({ tipo: 'feriado', fecha: '2026-10-31', nombre: 'Día de las Iglesias Evangélicas', irrenunciable: false }).rotulo).toBe('Feriado');
         expect(describirEvento({ tipo: 'feriado', fecha: '2026-09-18', nombre: 'Independencia', irrenunciable: true }).rotulo).toBe('Feriado irrenunciable');
+    });
+
+    test('tendencia: último mes con datos y su diferencia con el anterior con datos', () => {
+        const m = (mes: string, tasa: number | null) => ({ mes, registros: 1, ausencias: 0, faltas: 0, tasa, tasaFaltas: null, parcial: false });
+        const r = resumenTendencia([m('2026-05', 4.1), m('2026-06', null), m('2026-07', 3.9), m('2026-08', 4.4)]);
+        expect(r.actual?.mes).toBe('2026-08');
+        expect(r.delta).toBe(0.5);
+        expect(resumenTendencia([m('2026-08', 4.4)]).delta).toBeNull();
+        expect(resumenTendencia([m('2026-08', null)]).actual).toBeNull();
+    });
+
+    test('porcentaje, mes corto y fechas del patrón', () => {
+        expect(fmtPct(4.4)).toBe('4,4 %');
+        expect(fmtPct(5)).toBe('5,0 %');
+        expect(mesCorto('2026-05')).toBe('may');
+        expect(fechasPatron(['2026-09-04', '2026-10-05'])).toBe('vie 4 sep · lun 5 oct');
     });
 
     test('horas y barras', () => {

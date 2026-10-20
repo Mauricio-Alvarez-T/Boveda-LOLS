@@ -125,6 +125,13 @@ detalle del Inicio, se pide al abrirlo). Tres bloques, cada uno `null` sin su pe
   `cuenta_dia_trabajado = 0` (F, LM, PSG…) y días JI aparte; fila vigente, sin prueba. **Referencia**:
   el cálculo oficial (base 30, relleno de febrero, horas JI) sigue siendo el Excel.
 - `horasExtra` (`asistencia.horas_extra.ver`) — `SUM(horas_extra)` del mes por obra del registro.
+- Fase 3 (`asistencia.ver`), días hábiles (lunes a viernes) con la fila vigente:
+  - `tendencia` — 6 meses (el actual, parcial): `tasa` = no presentes **sin contar vacaciones (V)** /
+    días registrados; `tasaFaltas` = solo F. Mes sin registros → `tasa: null` (no 0 %).
+  - `faltasObra` — F del mes hasta hoy por obra del registro, con su tasa sobre los días de esa obra.
+  - `patronFinde` — trabajadores activos con **2 o más F en viernes o lunes en los últimos 60 días**
+    (ausentismo pegado al fin de semana que la regla de 2 días seguidos no ve). Es una alerta para
+    conversar, **no** una causal del Art. 160.
 
 ## Lista de trabajadores en actividades sugeridas (`actividades_sugeridas`, mig 038/040/116)
 

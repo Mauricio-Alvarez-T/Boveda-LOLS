@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { ArrowRight, Lock } from 'lucide-react';
+import React, { useId, useState } from 'react';
+import { Area, AreaChart, CartesianGrid, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useReducedMotion } from 'framer-motion';
+import { ArrowRight, ChevronDown, Lock, TrendingUp } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { Chip } from '../../ui/Chip';
 import { NumeroRodante } from '../../ui/NumeroRodante';
 import {
-    anchoRelativo, bloqueFecha, describirEvento, fmtHoras,
-    type DetalleAsistenciaApi,
+    anchoRelativo, bloqueFecha, describirEvento, fechasPatron, fmtHoras, fmtPct, mesCorto, resumenTendencia,
+    type DetalleAsistenciaApi, type MesTendencia, type TrabajadorPatron,
 } from './resumenAsistenciaDetalle';
 
 /**
@@ -153,6 +155,158 @@ export const HorasExtraObras: React.FC<{ datos: NonNullable<DetalleAsistenciaApi
                             <div className="h-2 rounded-full bg-muted" aria-hidden>
                                 <div className="h-2 rounded-full bg-blue-600 dark:bg-blue-500" style={{ width: anchoRelativo(o.horas, maximo) }} />
                             </div>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+};
+
+// ─── Fase 3: tendencia de 6 meses ───
+
+/** Colores del gráfico: ausentismo azul (informativo), faltas rojo (riesgo legal). Tokens no hay para ellos. */
+const AZUL = '#2563EB';
+const ROJO = '#DC2626';
+
+const TooltipTendencia: React.FC<{ active?: boolean; payload?: { payload: MesTendencia }[] }> = ({ active, payload }) => {
+    const m = payload?.[0]?.payload;
+    if (!active || !m) return null;
+    return (
+        <div className="rounded-xl border border-border bg-card px-3 py-2 text-xs shadow-[var(--shadow-md)]">
+            <p className="mb-1 font-semibold capitalize text-foreground">{mesCorto(m.mes)}{m.parcial ? ' (hasta hoy)' : ''}</p>
+            {m.tasa == null ? <p className="text-muted-foreground">Sin registros</p> : (
+                <>
+                    <p className="tabular-nums text-foreground"><span className="font-semibold">{fmtPct(m.tasa)}</span> ausentismo · {m.ausencias} días</p>
+                    <p className="tabular-nums text-red-700 dark:text-red-300"><span className="font-semibold">{fmtPct(m.tasaFaltas ?? 0)}</span> faltas · {m.faltas} días</p>
+                </>
+            )}
+        </div>
+    );
+};
+
+export const TendenciaMeses: React.FC<{ meses: MesTendencia[] }> = ({ meses }) => {
+    const reduce = useReducedMotion();
+    const idGradiente = useId();
+    const { actual, delta } = resumenTendencia(meses);
+    const datos = meses.map(m => ({ ...m, etiqueta: mesCorto(m.mes) }));
+    const descripcion = meses.filter(m => m.tasa != null).map(m => `${mesCorto(m.mes)} ${fmtPct(m.tasa as number)}`).join(', ');
+    return (
+        <div className={CARD}>
+            {actual ? (
+                <div className="mb-4 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <span className="text-4xl font-bold leading-none tracking-tight tabular-nums">{fmtPct(actual.tasa as number)}</span>
+                    <span className="text-sm text-muted-foreground">
+                        ausentismo en {mesCorto(actual.mes)}{actual.parcial ? ' (hasta hoy)' : ''}
+                        {delta != null && delta !== 0 && (
+                            <> · <b className={cn('font-semibold', delta > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-green-700 dark:text-green-300')}>
+                                {delta > 0 ? '+' : '−'}{fmtPct(Math.abs(delta)).replace(' %', '')} pts
+                            </b> vs el mes anterior</>
+                        )}
+                    </span>
+                </div>
+            ) : (
+                <p className="mb-4 text-sm text-muted-foreground">Sin registros de asistencia en los últimos 6 meses.</p>
+            )}
+            <div className="h-[200px] w-full" role="img" aria-label={`Ausentismo por mes: ${descripcion || 'sin datos'}`}>
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={datos} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                        <defs>
+                            <linearGradient id={idGradiente} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={AZUL} stopOpacity={0.18} />
+                                <stop offset="95%" stopColor={AZUL} stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                        <XAxis dataKey="etiqueta" axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} />
+                        <YAxis axisLine={false} tickLine={false} width={44} tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                            tickFormatter={(v: number) => `${v} %`} domain={[0, 'auto']} allowDecimals={false} />
+                        <Tooltip isAnimationActive={!reduce} content={<TooltipTendencia />} cursor={{ stroke: 'var(--border)' }} />
+                        <Area type="monotone" dataKey="tasa" stroke={AZUL} strokeWidth={2.5} fill={`url(#${idGradiente})`}
+                            connectNulls dot={{ r: 3.5, fill: 'var(--card)', stroke: AZUL, strokeWidth: 2 }}
+                            activeDot={{ r: 5, fill: AZUL, stroke: 'var(--card)', strokeWidth: 2 }}
+                            isAnimationActive={!reduce} animationDuration={600} />
+                        <Line type="monotone" dataKey="tasaFaltas" stroke={ROJO} strokeWidth={2} strokeDasharray="5 4"
+                            connectNulls dot={false} activeDot={{ r: 4, fill: ROJO, stroke: 'var(--card)', strokeWidth: 2 }}
+                            isAnimationActive={!reduce} animationDuration={600} />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 rounded bg-blue-600" aria-hidden />Ausentismo (sin vacaciones)</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-0 w-4 border-t-2 border-dashed border-red-600" aria-hidden />Solo faltas (F)</span>
+                <span>Días hábiles registrados</span>
+            </div>
+        </div>
+    );
+};
+
+// ─── Fase 3: faltas por obra ───
+export const FaltasPorObra: React.FC<{ obras: NonNullable<DetalleAsistenciaApi['faltasObra']>; mesNombre: string }> = ({ obras, mesNombre }) => {
+    const maximo = obras[0]?.faltas ?? 0;
+    const total = obras.reduce((s, o) => s + o.faltas, 0);
+    return (
+        <div className={CARD}>
+            <div className="mb-5 flex items-baseline gap-2">
+                <NumeroRodante value={total} className="text-4xl font-bold leading-none tracking-tight text-red-700 dark:text-red-300" />
+                <span className="text-sm text-muted-foreground">{plural(total, 'falta', 'faltas')} en {mesNombre}</span>
+            </div>
+            {obras.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Ninguna obra con faltas este mes.</p>
+            ) : (
+                <ul className="space-y-3.5">
+                    {obras.slice(0, 8).map(o => (
+                        <li key={o.obra_id}>
+                            <div className="mb-1.5 flex items-baseline justify-between gap-3 text-section">
+                                <span className="truncate font-semibold">{o.obra}</span>
+                                <span className="shrink-0 tabular-nums text-muted-foreground" title={`${o.faltas} faltas de ${o.registros} días registrados`}>
+                                    {o.faltas} F · {fmtPct(o.tasa)}
+                                </span>
+                            </div>
+                            <div className="h-2 rounded-full bg-muted" aria-hidden>
+                                <div className="h-2 rounded-full bg-red-600 dark:bg-red-500" style={{ width: anchoRelativo(o.faltas, maximo) }} />
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {obras.length > 8 && <p className="mt-3 text-xs text-muted-foreground">y {obras.length - 8} obras más con faltas</p>}
+        </div>
+    );
+};
+
+// ─── Fase 3: faltas pegadas al fin de semana ───
+export const PatronFinde: React.FC<{ datos: NonNullable<DetalleAsistenciaApi['patronFinde']>; onTrabajador: (rut: string) => void }> = ({ datos, onTrabajador }) => {
+    const [abierto, setAbierto] = useState(false);
+    const idLista = useId();
+    const n = datos.lista.length;
+    if (n === 0) return null;
+    return (
+        <div className="rounded-2xl bg-amber-50 text-amber-950 dark:bg-amber-500/10 dark:text-amber-100">
+            <div className="flex flex-wrap items-center gap-3 px-5 py-3.5">
+                <TrendingUp className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
+                <p className="min-w-[240px] flex-1 text-section">
+                    <b className="font-semibold">{n} {plural(n, 'trabajador falta', 'trabajadores faltan')} pegado{n === 1 ? '' : 's'} al fin de semana</b>
+                    {' '}(viernes o lunes, {datos.minimo} o más veces en {datos.dias} días). No es causal del Art. 160, pero conviene conversarlo.
+                </p>
+                {/* eslint-disable-next-line no-restricted-syntax -- alternar la lista */}
+                <button type="button" onClick={() => setAbierto(v => !v)} aria-expanded={abierto} aria-controls={idLista}
+                    className="inline-flex min-h-9 items-center gap-1 rounded-lg px-1 text-section font-semibold text-amber-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 dark:text-amber-200">
+                    {abierto ? 'Ocultar' : 'Ver quiénes'}
+                    <ChevronDown className={cn('h-4 w-4 transition-transform duration-200 motion-reduce:transition-none', abierto && 'rotate-180')} aria-hidden />
+                </button>
+            </div>
+            {abierto && (
+                <ul id={idLista} className="border-t border-amber-200/70 px-5 py-1 dark:border-amber-500/20">
+                    {datos.lista.map((t: TrabajadorPatron) => (
+                        <li key={t.trabajador_id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-t border-amber-200/70 py-2.5 first:border-t-0 dark:border-amber-500/20">
+                            {/* eslint-disable-next-line no-restricted-syntax -- enlace de fila */}
+                            <button type="button" onClick={() => onTrabajador(t.rut)}
+                                className="rounded text-left text-sm font-semibold hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50">
+                                {t.apellido_paterno} {t.nombres}
+                            </button>
+                            {t.obra && <span className="text-xs text-amber-800/80 dark:text-amber-200/80">{t.obra}</span>}
+                            <span className="ml-auto text-xs tabular-nums text-amber-900 dark:text-amber-100">{fechasPatron(t.fechas)}</span>
                         </li>
                     ))}
                 </ul>

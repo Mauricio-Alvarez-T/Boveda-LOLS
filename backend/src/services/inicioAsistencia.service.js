@@ -12,6 +12,8 @@ const { hoyChile, sumarDias } = require('../utils/fechaChile');
  *                en estados que NO cuentan como día trabajado (F, LM, PSG…), por trabajador, más los días
  *                JI. Es una referencia rápida: el cálculo oficial (base 30, horas JI) es el Excel del mes.
  * - `horasExtra` (asistencia.horas_extra.ver, dato sensible de pago): horas extra del mes por obra.
+ * - Fase 3 (asistencia.ver): `tendencia` (ausentismo de 6 meses), `faltasObra` (F del mes por obra) y
+ *   `patronFinde` (2+ faltas en viernes o lunes en 60 días).
  *
  * Todo con la fila vigente (un estado por trabajador y día) y sin obras ni trabajadores de prueba.
  * Fechas siempre como 'YYYY-MM-DD' desde SQL (DATE_FORMAT), para no pasar por zonas horarias.
@@ -152,6 +154,121 @@ async function horasExtra(obraId, desde, hasta) {
     return { desde, hasta, total: Math.round(porObra.reduce((s, o) => s + o.horas, 0) * 100) / 100, porObra };
 }
 
+// ─── Fase 3: tendencia, faltas por obra y patrón viernes/lunes (asistencia.ver) ───
+
+const MESES_TENDENCIA = 6;
+const DIAS_PATRON = 60;
+const MIN_PATRON = 2;
+
+/** Primer día del mes `n` meses antes del de `iso`. */
+function inicioMesAtras(iso, n) {
+    const [y, m] = iso.split('-').map(Number);
+    const d = new Date(Date.UTC(y, m - 1 - n, 1));
+    return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Ausentismo de los últimos 6 meses (el actual, parcial, hasta hoy). Días hábiles (lunes a viernes)
+ * registrados con la fila vigente. `ausencias` = no presentes SIN contar vacaciones (V: ausencia
+ * esperada, no ausentismo); `faltas` = solo F. Las tasas en % con un decimal.
+ */
+async function tendencia(obraId, hoy) {
+    const desde = inicioMesAtras(hoy, MESES_TENDENCIA - 1);
+    const filtroObra = obraId ? 'AND a.obra_id = ?' : '';
+    const [filas] = await pool.query(
+        `SELECT DATE_FORMAT(a.fecha, '%Y-%m') AS mes, COUNT(*) AS registros,
+                SUM(CASE WHEN ea.es_presente = 0 AND ea.codigo <> 'V' THEN 1 ELSE 0 END) AS ausencias,
+                SUM(CASE WHEN ea.codigo = 'F' THEN 1 ELSE 0 END) AS faltas
+         FROM asistencias a
+         JOIN estados_asistencia ea ON ea.id = a.estado_id
+         JOIN trabajadores t ON t.id = a.trabajador_id
+         JOIN obras o ON o.id = a.obra_id
+         WHERE a.fecha BETWEEN ? AND ? AND WEEKDAY(a.fecha) < 5 AND t.es_prueba = 0 AND o.es_prueba = 0
+           ${VIGENTE} ${filtroObra}
+         GROUP BY mes`,
+        [desde, hoy, ...(obraId ? [Number(obraId)] : [])]
+    );
+    const porMes = new Map(filas.map(f => [f.mes, f]));
+    const tasa = (n, total) => (total > 0 ? Math.round((n / total) * 1000) / 10 : null);
+    // Los 6 meses siempre, aunque alguno no tenga registros (tasa null = sin datos, no 0 %).
+    return Array.from({ length: MESES_TENDENCIA }, (_, i) => {
+        const mes = inicioMesAtras(hoy, MESES_TENDENCIA - 1 - i).slice(0, 7);
+        const f = porMes.get(mes);
+        const registros = Number(f?.registros) || 0;
+        const ausencias = Number(f?.ausencias) || 0;
+        const faltas = Number(f?.faltas) || 0;
+        return {
+            mes, registros, ausencias, faltas,
+            tasa: tasa(ausencias, registros), tasaFaltas: tasa(faltas, registros),
+            parcial: mes === hoy.slice(0, 7),
+        };
+    });
+}
+
+/** Faltas (F) del mes hasta hoy por obra del registro, con su tasa sobre los días registrados de esa obra. */
+async function faltasPorObra(obraId, desde, hoy) {
+    const filtroObra = obraId ? 'AND a.obra_id = ?' : '';
+    const [filas] = await pool.query(
+        `SELECT o.id AS obra_id, o.nombre AS obra, COUNT(*) AS registros,
+                SUM(CASE WHEN ea.codigo = 'F' THEN 1 ELSE 0 END) AS faltas,
+                COUNT(DISTINCT CASE WHEN ea.codigo = 'F' THEN a.trabajador_id END) AS trabajadores
+         FROM asistencias a
+         JOIN estados_asistencia ea ON ea.id = a.estado_id
+         JOIN trabajadores t ON t.id = a.trabajador_id
+         JOIN obras o ON o.id = a.obra_id
+         WHERE a.fecha BETWEEN ? AND ? AND WEEKDAY(a.fecha) < 5 AND t.es_prueba = 0 AND o.es_prueba = 0
+           ${VIGENTE} ${filtroObra}
+         GROUP BY o.id, o.nombre
+         HAVING faltas > 0
+         ORDER BY faltas DESC, o.nombre`,
+        [desde, hoy, ...(obraId ? [Number(obraId)] : [])]
+    );
+    return filas.map(f => {
+        const registros = Number(f.registros) || 0;
+        const faltas = Number(f.faltas) || 0;
+        return {
+            obra_id: f.obra_id, obra: f.obra, faltas, registros,
+            trabajadores: Number(f.trabajadores) || 0,
+            tasa: registros > 0 ? Math.round((faltas / registros) * 1000) / 10 : 0,
+        };
+    });
+}
+
+/**
+ * Faltas pegadas al fin de semana (dueño 2026-10-20, «ausentismo encubierto» que la regla de 2 días
+ * seguidos no ve): trabajadores activos con 2 o más F en viernes o lunes en los últimos 60 días. No es
+ * causal del Art. 160; es una alerta para conversar.
+ */
+async function patronFinde(obraId, hoy) {
+    const desde = sumarDias(hoy, -DIAS_PATRON);
+    const filtroObra = obraId ? 'AND a.obra_id = ?' : '';
+    const [filas] = await pool.query(
+        `SELECT t.id AS trabajador_id, t.rut, t.nombres, t.apellido_paterno, ob.nombre AS obra,
+                GROUP_CONCAT(DATE_FORMAT(a.fecha, '%Y-%m-%d') ORDER BY a.fecha SEPARATOR ',') AS fechas,
+                COUNT(DISTINCT a.fecha) AS n
+         FROM asistencias a
+         JOIN estados_asistencia ea ON ea.id = a.estado_id AND ea.codigo = 'F'
+         JOIN trabajadores t ON t.id = a.trabajador_id
+         JOIN obras o ON o.id = a.obra_id
+         LEFT JOIN obras ob ON ob.id = t.obra_id
+         WHERE a.fecha BETWEEN ? AND ? AND DAYOFWEEK(a.fecha) IN (2, 6)
+           AND t.activo = 1 AND t.es_prueba = 0 AND o.es_prueba = 0
+           ${VIGENTE} ${filtroObra}
+         GROUP BY t.id, t.rut, t.nombres, t.apellido_paterno, ob.nombre
+         HAVING n >= ?
+         ORDER BY n DESC, t.apellido_paterno
+         LIMIT 50`,
+        [desde, hoy, ...(obraId ? [Number(obraId)] : []), MIN_PATRON]
+    );
+    return {
+        desde, hasta: hoy, dias: DIAS_PATRON, minimo: MIN_PATRON,
+        lista: filas.map(f => ({
+            trabajador_id: f.trabajador_id, rut: f.rut, nombres: f.nombres, apellido_paterno: f.apellido_paterno,
+            obra: f.obra, n: Number(f.n) || 0, fechas: String(f.fechas || '').split(',').filter(Boolean),
+        })),
+    };
+}
+
 /**
  * Bloques del detalle según permisos. Un bloque sin permiso llega `null` (el front no lo dibuja); un
  * bloque que falla también llega `null` y no tumba a los otros.
@@ -163,12 +280,15 @@ async function getDetalle(obraId, permisos) {
         logger.error('[Inicio] Error en el detalle de asistencia', { err: err.message });
         return null;
     });
-    const [p, d, h] = await Promise.all([
+    const [p, d, h, t, fo, pf] = await Promise.all([
         seguro(() => proximos(obraId, permisos, hoy)),
         tiene(permisos, 'asistencia.exportar_excel') ? seguro(() => descuentos(obraId, desde, hasta)) : null,
         tiene(permisos, 'asistencia.horas_extra.ver') ? seguro(() => horasExtra(obraId, desde, hasta)) : null,
+        seguro(() => tendencia(obraId, hoy)),
+        seguro(() => faltasPorObra(obraId, desde, hoy)),
+        seguro(() => patronFinde(obraId, hoy)),
     ]);
-    return { hoy, proximos: p, descuentos: d, horasExtra: h };
+    return { hoy, proximos: p, descuentos: d, horasExtra: h, tendencia: t, faltasObra: fo, patronFinde: pf };
 }
 
-module.exports = { getDetalle, _internal: { rangoMes } };
+module.exports = { getDetalle, _internal: { rangoMes, inicioMesAtras } };

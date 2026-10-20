@@ -95,6 +95,53 @@ describe('inicioAsistencia.getDetalle', () => {
         expect(params[params.length - 1]).toBe(5);
     });
 
+    test('inicio de mes hacia atrás cruza años', () => {
+        expect(service._internal.inicioMesAtras('2026-02-15', 5)).toBe('2025-09-01');
+        expect(service._internal.inicioMesAtras('2026-10-20', 0)).toBe('2026-10-01');
+    });
+
+    test('tendencia: siempre 6 meses, los sin datos en null, el actual parcial; sin vacaciones ni fines de semana', async () => {
+        const mesActual = hoyChile().slice(0, 7);
+        const mesAnterior = service._internal.inicioMesAtras(hoyChile(), 1).slice(0, 7);
+        pool.query.mockImplementation(async (sql) => {
+            if (sql.includes("DATE_FORMAT(a.fecha, '%Y-%m') AS mes")) {
+                return [[
+                    { mes: mesAnterior, registros: 1000, ausencias: 39, faltas: 12 },
+                    { mes: mesActual, registros: 500, ausencias: 22, faltas: 9 },
+                ]];
+            }
+            return [[]];
+        });
+
+        const r = await service.getDetalle(null, ['asistencia.ver']);
+        expect(r.tendencia).toHaveLength(6);
+        expect(r.tendencia[0].tasa).toBeNull();
+        expect(r.tendencia[4]).toMatchObject({ mes: mesAnterior, tasa: 3.9, tasaFaltas: 1.2, parcial: false });
+        expect(r.tendencia[5]).toMatchObject({ mes: mesActual, tasa: 4.4, tasaFaltas: 1.8, parcial: true });
+        const [sql] = pool.query.mock.calls.find(([s]) => s.includes("AS mes"));
+        expect(sql).toContain("ea.codigo <> 'V'");
+        expect(sql).toContain('WEEKDAY(a.fecha) < 5');
+    });
+
+    test('faltas por obra con tasa, y patrón viernes/lunes con sus fechas', async () => {
+        pool.query.mockImplementation(async (sql) => {
+            if (sql.includes('HAVING faltas > 0')) {
+                return [[{ obra_id: 1, obra: 'TOESCA', registros: 275, faltas: 14, trabajadores: 9 }]];
+            }
+            if (sql.includes('DAYOFWEEK(a.fecha) IN (2, 6)')) {
+                return [[{ trabajador_id: 4, rut: '4-0', nombres: 'Tomás', apellido_paterno: 'Leiva', obra: 'DOMEYKO', fechas: '2026-09-04,2026-10-05', n: 2 }]];
+            }
+            return [[]];
+        });
+
+        const r = await service.getDetalle(null, ['asistencia.ver']);
+        expect(r.faltasObra).toEqual([{ obra_id: 1, obra: 'TOESCA', faltas: 14, registros: 275, trabajadores: 9, tasa: 5.1 }]);
+        expect(r.patronFinde).toMatchObject({ dias: 60, minimo: 2 });
+        expect(r.patronFinde.lista[0]).toMatchObject({ apellido_paterno: 'Leiva', n: 2, fechas: ['2026-09-04', '2026-10-05'] });
+        const [, params] = pool.query.mock.calls.find(([s]) => s.includes('DAYOFWEEK'));
+        expect(params[params.length - 1]).toBe(2);
+    });
+
     test('un bloque que falla no tumba a los otros', async () => {
         pool.query.mockImplementation(async (sql) => {
             if (sql.includes('cuenta_dia_trabajado')) throw new Error('boom');
