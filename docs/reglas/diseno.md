@@ -511,8 +511,10 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     Arriba, **una tarjeta por apartado** —Asistencia, Gestiones, Inventario, Vehículos— y, debajo, el
     **detalle del módulo elegido**. Cada tarjeta es la puerta: cifra grande, **lo primero (3 filas)** y el
     botón **«Ver más ↓»** (`BotonVerMas`); el detalle se despliega bajo las cuatro (`DetalleModulo`, una
-    sección a la vez, parte abierta la primera visible) con la lista completa y el resto del módulo
-    —listas, gráficos— que se irá sumando. La tarjeta elegida lleva un anillo verde. Ya **no hay tarjeta
+    sección a la vez) con la lista completa y el resto del módulo —listas, gráficos— que se irá sumando.
+    **Al entrar no hay nada abajo**: el detalle se abre al pinchar una tarjeta (toda la tarjeta es
+    pinchable; sus filas y botones mandan sobre ella) o su «Ver más», y se cierra pinchándola de nuevo
+    («Ocultar ↑»). La tarjeta abierta lleva un anillo verde. Ya **no hay tarjeta
     verde** (la excepción de superficie grande verde se fue con ella) ni bloques fijos debajo («Otros
     pendientes», tendencia, acciones rápidas): todo vive en el detalle de su módulo. «Actualizar» y la
     fecha pasan al encabezado de la página.
@@ -532,6 +534,7 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     Piel común: **tarjetas blancas sin borde** (`rounded-3xl`, sombra `--shadow-md`) con
     `EncabezadoTarjeta` (**círculo de color sólido** + título `text-base`) y `CifraTarjeta` (número grande
     en el mismo color, rampa 700/300). Tonos: rojo = vencido o grave, ámbar = pendiente, azul =
-    informativo, verde = al día, neutro = solo dato. Con cuatro tarjetas la grilla es 2×2 y desde 1700 px
-    una fila de 4; con menos, `auto-fit`. Lógica pura con test: `resumenFaltasMes.ts`,
+    informativo, verde = al día, neutro = solo dato. Las cuatro van **en una sola línea desde 1280 px**
+    (`xl`), 2×2 en tablet y una bajo otra en celular (`COLUMNAS` según cuántas ve el perfil). Lógica pura
+    con test: `resumenFaltasMes.ts`,
     `resumenDocumentosInicio.ts`, `resumenInventarioInicio.ts`.

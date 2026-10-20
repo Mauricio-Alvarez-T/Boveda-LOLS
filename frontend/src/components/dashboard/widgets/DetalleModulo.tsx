@@ -17,7 +17,7 @@ interface Props {
 /**
  * Sección de detalle bajo las cuatro tarjetas del Inicio (dueño 2026-10-20): cada tarjeta es la puerta
  * («Ver más») y aquí se despliega su módulo con más información —listas completas, gráficos— que iremos
- * sumando. Una sola sección a la vez; parte abierta la de Asistencia.
+ * sumando. Una sola sección a la vez; al entrar no hay ninguna abierta.
  */
 export const DetalleModulo = forwardRef<HTMLElement, Props>(({ icon: Icon, titulo, descripcion, accion, children }, ref) => (
     <section ref={ref} id={ID_DETALLE_INICIO} aria-label={`Detalle de ${titulo}`} className="scroll-mt-6 space-y-4">

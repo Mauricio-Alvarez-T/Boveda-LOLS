@@ -100,9 +100,28 @@ interface DashboardData {
 // ─── Panel: tarjeta blanca del Inicio (2026-10-16): sin borde, sombra suave (en oscuro la sombra
 // trae su anillo de 1 px), esquinas grandes. El color va en el círculo de cada encabezado
 // (EncabezadoTarjeta), nunca en el fondo.
-const Panel: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
-    <div className={cn('rounded-3xl bg-card p-6 shadow-[var(--shadow-md)]', className)}>{children}</div>
+const Panel: React.FC<{ children: React.ReactNode; className?: string; onClick?: () => void }> = ({ children, className, onClick }) => (
+    <div
+        className={cn('rounded-3xl bg-card p-6 shadow-[var(--shadow-md)]',
+            onClick && 'cursor-pointer transition-[box-shadow] hover:ring-1 hover:ring-border', className)}
+        // Tarjeta entera pinchable (atajo con mouse/dedo): los botones y enlaces de adentro mandan sobre ella.
+        // Con teclado, el camino es su botón «Ver más».
+        onClick={onClick ? (e) => {
+            if ((e.target as HTMLElement).closest('button, a, input, select, textarea, [role="button"]')) return;
+            onClick();
+        } : undefined}
+    >
+        {children}
+    </div>
 );
+
+/** Columnas de la fila de tarjetas según cuántas ve el perfil: todas en una línea desde 1280 px. */
+const COLUMNAS: Record<number, string> = {
+    1: 'grid-cols-1',
+    2: 'grid-cols-1 sm:grid-cols-2',
+    3: 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3',
+    4: 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4',
+};
 
 // ─── Dashboard ───
 const Dashboard: React.FC = () => {
@@ -338,13 +357,16 @@ const Dashboard: React.FC = () => {
         ...(showVencVehiculos ? ['vehiculos' as const] : []),
     ];
     const [elegido, setElegido] = useState<Modulo | null>(null);
-    const activo: Modulo | null = elegido && visibles.includes(elegido) ? elegido : visibles[0] ?? null;
+    // Al entrar no hay detalle abierto (dueño 2026-10-20: «que abajo no haya nada»); pinchar una tarjeta lo
+    // abre y pincharla de nuevo lo cierra.
+    const activo: Modulo | null = elegido && visibles.includes(elegido) ? elegido : null;
     const detalleRef = useRef<HTMLElement>(null);
     const verMas = useCallback((m: Modulo) => {
+        if (elegido === m) { setElegido(null); return; }
         setElegido(m);
         const reducir = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         window.requestAnimationFrame(() => detalleRef.current?.scrollIntoView({ behavior: reducir ? 'auto' : 'smooth', block: 'start' }));
-    }, []);
+    }, [elegido]);
     const irATrabajador = (rut: string) => navigate(`/asistencia?q=${encodeURIComponent(rut)}`);
     const irAFilaInventario = (f: FilaInventario) => navigate(`/inventario?tab=transferencias&estado=${f.estado}`);
     const marco = (m: Modulo) => cn('h-full', activo === m && 'ring-2 ring-green-600/40 dark:ring-green-400/40');
@@ -355,14 +377,11 @@ const Dashboard: React.FC = () => {
             {/* Cartel de atrasos del supervisor que lleva documentos a firmar (pedido de RRHH, 2026-10-19). */}
             <AvisoAtrasosPortador />
 
-            {/* Una tarjeta por apartado. Con las cuatro: 2×2 y, en pantallas anchas, una fila de 4; con menos,
-                se reparten solas. */}
+            {/* Una tarjeta por apartado, todas en una línea desde 1280 px (2×2 en tablet, una bajo otra en celular). */}
             {visibles.length > 0 && (
-                <div className={cn('grid gap-6 items-stretch', visibles.length >= 4
-                    ? 'grid-cols-1 md:grid-cols-2 min-[1700px]:grid-cols-4'
-                    : 'grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))]')}>
+                <div className={cn('grid gap-6 items-stretch', COLUMNAS[visibles.length])}>
                     {showFaltas && (
-                        <Panel className={marco('asistencia')}>
+                        <Panel className={marco('asistencia')} onClick={() => verMas('asistencia')}>
                             {ready && data?.faltasMes
                                 ? <FaltasMes data={data.faltasMes} mes={mes} onTrabajador={irATrabajador}
                                     activo={activo === 'asistencia'} onVerMas={() => verMas('asistencia')} />
@@ -370,7 +389,7 @@ const Dashboard: React.FC = () => {
                         </Panel>
                     )}
                     {verGestiones && (
-                        <Panel className={marco('gestiones')}>
+                        <Panel className={marco('gestiones')} onClick={() => verMas('gestiones')}>
                             {canRegistrarEntregas
                                 ? <DocumentosInicio resumen={resumenDocs} activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')} />
                                 : ready
@@ -381,13 +400,13 @@ const Dashboard: React.FC = () => {
                         </Panel>
                     )}
                     {canInventario && (
-                        <Panel className={marco('inventario')}>
+                        <Panel className={marco('inventario')} onClick={() => verMas('inventario')}>
                             <InventarioInicio modelo={modeloInv} onFila={irAFilaInventario}
                                 activo={activo === 'inventario'} onVerMas={() => verMas('inventario')} />
                         </Panel>
                     )}
                     {showVencVehiculos && (
-                        <Panel className={marco('vehiculos')}>
+                        <Panel className={marco('vehiculos')} onClick={() => verMas('vehiculos')}>
                             {vencimientos.loading && vencimientos.items.length === 0
                                 ? <SkeletonText lines={5} />
                                 : <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')}
