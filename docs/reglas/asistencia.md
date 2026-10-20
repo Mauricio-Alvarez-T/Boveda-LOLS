@@ -102,6 +102,14 @@ mes calendario (deduplicadas por día):
 Consumo: dashboard (top 20) y **aviso en el WhatsApp diario** ("⚠️ VERIFICAR ASISTENCIA" con las
 fechas DD/MM/YYYY) vía `GET /asistencias/alertas/:obraId?mes&anio` (permiso `asistencia.ver`).
 
+`getAlertasFaltas` es un filtro de **`getFaltasMes(obraId, mes, anio)`**, que devuelve a TODOS los
+trabajadores con al menos una `F` en el mes (fechas, `total_faltas`, `obra_nombre` de su falta más
+reciente y `alertas` vacío si no gatillan regla). El Inicio la usa para la tarjeta **«Faltas del mes»**
+(dueño 2026-10-20: "era un dato muy usado en versiones anteriores"): `/dashboard/summary` trae
+`faltasMes = { trabajadores, faltas, reiteradas, lista (30, más faltas arriba) }`; la tarjeta muestra
+5 filas (obra · días), rojo = reiterado, ámbar = falta suelta, y la fila abre Asistencia con `?q=RUT`.
+La cifra «Faltas reiteradas» de la tarjeta verde sale de `faltasMes.reiteradas` (ya no se corta en 20).
+
 ## Lista de trabajadores en actividades sugeridas (`actividades_sugeridas`, mig 038/040/116)
 
 Antes "Sábados extra". **Jefatura 2026-09-21: eliminar toda referencia a que los trabajos

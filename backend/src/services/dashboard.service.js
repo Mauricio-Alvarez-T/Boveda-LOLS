@@ -463,11 +463,25 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         try {
             const now = new Date();
             const obraIdParam = obraId ? obraId : 'ALL';
-            const alertasFaltas = await asistenciaService.getAlertasFaltas(obraIdParam, now.getMonth() + 1, now.getFullYear());
-            result.trabajadoresConAlertas = alertasFaltas.slice(0, 20);
+            const faltas = await asistenciaService.getFaltasMes(obraIdParam, now.getMonth() + 1, now.getFullYear());
+            // Más faltas arriba; a igualdad, quien gatilla más reglas y luego por apellido.
+            const ordenadas = [...faltas].sort((x, y) =>
+                y.total_faltas - x.total_faltas
+                || y.alertas.length - x.alertas.length
+                || String(x.apellido_paterno || '').localeCompare(String(y.apellido_paterno || ''), 'es'));
+            const reiteradas = ordenadas.filter(t => t.alertas.length > 0);
+            result.trabajadoresConAlertas = reiteradas.slice(0, 20);
+            // Tarjeta «Faltas del mes» del Inicio (2026-10-20): todos los que faltaron, no solo los reiterados.
+            result.faltasMes = {
+                trabajadores: ordenadas.length,
+                faltas: ordenadas.reduce((acc, t) => acc + t.total_faltas, 0),
+                reiteradas: reiteradas.length,
+                lista: ordenadas.slice(0, 30),
+            };
         } catch (e) {
             logger.error('[Dashboard] Error fetching alertas de faltas', { err: e.message });
             result.trabajadoresConAlertas = [];
+            result.faltasMes = null;
         }
     }
 

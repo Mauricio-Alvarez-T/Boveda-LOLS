@@ -55,3 +55,46 @@ describe('asistenciaService.getAlertasFaltas — deduplicación de fechas', () =
         expect(result[0].total_faltas).toBe(2);
     });
 });
+
+describe('asistenciaService.getFaltasMes — todos los que faltaron (tarjeta «Faltas del mes»)', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    const filas = [
+        // Trabajador 1: una sola falta → no gatilla reglas, pero sale en getFaltasMes.
+        { trabajador_id: 1, fecha: '2026-10-07', obra_id: 10, obra_nombre: 'TOESCA 2770', nombres: 'Ana', apellido_paterno: 'Soto', rut: '1-9' },
+        // Trabajador 2: 2 días seguidos → reiterada; su falta más reciente fue en otra obra.
+        { trabajador_id: 2, fecha: '2026-10-08', obra_id: 10, obra_nombre: 'TOESCA 2770', nombres: 'Luis', apellido_paterno: 'Rojas', rut: '2-7' },
+        { trabajador_id: 2, fecha: '2026-10-09', obra_id: 11, obra_nombre: 'DOMEYKO', nombres: 'Luis', apellido_paterno: 'Rojas', rut: '2-7' },
+    ];
+
+    test('incluye a quien no llega a ninguna regla, con alertas vacías, y la obra de su última falta', async () => {
+        db.query.mockResolvedValueOnce([[{ id: 3 }]]);
+        db.query.mockResolvedValueOnce([filas]);
+
+        const result = await asistenciaService.getFaltasMes('ALL', 10, 2026);
+
+        expect(result).toHaveLength(2);
+        const ana = result.find(t => t.trabajador_id === 1);
+        expect(ana).toMatchObject({ total_faltas: 1, fechas: ['2026-10-07'], alertas: [], obra_nombre: 'TOESCA 2770' });
+        const luis = result.find(t => t.trabajador_id === 2);
+        expect(luis.total_faltas).toBe(2);
+        expect(luis.obra_nombre).toBe('DOMEYKO');
+        expect(luis.alertas.map(a => a.tipo)).toEqual(['consecutivas']);
+        // La query trae el nombre de la obra donde ocurrió la falta.
+        expect(db.query.mock.calls[1][0]).toMatch(/LEFT JOIN obras o ON o\.id = a\.obra_id/);
+    });
+
+    test('getAlertasFaltas sigue devolviendo solo a los reiterados', async () => {
+        db.query.mockResolvedValueOnce([[{ id: 3 }]]);
+        db.query.mockResolvedValueOnce([filas]);
+
+        const result = await asistenciaService.getAlertasFaltas('ALL', 10, 2026);
+
+        expect(result.map(t => t.trabajador_id)).toEqual([2]);
+    });
+
+    test('sin estado F activo → lista vacía', async () => {
+        db.query.mockResolvedValueOnce([[]]);
+        await expect(asistenciaService.getFaltasMes('ALL', 10, 2026)).resolves.toEqual([]);
+    });
+});

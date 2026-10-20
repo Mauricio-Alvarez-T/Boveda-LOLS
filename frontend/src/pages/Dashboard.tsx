@@ -23,13 +23,14 @@ import type { DashboardAlerta } from '../hooks/inventario/useDashboardEjecutivo'
 import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
 import AbsencesToday from '../components/dashboard/widgets/AbsencesToday';
 import QuickActions from '../components/dashboard/widgets/QuickActions';
-import AbsenceAlerts, { type TrabajadorConAlerta } from '../components/dashboard/widgets/AbsenceAlerts';
 import ObraRanking from '../components/dashboard/widgets/ObraRanking';
 import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
 import InicioHero from '../components/dashboard/widgets/InicioHero';
 import AsistenciaPendiente from '../components/dashboard/widgets/AsistenciaPendiente';
 import DocumentosInicio from '../components/dashboard/widgets/DocumentosInicio';
 import { resumenDocumentosInicio } from '../components/dashboard/widgets/resumenDocumentosInicio';
+import FaltasMes from '../components/dashboard/widgets/FaltasMes';
+import { nombreMes, type FaltasMesData, type TrabajadorFaltas } from '../components/dashboard/widgets/resumenFaltasMes';
 import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
 import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
 import { AvisoAtrasosPortador } from '../components/documentos-fisicos/AvisoAtrasosPortador';
@@ -84,7 +85,9 @@ interface DashboardData {
     obraRanking: ObraRankingItem[];
     attendanceStatus: Record<string, AttendanceStatusEntry>;
     // Faltas reiteradas del mes (Art. 160 N°3); incluye fechas[] (strip de evidencia).
-    trabajadoresConAlertas: TrabajadorConAlerta[];
+    trabajadoresConAlertas: TrabajadorFaltas[];
+    /** Todos los que faltaron en el mes (tarjeta «Faltas del mes»); null si el backend no pudo calcularlo. */
+    faltasMes?: FaltasMesData | null;
     saludo: { nombre: string; resumen: string; totalAlertas: number };
 }
 
@@ -274,10 +277,13 @@ const Dashboard: React.FC = () => {
         () => resumenDocumentosInicio(alertasDocs.alertas, lotes.pendientes, impresosSinAsignar),
         [alertasDocs.alertas, lotes.pendientes, impresosSinAsignar],
     );
-    // Detalle de faltas y ausentes solo cuando hay algo: el «0» ya se lee en la tarjeta verde.
-    const verFaltasDetalle = ready && showFaltas && (data?.trabajadoresConAlertas?.length ?? 0) > 0;
+    // Faltas del mes (dueño 2026-10-20): cuarta tarjeta con TODOS los que faltaron; reemplaza al detalle de
+    // reiterados de la columna lateral, que solo aparecía si había alguno. Sin dato del backend, no se monta.
+    const verFaltasMes = showFaltas && (!ready || data?.faltasMes != null);
+    const tarjetas = [showVencVehiculos, verDocumentos || verAsistenciaPendiente, canActividades, verFaltasMes].filter(Boolean).length;
+    // Detalle de ausentes solo cuando hay alguno: el «0» ya se lee en la tarjeta verde.
     const verAusentesDetalle = ready && showAusentes && (data?.counters.ausentes_hoy ?? 0) > 0;
-    const columnaLateral = verFaltasDetalle || verAusentesDetalle;
+    const columnaLateral = verAusentesDetalle;
 
     return (
         <div className="space-y-6">
@@ -290,7 +296,7 @@ const Dashboard: React.FC = () => {
                     ambito={selectedObra ? selectedObra.nombre : 'Todas las obras'}
                     presentesPct={conAsistencia ? data.counters.asistencia_hoy ?? 0 : null}
                     ausentes={showAusentes ? data.counters.ausentes_hoy ?? 0 : null}
-                    faltas={showFaltas ? data.trabajadoresConAlertas?.length ?? 0 : null}
+                    faltas={showFaltas ? data.faltasMes?.reiteradas ?? data.trabajadoresConAlertas?.length ?? 0 : null}
                     actualizado={lastUpdated ? lastUpdated.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : null}
                     cargando={loading}
                     onActualizar={refreshAll}
@@ -301,9 +307,13 @@ const Dashboard: React.FC = () => {
                 <div className="h-60 rounded-3xl bg-green-700/80 dark:bg-green-900 motion-safe:animate-pulse" aria-hidden />
             )}
 
-            {/* Tarjetas con círculo de color: vehículos, documentos físicos (o asistencia pendiente) y actividades. */}
-            {(showVencVehiculos || verDocumentos || verAsistenciaPendiente || canActividades) && (
-                <div className="grid gap-6 items-stretch grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))]">
+            {/* Tarjetas con círculo de color: vehículos, documentos físicos (o asistencia pendiente), actividades y
+                faltas del mes. Con las cuatro: 2×2 y, en pantallas anchas, una fila de 4 (con auto-fit la
+                cuarta quedaba sola en una fila a un tercio de ancho). Con menos, se reparten solas. */}
+            {tarjetas > 0 && (
+                <div className={cn('grid gap-6 items-stretch', tarjetas >= 4
+                    ? 'grid-cols-1 md:grid-cols-2 min-[1700px]:grid-cols-4'
+                    : 'grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))]')}>
                     {showVencVehiculos && (
                         <Panel>
                             {vencimientos.loading && vencimientos.items.length === 0
@@ -324,6 +334,18 @@ const Dashboard: React.FC = () => {
                     {canActividades && (
                         <Panel>
                             <ActividadesSemana />
+                        </Panel>
+                    )}
+                    {verFaltasMes && (
+                        <Panel>
+                            {ready && data?.faltasMes
+                                ? <FaltasMes
+                                    data={data.faltasMes}
+                                    mes={nombreMes(hoy)}
+                                    onTrabajador={(rut) => navigate(`/asistencia?q=${encodeURIComponent(rut)}`)}
+                                    onNavigate={() => navigate('/asistencia')}
+                                />
+                                : <SkeletonText lines={5} />}
                         </Panel>
                     )}
                 </div>
@@ -348,11 +370,6 @@ const Dashboard: React.FC = () => {
 
                 {columnaLateral && data && (
                     <div className="space-y-6 lg:sticky lg:top-6">
-                        {verFaltasDetalle && (
-                            <Panel>
-                                <AbsenceAlerts data={data.trabajadoresConAlertas ?? []} onNavigate={(rut) => navigate(`/asistencia?q=${rut}`)} />
-                            </Panel>
-                        )}
                         {verAusentesDetalle && (
                             <Panel>
                                 <AbsencesToday data={data.ausentesDetalle ?? []} total={data.counters.ausentes_hoy} />

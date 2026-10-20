@@ -525,6 +525,10 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     documentos sin firmar fuera de plazo, críticos, etapas donde se atascan y «dónde están ahora»:
     impresos sin lote, lotes en oficina, lotes en terreno; lógica en `resumenDocumentosInicio.ts` con
     test) o, sin ese permiso, Asistencia pendiente (`AsistenciaPendiente`, nube de obras), y Actividades
-    sugeridas (barras por cargo). La bandeja pasa a **«Otros pendientes»** (sin asistencia, vehículos ni
-    documentos físicos, que ya tienen tarjeta) y el detalle de faltas y de ausentes **solo aparece si hay algo**:
-    el 0 ya se lee en la tarjeta verde. Reemplaza los «Destacados» del 2026-08-25.
+    sugeridas (barras por cargo), y **Faltas del mes** (`FaltasMes`, dueño 2026-10-20: todos los que
+    faltaron en el mes, rojo = reiterado Art. 160; reemplaza al detalle de reiterados de la columna
+    lateral). Con las cuatro, la grilla es 2×2 y desde 1700 px una fila de 4 (con `auto-fit` la cuarta
+    quedaba sola a un tercio de ancho); con menos, `auto-fit`. La bandeja pasa a **«Otros pendientes»**
+    (sin asistencia, vehículos ni documentos físicos, que ya tienen tarjeta) y el detalle de ausentes
+    **solo aparece si hay alguno**: el 0 ya se lee en la tarjeta verde. Reemplaza los «Destacados» del
+    2026-08-25.
