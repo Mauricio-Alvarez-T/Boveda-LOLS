@@ -16,7 +16,8 @@ import {
     Archive,
     BookOpen,
     Lightbulb,
-    Inbox
+    Inbox,
+    Calculator
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
@@ -120,6 +121,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             label: 'Obras Finalizadas',
             path: '/obras-finalizadas',
             visible: hasPermission('obras.ver')
+        },
+        {
+            // Costos de obra (mig 122): don Luis, Rodrigo y el arquitecto, por usuario.
+            icon: Calculator,
+            label: 'Presupuestos',
+            path: '/costos',
+            visible: hasPermission('costos.gestionar')
         },
         {
             icon: BookOpen,

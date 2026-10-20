@@ -1252,7 +1252,11 @@ QA sin datos que mirar. Lo sembrado va con `es_prueba = 0`.
 5. **Siembra** (con `--sembrar`): 3 empresas, 4 obras, 10 cargos, ~40 trabajadores con ficha
    completa e ingresos escalonados, asistencia de los últimos 30 días y 2 documentos por trabajador
    con un **archivo marcador** real (PDF mínimo válido / `.doc` de Word) para que "Ver documento",
-   descargar e imprimir funcionen.
+   descargar e imprimir funcionen. Además (2026-10-16) las **3 obras de ejemplo de Presupuestos**
+   («Obra demo 1/2/3», con presupuesto y gastos; `saneoCostos.service.js`): **una vez por obra**, y si
+   es lo único pendiente el modo `--auto` las siembra solas, sin purga ni siembra general.
+   `datos-status.txt` lo dice (`· 3 obras demo de Presupuestos`). Desde la mig 123 se les agrega
+   **superficie y cobros** una vez por obra (`· N cobros demo`), también a las que ya existían. Desde la mig 124, 3 meses de gastos con las categorías detalladas (`· N gastos mes a mes demo`).
 
 ### Las tres guardas
 

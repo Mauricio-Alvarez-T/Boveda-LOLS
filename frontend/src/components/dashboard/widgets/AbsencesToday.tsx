@@ -2,6 +2,7 @@ import React from 'react';
 import { UserX } from 'lucide-react';
 import { Chip } from '../../ui/Chip';
 import { EmptyState } from '../../ui/EmptyState';
+import { EncabezadoTarjeta } from './EncabezadoTarjeta';
 
 interface Ausente {
     nombres: string;
@@ -28,17 +29,11 @@ const AbsencesToday: React.FC<Props> = ({ data, total }) => {
     const mostradas = Math.min(data.length, MAX_FILAS);
     return (
         <div>
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2.5">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
-                        <UserX className="h-5 w-5 text-muted-foreground" />
-                    </span>
-                    <h3 className="text-sm font-semibold text-foreground">Ausentes del Día</h3>
-                </div>
-                <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">
-                    {totalReal} total
-                </span>
-            </div>
+            <EncabezadoTarjeta
+                icon={UserX}
+                titulo="Ausentes del día"
+                extra={<span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">{totalReal} total</span>}
+            />
             <div className="space-y-2">
                 {data.length > 0 ? (
                     data.slice(0, MAX_FILAS).map((a, i) => (

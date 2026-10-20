@@ -940,3 +940,231 @@ export interface IdeasResumenBandeja {
     hecha: number;
     pendiente_mas_antigua: string | null;
 }
+
+// ─── Costos de obra (mig 122, docs/reglas/costos.md) ──────────────────────────
+/** Categorías de gasto (mig 124), en grupos: ver costosConfig · GRUPOS_CATEGORIA. */
+export type CostoCategoria =
+    | 'sueldos_administracion' | 'sueldos' | 'anticipos' | 'subcontrato'
+    | 'arriendo_equipos' | 'servicios_basicos' | 'logistica_seguridad' | 'combustible' | 'gastos_generales'
+    | 'hormigon' | 'acero' | 'materiales' | 'herramientas'
+    | 'permisos' | 'mitigaciones'
+    | 'otro';
+export type CostoTipoDocumento = 'factura' | 'boleta' | 'guia' | 'planilla' | 'otro';
+export type CostoEstadoPago = 'por_pagar' | 'pagada';
+
+export interface CostoObraLista {
+    obra_id: number;
+    obra_nombre: string;
+    finalizada: boolean;
+    tiene_presupuesto: boolean;
+    partidas: number;
+    costo_presupuestado: number;
+    gastado_neto: number;
+    gastos: number;
+    por_completar: number;
+    por_pagar: number;
+}
+
+export interface CostoPresupuesto {
+    id: number;
+    obra_id: number;
+    gg_pct: number | string;
+    imprevistos_pct: number | string;
+    utilidad_pct: number | string;
+    iva_pct: number | string;
+    observacion?: string | null;
+    /** Superficie construida (mig 123), para el costo por m². */
+    superficie_m2?: number | string | null;
+    /** Cierre de obra (mig 123): con fecha, los montos quedan congelados. */
+    cerrado_at?: string | null;
+}
+
+export interface CostoPartida {
+    id: number;
+    capitulo: string;
+    codigo: string | null;
+    descripcion: string;
+    unidad: string | null;
+    cantidad: number | string;
+    precio_unitario: number | string;
+    origen: 'original' | 'modificacion';
+    motivo: string | null;
+    orden: number;
+    created_at?: string;
+    /** Calculados por el backend. */
+    total: number;
+    gastado: number;
+    diferencia: number;
+}
+
+export interface CostoGasto {
+    id: number;
+    obra_id: number;
+    fecha: string;
+    tipo_documento: CostoTipoDocumento;
+    proveedor: string | null;
+    folio: string | null;
+    monto_neto: number | string | null;
+    iva: number | string | null;
+    monto_total: number | string;
+    categoria: CostoCategoria | null;
+    partida_id: number | null;
+    partida_descripcion?: string | null;
+    partida_capitulo?: string | null;
+    estado_pago: CostoEstadoPago;
+    fecha_vencimiento: string | null;
+    fecha_pago: string | null;
+    observacion: string | null;
+    tiene_foto: boolean;
+    foto_nombre?: string | null;
+    foto_mime?: string | null;
+    foto_tamano?: number | null;
+    creado_por_nombre?: string | null;
+    created_at: string;
+}
+
+export interface CostoResumen {
+    costo_directo: number;
+    costo_directo_original: number;
+    costo_directo_modificaciones: number;
+    gastos_generales: number;
+    imprevistos: number;
+    costo_presupuestado: number;
+    utilidad: number;
+    neto: number;
+    iva: number;
+    total: number;
+    gastado_neto: number;
+    gastado_estimado: boolean;
+    disponible: number;
+    pct_gastado: number | null;
+    gastos_generales_gastado: number;
+    /** Sueldos, anticipos y subcontratos sin partida (la mano de obra va dentro de los precios unitarios). */
+    mano_obra_sin_partida: number;
+    sin_asignar: number;
+    por_completar: number;
+    por_pagar: { n: number; monto: number };
+    vencidas: { n: number; monto: number };
+    capitulos: { capitulo: string; presupuestado: number; gastado: number; partidas: number }[];
+    partidas_excedidas: { id: number; capitulo: string; descripcion: string; presupuestado: number; gastado: number }[];
+    cobros: {
+        cobrado: { n: number; neto: number; total: number };
+        por_cobrar: { n: number; neto: number; total: number };
+        retenido: number;
+    };
+}
+
+/** Cobro al mandante (mig 123): lo que entra = neto + IVA − retención. */
+export interface CostoCobro {
+    id: number;
+    obra_id: number;
+    fecha: string;
+    glosa: string;
+    monto_neto: number | string;
+    iva: number | string;
+    retencion: number | string;
+    estado: 'por_cobrar' | 'cobrado';
+    fecha_cobro: string | null;
+    observacion: string | null;
+    /** Calculado por el backend. */
+    total: number;
+    creado_por_nombre?: string | null;
+}
+
+/** Números finales de una obra al cerrarla (costosCierre.service · resumenCierre). */
+export interface CostoCierreResumen {
+    fecha: string;
+    superficie_m2: number | null;
+    presupuesto: { costo_directo: number; gastos_generales: number; imprevistos: number; costo_presupuestado: number; utilidad: number; neto: number };
+    real: { gastado_neto: number; gastado_estimado: boolean; por_categoria: Record<string, number>; gastos_generales_gastado: number; sin_asignar: number };
+    venta: { neto: number; fuente: 'cobros' | 'presupuesto'; cobrado_neto: number; por_cobrar_neto: number; retenido: number };
+    margen: { presupuestado: number; pct_presupuestado: number | null; real: number; pct_real: number | null };
+    desviacion_costo: number;
+    desviacion_pct: number | null;
+    capitulos: { capitulo: string; presupuestado: number; gastado: number }[];
+    excedidas: { id: number; capitulo: string; descripcion: string; presupuestado: number; gastado: number }[];
+    pendientes: { por_pagar: { n: number; monto: number }; por_completar: number; por_cobrar: { n: number; total: number } };
+}
+
+export interface CostoCierre {
+    cerrado_at: string;
+    cerrado_por_nombre: string | null;
+    resumen: CostoCierreResumen | null;
+    lecciones: string | null;
+}
+
+export interface CostoMovimientoFlujo {
+    tipo: 'cobro' | 'pago';
+    id: number;
+    obra_id: number;
+    obra_nombre: string;
+    fecha: string | null;
+    fecha_documento?: string | null;
+    detalle: string;
+    monto: number;
+}
+
+export interface CostoBaldeFlujo {
+    clave: string;
+    desde: string | null;
+    hasta: string | null;
+    entradas: number;
+    salidas: number;
+    neto: number;
+    items: CostoMovimientoFlujo[];
+}
+
+export interface CostoFlujo {
+    hoy: string;
+    semanas: CostoBaldeFlujo[];
+    atrasado: CostoBaldeFlujo;
+    mas_adelante: CostoBaldeFlujo;
+    sin_fecha: CostoBaldeFlujo;
+    totales: { entradas: number; salidas: number };
+}
+
+export interface CostoComparacionObra {
+    obra_id: number;
+    nombre: string;
+    finalizada: boolean;
+    cerrada: boolean;
+    cerrado_at: string | null;
+    superficie_m2: number | null;
+    partidas: number;
+    costo_presupuestado: number;
+    gastado_neto: number;
+    gastado_estimado: boolean;
+    venta_neto: number;
+    venta_fuente: 'cobros' | 'presupuesto';
+    margen_pct_presupuestado: number | null;
+    margen_pct_real: number | null;
+    desviacion_pct: number | null;
+    por_m2: { presupuestado: number | null; real: number | null; venta: number | null };
+    por_categoria: Record<string, number>;
+}
+
+export interface CostoComparacion {
+    obras: CostoComparacionObra[];
+    promedio_cerradas: { obras: number; costo_real_m2: number | null; costo_presupuestado_m2: number | null; margen_pct_real: number | null } | null;
+}
+
+export interface CostoDetalleObra {
+    obra: { id: number; nombre: string; finalizada: boolean };
+    presupuesto: CostoPresupuesto | null;
+    partidas: CostoPartida[];
+    gastos: CostoGasto[];
+    cobros: CostoCobro[];
+    cierre: CostoCierre | null;
+    resumen: CostoResumen;
+}
+
+export interface CostoHistorial {
+    id: number;
+    entidad: 'presupuesto' | 'partida' | 'gasto' | 'cobro';
+    entidad_id: number | null;
+    accion: 'crear' | 'editar' | 'borrar' | 'importar' | 'cerrar' | 'reabrir';
+    resumen: string;
+    detalle: Record<string, unknown> | null;
+    usuario_nombre: string | null;
+    created_at: string;
+}

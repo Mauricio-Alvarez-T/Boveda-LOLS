@@ -4,6 +4,7 @@ import { cn } from '../../../utils/cn';
 import { EmptyState } from '../../ui/EmptyState';
 import { Chip } from '../../ui/Chip';
 import { Button } from '../../ui/Button';
+import { EncabezadoTarjeta } from './EncabezadoTarjeta';
 
 export interface Alerta {
     tipo: 'consecutivas' | 'lunes' | 'acumuladas';
@@ -69,18 +70,13 @@ const AbsenceAlerts: React.FC<Props> = ({ data, onNavigate }) => {
     return (
         <div>
             {/* Header */}
-            <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2.5">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-destructive/[0.08]">
-                        <AlertTriangle className="h-5 w-5 text-red-700 dark:text-red-300" />
-                    </span>
-                    <h3 className="text-sm font-semibold text-foreground">Faltas reiteradas</h3>
-                </div>
-                <span className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Este mes</span>
-            </div>
-            <p className="text-caption text-muted-foreground mb-3">
-                Art. 160 N°3 · umbrales: 2 consecutivas · 2 lunes · 3 acumuladas
-            </p>
+            <EncabezadoTarjeta
+                icon={AlertTriangle}
+                tono="rojo"
+                titulo="Faltas reiteradas"
+                subtitulo="Art. 160 N°3 · 2 consecutivas · 2 lunes · 3 acumuladas"
+                extra={<span className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Este mes</span>}
+            />
 
             {/* Resumen por regla */}
             <div className="flex flex-wrap gap-1.5 mb-4">

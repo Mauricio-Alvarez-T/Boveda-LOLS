@@ -41,7 +41,7 @@ const QuickActions: React.FC<Props> = ({ permisos, onNavigate }) => {
 
     return (
         <div>
-            <h3 className="text-sm font-semibold text-foreground mb-4">Acciones rápidas</h3>
+            <h3 className="text-base font-semibold text-foreground mb-4">Acciones rápidas</h3>
             {/* Botones del sistema (sin variant glass legacy): la acción de crear
                 asistencia es la primaria (verde, único acento); el resto, neutras. */}
             <div className="flex flex-wrap gap-2">

@@ -506,3 +506,21 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     `claseFila`. Si la lista cambia entera (las sub-pestañas cambian al cambiar de categoría), el
     componente se remonta con `key`: así aparece quieto en la nueva lista en vez de «viajar» desde una
     posición de la lista anterior. Las sub-pestañas de escritorio de Configuración también lo usan desde la regla 13.
+
+14. **Inicio «Marca LOLS» (propuesta H del lienzo de diseño, elegida por el dueño 2026-10-16).**
+    El Inicio abre con **una tarjeta verde** (`InicioHero`): fecha y ámbito arriba, la frase del día
+    como título («15 obras aún no guardan la asistencia de hoy»), el estado como detalle, y a la
+    derecha la barra «obras con asistencia guardada», presentes, ausentes y faltas reiteradas. Es la
+    **única superficie grande verde de la app** (excepción explícita a la regla 1 del DS): usa
+    `green-700` (oscuro: `green-900`), no `brand-primary`, porque con letra blanca chica el verde de
+    marca no pasa AA. Su botón «Ir a Asistencia» es blanco con letra verde. La frase sale de
+    `utils/resumenInicio.ts` (`resumenDelDia`, con test): fin de semana no cobra la asistencia,
+    singular/plural, la obra elegida se cuenta en el detalle y sin permiso de asistencia la frase habla
+    de la bandeja. Debajo, **tarjetas blancas sin borde** (`rounded-3xl`, sombra `--shadow-md`) con
+    `EncabezadoTarjeta`: **círculo de color sólido** con el ícono en blanco + título `text-base`, y
+    `CifraTarjeta`: número grande en el mismo color (rampa 700/300). Tonos: rojo = vencido, ámbar =
+    pendiente, azul = informativo, verde = al día, neutro = solo dato. Tarjetas: Vehículos
+    (`VehicleExpiries`), Asistencia pendiente (`AsistenciaPendiente`, nube de obras) y Actividades
+    sugeridas (barras por cargo). La bandeja pasa a **«Otros pendientes»** (sin asistencia ni
+    vehículos, que ya tienen tarjeta) y el detalle de faltas y de ausentes **solo aparece si hay algo**:
+    el 0 ya se lee en la tarjeta verde. Reemplaza los «Destacados» del 2026-08-25.

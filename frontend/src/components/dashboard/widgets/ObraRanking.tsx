@@ -1,6 +1,7 @@
 import React from 'react';
 import { ClipboardCheck } from 'lucide-react';
 import { EmptyState } from '../../ui/EmptyState';
+import { EncabezadoTarjeta } from './EncabezadoTarjeta';
 
 interface ObraRankingItem {
     id: number;
@@ -41,15 +42,11 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2.5">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
-                        <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
-                    </span>
-                    <h3 className="text-sm font-semibold text-foreground">Asistencia por Obra</h3>
-                </div>
-                <span className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Hoy</span>
-            </div>
+            <EncabezadoTarjeta
+                icon={ClipboardCheck}
+                titulo="Asistencia por obra"
+                extra={<span className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Hoy</span>}
+            />
 
             <div>
                 {[...noCumple, ...cumple].map((obra) => {

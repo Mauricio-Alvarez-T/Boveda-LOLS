@@ -61,6 +61,7 @@ Errores que se cuelan una y otra vez. Revisar SIEMPRE con grep antes de cerrar u
   con color + **texto/ícono**, no con grados de opacidad.
 - ❌ **Títulos de panel con niveles tipográficos mezclados** (unos `h3 text-base`, otros `h4 text-sm`).
   Cards hermanas del mismo grid → un único nivel: **`<h3 className="text-sm font-semibold text-foreground">`**.
+  En el Inicio el encabezado es `EncabezadoTarjeta` (h3 `text-base`, decisión 2026-10-16): no mezclar.
 - ❌ **`text-brand-primary` (verde de marca #029E4D) como color de TEXTO chico (<24px).** Sobre blanco
   solo da **~3.5:1** → falla AA (y `/80` cae a ~2.7:1). Para TEXTO verde usar la rampa accesible
   **`text-green-700 dark:text-green-300`** (≈5:1). `brand-primary` queda reservado para **íconos**

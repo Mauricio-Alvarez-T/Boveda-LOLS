@@ -15,6 +15,7 @@ Catálogo de TODAS las reglas de negocio de Bóveda LOLS, separadas por categor�
 | Bombas de Hormigón | [bombas.md](bombas.md) | Registro por obra, costos gateados |
 | Infraestructura | [infraestructura.md](infraestructura.md) | Migraciones, deploy, cron, env, logs, worktrees, pre-deploy checks, **datos ficticios en staging (saneo)** |
 | Ideas para Bóveda | [ideas.md](ideas.md) | Buzón de mejoras (mig 120): con nombre, "mejoras no mañas" (problema + frecuencia + alcance + beneficio), estados y motivos, `ideas.revisar` por usuario, crédito público de lo hecho |
+| Presupuestos y costos | [costos.md](costos.md) | Costos de obra (mig 122, esqueleto para Rodrigo): presupuesto por partidas con GG/imprevistos/utilidad/IVA, import de Excel, original vs modificación, gastos con foto medidos en neto, por completar / por pagar, historial; cobros al mandante, flujo de caja semanal, cierre de obra (montos congelados) y comparación por m² (mig 123); `costos.gestionar` por usuario |
 | Diseño (Design System) | [diseno.md](diseno.md) | Tokens tipográficos, colores, primitivas ui/, statusConfig, helpers de formato, reglas ESLint, migración F2 |
 
 > Documento creado en Fase 0 del plan v2 (ver `docs/ARQUITECTURA.md`). Fuente: auditoría de código

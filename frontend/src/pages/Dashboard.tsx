@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { RefreshCw, Building2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import api from '../services/api';
@@ -10,7 +9,6 @@ import { cn } from '../utils/cn';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { Skeleton, SkeletonText } from '../components/ui/Skeleton';
-import { Button } from '../components/ui/Button';
 
 // Widgets
 import VehicleExpiries from '../components/dashboard/widgets/VehicleExpiries';
@@ -21,7 +19,6 @@ import { useLotesPendientes } from '../hooks/useLotesPendientes';
 import { filasBandejaLotes } from '../components/documentos-fisicos/documentosFisicos';
 import { useDocumentosAlertas } from '../hooks/useDocumentosAlertas';
 import { filasBandejaAlertas } from '../components/documentos-fisicos/documentosAlertas';
-import { textoVencimiento, etiquetaVencimiento } from '../utils/vencimientos';
 import type { DashboardAlerta } from '../hooks/inventario/useDashboardEjecutivo';
 import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
 import AbsencesToday from '../components/dashboard/widgets/AbsencesToday';
@@ -29,6 +26,10 @@ import QuickActions from '../components/dashboard/widgets/QuickActions';
 import AbsenceAlerts, { type TrabajadorConAlerta } from '../components/dashboard/widgets/AbsenceAlerts';
 import ObraRanking from '../components/dashboard/widgets/ObraRanking';
 import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
+import InicioHero from '../components/dashboard/widgets/InicioHero';
+import AsistenciaPendiente from '../components/dashboard/widgets/AsistenciaPendiente';
+import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
+import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
 import { AvisoAtrasosPortador } from '../components/documentos-fisicos/AvisoAtrasosPortador';
 
 // ─── Types ───
@@ -85,10 +86,11 @@ interface DashboardData {
     saludo: { nombre: string; resumen: string; totalAlertas: number };
 }
 
-// ─── Panel: superficie NEUTRA del design system (card blanca + borde, sin tinte).
-// El verde queda solo para acciones. Cada widget trae su propio encabezado.
+// ─── Panel: tarjeta blanca del Inicio H (2026-10-16): sin borde, sombra suave (en oscuro la sombra
+// trae su anillo de 1 px), esquinas grandes. El color va en el círculo de cada encabezado
+// (EncabezadoTarjeta), nunca en el fondo; la única superficie verde es la tarjeta del día.
 const Panel: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
-    <div className={cn('rounded-card border border-border bg-card p-5', className)}>{children}</div>
+    <div className={cn('rounded-3xl bg-card p-6 shadow-[var(--shadow-md)]', className)}>{children}</div>
 );
 
 // ─── Dashboard ───
@@ -102,14 +104,12 @@ const Dashboard: React.FC = () => {
     const [invItems, setInvItems] = useState<BandejaItem[]>([]);
 
     // Vencimientos de vehículos: mismo store que el badge del menú (una sola
-    // request compartida), acá convertidos en filas de la bandeja.
+    // request compartida). Desde el Inicio H van en su propia tarjeta, no en la bandeja.
     const vencimientos = useVencimientosVehiculos();
-    const vehiculoItems = useMemo((): BandejaItem[] => vencimientos.items.map(v => ({
-        severity: Number(v.dias_restantes) < 0 ? 'critical' : 'warning',
-        title: `${v.patente || 'Vehículo'} · ${etiquetaVencimiento(v.categoria, v.subtipo)}`,
-        description: `${textoVencimiento(Number(v.dias_restantes))}${[v.marca, v.modelo].filter(Boolean).length ? ` · ${[v.marca, v.modelo].filter(Boolean).join(' ')}` : ''}`,
-        ruta: '/vehiculos',
-    })), [vencimientos.items]);
+    const vehiculosVencidos = useMemo(
+        () => vencimientos.items.filter(v => Number(v.dias_restantes) < 0).length,
+        [vencimientos.items],
+    );
 
     const permisos = user?.permisos ?? [];
     const canInventario = permisos.includes('inventario.ver');
@@ -220,44 +220,61 @@ const Dashboard: React.FC = () => {
     const showVencVehiculos = shown.has('vehiculo_vencimientos');
     const showRanking = shown.has('obra_ranking') && selectedObra == null; // solo ámbito "Todas"
 
+    // ─── Inicio H (propuesta «Marca LOLS», dueño 2026-10-16; diseno.md §9.14) ───
+    // La asistencia pendiente y los vehículos tienen tarjeta propia; la bandeja queda con el resto
+    // («Otros pendientes») para no mostrar lo mismo dos veces.
+    const otrasTareas = useMemo(
+        () => (data?.pendingTasks ?? []).filter(t => t.category !== 'asistencia'),
+        [data?.pendingTasks],
+    );
+    const otrosPendientes = useMemo(
+        () => contarBandeja(otrasTareas, data?.counters.trabajadoresSinDocs ?? 0, [solicitudItems, documentosFisicosItems, invItems]).total,
+        [otrasTareas, data?.counters.trabajadoresSinDocs, solicitudItems, documentosFisicosItems, invItems],
+    );
+    const hoy = new Date();
+    const diaSemana = hoy.getDay();
+    const resumen = useMemo(
+        () => resumenDelDia(data?.attendanceStatus ?? {}, {
+            obraId: selectedObra?.id ?? null,
+            vehiculosVencidos: showVencVehiculos ? vehiculosVencidos : 0,
+            otrosPendientes,
+            diaSemana,
+        }),
+        [data?.attendanceStatus, selectedObra?.id, showVencVehiculos, vehiculosVencidos, otrosPendientes, diaSemana],
+    );
+    // `asistencia_hoy` solo llega con permiso de asistencia (dashboard.service, bloque 3).
+    const conAsistencia = typeof data?.counters.asistencia_hoy === 'number';
+    const verAsistenciaPendiente = ready && conAsistencia && resumen.total > 0 && !resumen.finDeSemana;
+    // Detalle de faltas y ausentes solo cuando hay algo: el «0» ya se lee en la tarjeta verde.
+    const verFaltasDetalle = ready && showFaltas && (data?.trabajadoresConAlertas?.length ?? 0) > 0;
+    const verAusentesDetalle = ready && showAusentes && (data?.counters.ausentes_hoy ?? 0) > 0;
+    const columnaLateral = verFaltasDetalle || verAusentesDetalle;
+
     return (
         <div className="space-y-6">
             {/* Cartel de atrasos del supervisor que lleva documentos a firmar (pedido de RRHH, 2026-10-19). */}
             <AvisoAtrasosPortador />
-            {/* ScopeBadge: ámbito activo + frescura + refrescar */}
-            <div className="flex items-center justify-between gap-3">
-                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Building2 className="h-4 w-4" />
-                    {selectedObra ? `Obra: ${selectedObra.nombre}` : 'Todas las obras'}
-                </span>
-                <div className="flex items-center gap-3">
-                    {lastUpdated && (
-                        <span className="text-caption text-muted-foreground tabular-nums">
-                            Actualizado {lastUpdated.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                    )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={refreshAll}
-                        leftIcon={<RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />}
-                        className="text-muted-foreground"
-                    >
-                        Actualizar
-                    </Button>
-                </div>
-            </div>
+            {ready && data ? (
+                <InicioHero
+                    resumen={resumen}
+                    fecha={fechaDelDia(hoy)}
+                    ambito={selectedObra ? selectedObra.nombre : 'Todas las obras'}
+                    presentesPct={conAsistencia ? data.counters.asistencia_hoy ?? 0 : null}
+                    ausentes={showAusentes ? data.counters.ausentes_hoy ?? 0 : null}
+                    faltas={showFaltas ? data.trabajadoresConAlertas?.length ?? 0 : null}
+                    actualizado={lastUpdated ? lastUpdated.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : null}
+                    cargando={loading}
+                    onActualizar={refreshAll}
+                    onAsistencia={conAsistencia ? () => navigate('/asistencia') : undefined}
+                    onVehiculos={showVencVehiculos && vencimientos.items.length > 0 ? () => navigate('/vehiculos') : undefined}
+                />
+            ) : (
+                <div className="h-60 rounded-3xl bg-green-700/80 dark:bg-green-900 motion-safe:animate-pulse" aria-hidden />
+            )}
 
-            {/* ─── Destacados: lo que la empresa mira primero (decisión usuario 2026-08-25).
-                Sustituyen al hero de saludo + la tira de KPIs: vencimientos de vehículos
-                y las faltas reiteradas del Art. 160 N°3 (las que tienen consecuencia
-                laboral). Lo que decía el hero ("N obras sin asistencia guardada",
-                "N tareas pendientes") NO se pierde — sigue desglosado en la Bandeja del Día. */}
-            {(showVencVehiculos || showFaltas) && (
-                <div className={cn(
-                    'grid grid-cols-1 gap-6 items-start',
-                    showVencVehiculos && showFaltas && 'lg:grid-cols-2',
-                )}>
+            {/* Tarjetas con círculo de color: vehículos, asistencia pendiente y actividades. */}
+            {(showVencVehiculos || verAsistenciaPendiente || canActividades) && (
+                <div className="grid gap-6 items-stretch grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))]">
                     {showVencVehiculos && (
                         <Panel>
                             {vencimientos.loading && vencimientos.items.length === 0
@@ -265,34 +282,30 @@ const Dashboard: React.FC = () => {
                                 : <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')} />}
                         </Panel>
                     )}
-                    {showFaltas && (
+                    {verAsistenciaPendiente && (
                         <Panel>
-                            {ready && data
-                                ? <AbsenceAlerts data={data.trabajadoresConAlertas ?? []} onNavigate={(rut) => navigate(`/asistencia?q=${rut}`)} />
-                                : <SkeletonText lines={5} />}
+                            <AsistenciaPendiente sinGuardar={resumen.sinGuardar} total={resumen.total} onNavigate={() => navigate('/asistencia')} />
+                        </Panel>
+                    )}
+                    {/* Trae sus datos (tiene selector de semana), por eso no depende de `ready`. */}
+                    {canActividades && (
+                        <Panel>
+                            <ActividadesSemana />
                         </Panel>
                     )}
                 </div>
             )}
 
-            {/* Asistencia a actividades sugeridas de la semana (pedido dueño 2026-09-21):
-                cuántos de cada cargo asistieron + descarga del informe Excel. Trae sus
-                propios datos (tiene selector de semana), por eso no depende de `ready`. */}
-            {canActividades && (
-                <Panel>
-                    <ActividadesSemana />
-                </Panel>
-            )}
-
-            {/* Zona principal: Bandeja del Día (izq) + Ausentes del Día (der, sticky) */}
-            <div className={cn('grid grid-cols-1 gap-6 items-start', showAusentes && 'lg:grid-cols-[1.5fr_1fr]')}>
+            {/* Otros pendientes (izq) + detalle de faltas y ausentes cuando los hay (der). */}
+            <div className={cn('grid grid-cols-1 gap-6 items-start', columnaLateral && 'lg:grid-cols-[1.5fr_1fr]')}>
                 <Panel>
                     {ready && data
                         ? <BandejaDelDia
-                            tasks={data.pendingTasks ?? []}
+                            titulo="Otros pendientes"
+                            vacio={{ titulo: 'Nada más por resolver hoy', descripcion: 'Sin pendientes de documentos, contratos, inventario ni solicitudes.' }}
+                            tasks={otrasTareas}
                             trabajadoresSinDocs={data.counters.trabajadoresSinDocs}
                             inventoryItems={invItems}
-                            vehiculoItems={vehiculoItems}
                             solicitudItems={solicitudItems}
                             documentosFisicosItems={documentosFisicosItems}
                             onNavigate={(route) => navigate(route)}
@@ -300,17 +313,23 @@ const Dashboard: React.FC = () => {
                         : <SkeletonText lines={6} />}
                 </Panel>
 
-                {showAusentes && (
-                    <Panel className="lg:sticky lg:top-6">
-                        {ready && data
-                            ? <AbsencesToday data={data.ausentesDetalle ?? []} total={data.counters.ausentes_hoy} />
-                            : <SkeletonText lines={6} />}
-                    </Panel>
+                {columnaLateral && data && (
+                    <div className="space-y-6 lg:sticky lg:top-6">
+                        {verFaltasDetalle && (
+                            <Panel>
+                                <AbsenceAlerts data={data.trabajadoresConAlertas ?? []} onNavigate={(rut) => navigate(`/asistencia?q=${rut}`)} />
+                            </Panel>
+                        )}
+                        {verAusentesDetalle && (
+                            <Panel>
+                                <AbsencesToday data={data.ausentesDetalle ?? []} total={data.counters.ausentes_hoy} />
+                            </Panel>
+                        )}
+                    </div>
                 )}
             </div>
 
-            {/* Contexto de asistencia: tendencia 7d. Los ausentes del día ya NO van acá:
-                están junto a la Bandeja (arriba), sin duplicarse. */}
+            {/* Contexto de asistencia: tendencia 7d. */}
             {showTrend && (
                 <Panel>
                     {ready && data

@@ -75,11 +75,14 @@ export async function compressImage(
         render(width, height);
         let blob = await encodeUnderTarget();
 
-        // Si la calidad sola no alcanzó, reduce dimensiones progresivamente
+        // Si la calidad sola no alcanzó, reduce dimensiones progresivamente, SIN deformar: los dos
+        // lados por el mismo factor, hasta que el lado largo llegue a `minDim`. (Antes cada lado se
+        // topaba en `minDim` por separado y una foto vertical u horizontal quedaba estirada.)
         let curW = width, curH = height;
         while (blob && blob.size > maxBytes && Math.max(curW, curH) > minDim) {
-            curW = Math.max(minDim, Math.round(curW * 0.8));
-            curH = Math.max(minDim, Math.round(curH * 0.8));
+            const factor = Math.max(minDim / Math.max(curW, curH), 0.8);
+            curW = Math.round(curW * factor);
+            curH = Math.round(curH * factor);
             render(curW, curH);
             blob = await encodeUnderTarget();
         }

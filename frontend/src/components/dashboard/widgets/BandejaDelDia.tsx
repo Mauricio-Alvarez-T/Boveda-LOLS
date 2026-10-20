@@ -6,6 +6,7 @@ import {
 import { cn } from '../../../utils/cn';
 import { EmptyState } from '../../ui/EmptyState';
 import { contarBandeja } from './bandejaConteo';
+import { EncabezadoTarjeta } from './EncabezadoTarjeta';
 
 export interface PendingTask {
     severity: 'critical' | 'warning' | 'info';
@@ -42,6 +43,10 @@ interface Props {
     /** Lotes de documentos físicos por confirmar / en terreno (B6; gated por documentos.entrega.*). */
     documentosFisicosItems?: BandejaItem[];
     onNavigate: (route: string) => void;
+    /** Título de la tarjeta. En el Inicio H es «Otros pendientes»: asistencia y vehículos van en sus tarjetas. */
+    titulo?: string;
+    /** Texto cuando no queda nada (por defecto «Bandeja vacía»). */
+    vacio?: { titulo: string; descripcion: string };
 }
 
 // Color = significado (WCAG AA): crítico = rojo · pendiente/por vencer = ámbar ·
@@ -107,7 +112,7 @@ const GroupHeader: React.FC<{ collapsed: boolean; icon: React.ElementType; label
         );
     };
 
-const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, inventoryItems = [], vehiculoItems = [], solicitudItems = [], documentosFisicosItems = [], onNavigate }) => {
+const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, inventoryItems = [], vehiculoItems = [], solicitudItems = [], documentosFisicosItems = [], onNavigate, titulo = 'Bandeja del día', vacio }) => {
     // Solo Vehículos arranca abierto (pedido de obra 2026-08-24): es el aviso que
     // se mira primero. El resto se abre al hacer clic. La clave ausente significa
     // "usar el default", así que un grupo nuevo nace cerrado sin tocar nada más.
@@ -131,12 +136,15 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
 
     if (total === 0) {
         return (
-            <EmptyState
-                className="py-8"
-                icon={Inbox}
-                title="Bandeja vacía"
-                description="No hay pendientes por resolver hoy."
-            />
+            <div>
+                <EncabezadoTarjeta icon={Inbox} titulo={titulo} />
+                <EmptyState
+                    className="py-6"
+                    icon={Inbox}
+                    title={vacio?.titulo ?? 'Bandeja vacía'}
+                    description={vacio?.descripcion ?? 'No hay pendientes por resolver hoy.'}
+                />
+            </div>
         );
     }
 
@@ -208,20 +216,18 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
     return (
         <div>
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2.5">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
-                        <Inbox className="h-5 w-5 text-muted-foreground" />
-                    </span>
-                    <h3 className="text-sm font-semibold text-foreground">Bandeja del día</h3>
-                </div>
-                <div className="flex items-center gap-2 text-sm tabular-nums text-muted-foreground">
-                    <span>{total} pendiente{total !== 1 ? 's' : ''}</span>
-                    {criticalCount > 0 && (
-                        <span className="font-medium text-red-700 dark:text-red-300">· {criticalCount} crítica{criticalCount !== 1 ? 's' : ''}</span>
-                    )}
-                </div>
-            </div>
+            <EncabezadoTarjeta
+                icon={Inbox}
+                titulo={titulo}
+                extra={
+                    <div className="flex items-center gap-2 text-sm tabular-nums text-muted-foreground">
+                        <span>{total} pendiente{total !== 1 ? 's' : ''}</span>
+                        {criticalCount > 0 && (
+                            <span className="font-medium text-red-700 dark:text-red-300">· {criticalCount} crítica{criticalCount !== 1 ? 's' : ''}</span>
+                        )}
+                    </div>
+                }
+            />
 
             {/* Orden pedido por obra: Vehículos (desplegado) → Asistencia → el resto (ver `externos`). */}
             {externos.filter(g => !g.despuesDeTareas).map(renderGrupoExterno)}

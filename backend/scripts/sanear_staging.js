@@ -19,7 +19,8 @@
  *    (sin flags)  dry-run: informa y NO escribe. Es el default a propósito.
  *    --aplicar    purga los trabajadores foráneos y sus rastros. Exige SANEO_STAGING=1.
  *    --sembrar    además siembra el set ficticio (empresas, obras, cargos, trabajadores,
- *                 asistencia y documentos con su archivo marcador).
+ *                 asistencia y documentos con su archivo marcador) y las 3 obras de ejemplo de
+ *                 Presupuestos (Obra demo 1, 2 y 3, saneoCostos.service), una sola vez.
  *    --auto       modo desatendido para el cron de deploy: sin foráneos termina en silencio (rc 0).
  *    --gracia=N   horas de gracia sobre created_at (default 48).
  *
@@ -36,6 +37,7 @@ const db = require('../src/config/db');
 const saneo = require('../src/services/saneoStaging.service');
 const siembra = require('../src/services/saneoSiembra.service');
 const archivos = require('../src/services/saneoArchivos.service');
+const costosDemo = require('../src/services/saneoCostos.service');
 
 const args = process.argv.slice(2);
 const tiene = f => args.includes(f);
@@ -83,8 +85,12 @@ async function main() {
     }
 
     const haySiembraPendiente = SEMBRAR && det.ficticios < siembra.N_TRABAJADORES;
+    const hayCostosPendientes = SEMBRAR && await costosDemo.pendiente(db);
+    // Si en modo desatendido lo ÚNICO pendiente son las obras de ejemplo de Presupuestos, se
+    // siembran solas: sin purga ni siembra general (esa vuelve a insertar las obras demo).
+    const soloCostos = AUTO && !det.total && !haySiembraPendiente && hayCostosPendientes;
 
-    if (AUTO && !det.total && !haySiembraPendiente) {
+    if (AUTO && !det.total && !haySiembraPendiente && !hayCostosPendientes) {
         log.ok(`Sin datos foráneos (${det.ficticios} trabajadores ficticios). Nada que hacer.`);
         console.log(`RESUMEN · OK · 0 foráneos · ${det.ficticios} ficticios`);
         return;
@@ -103,43 +109,54 @@ async function main() {
 
     // ── Purga ──
     let purgados = 0;
-    if (det.total) {
-        const { borrados, rutas } = await saneo.purgar(db, { ids: det.ids });
-        purgados = det.total;
-        log.ok(`Purgados ${purgados} trabajadores → ${resumir(borrados)}`);
-
-        // Los nombres de archivo llevan el RUT: se borra la carpeta entera del trabajador, no solo
-        // las rutas que la BD conocía.
-        const carpetas = archivos.borrarCarpetasDeTrabajadores(det.ids);
-        log.ok(`Archivos: ${carpetas} carpeta(s) de uploads borradas (${rutas.length} documentos referenciados)`);
-    }
-
-    const rastros = await saneo.limpiarRastros(db);
-    log.ok(`Rastros de PII: ${resumir(rastros)}`);
-
-    const correo = await saneo.neutralizarCorreo(db);
-    log.ok(`Correo saliente neutralizado: ${resumir(correo)}`);
-
-    // Carpetas de uploads sin trabajador (restos de purgas anteriores o de importaciones).
-    const [vigentes] = await db.query('SELECT id FROM trabajadores');
-    const huerfanas = archivos.carpetasHuerfanas(vigentes.map(v => v.id));
-    if (huerfanas.length) {
-        archivos.borrarCarpetasDeTrabajadores(huerfanas);
-        log.ok(`Archivos huérfanos: ${huerfanas.length} carpeta(s) sin trabajador borradas`);
-    }
-
-    // ── Siembra ──
     let sembrados = 0;
-    if (SEMBRAR) {
-        const { resumen, archivos: rutas } = await siembra.sembrar(db, {});
-        sembrados = resumen.trabajadores;
-        rutas.forEach(r => archivos.escribirMarcador(r));
-        log.ok(`Sembrado: ${resumir(resumen)} · ${rutas.length} archivo(s) marcador escritos`);
+    if (!soloCostos) {
+        if (det.total) {
+            const { borrados, rutas } = await saneo.purgar(db, { ids: det.ids });
+            purgados = det.total;
+            log.ok(`Purgados ${purgados} trabajadores → ${resumir(borrados)}`);
+
+            // Los nombres de archivo llevan el RUT: se borra la carpeta entera del trabajador, no solo
+            // las rutas que la BD conocía.
+            const carpetas = archivos.borrarCarpetasDeTrabajadores(det.ids);
+            log.ok(`Archivos: ${carpetas} carpeta(s) de uploads borradas (${rutas.length} documentos referenciados)`);
+        }
+
+        const rastros = await saneo.limpiarRastros(db);
+        log.ok(`Rastros de PII: ${resumir(rastros)}`);
+
+        const correo = await saneo.neutralizarCorreo(db);
+        log.ok(`Correo saliente neutralizado: ${resumir(correo)}`);
+
+        // Carpetas de uploads sin trabajador (restos de purgas anteriores o de importaciones).
+        const [vigentes] = await db.query('SELECT id FROM trabajadores');
+        const huerfanas = archivos.carpetasHuerfanas(vigentes.map(v => v.id));
+        if (huerfanas.length) {
+            archivos.borrarCarpetasDeTrabajadores(huerfanas);
+            log.ok(`Archivos huérfanos: ${huerfanas.length} carpeta(s) sin trabajador borradas`);
+        }
+
+        // ── Siembra ──
+        if (SEMBRAR) {
+            const { resumen, archivos: rutas } = await siembra.sembrar(db, {});
+            sembrados = resumen.trabajadores;
+            rutas.forEach(r => archivos.escribirMarcador(r));
+            log.ok(`Sembrado: ${resumir(resumen)} · ${rutas.length} archivo(s) marcador escritos`);
+        }
+    }
+
+    // ── Obras de ejemplo de Presupuestos (una vez por obra) ──
+    let demo = '';
+    if (hayCostosPendientes) {
+        const c = await costosDemo.sembrar(db);
+        demo = [c.obras ? `${c.obras} obras demo de Presupuestos` : '', c.cobros ? `${c.cobros} cobros demo` : '',
+            c.gastos_mes ? `${c.gastos_mes} gastos mes a mes demo` : ''].filter(Boolean).join(' · ');
+        log.ok(`Presupuestos de ejemplo: ${resumir(c)}`);
     }
 
     const final = await saneo.detectar(db, { graciaHoras: GRACIA });
     log.ok(`Estado final: ${final.ficticios} trabajadores ficticios · ${final.total} foráneos`);
-    console.log(`RESUMEN · ${purgados ? 'LIMPIEZA' : 'OK'} · ${purgados} purgados · ${sembrados} sembrados · ${final.total} foráneos`);
+    console.log(`RESUMEN · ${purgados ? 'LIMPIEZA' : 'OK'} · ${purgados} purgados · ${sembrados} sembrados · ${final.total} foráneos${demo ? ` · ${demo}` : ''}`);
 }
 
 main()
