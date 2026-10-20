@@ -8,7 +8,7 @@ import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
-import { Skeleton, SkeletonText } from '../components/ui/Skeleton';
+import { SkeletonText } from '../components/ui/Skeleton';
 import { Button } from '../components/ui/Button';
 import { CheckSquare, FileWarning, Package, RefreshCw, SearchCheck, Truck } from 'lucide-react';
 
@@ -22,7 +22,6 @@ import { filasBandejaLotes } from '../components/documentos-fisicos/documentosFi
 import { useDocumentosAlertas } from '../hooks/useDocumentosAlertas';
 import { filasBandejaAlertas } from '../components/documentos-fisicos/documentosAlertas';
 import type { DashboardAlerta } from '../hooks/inventario/useDashboardEjecutivo';
-import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
 import ObraRanking from '../components/dashboard/widgets/ObraRanking';
 import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
 import DocumentosInicio from '../components/dashboard/widgets/DocumentosInicio';
@@ -299,7 +298,6 @@ const Dashboard: React.FC = () => {
     // Skeletons por-widget. `ready` narrowea `data` a no-null en cada zona.
     const ready = !loading && !!data;
     const showFaltas = shown.has('absence_alerts');
-    const showTrend = shown.has('chart_attendance_trend');
     const showVencVehiculos = shown.has('vehiculo_vencimientos');
     const showRanking = shown.has('obra_ranking') && selectedObra == null; // solo ámbito "Todas"
 
@@ -473,15 +471,8 @@ const Dashboard: React.FC = () => {
                         mesExtra={mesAsistencia} cargandoMes={cargandoMesAsistencia}
                         verMes={permisos.includes('asistencia.exportar_excel') || permisos.includes('asistencia.horas_extra.ver')}
                         onTrabajador={irATrabajador} onAsistencia={() => navigate('/asistencia')}>
-                        {(showTrend || canActividades || showRanking) && (
+                        {(canActividades || showRanking) && (
                             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                                {showTrend && (
-                                    <Panel className="lg:col-span-2">
-                                        {ready && data
-                                            ? <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />
-                                            : <Skeleton className="h-48 w-full" />}
-                                    </Panel>
-                                )}
                                 {/* Trae sus datos (tiene selector de semana), por eso no depende de `ready`. */}
                                 {canActividades && (
                                     <Panel>

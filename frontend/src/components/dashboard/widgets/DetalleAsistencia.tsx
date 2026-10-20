@@ -9,25 +9,11 @@ import { TiraMes } from './TiraMes';
 import { DescuentosMes, FaltasPorObra, HorasExtraObras, PatronFinde, ProximosDias, TendenciaMeses } from './DetalleAsistenciaMes';
 import type { DetalleAsistenciaApi } from './resumenAsistenciaDetalle';
 import { ordenarReiterados, reglasDe, REGLA_FALTA, type FaltasMesData } from './resumenFaltasMes';
-import { colorEstado, contarEstado, gruposAusentes, ID_SECCION, type AusentesHoy, type ObrasHoy, type SeccionAsistencia } from './resumenAsistenciaHoy';
+import { colorEstado, gruposAusentes, ID_SECCION, type AusentesHoy, type ObrasHoy } from './resumenAsistenciaHoy';
 
 const CARD = 'rounded-3xl bg-card p-6 text-foreground shadow-[var(--shadow-md)]';
 const ROTULO = 'text-label font-bold uppercase tracking-[0.08em] text-muted-foreground';
 const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
-
-interface Kpi {
-    etiqueta: string;
-    valor: number;
-    pie: string;
-    tono: 'rojo' | 'ambar' | 'neutro';
-    onClick: () => void;
-}
-
-const CIFRA_KPI: Record<Kpi['tono'], string> = {
-    rojo: 'text-red-700 dark:text-red-300',
-    ambar: 'text-amber-700 dark:text-amber-300',
-    neutro: 'text-foreground',
-};
 
 interface Props {
     faltas: FaltasMesData | null;
@@ -51,58 +37,20 @@ interface Props {
 
 /**
  * Detalle «Asistencia» del Inicio, variante «Por urgencia» (dueño 2026-10-20, elegida en el lienzo de
- * bocetos): cuatro números clave, luego lo que exige acción (reiterados del Art. 160 con su mes en una
- * tira), luego el día de hoy (ausentes por motivo y obras sin guardar) junto a lo que viene en 14 días,
+ * bocetos): primero lo que exige acción (reiterados del Art. 160 con su mes en una tira; los cuatro
+ * números clave del boceto se quitaron porque repetían la tarjeta, dueño 2026-10-20), luego el día de hoy (ausentes por motivo y obras sin guardar) junto a lo que viene en 14 días,
  * después el mes para remuneraciones (descuentos y horas extra, según permisos) y al final tendencia y obras.
  */
 const DetalleAsistencia: React.FC<Props> = ({
     faltas, ausentes, obras, mesNombre, anio, mes, hoyDia, cargando, mesExtra, cargandoMes, verMes, onTrabajador, onAsistencia, children,
 }) => {
     const reiterados = faltas ? ordenarReiterados(faltas.lista) : [];
-    const graves = reiterados.filter(t => t.alertas.some(a => a.tipo === 'consecutivas')).length;
-    const pendientesObras = obras && !obras.finDeSemana ? obras.sinGuardar.length : 0;
-    const licencias = contarEstado(ausentes, 'LM');
     const grupos = ausentes ? gruposAusentes(ausentes) : [];
-    const irA = (s: SeccionAsistencia) => document.getElementById(ID_SECCION[s])?.scrollIntoView({
-        behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start',
-    });
-
-    const kpis: Kpi[] = [
-        {
-            etiqueta: 'Faltas reiteradas', valor: faltas?.reiterados ?? 0, tono: (faltas?.reiterados ?? 0) > 0 ? 'rojo' : 'neutro',
-            pie: graves > 0 ? `${graves} con días seguidos` : `en ${mesNombre}`, onClick: () => irA('reiterados'),
-        },
-        {
-            etiqueta: 'Ausentes hoy', valor: ausentes?.total ?? 0, tono: 'neutro',
-            pie: grupos.length ? `${grupos.length} ${plural(grupos.length, 'motivo', 'motivos')}` : 'nadie ha faltado', onClick: () => irA('hoy'),
-        },
-        {
-            etiqueta: 'Licencias médicas hoy', valor: licencias, tono: 'neutro',
-            pie: licencias > 0 ? 'trabajadores con LM' : 'ninguna activa', onClick: () => irA('hoy'),
-        },
-        {
-            etiqueta: 'Obras sin guardar hoy', valor: pendientesObras, tono: pendientesObras > 0 ? 'ambar' : 'neutro',
-            pie: obras?.finDeSemana ? 'fin de semana' : obras ? `de ${obras.total} ${plural(obras.total, 'obra', 'obras')}` : '—',
-            onClick: onAsistencia,
-        },
-    ];
 
     if (cargando) return <div className={CARD}><SkeletonText lines={6} /></div>;
 
     return (
         <div className="space-y-8">
-            <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-                {kpis.map(k => (
-                    // eslint-disable-next-line no-restricted-syntax -- tile del resumen (todo el bloque navega)
-                    <button key={k.etiqueta} type="button" onClick={k.onClick}
-                        className="flex flex-col gap-2 rounded-[20px] bg-card p-5 text-left shadow-[var(--shadow-sm)] transition-shadow duration-150 hover:shadow-[var(--shadow-md)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40">
-                        <span className="text-xs font-medium text-muted-foreground">{k.etiqueta}</span>
-                        <NumeroRodante value={k.valor} className={cn('text-4xl font-bold leading-none tracking-tight', CIFRA_KPI[k.tono])} />
-                        <span className="truncate text-xs text-muted-foreground">{k.pie}</span>
-                    </button>
-                ))}
-            </div>
-
             <section id={ID_SECCION.reiterados} className="scroll-mt-6 space-y-3" aria-labelledby={`${ID_SECCION.reiterados}-t`}>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                     <h3 id={`${ID_SECCION.reiterados}-t`} className={ROTULO}>Requiere acción · faltas reiteradas de {mesNombre}</h3>

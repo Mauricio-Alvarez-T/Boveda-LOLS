@@ -545,16 +545,16 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       minúsculas (fiel al boceto B: la tira por trabajador saturaba la tarjeta, dueño 2026-10-20). La
       **`TiraMes`** (una barra por día del mes, faltas en rojo, rayita bajo los lunes, anillo en hoy)
       vive solo en la tabla del detalle. Las cifras abren el
-      detalle en su sección. Detalle «Por urgencia» (`DetalleAsistencia`): 4 números clave (reiterados,
-      ausentes hoy, licencias médicas hoy, obras sin guardar) → **Requiere acción** (tabla de reiterados
+      detalle en su sección. Detalle «Por urgencia» (`DetalleAsistencia`), sin fila de números clave
+      (repetían la tarjeta, dueño 2026-10-20): **Requiere acción** (tabla de reiterados
       con RUT, obra, reglas, tira y «Ver en asistencia») → **Hoy** (ausentes en barra apilada por motivo:
       F rojo, LM azul, V gris, PSG ámbar; obras sin guardar) junto a **Próximos 14 días** (empiezan o
       terminan licencias/vacaciones —«vuelve el lun 26 oct»— y feriados) → **Este mes** (descuentos por
       trabajador y horas extra por obra, cada uno con su permiso; los descuentos avisan que el cálculo
       oficial es el Excel) → **Tendencia y obras** (fase 3: ausentismo de 6 meses en área azul con las
       faltas F en línea roja punteada y la diferencia en puntos con el mes anterior —ámbar si sube, verde
-      si baja—, faltas del mes por obra en barras rojas; luego tendencia 7 días, actividades sugeridas,
-      ranking). Bajo la tabla de reiterados, un aviso ámbar desplegable de **faltas pegadas al fin de
+      si baja—, faltas del mes por obra en barras rojas; luego actividades sugeridas y ranking. La tendencia de
+      7 días se quitó: la cubre la de 6 meses). Bajo la tabla de reiterados, un aviso ámbar desplegable de **faltas pegadas al fin de
       semana** (no es causal del Art. 160). Las fases 2 y 3 se piden al abrir el detalle
       (`GET /api/dashboard/asistencia`). Las cifras usan
       `NumeroRodante` (sin count-up, §9.4).
