@@ -7,6 +7,7 @@ import api from '../services/api';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 import { useSetPageHeader } from '../context/PageHeaderContext';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { SkeletonText } from '../components/ui/Skeleton';
 import { Button } from '../components/ui/Button';
@@ -397,7 +398,10 @@ const Dashboard: React.FC = () => {
     const [elegido, setElegido] = useState<Modulo | null>(null);
     // Al entrar no hay detalle abierto (dueño 2026-10-20: «que abajo no haya nada»); pinchar una tarjeta lo
     // abre y pincharla de nuevo lo cierra.
-    const activo: Modulo | null = elegido && visibles.includes(elegido) ? elegido : null;
+    // En el CELULAR no hay tarjetas (dueño 2026-10-20): se entra directo al detalle del primer módulo y la
+    // barra de abajo cambia entre ellos, así que siempre hay uno abierto.
+    const esCelular = useMediaQuery('(max-width: 639.98px)');
+    const activo: Modulo | null = elegido && visibles.includes(elegido) ? elegido : esCelular ? (visibles[0] ?? null) : null;
     // Abrir el detalle NO mueve la pantalla (dueño 2026-10-20: el salto repentino desorienta). El detalle
     // aparece bajo las tarjetas y la tarjeta elegida se pinta verde; el usuario baja cuando quiere.
     const verMas = useCallback((m: Modulo) => {
@@ -445,7 +449,7 @@ const Dashboard: React.FC = () => {
     const porVencerVeh = vencimientos.items.length - vehiculosVencidos;
     const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
     // Lo que muestra cada módulo plegado: la franja (pantallas anchas) y el botón de la barra (celular).
-    const resumenes: Record<Modulo, Omit<AccesoModulo, 'clave'> & { detalle: string }> = {
+    const resumenes: Record<Modulo, Omit<AccesoModulo, 'key'> & { detalle: string }> = {
         asistencia: { icon: CheckSquare, tono: tonoAsistencia, titulo: 'Asistencia', cifra: reiteradosN,
             detalle: plural(reiteradosN ?? 0, 'falta reiterada', 'faltas reiteradas') },
         gestiones: canRegistrarEntregas
@@ -463,9 +467,9 @@ const Dashboard: React.FC = () => {
     // allá (convención de pestañas); abrir o cerrar no mueve nada.
     const elegirDesdeBarra = (clave: string) => {
         const m = clave as Modulo;
-        const cambia = activo !== null && activo !== m;
-        verMas(m);
-        if (cambia) window.requestAnimationFrame(() => {
+        if (activo === m) return; // pestaña: tocar la abierta no la cierra
+        setElegido(m);
+        window.requestAnimationFrame(() => {
             const el = document.getElementById(ID_DETALLE_INICIO);
             if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: 'start' });
         });
@@ -474,7 +478,7 @@ const Dashboard: React.FC = () => {
     const colaVisible = visibles.length <= 1 ? '' : visibles.length === 2 ? 'hidden sm:block' : 'hidden xl:block';
 
     return (
-        <div className={cn('space-y-6', activo !== null && 'max-sm:pb-24')}>
+        <div className={cn('space-y-6', visibles.length > 0 && 'max-sm:pb-28')}>
             {/* Cartel de atrasos del supervisor que lleva documentos a firmar (pedido de RRHH, 2026-10-19). */}
             <AvisoAtrasosPortador />
             {/* Lo nuevo de la última entrega, una vez por persona (config/novedades.ts). */}
@@ -482,7 +486,7 @@ const Dashboard: React.FC = () => {
 
             {/* Una tarjeta por apartado, todas en una línea desde 1280 px (2×2 en tablet, una bajo otra en celular). */}
             {visibles.length > 0 && (
-                <div className={cn('grid gap-6 items-stretch', COLUMNAS[visibles.length], activo !== null && 'max-sm:hidden')}>
+                <div className={cn('grid gap-6 items-stretch', COLUMNAS[visibles.length], 'max-sm:hidden')}>
                     {/* Con un detalle abierto, todas se pliegan a su franja (`compacta`) y la elegida lleva la cola. */}
                     {showFaltas && (
                         <Panel className="h-full" activa={activo === 'asistencia'} onClick={() => verMas('asistencia')}
@@ -620,10 +624,10 @@ const Dashboard: React.FC = () => {
                     </Panel>
                 </DetalleModulo>
             )}
-            {/* Celular con un detalle abierto: las tarjetas pasan a una barra de accesos fija abajo. */}
-            {activo !== null && (
+            {/* Celular: en vez de tarjetas, barra de accesos fija abajo (oculta desde 640 px). */}
+            {visibles.length > 0 && (
                 <BarraModulos activo={activo} onElegir={elegirDesdeBarra}
-                    items={visibles.map(m => ({ clave: m, ...resumenes[m] }))} />
+                    items={visibles.map(m => ({ key: m, ...resumenes[m] }))} />
             )}
         </div>
     );

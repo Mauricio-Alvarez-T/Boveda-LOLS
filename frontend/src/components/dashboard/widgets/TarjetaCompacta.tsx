@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { NumeroRodante } from '../../ui/NumeroRodante';
+import { PestanasElasticas } from '../../ui/PestanasElasticas';
 import { ID_DETALLE_INICIO } from './BotonVerMas';
 import { CIFRA_SOBRE_VERDE, CIFRA_TARJETA, CIRCULO_TARJETA, ICONO_SOBRE_VERDE, useTarjetaActiva, type TonoTarjeta } from './tarjetaActiva';
 
@@ -59,17 +60,15 @@ export const ColaGota: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
-/** Burbuja con la cifra sobre el ícono de la barra: sólida, para que se lea en un vistazo. */
-const BURBUJA: Record<TonoTarjeta, string> = {
+/** Burbuja con la cifra sobre el ícono de la barra: solo lo que avisa (rojo, ámbar, azul). */
+const BURBUJA: Partial<Record<TonoTarjeta, string>> = {
     rojo: 'bg-red-600 text-white',
     ambar: 'bg-amber-400 text-amber-950',
     azul: 'bg-blue-600 text-white',
-    verde: 'bg-muted text-foreground',
-    neutro: 'bg-muted text-foreground',
 };
 
 export interface AccesoModulo {
-    clave: string;
+    key: string;
     icon: React.ElementType;
     tono: TonoTarjeta;
     titulo: string;
@@ -78,44 +77,45 @@ export interface AccesoModulo {
 }
 
 /**
- * Barra de accesos rápidos del Inicio en el CELULAR (dueño 2026-10-20): con un detalle abierto, las cuatro
- * tarjetas apiladas se ocultan y quedan como botones fijos abajo —ícono, nombre y su cifra en una burbuja—.
- * El del detalle abierto va en verde; tocar otro cambia de detalle y tocar el verde lo cierra (vuelven las
- * tarjetas). Desde 640 px no existe: ahí siguen las franjas con su cola de gota. Entra desde abajo
- * (keyframes `barra-sube`, sin «reducir movimiento») y respeta el área segura del teléfono.
+ * Barra de accesos del Inicio en el CELULAR (dueño 2026-10-20): en el teléfono no hay tarjetas; se entra
+ * directo al detalle del primer módulo y esta barra fija abajo cambia entre ellos. Blanca, con íconos y
+ * nombres en gris; el módulo en curso en verde LOLS sobre una píldora que viaja con el indicador elástico de
+ * `PestanasElasticas` («rubber segment», §9.12; en seco con «reducir movimiento»). La cifra va en una burbuja
+ * solo si avisa algo. Desde 640 px no existe: ahí siguen las tarjetas, las franjas y la cola de gota.
  */
 export const BarraModulos: React.FC<{ items: AccesoModulo[]; activo: string | null; onElegir: (clave: string) => void }> = ({
     items, activo, onElegir,
 }) => (
-    <nav aria-label="Módulos del Inicio"
-        className="barra-modulos fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur sm:hidden">
-        <ul className="grid gap-1" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
-            {items.map(({ clave, icon: Icon, tono, titulo, cifra }) => {
-                const elegido = clave === activo;
+    <nav aria-label="Accesos rápidos"
+        className="barra-modulos fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] sm:hidden">
+        <PestanasElasticas
+            opciones={items}
+            activa={activo}
+            onCambiar={onElegir}
+            aria-label="Módulos del Inicio"
+            claseFila="w-full gap-1"
+            claseOpcion="flex flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-2 text-label font-semibold"
+            claseInactiva="text-zinc-600 dark:text-zinc-300"
+            radio={16}
+            claseIndicador="bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300"
+            titulo={o => (o.cifra ? `${o.titulo}: ${o.cifra}` : o.titulo)}
+            render={o => {
+                const Icono = o.icon;
+                const burbuja = o.cifra != null && o.cifra > 0 ? BURBUJA[o.tono] : undefined;
                 return (
-                    <li key={clave}>
-                        {/* eslint-disable-next-line no-restricted-syntax -- botón de la barra (pestaña) */}
-                        <button type="button" onClick={() => onElegir(clave)} aria-expanded={elegido} aria-controls={ID_DETALLE_INICIO}
-                            className={cn('flex w-full flex-col items-center gap-1 rounded-2xl px-1 py-1.5 transition-colors duration-200 motion-reduce:transition-none',
-                                'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40',
-                                elegido ? 'bg-green-700 text-white dark:bg-green-900' : 'text-foreground active:bg-muted')}>
-                            <span className="relative">
-                                <span className={cn('flex h-9 w-9 items-center justify-center rounded-full transition-colors duration-200',
-                                    elegido ? ICONO_SOBRE_VERDE[tono] : CIRCULO_TARJETA[tono])}>
-                                    <Icon className="h-4 w-4" aria-hidden />
+                    <>
+                        <span className="relative inline-flex">
+                            <Icono className="h-6 w-6" aria-hidden />
+                            {burbuja && (
+                                <span className={cn('absolute -right-3 -top-1.5 h-[18px] min-w-[18px] rounded-full px-1 text-center text-caption font-bold leading-[18px] tabular-nums ring-2 ring-card', burbuja)}>
+                                    {(o.cifra ?? 0) > 99 ? '99+' : o.cifra}
                                 </span>
-                                {cifra != null && cifra > 0 && (
-                                    <span className={cn('absolute -right-2.5 -top-1.5 min-w-5 rounded-full px-1 text-center text-label font-bold leading-5 tabular-nums ring-2',
-                                        elegido ? 'bg-yellow-300 text-green-950 ring-green-700 dark:ring-green-900' : cn(BURBUJA[tono], 'ring-card'))}>
-                                        {cifra > 99 ? '99+' : cifra}
-                                    </span>
-                                )}
-                            </span>
-                            <span className="max-w-full truncate text-label font-semibold leading-tight">{titulo}</span>
-                        </button>
-                    </li>
+                            )}
+                        </span>
+                        <span className="max-w-full truncate leading-tight">{o.titulo}</span>
+                    </>
                 );
-            })}
-        </ul>
+            }}
+        />
     </nav>
 );
