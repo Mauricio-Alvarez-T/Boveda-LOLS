@@ -8,6 +8,8 @@ import { flagOff } from '../utils/flags';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
+import { useBordesScroll } from '../hooks/useBordesScroll';
+import { FlechaScroll } from '../components/ui/FlechaScroll';
 import { useInventarioData } from '../hooks/inventario/useInventarioData';
 import { useBodegaVirtualModo } from '../hooks/inventario/useBodegaVirtualModo';
 import BodegaVirtualToggle from '../components/inventario/BodegaVirtualToggle';
@@ -192,6 +194,10 @@ const InventarioPage: React.FC = () => {
         () => tabs.filter(t => !t.requiresPerm || hasPermission(t.requiresPerm)),
         [hasPermission]
     );
+    // Barra del celular: ¿quedan pestañas escondidas a un lado? Ahí va una flecha (Marcos 2026-10-21: «SOLICIT…»
+    // cortada no decía que la barra se desliza).
+    const { ref: refPestanasMovil, antes: pestanasAntes, despues: pestanasDespues } =
+        useBordesScroll<HTMLDivElement>(visibleTabs.map(t => t.key).join(','));
 
     // Si el activeTab actual queda sin permiso (por cambio de overrides o
     // ingreso a un módulo sin la tab por defecto), saltar al primer tab
@@ -291,7 +297,8 @@ const InventarioPage: React.FC = () => {
                 {/* ── Mobile: compacto vertical (ícono pequeño + label corto) ──
                     `text-base` (16 px) es el tamaño que siempre se vio: los `text-micro`/`text-caption` que había
                     los borraba `cn()` (antes de que utils/cn.ts conociera los tamaños propios) y el texto heredaba 16 px. */}
-                <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
+                <div className="relative md:hidden">
+                <div ref={refPestanasMovil} className="flex items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
                     <PestanasElasticas
                         opciones={visibleTabs}
                         activa={activeTab}
@@ -315,6 +322,9 @@ const InventarioPage: React.FC = () => {
                     {showVirtualToggle && (
                         <BodegaVirtualToggle modo={bodegaVirtualModo} onCycle={cycleBodegaVirtual} className="ml-1" />
                     )}
+                </div>
+                <FlechaScroll lado="inicio" visible={pestanasAntes} scrollRef={refPestanasMovil} />
+                <FlechaScroll lado="fin" visible={pestanasDespues} scrollRef={refPestanasMovil} />
                 </div>
                 {/* ── Desktop: horizontal compacto (mismo estilo que Configuración) ── */}
                 <div className="hidden md:flex items-center gap-1 p-2 bg-card/80 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">

@@ -245,6 +245,17 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
 
     useEffect(() => () => detener(motor), [motor]);
 
+    // Al montar, la pestaña elegida puede quedar fuera de la vista de una barra con scroll (se entra a Inventario
+    // directo en «Solicitudes» desde el Inicio, en el celular): se muestra de una, sin animar. El efecto de
+    // arriba no lo hace porque al montar no hay cambio de pestaña (Marcos 2026-10-21).
+    useEffect(() => {
+        const fila = filaRef.current;
+        if (fila && fila.offsetWidth > 0 && indice >= 0) {
+            mostrarOpcion(fila, fila.querySelectorAll<HTMLElement>(':scope > [role="tab"]')[indice], false);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar
+    }, []);
+
     const alTeclear = (e: React.KeyboardEvent<HTMLButtonElement>, i: number) => {
         const siguiente = indicePorTecla(e.key, i, opciones.length);
         if (siguiente === null) return;

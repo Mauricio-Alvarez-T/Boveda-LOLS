@@ -15,6 +15,8 @@ import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { EmptyState } from '../ui/EmptyState';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
+import { FlechaScroll } from '../ui/FlechaScroll';
+import { useBordesScroll } from '../../hooks/useBordesScroll';
 import { StatusBadge } from '../ui/StatusBadge';
 import { RevisarSolicitudModal, type SolicitudAccion } from './RevisarSolicitudModal';
 import {
@@ -54,6 +56,7 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
     const { refetch: refetchPendientes } = useSolicitudesIngreso();
 
     const [filtro, setFiltro] = useState<FiltroSolicitudes>('pendiente');
+    const { ref: refPestanas, antes: pestanasAntes, despues: pestanasDespues } = useBordesScroll<HTMLDivElement>(filtro);
     const [todas, setTodas] = useState<SolicitudIngreso[]>([]);
     const [loading, setLoading] = useState(true);
     const [seleccionada, setSeleccionada] = useState<SolicitudIngreso | null>(null);
@@ -154,13 +157,16 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                        {/* Dentro de «Aprobadas» y «Rechazadas» no va la insignia: decir «Aprobada» en cada fila se
+                            repetía y le quitaba ancho al nombre en el celular (Marcos 2026-10-21). Ahí el estado ya lo
+                            dicen la pestaña, el borde y la línea «Aprobada el …». En «Todas» sí va: se mezclan. */}
                         {s.estado === 'pendiente' && puedeAprobar ? (
                             <span className="hidden sm:inline-flex h-9 items-center rounded-full bg-brand-primary px-4 text-section font-semibold text-white shadow-sm">
                                 Revisar
                             </span>
-                        ) : (
+                        ) : filtro !== 'aprobada' && filtro !== 'rechazada' ? (
                             <StatusBadge domain="solicitudIngresoEstado" status={s.estado} showIcon />
-                        )}
+                        ) : null}
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                 </div>
@@ -172,7 +178,8 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
         <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
             {/* Cabecera: pestañas por estado con contador + acciones */}
             <div className="border-b border-border px-3 sm:px-4 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
-                <div className="flex items-center rounded-2xl bg-muted p-1 overflow-x-auto scrollbar-none max-w-full">
+                <div className="relative max-w-full">
+                <div ref={refPestanas} className="flex items-center rounded-2xl bg-muted p-1 overflow-x-auto scrollbar-none">
                     <PestanasElasticas
                         opciones={OPCIONES_FILTRO}
                         activa={filtro}
@@ -200,6 +207,10 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                         }}
                     />
                 </div>
+                {/* En el celular «Todas» queda escondida a la derecha: la flecha avisa (Marcos 2026-10-21). */}
+                <FlechaScroll lado="inicio" visible={pestanasAntes} scrollRef={refPestanas} fondo="muted" />
+                <FlechaScroll lado="fin" visible={pestanasDespues} scrollRef={refPestanas} fondo="muted" />
+                </div>
                 <div className="flex items-center gap-2 ml-auto">
                     <IconButton
                         variant="ghost"
@@ -210,7 +221,8 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                         className="shrink-0"
                         icon={<RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />}
                     />
-                    {botonNuevo}
+                    {/* Con la lista vacía el botón va al centro, en el estado vacío: arriba se repetía (Marcos 2026-10-21). */}
+                    {!(!loading && items.length === 0) && botonNuevo}
                 </div>
             </div>
 

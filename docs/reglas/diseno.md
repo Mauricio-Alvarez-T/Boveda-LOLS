@@ -409,6 +409,12 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    tamaño del contenedor). `medirCuando` es la identidad del contenido (los ids de los chips, no la
    cantidad) y vuelve a cablear el observer para los hijos nuevos. Referencia: la franja de chips mobile de
    `AttendanceSummaryRow`. Prohibido apilar `backdrop-filter` o usar `mask-image` (§8.9).
+   **Barras de PESTAÑAS que se deslizan (celular): `ui/FlechaScroll`** (Marcos 2026-10-21: «SOLICIT…» cortada
+   no decía que se podía deslizar). Es el mismo degradado con un círculo y una flecha encima; tocarla avanza la
+   barra 60 % de su ancho y se apaga al llegar al extremo. `fondo="card" | "muted"` según la barra. Va en las
+   pestañas de Inventario y de Solicitudes de ingreso; para chips sueltos basta `BordeScroll` (atajos de la
+   grilla de Trabajadores, que en el celular van en su propia fila). `PestanasElasticas` además muestra la
+   pestaña elegida al montar, sin animar, si quedó fuera de la vista.
 7. **Wizards:** el conector se llena con `scale-x` desde `origin-left` en 200 ms (al volver se vacía
    hacia la izquierda; nunca `width`). El paso entra ±12 px desde el lado hacia el que se avanza, en
    150 ms, con UN solo `motion.div` con `key={paso}`, sin `AnimatePresence`, sin `exit`, sin
