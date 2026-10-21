@@ -72,28 +72,41 @@ export const MovimientosItem: React.FC<{ itemId: number; unidad?: string | null 
                     <p className="text-xs text-muted-foreground">Sin movimientos registrados</p>
                 </div>
             ) : (
-                <ul className="max-h-80 divide-y divide-border overflow-y-auto">
+                <ul className="max-h-96 divide-y divide-border overflow-y-auto">
                     {movs.map(m => {
-                        const delta = Number(m.delta ?? (Number(m.cantidad_nueva) - Number(m.cantidad_anterior))) || 0;
+                        const antes = Number(m.cantidad_anterior) || 0;
+                        const ahora = Number(m.cantidad_nueva) || 0;
+                        const delta = Number(m.delta ?? (ahora - antes)) || 0;
                         const cfg = movimientoTipoConfig[m.tipo];
                         const ref = referencia(m);
+                        const u = unidad ? ` ${unidad}` : '';
                         return (
-                            <li key={m.id} className="flex items-start gap-2.5 px-3 py-2">
-                                <span className="min-w-0 flex-1">
-                                    <span className="flex flex-wrap items-center gap-1.5">
-                                        <span className={cn('rounded-full border px-1.5 py-px text-micro font-bold', cfg?.classes ?? 'bg-muted text-foreground border-border')}>
-                                            {cfg?.label ?? m.tipo}
-                                        </span>
-                                        <span className="text-xs font-medium text-brand-dark break-words">{m.obra_nombre || m.bodega_nombre || '—'}</span>
+                            <li key={m.id} className="px-3 py-2.5">
+                                <span className="flex flex-wrap items-center gap-1.5">
+                                    <span className={cn('rounded-full border px-1.5 py-px text-micro font-bold', cfg?.classes ?? 'bg-muted text-foreground border-border')}>
+                                        {cfg?.label ?? m.tipo}
                                     </span>
-                                    <span className="mt-0.5 block text-micro text-muted-foreground break-words">
-                                        {[fecha(m.created_at), m.usuario_nombre, ref].filter(Boolean).join(' · ')}
+                                    <span className="text-xs font-medium text-brand-dark break-words">{m.obra_nombre || m.bodega_nombre || '—'}</span>
+                                </span>
+                                {/* Saldo antes → diferencia (grande, verde + / rojo −) → saldo actual (dueño 2026-10-21). */}
+                                <span className="mt-2 grid grid-cols-3 items-center rounded-lg bg-muted/60 px-2 py-1.5 text-center tabular-nums">
+                                    <span>
+                                        <span className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground">Saldo antes</span>
+                                        <span className="block text-base font-semibold text-foreground">{antes}{u}</span>
                                     </span>
-                                    {m.motivo && <span className="block text-micro italic text-muted-foreground break-words">{m.motivo}</span>}
+                                    <span className={cn('text-2xl font-black leading-none',
+                                        delta > 0 ? 'text-green-700 dark:text-green-400' : delta < 0 ? 'text-red-700 dark:text-red-400' : 'text-muted-foreground')}>
+                                        {delta > 0 ? '+' : delta < 0 ? '−' : ''}{Math.abs(delta)}
+                                    </span>
+                                    <span>
+                                        <span className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground">Saldo actual</span>
+                                        <span className="block text-base font-bold text-foreground">{ahora}{u}</span>
+                                    </span>
                                 </span>
-                                <span className={cn('shrink-0 text-xs font-black tabular-nums', delta > 0 ? 'text-green-700 dark:text-green-400' : delta < 0 ? 'text-red-700 dark:text-red-400' : 'text-muted-foreground')}>
-                                    {delta > 0 ? '+' : ''}{delta}{unidad ? ` ${unidad}` : ''}
+                                <span className="mt-1.5 block text-micro text-muted-foreground break-words">
+                                    {[fecha(m.created_at), m.usuario_nombre, ref].filter(Boolean).join(' · ')}
                                 </span>
+                                {m.motivo && <span className="block text-micro italic text-muted-foreground break-words">{m.motivo}</span>}
                             </li>
                         );
                     })}
