@@ -14,15 +14,26 @@
   `fecha_vencimiento` y `observaciones`. ⚠️ Los tres son **OPCIONALES**: lo único obligatorio es el
   archivo — hay documentos que no vencen (el padrón) y los ya cargados no tienen esos datos. **No
   llevan alerta por email** (no existen `dias_alerta`/`email_alerta` en la tabla): su aviso es el
-  contador in-app. Editar un documento cambia solo esos datos; para reemplazar el archivo hay que
-  borrarlo y subirlo de nuevo.
+  contador in-app. **Al editar** (2026-10-21) se corrigen esos datos y se ve el **archivo actual** con
+  Ver / Cambiar: elegir otro lo SOBRESCRIBE al guardar (`PUT /vehiculos/:id/documentos/:docId/archivo`,
+  multipart, `vehiculos.editar`). El archivo anterior queda en disco (nada se borra en duro); el documento
+  apunta al nuevo.
+- **Un registro vigente por tipo** (Marcos 2026-10-21: «si ya está vencido no nos sirve, que se
+  sobrescriba»): cada vehículo tiene UN documento por categoría, UNA revisión por tipo (técnica / gases) y
+  UNA mantención por tipo. Crear uno nuevo da de baja (`activo = 0`) a los anteriores del mismo tipo
+  (`_reemplazarAnteriores`, después del INSERT: si el alta falla, el anterior sigue). Antes el permiso del año
+  pasado seguía en la ficha y en el contador como «vencido» aunque ya estuviera el nuevo. El formulario avisa
+  «Este vehículo ya tiene … el nuevo lo reemplaza». **«Renovar»** aparece en lo vencido o por vencer
+  (≤ 30 días): abre el mismo registro con las fechas en blanco y pide el archivo nuevo (en documentos es
+  obligatorio; en revisiones/mantenciones, el certificado es opcional) — sobrescribe, no crea otro.
 - **Adjunto en revisiones y mantenciones** (mig 102): `nombre_archivo` + `ruta_archivo` en
   `vehiculo_revisiones` y `vehiculo_mantenciones` — el certificado de la revisión o la boleta del
   taller quedan pegados al registro, no sueltos como documento aparte. **Opcional**. Se sube en una
   segunda llamada (`POST /vehiculos/:id/(revisiones|mantenciones)/:regId/archivo`, multipart) después
   de guardar el registro como JSON, para no convertir esos endpoints en form-data. La descarga va por
   `GET .../archivo` autenticado; **`ruta_archivo` nunca sale en el JSON** (helper `sinRuta`), igual
-  que en documentos.
+  que en documentos. Al editar o renovar el registro se ve el adjunto actual: «Cambiar» sube otro (el mismo
+  `POST`, que sobrescribe; vale `vehiculos.crear` o `vehiculos.editar`).
 - Las **imágenes se comprimen en el navegador** antes de subir (`utils/compressImage`, objetivo
   ≤ 500 KB) en TODOS los adjuntos del módulo — documentos, revisiones y mantenciones. Los PDF suben
   tal cual. Tope duro de 10 MB en multer.

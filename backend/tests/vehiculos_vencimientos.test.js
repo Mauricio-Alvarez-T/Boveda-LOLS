@@ -206,7 +206,7 @@ describe('createDocumento — fecha y vencimiento opcionales', () => {
     const file = { originalname: 'permiso.pdf', path: require('path').join(__dirname, '../uploads/vehiculos/permiso.pdf') };
 
     test('guarda fecha, vencimiento y observaciones cuando vienen', async () => {
-        db.query.mockResolvedValueOnce([{ insertId: 55 }]).mockResolvedValueOnce([[{ id: 55 }]]);
+        db.query.mockResolvedValueOnce([{ insertId: 55 }]).mockResolvedValueOnce([{ affectedRows: 0 }]).mockResolvedValueOnce([[{ id: 55 }]]);
 
         await svc.createDocumento(7, {
             categoria: 'permiso_circulacion', file, userId: 3,
@@ -218,7 +218,7 @@ describe('createDocumento — fecha y vencimiento opcionales', () => {
     });
 
     test('sin fechas guarda NULL, no cadenas vacías (MySQL rechaza la fecha vacía)', async () => {
-        db.query.mockResolvedValueOnce([{ insertId: 56 }]).mockResolvedValueOnce([[{ id: 56 }]]);
+        db.query.mockResolvedValueOnce([{ insertId: 56 }]).mockResolvedValueOnce([{ affectedRows: 0 }]).mockResolvedValueOnce([[{ id: 56 }]]);
 
         // multipart manda '' cuando el campo quedó en blanco
         await svc.createDocumento(7, {

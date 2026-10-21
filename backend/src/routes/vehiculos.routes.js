@@ -102,10 +102,12 @@ router.put('/:id/revisiones/:revId', auth, checkPermission('vehiculos.editar'), 
 // Archivo adjunto del registro (certificado de la revisión / boleta del taller).
 // Mismo middleware y carpeta que los documentos del vehículo; la imagen ya viene
 // comprimida desde el navegador.
-router.post('/:id/revisiones/:revId/archivo', auth, checkPermission('vehiculos.crear'), uploadVehiculos.single('archivo'), async (req, res, next) => {
+// Al editar el registro también se adjunta o se cambia el archivo: vale crear O editar (2026-10-21).
+router.post('/:id/revisiones/:revId/archivo', auth, checkPermission('vehiculos.crear', 'vehiculos.editar'), uploadVehiculos.single('archivo'), async (req, res, next) => {
     try { res.json({ data: await svc.adjuntarArchivo('revisiones', req.params.id, req.params.revId, req.file) }); }
     catch (err) { next(err); }
 });
+
 
 router.get('/:id/revisiones/:revId/archivo', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
     try {
@@ -135,7 +137,7 @@ router.put('/:id/mantenciones/:mId', auth, checkPermission('vehiculos.editar'), 
     catch (err) { next(err); }
 });
 
-router.post('/:id/mantenciones/:mId/archivo', auth, checkPermission('vehiculos.crear'), uploadVehiculos.single('archivo'), async (req, res, next) => {
+router.post('/:id/mantenciones/:mId/archivo', auth, checkPermission('vehiculos.crear', 'vehiculos.editar'), uploadVehiculos.single('archivo'), async (req, res, next) => {
     try { res.json({ data: await svc.adjuntarArchivo('mantenciones', req.params.id, req.params.mId, req.file) }); }
     catch (err) { next(err); }
 });
@@ -206,6 +208,14 @@ router.get('/:id/documentos/:docId/download', auth, checkPermission('vehiculos.v
 router.put('/:id/documentos/:docId', auth, checkPermission('vehiculos.editar'), async (req, res, next) => {
     try { res.json({ data: await svc.updateDocumento(req.params.id, req.params.docId, req.body) }); }
     catch (err) { next(err); }
+});
+
+// Cambiar el archivo de un documento al renovarlo o editarlo: se sobrescribe (2026-10-21).
+router.put('/:id/documentos/:docId/archivo', auth, checkPermission('vehiculos.editar'), uploadVehiculos.single('archivo'), async (req, res, next) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
+        res.json({ data: await svc.reemplazarArchivoDocumento(req.params.id, req.params.docId, req.file) });
+    } catch (err) { next(err); }
 });
 
 router.delete('/:id/documentos/:docId', auth, checkPermission('vehiculos.eliminar'), async (req, res, next) => {
