@@ -29,9 +29,13 @@ import { VencimientosPanel } from '../vehiculos/VencimientosPanel';
 import { VencimientosBadge } from '../vehiculos/VencimientosBadge';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { IconButton } from '../ui/IconButton';
-import { ProponerMejoraModal } from '../ideas/ProponerMejoraModal';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { useMisIdeasResumen, useIdeasPendientes } from '../../hooks/useIdeas';
 import { ETIQUETA_BUZON_IDEAS } from '../ideas/ideasConfig';
+
+// Buzón de ideas (≈45 KB con el visor y la compresión de fotos): se baja al abrirlo, no al entrar (2026-10-21,
+// celular lento). `lazyWithRetry` recupera el «chunk viejo» tras un deploy.
+const ProponerMejoraModal = lazyWithRetry(() => import('../ideas/ProponerMejoraModal'));
 
 interface SidebarProps {
     isCollapsed: boolean;
@@ -56,6 +60,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
     const misIdeas = useMisIdeasResumen();
     const ideasPendientes = useIdeasPendientes();
     const [showIdeas, setShowIdeas] = React.useState(false);
+    // El buzón se baja recién la primera vez que se abre y queda montado (para su animación de cierre).
+    const [ideasCargado, setIdeasCargado] = React.useState(false);
+    if (showIdeas && !ideasCargado) setIdeasCargado(true);
 
     // Auto-close mobile drawer on route change
     React.useEffect(() => {
@@ -354,11 +361,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
 
             {/* Ideas para Bóveda — también UNA vez, fuera de sidebarContent. Con novedades
                 abre directo en "Mis ideas". */}
-            <ProponerMejoraModal
-                isOpen={showIdeas}
-                onClose={() => setShowIdeas(false)}
-                pestanaInicial={misIdeas.novedades > 0 ? 'mias' : 'nueva'}
-            />
+            {ideasCargado && (
+                <React.Suspense fallback={null}>
+                    <ProponerMejoraModal
+                        isOpen={showIdeas}
+                        onClose={() => setShowIdeas(false)}
+                        pestanaInicial={misIdeas.novedades > 0 ? 'mias' : 'nueva'}
+                    />
+                </React.Suspense>
+            )}
 
             {/* Panel de vencimientos — se renderiza UNA vez (fuera de sidebarContent,
                 que se monta dos veces: escritorio y drawer móvil). */}

@@ -440,13 +440,16 @@ estado_deploy "EN CURSO" "$REMOTE"
 if command -v rsync >/dev/null 2>&1; then
     # --delete espeja dist, PERO preserva lo que NO es del build y vive en el docroot:
     #   .well-known/ → AutoSSL/Let's Encrypt
-    #   .htaccess    → routing del SPA
-    #   api/         → mount de Passenger del backend (boveda.lols.cl/api) — borrarlo ROMPE la API
+    #   .htaccess    → routing del SPA (y Passenger en prod). Salvo assets/.htaccess, que SÍ viene
+    #                  del build (caché y comprimidos de /assets, 2026-10-21): su --include va ANTES
+    #                  del --exclude porque rsync usa la primera regla que calza.
+    #   api/        → mount de Passenger del backend (boveda.lols.cl/api) — borrarlo ROMPE la API
     #   migrate-status.txt → estado del último auto-migrate (lo escribe el bloque de arriba)
     #   deploy-status.txt  → qué build está desplegado (estado_deploy) — se escribe ANTES de
     #                        este rsync, así que sin el exclude el --delete lo borraría
     rsync_deploy -a --delete \
         --exclude '.well-known/' \
+        --include '/assets/.htaccess' \
         --exclude '.htaccess' \
         --exclude 'migrate-status.txt' \
         --exclude 'deploy-status.txt' \

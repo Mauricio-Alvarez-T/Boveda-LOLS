@@ -504,7 +504,9 @@ if command -v rsync >/dev/null 2>&1; then
     # --delete para que el docroot espeje dist exactamente, PERO preservar lo que
     # NO pertenece al build del frontend y vive en el mismo docroot:
     #   .well-known/ → AutoSSL/Let's Encrypt
-    #   .htaccess    → routing del SPA (borrarlo rompe el front)
+    #   .htaccess    → routing del SPA (borrarlo rompe el front). Salvo assets/.htaccess, que SÍ
+    #                  viene del build (caché y comprimidos de /assets, 2026-10-21): su --include va
+    #                  ANTES del --exclude porque rsync usa la primera regla que calza.
     #   api/         → punto de montaje de Passenger del backend Node
     #                  (URL test.boveda.lols.cl/api) — borrarlo ROMPE la API
     #   migrate-status.txt → estado del último auto-migrate (lo escribe el bloque de arriba)
@@ -513,6 +515,7 @@ if command -v rsync >/dev/null 2>&1; then
     #                        este rsync, así que sin el exclude el --delete lo borraría
     rsync_deploy -a --delete \
         --exclude '.well-known/' \
+        --include '/assets/.htaccess' \
         --exclude '.htaccess' \
         --exclude 'migrate-status.txt' \
         --exclude 'datos-status.txt' \
