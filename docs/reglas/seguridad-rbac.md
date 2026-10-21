@@ -66,6 +66,21 @@
 - `permisos_usuario_override`: grant/deny/default por usuario individual, con precedencia sobre el
   rol (UI: Settings → Usuarios → Permisos personalizados).
 
+## Roles: Super Administrador vs Administrador (2026-10-21)
+
+- **Super Administrador** = quienes programan y prueban (Marcos, Mauricio): todo el catálogo.
+- **Administrador** (mig 126) = dueños y jefatura (Paula Martínez, Rodrigo Riquelme, Leonardo López,
+  Matías Millanao, Luis Lazcano, Daphne Lazcano): **ven todo y toman decisiones de jefatura**, sin la
+  operación diaria, sin configuración del sistema (usuarios, roles, permisos, correo, plantillas, catálogos
+  de estados/tipos, avisos, historial, revisar ideas) y sin borrados ni flujos que saltan controles
+  (depurar, eliminar transferencias, SoD bypass, push directo, intra-bodega). 39 permisos: ver de
+  Asistencia (con horas extra y todas las obras), Trabajadores (con financiero), Documentos (descargar
+  incluido laborales), Gestiones (exportar/enviar), catálogos, Inventario completo con valores + aprobar y
+  orden de gerencia, Vehículos y Presupuestos (`costos.gestionar`, único permiso del módulo).
+- Lo que una persona necesite de más (p. ej. RRHH que opera documentos físicos) se agrega de a poco, al rol
+  o como override de esa persona — preguntar a Marcos antes. Las personas se asignan en Configuración →
+  Usuarios y deben re-loguear (los permisos viajan en el JWT).
+
 ## Middleware y endurecimiento
 
 - `checkPermission(...claves)` (`src/middleware/rbac.js`): OR lógico sobre `req.user.p`.
