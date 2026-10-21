@@ -9,7 +9,7 @@
  * En móvil los carriles se muestran de a uno con un selector; en desktop los tres a la vez.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Truck, PackageOpen, RefreshCw, ChevronRight, PackageCheck, ClipboardCheck, Printer, FileText, AlertTriangle, Clock, Plus } from 'lucide-react';
+import { Truck, PackageOpen, RefreshCw, ChevronRight, PackageCheck, ClipboardCheck, Printer, FileText, AlertTriangle, Plus } from 'lucide-react';
 
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -26,8 +26,9 @@ import { AlertasDocumentosStrip } from './AlertasDocumentosStrip';
 import { useDocumentosAlertas } from '../../hooks/useDocumentosAlertas';
 import {
     LOTE_ESTADO_LABEL, LOTE_ESTADO_TITULO, LOTE_ESTADO_VACIO, LOTE_ESTADOS, agruparLotesPorEstado, resumenLote, accionesLote, inicialesNombre, lineaTiempoLote,
-    desenlaceLote, DESENLACE_LABEL, diasEnTerreno, textoDiasTerreno,
-    type LoteEstado, type LoteResumen, type DocumentoDisponible,
+    desenlaceLote, DESENLACE_LABEL,
+    segmentosTenencia, tonoTenencia, textoTenencia,
+    type LoteEstado, type LoteResumen, type DocumentoDisponible, type TenenciaLote,
 } from './documentosFisicos';
 
 /**
@@ -61,17 +62,41 @@ const OPCIONES_CARRIL = LOTE_ESTADOS.map(e => ({ key: e }));
 
 const CERRADOS_VISIBLES = 12;
 
+/**
+ * Tenencia en terreno (jefatura 2026-10-21): barra de 4 tramos, uno por día hábil permitido, como la de
+ * «Asistencia guardada» del Inicio. Verde dentro del plazo, ámbar el último día, rojo pasado el plazo.
+ */
+const TONO_TENENCIA = {
+    ok: { relleno: 'bg-green-700 dark:bg-green-400', cifra: 'text-foreground', detalle: 'text-muted-foreground' },
+    ultimo: { relleno: 'bg-amber-500', cifra: 'text-amber-800 dark:text-amber-300', detalle: 'text-amber-800 dark:text-amber-300' },
+    atrasado: { relleno: 'bg-red-600 dark:bg-red-500', cifra: 'text-red-700 dark:text-red-300', detalle: 'text-red-700 dark:text-red-300' },
+} as const;
+
+const BarraTenencia: React.FC<{ t: TenenciaLote }> = ({ t }) => {
+    const tono = TONO_TENENCIA[tonoTenencia(t)];
+    const { cifra, detalle } = textoTenencia(t);
+    return (
+        <span className="mt-2.5 block rounded-xl bg-muted/60 px-3 py-2.5">
+            <span className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3">
+                <span className="text-xs text-muted-foreground">Tenencia en terreno</span>
+                <span className={cn('text-sm font-semibold tabular-nums', tono.cifra)}>{cifra}</span>
+            </span>
+            <span className="flex gap-[3px]" aria-hidden>
+                {segmentosTenencia(t).map((lleno, i) => (
+                    <span key={i} className={cn('h-2 flex-1 rounded-[3px]', lleno ? tono.relleno : 'bg-border')} />
+                ))}
+            </span>
+            <span className={cn('mt-1.5 block text-xs font-medium', tono.detalle)}>{detalle}</span>
+        </span>
+    );
+};
+
 export const DocumentosFisicosPanel: React.FC = () => {
     const { user, hasPermission } = useAuth();
     const puedeRegistrar = hasPermission('documentos.entrega.registrar');
     const puedePortar = hasPermission('documentos.entrega.portar');
     const { refetch: refetchPendientes } = useLotesPendientes();
-    const { alertas, refetch: refetchAlertas } = useDocumentosAlertas();
-    // Lotes en terreno que pasaron su umbral (B7): su contador de días se pinta ámbar o rojo.
-    const alertaTerreno = useMemo(
-        () => new Map((alertas?.lotes.en_terreno.items ?? []).map(i => [i.lote_id, i.critical] as const)),
-        [alertas]
-    );
+    const { refetch: refetchAlertas } = useDocumentosAlertas();
 
     const [lotes, setLotes] = useState<LoteResumen[]>([]);
     const [disponibles, setDisponibles] = useState<number | null>(null);
@@ -162,21 +187,7 @@ export const DocumentosFisicosPanel: React.FC = () => {
                     <FileText className="mt-px h-3.5 w-3.5 shrink-0" /><span className="min-w-0 break-words">{resumenLote(l)}</span>
                 </p>
                 {l.observacion && <p className="mt-1 text-caption text-muted-foreground italic break-words">“{l.observacion}”</p>}
-                {/* Cuántos días lleva en terreno (jefatura 2026-10-21). Azul = informativo; ámbar / rojo si pasó
-                    el umbral de aviso / crítico de las alertas (B7). */}
-                {(() => {
-                    const dias = diasEnTerreno(l);
-                    if (dias === null) return null;
-                    const critico = alertaTerreno.get(l.id);
-                    const tono = critico === true ? 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300'
-                        : critico === false ? 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300'
-                            : 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300';
-                    return (
-                        <span className={cn('mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-caption font-semibold tabular-nums', tono)}>
-                            <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />{textoDiasTerreno(dias)}
-                        </span>
-                    );
-                })()}
+                {l.tenencia && <BarraTenencia t={l.tenencia} />}
                 {/* El carril se llama «Firmados en oficina» porque es lo que pasa casi siempre; cuando un
                     lote terminó de otra forma, lo dice acá, en el lote concreto. */}
                 {(() => {

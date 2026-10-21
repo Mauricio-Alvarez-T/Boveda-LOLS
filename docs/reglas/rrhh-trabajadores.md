@@ -764,6 +764,16 @@ firma en la obra (papel) → el portador devuelve los firmados → RRHH recibe.
   "Documentos físicos" en la Bandeja del Día (`useLotesPendientes`, store de módulo). La ficha del trabajador
   muestra "En terreno · con Jhoan desde …" y "Firmado …" en la lista de generados (`statusConfig` gana
   `en_terreno` y `firmado`). Lógica pura en `documentos-fisicos/documentosFisicos.ts` (+ test).
+- **Tenencia en terreno: máximo 4 DÍAS HÁBILES** (jefatura 2026-10-21). El día del retiro confirmado es el
+  día 1 (lunes = 1 … jueves = 4; el viernes ya está fuera de plazo); sábados, domingos y feriados (tabla
+  `feriados`) no cuentan; retirado en día no hábil, el día 1 es el primer hábil siguiente. Cálculo puro en
+  `backend/src/utils/tenenciaTerreno.js` (`MAX_DIAS_HABILES_TERRENO = 4`); `listar`/`obtener` devuelven
+  `tenencia {dia, max, vence_el, atrasado, dias_atraso}` en los lotes en terreno. La tarjeta lo muestra
+  como barra de 4 tramos («Día 2 de 4 · Vence el jue 22»): verde, ámbar el último día, rojo atrasado.
+  **Ventana al iniciar sesión** (`AlertaAtrasosAlEntrar`, `GET /documentos-lotes/atrasados`): en CADA inicio
+  de sesión mientras haya lotes atrasados —RRHH ve todos con su portador; el portador, solo los suyos—, con
+  los documentos aún en terreno. La marca `sgdl_recien_ingreso` (sessionStorage, la pone `login`) evita que
+  se repita al recargar. Las alertas B7 (umbrales configurables, días corridos) siguen aparte.
 - **Velocidad neta**: RRHH 2 acciones por viaje (crear lote / registrar recepción), portador 1 tap, el
   trabajador no toca nada. Los umbrales de alerta viven en B7 (sección siguiente).
 

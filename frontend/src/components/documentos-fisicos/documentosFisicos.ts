@@ -44,7 +44,33 @@ export interface LoteResumen {
     firmados: number;
     sin_firma: number;
     no_entregados: number;
+    /** Solo en terreno: días hábiles de tenencia (backend, con feriados). */
+    tenencia?: TenenciaLote | null;
 }
+
+/**
+ * Tenencia en terreno (jefatura 2026-10-21): máximo 4 DÍAS HÁBILES; el día del retiro es el día 1 (lunes = 1,
+ * jueves = 4, el viernes ya está fuera de plazo). La calcula el backend (`utils/tenenciaTerreno.js`).
+ */
+export interface TenenciaLote {
+    dia: number;
+    max: number;
+    /** Último día hábil permitido, 'YYYY-MM-DD'. */
+    vence_el: string;
+    atrasado: boolean;
+    dias_atraso: number;
+}
+
+/** Lote atrasado con sus documentos aún en terreno (GET /documentos-lotes/atrasados). */
+export interface LoteAtrasado {
+    lote_id: number;
+    portador_id: number | null;
+    portador_nombre: string | null;
+    retirado_en: string | null;
+    tenencia: TenenciaLote;
+    documentos: { documento_id: number; tipo_nombre: string | null; trabajador_nombre: string | null; rut: string | null; obra_nombre: string | null }[];
+}
+export interface AtrasadosRespuesta { max_dias_habiles: number; alcance: 'todos' | 'propios'; lotes: LoteAtrasado[] }
 
 export interface LoteItem {
     id: number;
@@ -300,16 +326,30 @@ export function lineaTiempoLote(l: Pick<LoteResumen, 'estado' | 'creado_en' | 'r
     if (l.estado === 'en_terreno') return `En terreno desde ${d(l.retirado_en ?? l.creado_en)}`;
     return `Volvió ${d(l.cerrado_en ?? l.retirado_en ?? l.creado_en)}`;
 }
-/**
- * Días que lleva un lote en terreno, contados desde el retiro confirmado (jefatura 2026-10-21: la
- * tarjeta debe decirlo). null si el lote no está en terreno.
- */
-export function diasEnTerreno(l: Pick<LoteResumen, 'estado' | 'retirado_en' | 'creado_en'>, hoy: Date = new Date()): number | null {
-    if (l.estado !== 'en_terreno') return null;
-    return diasDesde(l.retirado_en ?? l.creado_en, hoy);
+const DIAS_SEMANA = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+/** 'YYYY-MM-DD' → «jue 22». */
+export function diaCorto(iso: string): string {
+    const d = new Date(`${String(iso).slice(0, 10)}T12:00:00`);
+    return Number.isNaN(d.getTime()) ? '' : `${DIAS_SEMANA[d.getDay()]} ${d.getDate()}`;
 }
 
-export const textoDiasTerreno = (n: number) => `${n} día${n === 1 ? '' : 's'} en terreno`;
+/** Tramos de la barra de tenencia: uno por día permitido, llenos hasta el día de hoy. */
+export function segmentosTenencia(t: TenenciaLote): boolean[] {
+    return Array.from({ length: t.max }, (_, i) => i < Math.min(t.dia, t.max));
+}
+
+/** ok = dentro del plazo; ultimo = hoy es el último día; atrasado = se pasó. */
+export function tonoTenencia(t: TenenciaLote): 'ok' | 'ultimo' | 'atrasado' {
+    return t.atrasado ? 'atrasado' : t.dia >= t.max ? 'ultimo' : 'ok';
+}
+
+/** Cifra a la derecha y línea bajo la barra. */
+export function textoTenencia(t: TenenciaLote): { cifra: string; detalle: string } {
+    if (t.atrasado) {
+        return { cifra: `${t.dias_atraso} día${t.dias_atraso === 1 ? '' : 's'} de atraso`, detalle: `Venció el ${diaCorto(t.vence_el)}: debía volver en ${t.max} días hábiles` };
+    }
+    return { cifra: `Día ${t.dia} de ${t.max}`, detalle: t.dia >= t.max ? 'Hoy es el último día para devolverlos' : `Vence el ${diaCorto(t.vence_el)} · días hábiles` };
+}
 
 /** Texto para la Bandeja / badge según el alcance del contador. */
 export function filasBandejaLotes(p: PendientesLotes | null | undefined): { severity: 'warning' | 'info'; title: string; description: string }[] {

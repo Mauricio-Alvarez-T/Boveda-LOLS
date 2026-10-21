@@ -42,6 +42,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(data.user);
         localStorage.setItem('sgdl_token', data.token);
         localStorage.setItem('sgdl_user', JSON.stringify(data.user));
+        // Recién inició sesión: la ventana de documentos fuera de plazo (AlertaAtrasosAlEntrar) la lee y la borra.
+        try { sessionStorage.setItem('sgdl_recien_ingreso', '1'); } catch { /* sin sessionStorage: no hay ventana */ }
     }, []);
 
     const logout = useCallback(() => {
