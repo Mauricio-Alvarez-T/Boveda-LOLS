@@ -231,11 +231,12 @@ export const Modal: React.FC<ModalProps> = ({
                             <div className="pt-3 pb-2 flex justify-center" onClick={handleClose}>
                                 <div className="w-12 h-1.5 rounded-full bg-muted" />
                             </div>
-                            {/* El título conserva 10rem (`basis-40`): si `headerAction` + cerrar no caben al lado
+                            {/* El título conserva 8rem (`basis-32`): si `headerAction` + cerrar no caben al lado
                                 (ej. Cancelar + Guardar de Vehículos), bajan juntos a su propia línea a la derecha
-                                en vez de partir el título letra por letra. Un solo «Guardar» sigue al lado. */}
+                                en vez de partir el título letra por letra. Un solo «Guardar» (105 px) sigue al lado
+                                en 360 px; con 10rem ya no cabía y bajaba sin necesidad. */}
                             <div className="flex flex-wrap items-center justify-between px-5 pb-4 pt-1 gap-3">
-                                <div className="flex items-center gap-3 min-w-0 flex-1 basis-40">
+                                <div className="flex items-center gap-3 min-w-0 flex-1 basis-32">
                                     {Icon && <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10"><Icon className="h-5 w-5 text-brand-primary" /></span>}
                                     <div className="min-w-0">
                                         <h3 className="text-lg font-bold text-brand-dark break-words leading-tight">{title}</h3>
