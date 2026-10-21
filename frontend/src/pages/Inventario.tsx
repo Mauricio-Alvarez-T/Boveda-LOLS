@@ -8,6 +8,7 @@ import { flagOff } from '../utils/flags';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import { BarraPaginada } from '../components/ui/BarraPaginada';
 import { useInventarioData } from '../hooks/inventario/useInventarioData';
 import { useBodegaVirtualModo } from '../hooks/inventario/useBodegaVirtualModo';
@@ -186,7 +187,15 @@ const InventarioPage: React.FC = () => {
         </div>
     ), [activeTabDef]);
 
-    useSetPageHeader(headerTitle);
+    // Celular: el selector de Bodega Virtual sube al encabezado, junto a «Obra» (Marcos 2026-10-21): así la barra
+    // de pestañas queda entera para las secciones. En el computador sigue en su barra.
+    const esCelular = useMediaQuery('(max-width: 767.98px)');
+    const accionesEncabezado = useMemo(() => (esCelular && showVirtualToggle ? (
+        <BodegaVirtualToggle modo={bodegaVirtualModo} onCycle={cycleBodegaVirtual}
+            className="rounded-full px-3 py-1.5 text-sm font-medium shadow-sm" />
+    ) : null), [esCelular, showVirtualToggle, bodegaVirtualModo, cycleBodegaVirtual]);
+
+    useSetPageHeader(headerTitle, accionesEncabezado);
 
     // Tabs visibles para el usuario actual — filtra por permiso individual.
     const visibleTabs = useMemo(
@@ -293,7 +302,7 @@ const InventarioPage: React.FC = () => {
                     `text-base` (16 px) es el tamaño que siempre se vio: los `text-micro`/`text-caption` que había
                     los borraba `cn()` (antes de que utils/cn.ts conociera los tamaños propios) y el texto heredaba 16 px. */}
                 {/* Sin palabras cortadas (Marcos 2026-10-21): la barra va de a páginas con flechas a los
-                    costados (ui/BarraPaginada). El selector de bodega virtual queda fuera, siempre a la vista. */}
+                    costados (ui/BarraPaginada). El selector de bodega virtual va en el encabezado, junto a «Obra». */}
                 <div className="flex md:hidden items-center gap-1 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shadow-sm">
                 <BarraPaginada className="flex-1">{p => (
                     <PestanasElasticas
@@ -319,9 +328,6 @@ const InventarioPage: React.FC = () => {
                         }}
                     />
                 )}</BarraPaginada>
-                    {showVirtualToggle && (
-                        <BodegaVirtualToggle modo={bodegaVirtualModo} onCycle={cycleBodegaVirtual} className="shrink-0" />
-                    )}
                 </div>
                 {/* ── Desktop: horizontal compacto (mismo estilo que Configuración) ── */}
                 <div className="hidden md:flex items-center gap-1 p-2 bg-card/80 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
