@@ -8,6 +8,7 @@ import TransferenciasList from './TransferenciasList';
 import TransferenciaDetail from './TransferenciaDetail';
 import { NuevoMovimientoWizard } from './nuevo-movimiento/NuevoMovimientoWizard';
 import type { MovimientoResuelto } from '../../utils/inferMovimiento';
+import type { CausaDiscrepancia } from '../../types/entities';
 import DiscrepanciasList from './DiscrepanciasList';
 import DiscrepanciaDetail from './DiscrepanciaDetail';
 import TransferenciasHistorico from './TransferenciasHistorico';
@@ -249,9 +250,10 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
     }, [trfHook.setSelectedDiscrepancia]);
 
     const handleResolverDiscrepancia = useCallback(async (
-        id: number, estado: 'resuelta' | 'descartada', resolucion: string
+        id: number, estado: 'resuelta' | 'descartada', resolucion: string,
+        causa: CausaDiscrepancia | null, unidad?: string | null
     ) => {
-        return await trfHook.resolverDiscrepancia(id, estado, resolucion);
+        return await trfHook.resolverDiscrepancia(id, estado, resolucion, causa, unidad);
     }, [trfHook.resolverDiscrepancia]);
 
     const refreshDiscrepancias = useCallback(async () => {
@@ -397,7 +399,8 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                         trfHook.selectedDiscrepancia ? (
                             <DiscrepanciaDetail
                                 discrepancia={trfHook.selectedDiscrepancia}
-                                canEdit={hasPermission('inventario.editar')}
+                                // Mismo permiso que exige el PUT de resolver (antes inventario.editar: se ofrecía y daba 403).
+                                canEdit={hasPermission('inventario.transferencias.aprobar')}
                                 canEliminar={hasPermission('inventario.transferencias.eliminar')}
                                 onBack={() => trfHook.setSelectedDiscrepancia(null)}
                                 onResolver={handleResolverDiscrepancia}

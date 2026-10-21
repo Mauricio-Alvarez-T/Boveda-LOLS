@@ -1,5 +1,9 @@
-import type { Transferencia, TransferenciaItem, TransferenciaConDiscrepancias, TransferenciaDiscrepanciaItem } from '../../../types/entities';
+import type {
+    AjusteStockDiscrepancia, CausaDiscrepancia, Transferencia, TransferenciaItem, TransferenciaConDiscrepancias,
+    TransferenciaDiscrepanciaItem,
+} from '../../../types/entities';
 import type { WizardEngine } from '../../inventario/nuevo-movimiento/wizardEngine';
+import { signoDiscrepancia } from '../../inventario/discrepanciaCausa';
 import { itemsDemo, obrasDemo, bodegasDemo } from '../demo/mockData';
 
 /**
@@ -232,17 +236,46 @@ export function buildDiscrepanciaDemo(trf: DemoTransferencia): TransferenciaConD
     };
 }
 
-/** Marca un ítem de la discrepancia como resuelto/descartado. */
+/**
+ * Ajustes de EJEMPLO para el tutorial (sin backend): lo que el servidor haría con la causa
+ * en el caso simple (origen con stock suficiente, sin splits). El real lo calcula el servidor.
+ */
+export function ajustesDemo(
+    disc: TransferenciaConDiscrepancias,
+    item: TransferenciaDiscrepanciaItem,
+    causa: CausaDiscrepancia,
+): AjusteStockDiscrepancia[] {
+    const sig = signoDiscrepancia(item.cantidad_enviada, item.cantidad_recibida);
+    if (!sig) return [];
+    const origen = disc.origen_obra_nombre || disc.origen_bodega_nombre || 'Origen';
+    const destino = disc.destino_obra_nombre || disc.destino_bodega_nombre || 'Destino';
+    const en = (ubicacion_nombre: string, cantidad: number): AjusteStockDiscrepancia =>
+        ({ obra_id: null, bodega_id: null, ubicacion_nombre, cantidad });
+    switch (causa) {
+        case 'error_conteo_recepcion': return [en(destino, -sig.n), en(origen, sig.n)];
+        case 'perdida_en_transito': return [en(origen, -sig.n)];
+        case 'llego_despues': return [en(origen, -sig.n), en(destino, sig.n)];
+        default: return [];
+    }
+}
+
+/** Marca un ítem de la discrepancia como resuelto (con causa y ajustes de ejemplo) o descartado. */
 export function resolverDiscrepanciaDemo(
     disc: TransferenciaConDiscrepancias,
     itemId: number,
     estado: 'resuelta' | 'descartada',
     resolucion: string,
+    causa: CausaDiscrepancia | null = null,
 ): TransferenciaConDiscrepancias {
+    const causaFinal = estado === 'resuelta' ? causa : null;
     return {
         ...disc,
         discrepancias: disc.discrepancias.map(d => d.id === itemId
-            ? { ...d, estado, resolucion, resuelto_por: 0, resuelto_por_nombre: 'Tú (demostración)', fecha_resolucion: ahora() }
+            ? {
+                ...d, estado, resolucion, resuelto_por: 0, resuelto_por_nombre: 'Tú (demostración)', fecha_resolucion: ahora(),
+                causa: causaFinal,
+                ajuste_stock: causaFinal ? { ajustes: ajustesDemo(disc, d, causaFinal), aviso: null } : null,
+            }
             : d),
     };
 }

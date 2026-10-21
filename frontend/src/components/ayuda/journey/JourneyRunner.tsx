@@ -35,7 +35,8 @@ const DETALLE_LABELS = [
     'Faltan más viajes', 'Registrar viaje (parcial)', 'Registrar otro viaje',
     'Revisar y aprobar', 'Registrar lo que llegó',
 ];
-const DISCREPANCIA_LABELS = ['Marcar como resuelta', 'Marcar como descartada', 'Resolver', 'Descartar'];
+// 'Confirmar' = botón del modal de resolver (causa + nota); va primero porque solo existe con el modal abierto.
+const DISCREPANCIA_LABELS = ['Confirmar', 'Marcar como descartada', 'Resolver', 'Descartar'];
 const SIN_LABELS: string[] = [];
 
 const ESTADO_LABEL: Record<string, string> = {
@@ -126,12 +127,14 @@ export const JourneyRunner: React.FC<{
         }
     } else if (enResolver) {
         const m: Record<string, string> = {
-            'Marcar como resuelta': 'Escribe la nota de resolución y pulsa "Marcar como resuelta".',
+            'Confirmar': spot.enabled
+                ? 'Pulsa "Confirmar": el stock se ajusta según la causa que elegiste.'
+                : 'Elige por qué llegó distinto (cada opción dice qué pasa con el stock) y escribe la nota; luego se habilita "Confirmar".',
             'Marcar como descartada': 'Escribe la nota y pulsa "Marcar como descartada".',
             'Resolver': 'Pulsa "Resolver" en el ítem con diferencia.',
             'Descartar': 'O "Descartar" si la diferencia no requiere acción.',
         };
-        instruccion = (spot.label && m[spot.label]) || 'Resuelve la diferencia: pulsa "Resolver" en el ítem, escribe una nota y confirma.';
+        instruccion = (spot.label && m[spot.label]) || 'Resuelve la diferencia: pulsa "Resolver" en el ítem, elige la causa, escribe una nota y confirma.';
     } else if (!completado && !terminalMalo) {
         const map: Record<string, string> = {
             'Confirmar Aprobación': spot.enabled ? 'Pulsa "Confirmar Aprobación".' : 'Elige de qué bodega(s) sale cada ítem; luego se habilita "Confirmar Aprobación".',
@@ -215,11 +218,19 @@ export const JourneyRunner: React.FC<{
                         canEdit
                         canEliminar={false}
                         onBack={onExit}
-                        onResolver={async (id, est, resolucion) => {
-                            const upd = resolverDiscrepanciaDemo(discrepancia, id, est, resolucion);
+                        onResolver={async (id, est, resolucion, causa) => {
+                            const upd = resolverDiscrepanciaDemo(discrepancia, id, est, resolucion, causa);
                             setDiscrepancia(upd);
                             if (upd.discrepancias.every(d => d.estado !== 'pendiente')) setDiscResuelta(true);
-                            return true;
+                            const fila = upd.discrepancias.find(d => d.id === id);
+                            const ajuste = fila?.ajuste_stock && typeof fila.ajuste_stock === 'object' ? fila.ajuste_stock : null;
+                            return {
+                                ok: true,
+                                data: {
+                                    id, estado: est, resolucion, causa: fila?.causa ?? null,
+                                    ajustes: ajuste?.ajustes ?? [], aviso: null,
+                                },
+                            };
                         }}
                         onEliminarTransferencia={async () => true}
                         onEliminarDiscrepancia={async () => true}

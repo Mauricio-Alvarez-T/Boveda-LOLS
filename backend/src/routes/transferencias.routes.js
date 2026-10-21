@@ -72,12 +72,14 @@ router.get('/discrepancias', auth, checkPermission('inventario.transferencias.ap
     } catch (err) { next(err); }
 });
 
-// PUT /api/transferencias/discrepancias/:id/resolver  body: { estado, resolucion }
+// PUT /api/transferencias/discrepancias/:id/resolver  body: { estado, resolucion, causa? }
+// causa obligatoria con estado='resuelta' (mig 129): el service ajusta el stock según ella y
+// responde { id, estado, resolucion, causa, ajustes, aviso }. 'descartada' no mueve stock.
 router.put('/discrepancias/:id/resolver', auth, checkPermission('inventario.transferencias.aprobar'), validateBody(resolverDiscrepancia, { strip: true }), async (req, res, next) => {
     try {
-        const { estado, resolucion } = req.body;
+        const { estado, resolucion, causa } = req.body;
         const result = await transferenciaService.resolverDiscrepancia(
-            req.params.id, req.user.id, estado, resolucion
+            req.params.id, req.user.id, estado, resolucion, causa
         );
         res.json({ data: result });
     } catch (err) { next(err); }
