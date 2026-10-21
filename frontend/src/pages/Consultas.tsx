@@ -88,6 +88,19 @@ const formatFechaIngreso = (f?: string | null): string | null => {
     return y && m && d ? `${d}/${m}/${y}` : null;
 };
 
+/** «← Gestiones» + el nombre de la sección: vuelve a la portada. Va en el encabezado (escritorio) y sobre la
+ *  sección (celular). */
+const VolverAGestiones: React.FC<{ seccion: SeccionGestiones; onVolver: () => void }> = ({ seccion, onVolver }) => (
+    <>
+        <Button variant="outline" size="sm" onClick={onVolver} title="Volver a la portada de Gestiones"
+            leftIcon={<ArrowLeft className="h-4 w-4" />}
+            className="h-9 px-3 rounded-xl font-semibold gap-1.5 bg-card shadow-sm">
+            Gestiones
+        </Button>
+        <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate" aria-current="page">{SECCION_LABEL[seccion]}</h1>
+    </>
+);
+
 /**
  * @param seccionFija Solo para los tutoriales de Ayuda: fija la sección e ignora URL y memoria (plan Gestiones B8).
  */
@@ -380,14 +393,9 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 explícito «← Gestiones» que vuelve a la portada; el nombre de la sección es el título. El título
                 clickeable anterior no se reconocía como botón. Con una sola sección no hay portada: título fijo. */}
             <div className="flex items-center gap-2 md:gap-3 shrink-0 min-w-0">
-                {conSwitcher && seccion && seccion !== 'inicio' ? (<>
-                    <Button variant="outline" size="sm" onClick={() => irASeccion('inicio')} title="Volver a la portada de Gestiones"
-                        leftIcon={<ArrowLeft className="h-4 w-4" />}
-                        className="h-9 px-3 rounded-xl font-semibold gap-1.5 bg-card shadow-sm">
-                        Gestiones
-                    </Button>
-                    <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate" aria-current="page">{SECCION_LABEL[seccion]}</h1>
-                </>) : (<>
+                {conSwitcher && seccion && seccion !== 'inicio' ? (
+                    <VolverAGestiones seccion={seccion} onVolver={() => irASeccion('inicio')} />
+                ) : (<>
                     <SearchCheck className="h-5 w-5 md:h-6 md:w-6 text-brand-primary shrink-0" />
                     <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">Gestiones</h1>
                 </>)}
@@ -585,6 +593,14 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
         // (MainLayout), así que `flex-1 min-h-0` calcula lo que antes intentaba un calc() a mano — que
         // ignoraba la franja de "Entorno de pruebas" y se pasaba 4px en móvil.
         <div className="flex-1 min-h-0 flex flex-col gap-2 p-0 overflow-hidden w-full">
+            {/* Volver en el celular (Marcos 2026-10-21): bajo 768 px el encabezado no muestra el título, y con él se
+                iba el «← Gestiones»; dentro de una sección solo se podía volver por el menú. */}
+            {conSwitcher && seccion && seccion !== 'inicio' && (
+                <div className="flex shrink-0 items-center gap-2 min-w-0 md:hidden">
+                    <VolverAGestiones seccion={seccion} onVolver={() => irASeccion('inicio')} />
+                </div>
+            )}
+
             {/* Buscador móvil. Se renderiza SOLO acá o SOLO en el header, nunca en los dos (regla §8.3):
                 dos instancias tendrían dos textos locales y se desincronizarían al girar el teléfono. */}
             {esGrilla && !conRail && (
