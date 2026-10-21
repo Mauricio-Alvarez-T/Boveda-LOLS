@@ -3,6 +3,7 @@ const { normalizeUbicacion: _normalizeUbicacion } = require('../utils/ubicacionS
 const { registrarMovimiento } = require('./stockMovimiento.service');
 const logger = require('../utils/logger-structured');
 const { normalizePagination } = require('../utils/pagination');
+const { causaPorCodigo } = require('../config/causasDiscrepancia');
 
 // Aislamiento de datos de prueba: excluye transferencias cuyo origen o destino
 // sea una obra marcada es_prueba. NULL-safe (origen/destino puede ser bodega →
@@ -50,12 +51,17 @@ function _sodError(msg) {
  *  pendiente   → no toca stock
  *  aprobada    → no toca stock (solo persiste splits y cambia estado)
  *  en_transito → no toca stock
- *  recibida    → ORIGEN -= cantidad_enviada  +  DESTINO += cantidad_recibida
- *                Si cantidad_recibida ≠ cantidad_enviada → se registra discrepancia.
- *                  · recibida < enviada → merma/pérdida en tránsito
- *                  · recibida > enviada → sobrante (miscount u otro error)
- *                La diferencia NO se revierte al origen — queda registrada para
- *                auditoría y resolución manual.
+ *  recibida    → ORIGEN -= cantidad_recibida  +  DESTINO += cantidad_recibida
+ *                (por evento de recepción; el origen sale FIFO por split vía
+ *                transferencia_item_origenes.cantidad_decrementada; lo recibido por
+ *                sobre lo enviado sale del origen primario, sin bajar de 0).
+ *                Si al cerrar (recepción 'total') lo recibido acumulado ≠ enviado →
+ *                se registra discrepancia (transferencia_discrepancias).
+ *                  · recibida < enviada → faltante
+ *                  · recibida > enviada → sobrante
+ *                La diferencia se RESUELVE eligiendo la CAUSA (resolverDiscrepancia,
+ *                mig 129): según la causa el sistema ajusta origen/destino y deja
+ *                kardex tipo 'discrepancia'. Descartarla no mueve stock.
  *  rechazada   → no toca stock (nada que revertir)
  *  cancelada   → no toca stock (nada que revertir)
  *
@@ -130,6 +136,35 @@ async function _recibirCustomItems(conn, id, itemsCustom) {
             [cant, cid, id]
         );
     }
+}
+
+// Origen "primario" de un ítem: el de transferencia_items (aprobar lo fija con el primer split) y, si
+// falta, el de la cabecera. recibir() descuenta ahí lo recibido por sobre lo enviado (y todo, si el ítem
+// no tiene splits); resolverDiscrepancia devuelve/descuenta en el mismo lugar → misma expresión, un solo sitio.
+function _origenPrimario(itemRow, trf) {
+    return _normalizeUbicacion(
+        itemRow?.origen_obra_id ?? trf.origen_obra_id,
+        itemRow?.origen_bodega_id ?? trf.origen_bodega_id
+    );
+}
+
+// ── Helpers de resolverDiscrepancia (mig 129) ──
+// Cantidades DECIMAL(12,4): mysql2 las entrega como string → Number + redondeo a 4 decimales
+// (evita arrastre de coma flotante en comparaciones y en lo que se escribe).
+const _r4 = (n) => Math.round((Number(n) || 0) * 10000) / 10000;
+const _fmtCant = (n) => String(_r4(n)).replace('.', ',');
+const _ubicKey = (u) => `${u.obra ?? ''}|${u.bodega ?? ''}`;
+const _httpError = (msg, statusCode, extra = {}) => Object.assign(new Error(msg), { statusCode, ...extra });
+const _migracion129Pendiente = () => _httpError(
+    'Resolver diferencias con causa requiere la migración 129 (transferencia_discrepancias.causa). Avisa a TI.',
+    409, { code: 'MIGRACION_PENDIENTE' }
+);
+// transferencia_discrepancias.ajuste_stock es TEXT con JSON { ajustes, aviso }; tolera NULL, columna
+// ausente (sin mig 129) y JSON corrupto.
+function _parseAjusteStock(raw) {
+    if (raw == null || raw === '') return null;
+    if (typeof raw === 'object') return raw;
+    try { return JSON.parse(raw); } catch (_) { return null; }
 }
 
 const transferenciaService = {
@@ -1007,11 +1042,11 @@ const transferenciaService = {
                         }
                         // Si quedó remaining después de splits (caso total con
                         // over-receive), se descuenta del origen primario como fallback.
+                        // OJO: este exceso NO queda en cantidad_decrementada (solo en el
+                        // kardex); resolverDiscrepancia('error_conteo_recepcion') lo
+                        // calcula desde el kardex y lo devuelve a este mismo origen.
                         if (amountRemaining > 0) {
-                            const itemRow = itemRowMap[item.item_id];
-                            const obraId = itemRow.origen_obra_id ?? trf.origen_obra_id;
-                            const bodegaId = itemRow.origen_bodega_id ?? trf.origen_bodega_id;
-                            const ubicFb = _normalizeUbicacion(obraId, bodegaId);
+                            const ubicFb = _origenPrimario(itemRowMap[item.item_id], trf);
                             const prevFb = await _selCant(item.item_id, ubicFb.obra, ubicFb.bodega);
                             await conn.query(
                                 `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
@@ -1023,10 +1058,7 @@ const transferenciaService = {
                         }
                     } else {
                         // Sin splits → fallback al origen de transferencia_items o cabecera
-                        const itemRow = itemRowMap[item.item_id];
-                        const obraId = itemRow.origen_obra_id ?? trf.origen_obra_id;
-                        const bodegaId = itemRow.origen_bodega_id ?? trf.origen_bodega_id;
-                        const ubicFb = _normalizeUbicacion(obraId, bodegaId);
+                        const ubicFb = _origenPrimario(itemRowMap[item.item_id], trf);
                         const prevFb = await _selCant(item.item_id, ubicFb.obra, ubicFb.bodega);
                         await conn.query(
                             `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
@@ -1367,8 +1399,20 @@ const transferenciaService = {
      * `inventario.transferencias.eliminar`.
      */
     async eliminarDiscrepancia(id, userId) {
-        const [rows] = await db.query('SELECT id, transferencia_id FROM transferencia_discrepancias WHERE id = ?', [id]);
+        let rows;
+        try {
+            [rows] = await db.query('SELECT id, transferencia_id, ajuste_stock FROM transferencia_discrepancias WHERE id = ?', [id]);
+        } catch (err) {
+            if (!(err && err.errno === 1054)) throw err;
+            [rows] = await db.query('SELECT id, transferencia_id FROM transferencia_discrepancias WHERE id = ?', [id]);
+        }
         if (!rows.length) { const e = new Error('Diferencia no encontrada'); e.statusCode = 404; throw e; }
+        // Una diferencia resuelta que movió stock no se borra: perder su causa y sus ajustes dejaría el stock y
+        // el kardex cambiados sin el registro de por qué (revisión 2026-10-21).
+        const ajuste = _parseAjusteStock(rows[0].ajuste_stock);
+        if (ajuste && Array.isArray(ajuste.ajustes) && ajuste.ajustes.length > 0) {
+            throw _httpError('Esta diferencia ya ajustó el stock al resolverse: no se puede eliminar (quedaría el ajuste sin su registro).', 409, { code: 'CON_AJUSTE' });
+        }
         await db.query('DELETE FROM transferencia_discrepancias WHERE id = ?', [id]);
         logger.warn('[Transferencia] hard delete discrepancia', { id: Number(id), transferencia_id: rows[0].transferencia_id, userId });
         return { id: Number(id) };
@@ -1907,6 +1951,9 @@ const transferenciaService = {
         const [trfRows] = await db.query(`
             SELECT DISTINCT t.id, t.codigo, t.fecha_solicitud, t.fecha_aprobacion,
                    t.fecha_despacho, t.fecha_recepcion,
+                   CASE WHEN t.stock_reconciliado = 0
+                          OR NOT EXISTS (SELECT 1 FROM transferencia_recepciones tr WHERE tr.transferencia_id = t.id)
+                        THEN 0 ELSE 1 END AS stock_reconciliado,
                    oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
                    ob.responsable_nombre as origen_bodega_responsable_nombre,
                    do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
@@ -1968,6 +2015,10 @@ const transferenciaService = {
                 d.cantidad_enviada = Number(d.cantidad_enviada) || 0;
                 d.cantidad_recibida = Number(d.cantidad_recibida) || 0;
                 d.diferencia = Number(d.diferencia) || 0;
+                // Mig 129: causa elegida al resolver + lo que el sistema movió (JSON { ajustes, aviso }).
+                // Sin la migración (d.* no las trae) o en las resueltas antes de ella → null.
+                d.causa = d.causa ?? null;
+                d.ajuste_stock = _parseAjusteStock(d.ajuste_stock);
             });
             const total_unidades_perdidas = discrepancias.reduce((s, d) => s + d.diferencia, 0);
             return {
@@ -1982,26 +2033,369 @@ const transferenciaService = {
     },
 
     /**
-     * Marca una discrepancia como 'resuelta' o 'descartada' con una nota obligatoria.
-     * Solo permite operar sobre discrepancias que estén en estado 'pendiente'.
+     * Resuelve o descarta una discrepancia (diferencia) de transferencia. Solo opera sobre 'pendiente'.
+     *
+     * Decisión del dueño 2026-10-21 (mig 129): al RESOLVER se elige la CAUSA y el sistema ajusta el
+     * stock según ella, con kardex tipo 'discrepancia' (referencia 'transferencia' = id de la TRF,
+     * motivo = causa + nota). DESCARTAR no mueve stock y la causa se ignora (null).
+     * Catálogo de causas: config/causasDiscrepancia.js. Reglas: docs/reglas/inventario-transferencias.md.
+     *
+     *   dif = cantidad_recibida − cantidad_enviada. OJO: la columna generada `diferencia` tiene el signo
+     *   OPUESTO (enviada − recibida, positivo = faltante) y la UI la lee así → acá no se usa.
+     *   Sobrante (dif > 0):
+     *     · origen_envio_de_mas    → sin cambio de stock. Aviso si parte de lo recibido no tenía respaldo
+     *                                en el origen (recibir() no baja de 0: esas unidades "se crearon").
+     *     · error_conteo_recepcion → destino −dif; origen primario + lo que recibir() le descontó por sobre
+     *                                lo enviado. 409 (sin tocar nada) si el destino ya no tiene las dif.
+     *   Faltante (dif < 0, faltante = −dif):
+     *     · perdida_en_transito    → origen −faltante: saldos no descontados de los splits (FIFO, suben
+     *                                cantidad_decrementada) y, sin splits o si no alcanzan, el origen
+     *                                primario. Sin bajar de 0: lo que no se pudo descontar va al aviso.
+     *     · nunca_salio            → sin cambio de stock.
+     *     · llego_despues          → como pérdida en el origen + destino +faltante.
+     *   Régimen legacy (stock_reconciliado = FALSE): las causas que mueven stock → 409 (ajuste a mano).
+     *
+     * UNA transacción: FOR UPDATE de la discrepancia (guard 'pendiente') → transferencia → splits →
+     * filas de ubicaciones_stock (orden estable). Todo se calcula ANTES de la primera escritura.
+     * Sin la mig 129 (errno 1054) → 409 MIGRACION_PENDIENTE.
+     *
+     * @returns {{ id, estado, resolucion, causa, ajustes: Array<{obra_id, bodega_id, ubicacion_nombre, cantidad}>, aviso: string|null }}
      */
-    async resolverDiscrepancia(id, userId, estado, resolucion) {
+    async resolverDiscrepancia(id, userId, estado, resolucion, causa = null) {
         if (!['resuelta', 'descartada'].includes(estado)) {
-            throw new Error('Estado inválido (debe ser "resuelta" o "descartada")');
+            throw _httpError('Estado inválido (debe ser "resuelta" o "descartada")', 400);
         }
-        if (!resolucion || !resolucion.trim()) {
-            throw new Error('Debe indicar una nota de resolución');
+        const nota = typeof resolucion === 'string' ? resolucion.trim() : '';
+        if (!nota) throw _httpError('Debe indicar una nota de resolución', 400);
+        let causaDef = null;
+        if (estado === 'resuelta') {
+            if (causa == null || causa === '') {
+                throw _httpError('Elige la causa de la diferencia para resolverla', 400, { code: 'CAUSA_REQUERIDA' });
+            }
+            causaDef = causaPorCodigo(causa);
+            if (!causaDef) throw _httpError(`Causa inválida: "${causa}"`, 400);
         }
-        const [result] = await db.query(
-            `UPDATE transferencia_discrepancias
-             SET estado = ?, resolucion = ?, resuelto_por = ?, fecha_resolucion = NOW()
-             WHERE id = ? AND estado = 'pendiente'`,
-            [estado, resolucion.trim(), userId, id]
+
+        const conn = await db.getConnection();
+        try {
+            await conn.beginTransaction();
+
+            // Resolver: `causa`/`ajuste_stock` explícitas, así sin la mig 129 el 1054 salta acá, antes de tocar
+            // stock. Descartar no las necesita: funciona aunque la migración no haya corrido.
+            const [discRows] = await conn.query(
+                `SELECT id, transferencia_id, item_id, cantidad_enviada, cantidad_recibida, estado${estado === 'resuelta' ? ', causa, ajuste_stock' : ''}
+                 FROM transferencia_discrepancias WHERE id = ? FOR UPDATE`,
+                [id]
+            );
+            if (!discRows.length) throw _httpError('Discrepancia no encontrada', 404);
+            const d = discRows[0];
+            if (d.estado !== 'pendiente') {
+                throw _httpError(`La discrepancia ya está ${d.estado}: no se puede volver a resolver`, 409, { code: 'NO_PENDIENTE' });
+            }
+
+            let ajustes = [];
+            let aviso = null;
+            if (estado === 'resuelta') {
+                ({ ajustes, aviso } = await this._aplicarCausaDiscrepancia(conn, d, causaDef, nota, userId));
+            }
+
+            const causaCodigo = causaDef ? causaDef.codigo : null;
+            const [upd] = estado === 'resuelta'
+                ? await conn.query(
+                    `UPDATE transferencia_discrepancias
+                     SET estado = ?, resolucion = ?, causa = ?, ajuste_stock = ?, resuelto_por = ?, fecha_resolucion = NOW()
+                     WHERE id = ? AND estado = 'pendiente'`,
+                    [estado, nota, causaCodigo, JSON.stringify({ ajustes, aviso }), userId, id]
+                )
+                : await conn.query(
+                    `UPDATE transferencia_discrepancias
+                     SET estado = ?, resolucion = ?, resuelto_por = ?, fecha_resolucion = NOW()
+                     WHERE id = ? AND estado = 'pendiente'`,
+                    [estado, nota, userId, id]
+                );
+            if (!upd || upd.affectedRows === 0) {
+                throw _httpError('La discrepancia ya no está pendiente', 409, { code: 'NO_PENDIENTE' });
+            }
+
+            await conn.commit();
+            return { id: Number(id), estado, resolucion: nota, causa: causaCodigo, ajustes, aviso };
+        } catch (err) {
+            await conn.rollback();
+            // Solo el 1054 de las columnas nuevas es «falta la migración»; otro 1054 es un bug real y sale como tal.
+            if (err && err.errno === 1054 && /causa|ajuste_stock/.test(String(err.sqlMessage || err.message || ''))) {
+                throw _migracion129Pendiente();
+            }
+            throw err;
+        } finally {
+            conn.release();
+        }
+    },
+
+    /**
+     * Aplica la causa de una discrepancia 'resuelta' dentro de la transacción de resolverDiscrepancia
+     * (la fila de la discrepancia ya está bloqueada). Devuelve { ajustes, aviso }.
+     */
+    async _aplicarCausaDiscrepancia(conn, d, causaDef, nota, userId) {
+        const enviada = _r4(d.cantidad_enviada);
+        const recibida = _r4(d.cantidad_recibida);
+        const dif = _r4(recibida - enviada);
+        const signo = dif > 0 ? 'sobrante' : (dif < 0 ? 'faltante' : null);
+        if (!signo) throw _httpError('La diferencia es 0: no hay nada que resolver (descártala)', 400);
+        if (causaDef.signo !== signo) {
+            const es = signo === 'sobrante'
+                ? `un sobrante de ${_fmtCant(dif)} (llegó más de lo enviado)`
+                : `un faltante de ${_fmtCant(-dif)} (llegó menos de lo enviado)`;
+            throw _httpError(
+                `La causa «${causaDef.nombre}» es para ${causaDef.signo === 'sobrante' ? 'sobrantes' : 'faltantes'}; esta diferencia es ${es}.`,
+                400, { code: 'CAUSA_NO_CALZA' }
+            );
+        }
+
+        const [trfRows] = await conn.query(
+            `SELECT id, codigo, stock_reconciliado, origen_obra_id, origen_bodega_id, destino_obra_id, destino_bodega_id
+             FROM transferencias WHERE id = ? FOR UPDATE`,
+            [d.transferencia_id]
         );
-        if (result.affectedRows === 0) {
-            throw new Error('Discrepancia no encontrada o ya no está pendiente');
+        if (!trfRows.length) throw _httpError('Transferencia de la discrepancia no encontrada', 404);
+        const trf = trfRows[0];
+        // Régimen anterior (revisión 2026-10-21): FALSE explícito (aprobadas antes de Ola 2) o recibida SIN eventos
+        // de recepción. La mig 036 dejó TRUE por defecto a las que ya estaban 'recibida', pero a esas el origen les
+        // descontó lo ENVIADO al aprobar; la tabla transferencia_recepciones (mig 048, sin backfill) lo delata.
+        let legacy = trf.stock_reconciliado === 0 || trf.stock_reconciliado === false;
+        if (!legacy) legacy = !(await this._tieneEventosRecepcion(conn, trf.id));
+        if (legacy && causaDef.mueve_stock) {
+            throw _httpError('Solicitud anterior al cambio de stock: ajusta a mano', 409, { code: 'REGIMEN_LEGACY' });
         }
-        return { id: Number(id), estado, resolucion: resolucion.trim() };
+        const itemId = d.item_id;
+
+        // ── Causas que no mueven stock ──
+        if (causaDef.codigo === 'nunca_salio') {
+            return {
+                ajustes: [],
+                aviso: legacy
+                    ? `Solicitud anterior al cambio de stock: al aprobar, el origen descontó lo enviado (${_fmtCant(enviada)}); `
+                        + `las ${_fmtCant(-dif)} unidades que nunca salieron no se le devolvieron. Ajústalo a mano.`
+                    : null,
+            };
+        }
+        if (causaDef.codigo === 'origen_envio_de_mas') {
+            if (legacy) {
+                // Legacy: el origen descontó lo ENVIADO al aprobar (sin kardex de salida); lo de más nunca salió del sistema.
+                return {
+                    ajustes: [],
+                    aviso: `Solicitud anterior al cambio de stock: el origen descontó solo lo enviado (${_fmtCant(enviada)}) al aprobar; `
+                        + `las ${_fmtCant(dif)} unidades de más siguen contadas en el origen. Ajústalo a mano si corresponde.`,
+                };
+            }
+            const k = await this._descontadoDelOrigen(conn, trf.id, itemId, recibida);
+            const sinRespaldo = _r4(Math.max(0, recibida - k.descontado));
+            const partes = [];
+            if (sinRespaldo > 0) {
+                partes.push(`${_fmtCant(sinRespaldo)} de las ${_fmtCant(recibida)} unidades recibidas no tenían respaldo en el origen `
+                    + '(su stock no alcanzaba y quedó en 0): ese stock se creó al recibir. Revisa el origen.');
+            }
+            if (k.sinKardex > 0) partes.push('Recepción anterior al kardex: no se pudo verificar el respaldo del origen.');
+            return { ajustes: [], aviso: partes.length ? partes.join(' ') : null };
+        }
+
+        // ── Causas que mueven stock (régimen nuevo) ──
+        const destino = _normalizeUbicacion(trf.destino_obra_id, trf.destino_bodega_id);
+        const [itemRows] = await conn.query(
+            // DESC: recibir() arma su mapa por item_id y se queda con la ÚLTIMA fila → mismo origen primario.
+            `SELECT id, origen_obra_id, origen_bodega_id FROM transferencia_items
+             WHERE transferencia_id = ? AND item_id = ? ORDER BY id DESC LIMIT 1`,
+            [trf.id, itemId]
+        );
+        const itemRow = itemRows[0] || null;
+        const plan = [];          // { ubic, delta, estricto?, esDestino? } en orden lógico (origen → destino)
+        const splitUpdates = [];  // { id, take }
+        const avisos = [];
+
+        if (causaDef.codigo === 'error_conteo_recepcion') {
+            // Llegó lo enviado: el receptor contó dif de más. recibir() sumó esas dif al destino y, si
+            // descontó del origen por sobre lo enviado (fallback al origen primario), se le devuelve.
+            const k = await this._descontadoDelOrigen(conn, trf.id, itemId, recibida);
+            const extraTomado = _r4(Math.min(dif, Math.max(0, k.descontado - enviada)));
+            if (extraTomado > 0) plan.push({ ubic: _origenPrimario(itemRow, trf), delta: extraTomado });
+            plan.push({ ubic: destino, delta: -dif, estricto: true, esDestino: true });
+            if (k.sinKardex > 0) avisos.push('Recepción anterior al kardex: se asumió que el origen descontó todo lo recibido.');
+        } else {
+            // perdida_en_transito / llego_despues: el faltante SÍ salió del origen → descontarlo.
+            const faltante = -dif;
+            let resto = faltante;
+            if (itemRow) {
+                const [splits] = await conn.query(
+                    `SELECT id, origen_obra_id, origen_bodega_id, cantidad_enviada, cantidad_decrementada
+                     FROM transferencia_item_origenes
+                     WHERE transferencia_item_id = ?
+                     ORDER BY id ASC FOR UPDATE`,
+                    [itemRow.id]
+                );
+                for (const s of splits) {
+                    if (resto <= 0) break;
+                    const saldo = _r4((Number(s.cantidad_enviada) || 0) - (Number(s.cantidad_decrementada) || 0));
+                    if (saldo <= 0) continue;
+                    const take = _r4(Math.min(resto, saldo));
+                    plan.push({ ubic: _normalizeUbicacion(s.origen_obra_id, s.origen_bodega_id), delta: -take });
+                    splitUpdates.push({ id: s.id, take });
+                    resto = _r4(resto - take);
+                }
+            }
+            // Sin splits (TRF anteriores a la mig 032) o saldos que no alcanzan → origen primario,
+            // igual que el fallback de recibir().
+            if (resto > 0) plan.push({ ubic: _origenPrimario(itemRow, trf), delta: -resto });
+            if (causaDef.codigo === 'llego_despues') plan.push({ ubic: destino, delta: faltante, esDestino: true });
+        }
+
+        // Una operación por ubicación (el origen primario suele coincidir con el primer split).
+        const ops = [];
+        const porUbic = new Map();
+        for (const p of plan) {
+            const key = _ubicKey(p.ubic);
+            let op = porUbic.get(key);
+            if (!op) { op = { ubic: p.ubic, delta: 0, estricto: false, esDestino: false }; porUbic.set(key, op); ops.push(op); }
+            op.delta = _r4(op.delta + p.delta);
+            op.estricto = op.estricto || !!p.estricto;
+            op.esDestino = op.esDestino || !!p.esDestino;
+        }
+
+        // Bloquear y leer las filas de stock en orden estable (evita deadlocks entre resoluciones).
+        const aBloquear = ops.filter(o => o.delta !== 0)
+            .sort((a, b) => _ubicKey(a.ubic).localeCompare(_ubicKey(b.ubic)));
+        for (const op of aBloquear) {
+            const [rows] = await conn.query(
+                `SELECT cantidad FROM ubicaciones_stock
+                 WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ? FOR UPDATE`,
+                [itemId, op.ubic.obra, op.ubic.bodega]
+            );
+            op.existe = rows.length > 0;
+            op.prev = op.existe ? _r4(rows[0].cantidad) : 0;
+        }
+
+        // Validar y decidir TODO antes de escribir (el 409 no deja nada a medias).
+        let noDescontado = 0;
+        for (const op of aBloquear) {
+            op.aplicado = op.delta;
+            if (op.delta < 0 && op.prev < -op.delta) {
+                if (op.estricto) {
+                    throw _httpError(
+                        `El destino ya no tiene esas ${_fmtCant(-op.delta)} unidades (hoy tiene ${_fmtCant(op.prev)}): ajusta a mano o elige otra causa`,
+                        409, { code: 'DESTINO_SIN_STOCK' }
+                    );
+                }
+                noDescontado = _r4(noDescontado + (-op.delta - op.prev));
+                op.aplicado = _r4(-op.prev);
+            }
+            op.nueva = _r4(op.prev + op.aplicado);
+        }
+        if (noDescontado > 0) {
+            avisos.push(`El origen no tenía stock suficiente: no se pudieron descontar ${_fmtCant(noDescontado)} unidades (quedó en 0). Revisa el stock del origen.`);
+        }
+
+        // ── Escrituras ──
+        const motivo = `Diferencia ${trf.codigo || `TRF #${trf.id}`} · ${causaDef.nombre}: ${nota}`.slice(0, 255);
+        for (const op of aBloquear) {
+            if (op.aplicado === 0) continue;
+            if (op.aplicado < 0) {
+                await conn.query(
+                    `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
+                     WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
+                    [-op.aplicado, itemId, op.ubic.obra, op.ubic.bodega]
+                );
+            } else {
+                // Destino nuevo (llego_despues con nada recibido antes): copia el valor_arriendo_override
+                // del origen, como recibir() (auditoría 6.6), para no facturar al valor base.
+                let override = null;
+                if (op.esDestino && !op.existe) override = await this._overrideOrigen(conn, itemId, itemRow, trf);
+                await conn.query(
+                    `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad, valor_arriendo_override)
+                     VALUES (?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
+                    [itemId, op.ubic.obra, op.ubic.bodega, op.aplicado, override]
+                );
+            }
+            await registrarMovimiento(conn, {
+                item_id: itemId, obra_id: op.ubic.obra, bodega_id: op.ubic.bodega,
+                tipo: 'discrepancia', cantidad_anterior: op.prev, cantidad_nueva: op.nueva,
+                referencia_tipo: 'transferencia', referencia_id: trf.id,
+                motivo, usuario_id: userId,
+            });
+        }
+        // El saldo de los splits queda contabilizado aunque el origen no alcanzara (igual que recibir()).
+        for (const s of splitUpdates) {
+            await conn.query(
+                'UPDATE transferencia_item_origenes SET cantidad_decrementada = cantidad_decrementada + ? WHERE id = ?',
+                [s.take, s.id]
+            );
+        }
+
+        const aplicados = ops.filter(o => o.aplicado);
+        const nombre = await this._nombresUbicaciones(conn, aplicados.map(o => o.ubic));
+        const ajustes = aplicados.map(o => ({
+            obra_id: o.ubic.obra, bodega_id: o.ubic.bodega, ubicacion_nombre: nombre(o.ubic), cantidad: o.aplicado,
+        }));
+        return { ajustes, aviso: avisos.length ? avisos.join(' ') : null };
+    },
+
+    /**
+     * Cuánto descontó recibir() del origen para (transferencia, ítem), según el kardex: suma de
+     * (anterior − nueva) de sus 'transferencia_salida'. Lo recibido sin 'transferencia_entrada' en el
+     * kardex (recepciones anteriores al kardex, 2026-05-26) se asume descontado completo — régimen nuevo
+     * descuenta lo recibido —, y se informa en `sinKardex`.
+     */
+    /** ¿La transferencia tiene eventos de recepción (régimen nuevo, mig 048)? Sin la tabla: no. */
+    async _tieneEventosRecepcion(conn, trfId) {
+        try {
+            const [rows] = await conn.query('SELECT 1 FROM transferencia_recepciones WHERE transferencia_id = ? LIMIT 1', [trfId]);
+            return rows.length > 0;
+        } catch (err) {
+            if (err && err.errno === 1146) return false;
+            throw err;
+        }
+    },
+
+    async _descontadoDelOrigen(conn, trfId, itemId, recibida) {
+        const [rows] = await conn.query(
+            `SELECT COALESCE(SUM(CASE WHEN tipo = 'transferencia_salida' THEN cantidad_anterior - cantidad_nueva ELSE 0 END), 0) AS salida,
+                    COALESCE(SUM(CASE WHEN tipo = 'transferencia_entrada' THEN cantidad_nueva - cantidad_anterior ELSE 0 END), 0) AS entrada
+             FROM stock_movimientos
+             WHERE referencia_tipo = 'transferencia' AND referencia_id = ? AND item_id = ?
+               AND tipo IN ('transferencia_salida', 'transferencia_entrada')`,
+            [trfId, itemId]
+        );
+        const salida = _r4(rows[0] && rows[0].salida);
+        const entrada = _r4(rows[0] && rows[0].entrada);
+        const sinKardex = _r4(Math.max(0, recibida - entrada));
+        return { descontado: _r4(salida + sinKardex), sinKardex };
+    },
+
+    /** valor_arriendo_override del origen primario del ítem (null si no hay origen o no tiene). */
+    async _overrideOrigen(conn, itemId, itemRow, trf) {
+        let origen;
+        try { origen = _origenPrimario(itemRow, trf); } catch (_) { return null; }
+        const [rows] = await conn.query(
+            `SELECT valor_arriendo_override FROM ubicaciones_stock
+             WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
+            [itemId, origen.obra, origen.bodega]
+        );
+        return (rows && rows[0] && rows[0].valor_arriendo_override) ?? null;
+    },
+
+    /** Resuelve nombres de obra/bodega para `ajustes[].ubicacion_nombre`. Devuelve ubic → nombre|null. */
+    async _nombresUbicaciones(conn, ubics) {
+        const obraIds = [...new Set(ubics.map(u => u.obra).filter(Boolean))];
+        const bodegaIds = [...new Set(ubics.map(u => u.bodega).filter(Boolean))];
+        const obras = new Map();
+        const bodegas = new Map();
+        if (obraIds.length) {
+            const [rows] = await conn.query('SELECT id, nombre FROM obras WHERE id IN (?)', [obraIds]);
+            (rows || []).forEach(r => obras.set(Number(r.id), r.nombre));
+        }
+        if (bodegaIds.length) {
+            const [rows] = await conn.query('SELECT id, nombre FROM bodegas WHERE id IN (?)', [bodegaIds]);
+            (rows || []).forEach(r => bodegas.set(Number(r.id), r.nombre));
+        }
+        return (u) => (u.obra ? obras.get(u.obra) : bodegas.get(u.bodega)) ?? null;
     }
 };
 

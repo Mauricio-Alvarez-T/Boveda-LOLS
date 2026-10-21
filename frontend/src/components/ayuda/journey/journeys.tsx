@@ -173,7 +173,7 @@ export const JOURNEYS: JourneyDef[] = [
         recap: [
             'Creaste y aprobaste una solicitud.',
             'Al recibir llegó menos de lo enviado → se generó una discrepancia.',
-            'Resolviste la discrepancia con una nota.',
+            'Resolviste la discrepancia eligiendo la causa (el stock se ajusta según ella) y dejando una nota.',
         ],
     },
 

@@ -13,7 +13,8 @@ Implementación: `backend/src/services/transferencia.service.js`.
 - **aprobada**: espera despacho.
 - **en_transito**: despachada. Régimen nuevo: stock aún no se mueve.
 - **recepcion_parcial**: llegó parte; espera más viajes (mig 048).
-- **recibida**: cierre. Origen decrementa + destino incrementa (régimen nuevo). Diferencias → discrepancia.
+- **recibida**: cierre. Origen decrementa lo RECIBIDO + destino incrementa lo recibido (régimen nuevo,
+  por evento). Diferencias → discrepancia, que se resuelve eligiendo la causa (§ Discrepancias).
 - **rechazada**: por aprobador (desde pendiente) o receptor (desde en_transito). Stock no se mueve.
 - **cancelada**: soft-delete (`activo=0`).
 
@@ -81,8 +82,9 @@ Implementación: `backend/src/services/transferencia.service.js`.
 
 - Parcial → estado `recepcion_parcial`, se esperan más viajes; historial por evento en
   `transferencia_recepciones` (+items).
-- Total → cierra (`recibida`); faltante = **merma** (genera discrepancia); requiere confirmación
-  (checkbox "entrega final" / modal de merma).
+- Total → cierra (`recibida`); lo recibido acumulado ≠ enviado genera discrepancia (faltante o
+  sobrante); requiere confirmación (checkbox "entrega final" / modal de merma). El stock de la
+  diferencia NO se corrige al recibir: se corrige al resolverla con su causa (§ Discrepancias).
 - Over-receive en parcial bloqueado (400); sobrantes solo vía recepción total.
 - SoD por evento de recepción (receptor ≠ transportista).
 - En `solicitud_materiales` la recepción es simple: confirmar con observación de sobrantes
@@ -134,9 +136,57 @@ La ruta va ANTES de `/:id`. Cada fila abre Inventario → Solicitudes con su fil
 
 ## Discrepancias
 
-- Auto-creadas al recibir si `cantidad_recibida ≠ cantidad_enviada`. Vista propia (chip
-  Discrepancias en Transferencias); resolución `resuelta | descartada` con texto.
-- Hard-delete por CASCADE con la transferencia.
+- Auto-creadas al recibir (recepción `total`) si lo recibido acumulado ≠ `cantidad_enviada`. Vista
+  propia (chip Discrepancias en Transferencias). Hard-delete por CASCADE con la transferencia.
+- Qué hizo `recibir()` con el stock (régimen nuevo): **origen −= lo RECIBIDO** (FIFO por split vía
+  `transferencia_item_origenes.cantidad_decrementada`; lo recibido por sobre lo enviado sale del
+  **origen primario** — `transferencia_items.origen_*` ?? cabecera — con `GREATEST(…, 0)`, o sea si el
+  origen no alcanzaba quedó en 0 y ese stock "se creó") y **destino += lo recibido**. Ese exceso
+  descontado NO queda en `cantidad_decrementada`, solo en el kardex (`transferencia_salida`).
+- **Signo**: `diferencia` en la BD es `enviada − recibida` (positivo = faltante; la UI la lee así). La
+  resolución usa `dif = recibida − enviada`: **sobrante** si > 0, **faltante** si < 0.
+
+### Resolver eligiendo la CAUSA (decisión del dueño 2026-10-21, mig 129)
+
+`PUT /api/transferencias/discrepancias/:id/resolver` `{ estado: 'resuelta'|'descartada', resolucion
+(nota obligatoria), causa? }` → `{ id, estado, resolucion, causa, ajustes: [{ obra_id, bodega_id,
+ubicacion_nombre, cantidad }], aviso }`. Implementación: `transferenciaService.resolverDiscrepancia`;
+catálogo cerrado en `backend/src/config/causasDiscrepancia.js` (el schema `validateBody` usa la misma
+lista).
+
+- **Descartar** no mueve stock; la causa se ignora (queda `null`).
+- **Resolver** exige la causa (400 si falta) y debe calzar con el signo (400 `CAUSA_NO_CALZA` si no):
+
+| Diferencia | Causa | Stock |
+|---|---|---|
+| Sobrante | `origen_envio_de_mas` | Sin cambio. **Aviso** si hubo unidades SIN RESPALDO: `recibida − Σ(anterior − nueva)` de los `transferencia_salida` de la TRF/ítem en el kardex (lo que el origen no tenía y quedó en 0). |
+| Sobrante | `error_conteo_recepcion` | Destino −dif; origen primario + lo que `recibir()` le descontó por sobre lo enviado (`Σ salida − enviada`, tope dif). Si el destino hoy tiene menos que dif → **409** `DESTINO_SIN_STOCK` ("ajusta a mano o elige otra causa") sin tocar nada. |
+| Faltante | `perdida_en_transito` | Origen −faltante: primero los saldos no descontados de los splits (FIFO, sube `cantidad_decrementada`), y sin splits —o si no alcanzan— el origen primario. **No baja de 0**: lo que no se pudo descontar va en el aviso. |
+| Faltante | `nunca_salio` | Sin cambio (el origen solo descontó lo recibido). |
+| Faltante | `llego_despues` | Como pérdida en el origen + destino +faltante (fila nueva copia el `valor_arriendo_override` del origen, como `recibir()`). |
+
+- Cada ajuste deja **kardex** (`stock_movimientos`): tipo `discrepancia`, `referencia_tipo
+  'transferencia'`, `referencia_id` = id de la TRF, motivo `Diferencia <código> · <causa>: <nota>`
+  (cortado a 255).
+- **Régimen anterior** (el origen se descontó LO ENVIADO al aprobar): `stock_reconciliado = FALSE` **o**
+  recibida sin filas en `transferencia_recepciones` (mig 048 sin backfill: la mig 036 dejó TRUE por
+  defecto a las que ya estaban 'recibida' antes de Ola 2, 2026-04-21). Las causas que mueven stock →
+  **409** `REGIMEN_LEGACY` "Solicitud anterior al cambio de stock: ajusta a mano". `nunca_salio` y
+  `origen_envio_de_mas` se permiten, con aviso (lo que nunca salió no se le devolvió al origen / lo de
+  más sigue contado en el origen). `GET /discrepancias` devuelve `stock_reconciliado` EFECTIVO (0 si
+  aplica cualquiera de las dos) y la pantalla deshabilita de antemano esas causas.
+- **Recepciones anteriores al kardex** (2026-05-26): lo recibido sin fila `transferencia_entrada` se
+  asume descontado completo del origen; el aviso lo dice ("anterior al kardex").
+- **Atómico**: una transacción con `FOR UPDATE` de la discrepancia (guard `pendiente`; si ya no lo
+  está → 409 `NO_PENDIENTE`), de la transferencia, de los splits y de las filas de `ubicaciones_stock`
+  (orden estable); todo se calcula antes de la primera escritura; rollback ante error.
+- **Persistencia** (mig 129): `transferencia_discrepancias.causa` (código) y `ajuste_stock` (JSON
+  `{ ajustes, aviso }`, null si se descartó). `GET /discrepancias` las devuelve (null en las antiguas).
+  Sin la migración → 409 `MIGRACION_PENDIENTE` al resolver (solo el 1054 de esas columnas; otro 1054
+  es un error real). **Descartar funciona sin la migración.**
+- **No se elimina** (`DELETE /discrepancias/:id` → 409 `CON_AJUSTE`) una diferencia resuelta cuyo
+  `ajuste_stock` tiene ajustes: perdería el registro de por qué cambió el stock.
+- «Resolver» en la pantalla usa el mismo permiso que el PUT: `inventario.transferencias.aprobar`.
 
 ## Faltantes
 

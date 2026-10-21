@@ -810,6 +810,44 @@ export interface RegistroBombaHormigon {
     activo: boolean;
 }
 
+/**
+ * Causa elegida al RESOLVER una diferencia de transferencia (mig 128, dueño 2026-10-21).
+ * Sobrante (llegó de más): origen_envio_de_mas · error_conteo_recepcion.
+ * Faltante (llegó de menos): perdida_en_transito · nunca_salio · llego_despues.
+ * El signo se deriva de cantidad_recibida vs cantidad_enviada, NUNCA de `diferencia`
+ * (columna generada en BD como enviada − recibida, signo opuesto al del contrato).
+ */
+export type CausaDiscrepancia =
+    | 'origen_envio_de_mas'
+    | 'error_conteo_recepcion'
+    | 'perdida_en_transito'
+    | 'nunca_salio'
+    | 'llego_despues';
+
+/** Un movimiento de stock aplicado al resolver (cantidad con signo: + suma, − resta). */
+export interface AjusteStockDiscrepancia {
+    obra_id: number | null;
+    bodega_id: number | null;
+    ubicacion_nombre: string;
+    cantidad: number;
+}
+
+/** Lo que el servidor aplicó al resolver: ajustes de stock + aviso (unidades sin respaldo, origen sin stock…). */
+export interface AjusteStockResultado {
+    ajustes: AjusteStockDiscrepancia[];
+    aviso: string | null;
+}
+
+/** Respuesta de PUT /transferencias/discrepancias/:id/resolver (dentro de { data }). */
+export interface ResolverDiscrepanciaResultado {
+    id: number;
+    estado: 'resuelta' | 'descartada';
+    resolucion: string;
+    causa: CausaDiscrepancia | null;
+    ajustes: AjusteStockDiscrepancia[];
+    aviso: string | null;
+}
+
 export interface TransferenciaDiscrepanciaItem {
     id: number;
     transferencia_id: number;
@@ -819,6 +857,7 @@ export interface TransferenciaDiscrepanciaItem {
     unidad: string;
     cantidad_enviada: number;
     cantidad_recibida: number;
+    /** Columna GENERADA en BD = enviada − recibida (> 0 faltante). No usarla para elegir causas. */
     diferencia: number;
     observacion: string | null;
     estado: 'pendiente' | 'resuelta' | 'descartada';
@@ -829,6 +868,22 @@ export interface TransferenciaDiscrepanciaItem {
     reportado_por: number | null;
     reportado_por_nombre: string | null;
     created_at: string;
+    /** Foto de la recepción (mig 078). */
+    foto_url?: string | null;
+    /** Causa elegida al resolver (mig 128). Ausente antes de la migración; null si se descartó o es anterior. */
+    causa?: CausaDiscrepancia | null;
+    /**
+     * Ajustes aplicados al resolver (mig 128, columna TEXT con JSON). Puede llegar como objeto o
+     * como string JSON según la versión del backend: leer con `parseAjusteStock`.
+     */
+    ajuste_stock?: AjusteStockResultado | string | null;
+    /**
+     * Origen propio del ítem (transferencia_items.origen_*), si el backend lo expone. El origen de
+     * la cabecera es el del PRIMER ítem; con estos campos el texto del efecto usa el nombre correcto.
+     */
+    origen_obra_nombre?: string | null;
+    origen_bodega_nombre?: string | null;
+    origen_bodega_responsable_nombre?: string | null;
 }
 
 export interface TransferenciaConDiscrepancias {
@@ -854,6 +909,12 @@ export interface TransferenciaConDiscrepancias {
     transportista_nombre: string | null;
     receptor_id: number | null;
     receptor_nombre: string | null;
+    /**
+     * Régimen de stock de la transferencia. FALSE/0 = solicitud anterior al cambio de stock: las
+     * causas que mueven stock no se pueden usar (el backend responde 409). Ausente = no se sabe
+     * (backend viejo, tutorial) → se trata como régimen nuevo y el backend decide.
+     */
+    stock_reconciliado?: boolean | 0 | 1 | null;
     discrepancias: TransferenciaDiscrepanciaItem[];
     total_unidades_perdidas: number;
     total_items_afectados: number;

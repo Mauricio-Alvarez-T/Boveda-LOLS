@@ -3,7 +3,18 @@ import { toast } from 'sonner';
 import api from '../../services/api';
 import { showApiError } from '../../utils/toastUtils';
 import type { ApiResponse } from '../../types';
-import type { Transferencia, TransferenciaConDiscrepancias, TransferenciaRecepcion } from '../../types/entities';
+import type {
+    CausaDiscrepancia, ResolverDiscrepanciaResultado, Transferencia, TransferenciaConDiscrepancias,
+    TransferenciaRecepcion,
+} from '../../types/entities';
+import {
+    ESTADOS_ERROR_EN_MODAL, leerCausa, normalizarAjustes, resumenAjustes,
+} from '../../components/inventario/discrepanciaCausa';
+
+/** Resultado de resolver/descartar una diferencia: datos aplicados o el error (status/code/mensaje). */
+export type ResolverDiscrepanciaRespuesta =
+    | { ok: true; data: ResolverDiscrepanciaResultado }
+    | { ok: false; error: { status?: number; code?: string; message: string } };
 
 interface TransferenciaListResponse {
     data: Transferencia[];
@@ -429,18 +440,59 @@ export function useTransferencias() {
         }
     }, []);
 
+    // Resolver = elegir la CAUSA (el servidor ajusta stock y deja kardex); descartar no
+    // mueve stock y no lleva causa. Devuelve el resultado (ajustes + aviso) y, si falla,
+    // el error: los 400/409 (destino sin stock, régimen anterior, migración pendiente)
+    // NO van a toast — el modal los muestra adentro y queda abierto para elegir otra causa.
     const resolverDiscrepancia = useCallback(async (
         id: number,
         estado: 'resuelta' | 'descartada',
-        resolucion: string
-    ) => {
+        resolucion: string,
+        causa: CausaDiscrepancia | null = null,
+        unidad?: string | null,
+    ): Promise<ResolverDiscrepanciaRespuesta> => {
         try {
-            await api.put(`/transferencias/discrepancias/${id}/resolver`, { estado, resolucion });
-            toast.success(estado === 'resuelta' ? 'Discrepancia resuelta' : 'Discrepancia descartada');
-            return true;
+            const body = estado === 'resuelta' && causa ? { estado, resolucion, causa } : { estado, resolucion };
+            const res = await api.put<{ data?: Record<string, unknown> }>(
+                `/transferencias/discrepancias/${id}/resolver`, body
+            );
+            const raw = res.data?.data ?? {};
+            const data: ResolverDiscrepanciaResultado = {
+                id: Number(raw.id ?? id),
+                estado,
+                resolucion: typeof raw.resolucion === 'string' ? raw.resolucion : resolucion,
+                causa: leerCausa(raw.causa),
+                ajustes: normalizarAjustes(raw.ajustes),
+                aviso: typeof raw.aviso === 'string' && raw.aviso.trim() ? raw.aviso.trim() : null,
+            };
+            if (estado === 'descartada') {
+                toast.success('Discrepancia descartada');
+            } else if (causa && !('causa' in raw)) {
+                // Backend anterior a la mig 129 (validateBody con strip:true borra `causa` en silencio):
+                // quedó resuelta SIN ajuste de stock. Que se note, para corregir a mano.
+                toast.warning('Discrepancia resuelta, pero sin ajuste de stock', {
+                    description: 'El servidor todavía no registra la causa. Revisa el stock a mano.',
+                    duration: 12000,
+                });
+            } else {
+                const resumen = data.ajustes.length ? resumenAjustes(data.ajustes, unidad) : 'Sin cambios de stock';
+                if (data.aviso) {
+                    toast.warning('Discrepancia resuelta', { description: `${resumen}. ${data.aviso}`, duration: 12000 });
+                } else {
+                    toast.success('Discrepancia resuelta', { description: resumen });
+                }
+            }
+            return { ok: true, data };
         } catch (err) {
-            showApiError(err, 'Error al actualizar discrepancia');
-            return false;
+            const e = err as { response?: { status?: number; data?: { error?: string; code?: string } }; message?: string };
+            const status = e.response?.status;
+            const message = e.response?.data?.error || e.message || 'Error al actualizar la discrepancia';
+            if (status !== undefined && ESTADOS_ERROR_EN_MODAL.includes(status)) {
+                console.error(err);
+            } else {
+                showApiError(err, 'Error al actualizar discrepancia');
+            }
+            return { ok: false, error: { status, code: e.response?.data?.code, message } };
         }
     }, []);
 

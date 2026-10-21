@@ -77,4 +77,24 @@ describe('discrepancia', () => {
         expect(resuelta.discrepancias[0].estado).toBe('resuelta');
         expect(resuelta.discrepancias[0].resolucion).toBe('Se encontró en bodega');
     });
+
+    it('resolver con causa guarda la causa y ajustes de ejemplo; descartar no lleva causa', () => {
+        const aprob = aprobarTrfDemo(buildTrfDemo(fakeEngine()), { items: [{ item_id: 1, splits: [{ cantidad: 5 }] }] });
+        const disc = buildDiscrepanciaDemo(recibirTrfDemo(aprob, [{ item_id: 1, cantidad_recibida: 3 }], 'total'));
+        const id = disc.discrepancias[0].id;
+
+        const perdida = resolverDiscrepanciaDemo(disc, id, 'resuelta', 'Se rompieron', 'perdida_en_transito').discrepancias[0];
+        expect(perdida.causa).toBe('perdida_en_transito');
+        expect(perdida.ajuste_stock).toEqual({
+            ajustes: [expect.objectContaining({ cantidad: -2 })],
+            aviso: null,
+        });
+
+        const nunca = resolverDiscrepanciaDemo(disc, id, 'resuelta', 'Quedó en bodega', 'nunca_salio').discrepancias[0];
+        expect(nunca.ajuste_stock).toEqual({ ajustes: [], aviso: null });
+
+        const descartada = resolverDiscrepanciaDemo(disc, id, 'descartada', 'No aplica', 'llego_despues').discrepancias[0];
+        expect(descartada.causa).toBeNull();
+        expect(descartada.ajuste_stock).toBeNull();
+    });
 });

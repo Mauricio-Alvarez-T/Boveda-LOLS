@@ -146,16 +146,22 @@ const DiscrepanciasList: React.FC<Props> = ({
                                 </div>
 
                                 {/* Ruta origen → destino */}
-                                <div className="flex items-center gap-1 text-caption text-muted-foreground mb-2 pl-0.5">
-                                    {origenIsObra
-                                        ? <MapPin className="h-2.5 w-2.5 text-blue-500 shrink-0" />
-                                        : <Warehouse className="h-2.5 w-2.5 text-amber-500 shrink-0" />}
-                                    <span className="truncate max-w-[45%]">{origenLabel}</span>
-                                    <ArrowRight className="h-2.5 w-2.5 shrink-0" />
-                                    {destinoIsObra
-                                        ? <MapPin className="h-2.5 w-2.5 text-blue-500 shrink-0" />
-                                        : <Warehouse className="h-2.5 w-2.5 text-amber-500 shrink-0" />}
-                                    <span className="truncate max-w-[45%]">{destinoLabel}</span>
+                                {/* Los nombres parten línea (nunca «…»): flex-wrap + break-words. */}
+                                <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-caption text-muted-foreground mb-2 pl-0.5">
+                                    <span className="inline-flex items-start gap-1 min-w-0">
+                                        {origenIsObra
+                                            ? <MapPin className="h-2.5 w-2.5 shrink-0 mt-0.5" aria-hidden="true" />
+                                            : <Warehouse className="h-2.5 w-2.5 shrink-0 mt-0.5" aria-hidden="true" />}
+                                        <span className="break-words min-w-0">{origenLabel}</span>
+                                    </span>
+                                    <ArrowRight className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
+                                    <span className="sr-only">hacia</span>
+                                    <span className="inline-flex items-start gap-1 min-w-0">
+                                        {destinoIsObra
+                                            ? <MapPin className="h-2.5 w-2.5 shrink-0 mt-0.5" aria-hidden="true" />
+                                            : <Warehouse className="h-2.5 w-2.5 shrink-0 mt-0.5" aria-hidden="true" />}
+                                        <span className="break-words min-w-0">{destinoLabel}</span>
+                                    </span>
                                 </div>
 
                                 {/* Métricas */}
@@ -177,7 +183,7 @@ const DiscrepanciasList: React.FC<Props> = ({
 
                                 {/* Receptor */}
                                 {d.receptor_nombre && (
-                                    <p className="text-micro text-muted-foreground mt-1.5 pl-0.5 truncate">
+                                    <p className="text-micro text-muted-foreground mt-1.5 pl-0.5 break-words">
                                         Recibió: <span className="font-semibold text-brand-dark">{d.receptor_nombre}</span>
                                     </p>
                                 )}

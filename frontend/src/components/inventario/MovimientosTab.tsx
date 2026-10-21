@@ -180,7 +180,8 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                                             {delta < 0 && <ArrowDown className="h-3 w-3" />}
                                             {fmtNum(Math.abs(delta))}
                                         </td>
-                                        <td className="px-3 py-2 text-label text-muted-foreground max-w-[200px] truncate" title={m.motivo || ''}>{m.motivo || '—'}</td>
+                                        {/* El motivo (p. ej. causa + nota al resolver una diferencia) parte línea, nunca «…». */}
+                                        <td className="px-3 py-2 text-label text-muted-foreground min-w-[160px] max-w-[280px] break-words">{m.motivo || '—'}</td>
                                         <td className="px-3 py-2 text-label text-muted-foreground">{m.usuario_nombre || '—'}</td>
                                     </tr>
                                 );
