@@ -70,6 +70,9 @@ export interface LoteAtrasado {
     tenencia: TenenciaLote;
     documentos: { documento_id: number; tipo_nombre: string | null; trabajador_nombre: string | null; rut: string | null; obra_nombre: string | null }[];
 }
+/** Lote del portador con sus documentos aún abiertos (GET /documentos-lotes/mios). */
+export type LoteConDocumentos = LoteResumen & { documentos: LoteItem[] };
+export interface MisLotesRespuesta { en_oficina: LoteConDocumentos[]; en_mano: LoteConDocumentos[]; devueltos_semana: number }
 export interface AtrasadosRespuesta { max_dias_habiles: number; alcance: 'todos' | 'propios'; lotes: LoteAtrasado[] }
 
 export interface LoteItem {

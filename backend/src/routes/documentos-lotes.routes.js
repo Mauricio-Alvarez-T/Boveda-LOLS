@@ -33,6 +33,16 @@ router.get('/pendientes/count', auth, checkPermission(REGISTRAR, PORTAR), async 
     try { res.json({ data: await service.pendientesCount(req.user) }); } catch (err) { next(err); }
 });
 
+// Los lotes del usuario como portador (tarjeta «Tus documentos» del Inicio).
+router.get('/mios', auth, checkPermission(PORTAR), async (req, res, next) => {
+    try { res.json({ data: await service.misLotes(req.user) }); } catch (err) { next(err); }
+});
+
+// Flujo por etapa para el detalle de Gestiones del Inicio (solo RRHH).
+router.get('/flujo', auth, checkPermission(REGISTRAR), async (req, res, next) => {
+    try { res.json({ data: await service.flujo(req.user) }); } catch (err) { next(err); }
+});
+
 // Lotes en terreno pasados de los 4 días hábiles (ventana al iniciar sesión). RRHH: todos; portador: los suyos.
 router.get('/atrasados', auth, checkPermission(REGISTRAR, PORTAR), async (req, res, next) => {
     try { res.json({ data: await service.atrasados(req.user) }); } catch (err) { next(err); }

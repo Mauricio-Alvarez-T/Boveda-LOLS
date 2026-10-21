@@ -809,14 +809,19 @@ físicos); sin correo en v1 (un cron de email sería un follow-up con el patrón
   salen conteo (`bandejaConteo.ts`, con test) y render. **Desde 2026-10-20 RRHH las ve en la tarjeta
   «Gestiones» del Inicio** (`DocumentosInicio`): cifra de documentos fuera de plazo, píldora de críticos,
   etapas donde se atascan y «dónde están ahora» (impresos sin lote vía `GET /documentos-lotes/disponibles`,
-  lotes en oficina y en terreno vía `useLotesPendientes`); su «Ver más» abre el detalle de Gestiones con la
-  lista completa por etapa (`DocumentosAtrasadosLista`) y «Otros pendientes». El «Actualizar» del
+  lotes en oficina y en terreno vía `useLotesPendientes`); su «Ver más» abre el detalle de Gestiones con el
+  **flujo por etapa** (`FlujoDocumentos`, `GET /documentos-lotes/flujo` [registrar], dueño 2026-10-21) y
+  «Otros pendientes». **El portador** (portar sin registrar) ve primero «Tus documentos»
+  (`GET /documentos-lotes/mios` [portar]: sus lotes en oficina y en sus manos con documentos y tenencia,
+  y cuántos devolvió esta semana). El «Actualizar» del
   encabezado del Inicio también la refresca. El portador sigue viendo sus lotes como pendiente. En la
   pestaña Documentos físicos, la franja **"Documentos sin firmar fuera de plazo"** (`AlertasDocumentosStrip`)
   resume por etapa y, desplegada, lista trabajador · tipo · días · portador y los lotes atascados (con
   "Abrir"). Store de módulo `useDocumentosAlertas` (gate `registrar`); lógica pura en
   `documentos-fisicos/documentosAlertas.ts` (+ test).
-- **Cartel del supervisor en el Inicio** (pedido de Matías, RRHH, 2026-10-19; contexto: el gerente no
+- **Cartel del supervisor en el Inicio — QUITADO 2026-10-21** (el dueño: lo reemplazan la ventana al iniciar
+  sesión y la tarjeta «Tus documentos»; el endpoint `GET /documentos-alertas/mios` queda). Historia:
+  (pedido de Matías, RRHH, 2026-10-19; contexto: el gerente no
   supo de un contrato que llevaba 15 días sin volver porque las alertas solo las veía RRHH). Quien tiene
   `documentos.entrega.portar` ve arriba del Inicio un cartel grande (`AvisoAtrasosPortador`) con **lo
   suyo**: los documentos de sus lotes abiertos que ya pasaron el aviso de su tipo (mismos umbrales y
