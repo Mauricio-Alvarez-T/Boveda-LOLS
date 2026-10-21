@@ -11,7 +11,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { SkeletonText } from '../components/ui/Skeleton';
 import { Button } from '../components/ui/Button';
-import { CheckSquare, FileText, FileWarning, Package, RefreshCw, SearchCheck, Truck } from 'lucide-react';
+import { CheckSquare, FileText, FileWarning, Package, RefreshCw, SearchCheck, Truck, UserPlus } from 'lucide-react';
 
 // Widgets
 import VehicleExpiries from '../components/dashboard/widgets/VehicleExpiries';
@@ -38,6 +38,9 @@ import FlujoDocumentos from '../components/dashboard/widgets/FlujoDocumentos';
 import { InicioMarca } from '../components/dashboard/widgets/InicioMarca';
 import { DetalleTusDocumentos, TusDocumentosInicio } from '../components/dashboard/widgets/TusDocumentos';
 import { resumenTusDocumentos } from '../components/dashboard/widgets/resumenTusDocumentos';
+import { DetalleTusSolicitudes, TusSolicitudesInicio } from '../components/dashboard/widgets/TusSolicitudes';
+import { resumenTusSolicitudes } from '../components/dashboard/widgets/resumenTusSolicitudes';
+import type { SolicitudIngreso } from '../types/entities';
 import type { MisLotesRespuesta } from '../components/documentos-fisicos/documentosFisicos';
 import { DetalleModulo } from '../components/dashboard/widgets/DetalleModulo';
 import { EncabezadoTarjeta } from '../components/dashboard/widgets/EncabezadoTarjeta';
@@ -309,6 +312,23 @@ const Dashboard: React.FC = () => {
     useEffect(() => { fetchMisLotes(); }, [fetchMisLotes]);
     const resumenMis = useMemo(() => (misLotes ? resumenTusDocumentos(misLotes) : null), [misLotes]);
 
+    // Terreno (crea fichas de ingreso, no aprueba ni registra entregas): «Tus solicitudes de ingreso»
+    // (perfil terreno, dueño 2026-10-21). El portador que además crea fichas las ve en su detalle.
+    const creaFichas = permisos.includes('trabajadores.solicitud.crear') && !canAprobarSolicitudes && !canRegistrarEntregas;
+    const esTerreno = creaFichas && !esPortador;
+    const [misSolicitudes, setMisSolicitudes] = useState<SolicitudIngreso[] | null>(null);
+    const fetchMisSolicitudes = useCallback(async () => {
+        if (!creaFichas) { setMisSolicitudes(null); return; }
+        try {
+            const res = await api.get<ApiResponse<SolicitudIngreso[]>>('/solicitudes-ingreso', { params: { estado: 'todas', incluir_prueba: 'true' } });
+            setMisSolicitudes(res.data.data ?? []);
+        } catch {
+            setMisSolicitudes(null);
+        }
+    }, [creaFichas]);
+    useEffect(() => { fetchMisSolicitudes(); }, [fetchMisSolicitudes]);
+    const resumenSol = useMemo(() => (misSolicitudes ? resumenTusSolicitudes(misSolicitudes) : null), [misSolicitudes]);
+
     // Inventario: lo que le toca a quien mira según su perfil (tarjeta «Inventario», dueño 2026-10-20).
     const [resumenInv, setResumenInv] = useState<ResumenInventarioApi | null>(null);
     const fetchResumenInv = useCallback(async () => {
@@ -326,8 +346,8 @@ const Dashboard: React.FC = () => {
     const { refetch: refetchAlertasDocs } = alertasDocs;
     const { refetch: refetchLotes } = lotes;
     const refreshAll = useCallback(() => {
-        fetchSummary(); fetchInventory(); fetchImpresos(); fetchResumenInv(); refetchAlertasDocs(); refetchLotes(); fetchMisLotes();
-    }, [fetchSummary, fetchInventory, fetchImpresos, fetchResumenInv, refetchAlertasDocs, refetchLotes, fetchMisLotes]);
+        fetchSummary(); fetchInventory(); fetchImpresos(); fetchResumenInv(); refetchAlertasDocs(); refetchLotes(); fetchMisLotes(); fetchMisSolicitudes();
+    }, [fetchSummary, fetchInventory, fetchImpresos, fetchResumenInv, refetchAlertasDocs, refetchLotes, fetchMisLotes, fetchMisSolicitudes]);
 
     // ─── Encabezado: rótulo, fecha y «Actualizar» (antes vivían en la tarjeta verde, que se fue el 2026-10-20) ───
     const hora = lastUpdated ? lastUpdated.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : null;
@@ -407,11 +427,12 @@ const Dashboard: React.FC = () => {
     const verGestiones = canRegistrarEntregas || permisos.includes('trabajadores.ver')
         || permisos.includes('trabajadores.solicitud.crear') || canAprobarSolicitudes
         || permisos.includes('documentos.entrega.portar');
-    // El portador ve primero sus documentos (también en la barra del celular).
+    // El portador ve primero sus documentos y terreno sus solicitudes (también en la barra del celular).
+    const gestionesPrimero = esPortador || esTerreno;
     const visibles: Modulo[] = [
-        ...(esPortador && verGestiones ? ['gestiones' as const] : []),
+        ...(gestionesPrimero && verGestiones ? ['gestiones' as const] : []),
         ...(showFaltas ? ['asistencia' as const] : []),
-        ...(verGestiones && !esPortador ? ['gestiones' as const] : []),
+        ...(verGestiones && !gestionesPrimero ? ['gestiones' as const] : []),
         ...(canInventario ? ['inventario' as const] : []),
         ...(showVencVehiculos ? ['vehiculos' as const] : []),
     ];
@@ -474,6 +495,8 @@ const Dashboard: React.FC = () => {
             detalle: plural(reiteradosN ?? 0, 'falta reiterada', 'faltas reiteradas') },
         gestiones: esPortador
             ? { icon: FileText, tono: resumenMis?.tono ?? 'neutro', titulo: 'Documentos', cifra: resumenMis ? resumenMis.porEntregar : null, detalle: 'por entregar' }
+            : esTerreno
+            ? { icon: UserPlus, tono: resumenSol?.tono ?? 'neutro', titulo: 'Solicitudes', cifra: resumenSol ? resumenSol.pendientes : null, detalle: 'esperando revisión' }
             : canRegistrarEntregas
             ? { icon: FileWarning, tono: tonoGestiones, titulo: 'Gestiones', cifra: resumenDocs.fueraDePlazo, detalle: 'fuera de plazo' }
             : { icon: SearchCheck, tono: tonoGestiones, titulo: 'Gestiones', cifra: ready ? totalGestiones : null,
@@ -502,10 +525,10 @@ const Dashboard: React.FC = () => {
     const centroMovil = useMemo(() => {
         if (!esCelular || !activo || !iconoEnCurso || !tituloEnCurso) return null;
         const ruta: Record<Modulo, string> = {
-            asistencia: '/asistencia', gestiones: esPortador ? '/consultas?tab=fisicos' : '/consultas?tab=inicio', inventario: '/inventario?tab=transferencias', vehiculos: '/vehiculos',
+            asistencia: '/asistencia', gestiones: esPortador ? '/consultas?tab=fisicos' : esTerreno ? '/consultas?tab=solicitudes' : '/consultas?tab=inicio', inventario: '/inventario?tab=transferencias', vehiculos: '/vehiculos',
         };
         return <ModuloEnCurso icon={iconoEnCurso} titulo={tituloEnCurso} onIr={() => navigate(ruta[activo])} />;
-    }, [esCelular, activo, iconoEnCurso, tituloEnCurso, navigate, esPortador]);
+    }, [esCelular, activo, iconoEnCurso, tituloEnCurso, navigate, esPortador, esTerreno]);
     useSetCentroMovil(centroMovil);
     // La cola solo se ve cuando las tarjetas van en UNA fila (si no, apuntaría a la tarjeta de abajo).
     const colaVisible = visibles.length <= 1 ? '' : visibles.length === 2 ? 'hidden sm:block' : 'hidden xl:block';
@@ -533,10 +556,13 @@ const Dashboard: React.FC = () => {
                         </Panel>
                     )}
                     {verGestiones && (
-                        <Panel className={cn('h-full', esPortador && 'order-first')} activa={activo === 'gestiones'} onClick={() => verMas('gestiones')}
+                        <Panel className={cn('h-full', gestionesPrimero && 'order-first')} activa={activo === 'gestiones'} onClick={() => verMas('gestiones')}
                             compacta={activo !== null} resumen={compactas.gestiones} cola={colaVisible}>
                             {esPortador
                                 ? <TusDocumentosInicio resumen={resumenMis} activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')} />
+                                : esTerreno
+                                ? <TusSolicitudesInicio resumen={resumenSol} activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')}
+                                    onNuevo={() => navigate('/consultas?tab=solicitudes')} />
                                 : canRegistrarEntregas
                                 ? <DocumentosInicio resumen={resumenDocs} activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')} />
                                 : ready
@@ -606,13 +632,32 @@ const Dashboard: React.FC = () => {
                 <DetalleModulo icon={FileText} titulo="Tus documentos"
                     descripcion="Lo que tienes que llevar a firmar y devolver a RRHH"
                     accion={{ texto: 'Ir a Documentos físicos', onClick: () => navigate('/consultas?tab=fisicos') }}>
+                    <div className="grid grid-cols-1 gap-6">
+                        <Panel>
+                            {misLotes ? <DetalleTusDocumentos mis={misLotes} onIr={() => navigate('/consultas?tab=fisicos')} /> : <SkeletonText lines={6} />}
+                        </Panel>
+                        {/* El portador que además envía fichas de ingreso ve aquí cómo van. */}
+                        {creaFichas && resumenSol && (
+                            <Panel>
+                                <EncabezadoTarjeta icon={UserPlus} tono={resumenSol.tono} titulo="Tus solicitudes de ingreso" subtitulo="Fichas que enviaste a RRHH" />
+                                <DetalleTusSolicitudes resumen={resumenSol} onIr={() => navigate('/consultas?tab=solicitudes')} />
+                            </Panel>
+                        )}
+                    </div>
+                </DetalleModulo>
+            )}
+
+            {activo === 'gestiones' && esTerreno && (
+                <DetalleModulo icon={UserPlus} titulo="Tus solicitudes de ingreso"
+                    descripcion="Todas tus fichas por estado"
+                    accion={{ texto: 'Ir a Solicitudes', onClick: () => navigate('/consultas?tab=solicitudes') }}>
                     <Panel>
-                        {misLotes ? <DetalleTusDocumentos mis={misLotes} onIr={() => navigate('/consultas?tab=fisicos')} /> : <SkeletonText lines={6} />}
+                        {resumenSol ? <DetalleTusSolicitudes resumen={resumenSol} onIr={() => navigate('/consultas?tab=solicitudes')} /> : <SkeletonText lines={6} />}
                     </Panel>
                 </DetalleModulo>
             )}
 
-            {activo === 'gestiones' && !esPortador && (
+            {activo === 'gestiones' && !esPortador && !esTerreno && (
                 <DetalleModulo icon={SearchCheck} titulo="Gestiones"
                     descripcion={canRegistrarEntregas ? 'El flujo de los documentos físicos y el resto de los pendientes' : 'Pendientes de trabajadores, solicitudes y documentos'}
                     accion={{ texto: 'Ir a Gestiones', onClick: () => navigate('/consultas?tab=inicio') }}>

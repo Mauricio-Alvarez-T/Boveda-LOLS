@@ -597,6 +597,10 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       lista debajo (8 a la vista + «Ver los N») + «Otros pendientes». **Portador** (portar sin registrar):
       su Inicio abre con `TusDocumentosInicio` («Tus documentos»: por entregar, en oficina / en tus manos /
       devueltos esta semana) y su detalle `DetalleTusDocumentos` (lotes con `BarraTenencia`).
+      **Terreno** (crea fichas sin aprobar ni registrar): `TusSolicitudesInicio` («Tus solicitudes de
+      ingreso»: esperando revisión; rechazadas con su motivo, pendientes con sus días, aprobadas de los
+      últimos 30 días; «+ Nuevo ingreso») y su detalle `DetalleTusSolicitudes` en 3 columnas por estado.
+      Portador y terreno ven su tarjeta PRIMERO (también en la barra del celular).
     - **Franja de marca** (`InicioMarca`, propuesta C del lienzo, dueño 2026-10-21): sin detalle abierto, bajo
       las tarjetas, el logo LOLS en grande con saludo por hora («Buenos días, Mauricio») y hasta 4 accesos
       directos según permiso (Marcar asistencia · Nuevo ingreso · Nuevo lote · Pedir materiales). Desde 640 px.
