@@ -597,6 +597,9 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       lista debajo (8 a la vista + «Ver los N») + «Otros pendientes». **Portador** (portar sin registrar):
       su Inicio abre con `TusDocumentosInicio` («Tus documentos»: por entregar, en oficina / en tus manos /
       devueltos esta semana) y su detalle `DetalleTusDocumentos` (lotes con `BarraTenencia`).
+    - **Franja de marca** (`InicioMarca`, propuesta C del lienzo, dueño 2026-10-21): sin detalle abierto, bajo
+      las tarjetas, el logo LOLS en grande con saludo por hora («Buenos días, Mauricio») y hasta 4 accesos
+      directos según permiso (Marcar asistencia · Nuevo ingreso · Nuevo lote · Pedir materiales). Desde 640 px.
     - **Inventario** (`InventarioInicio`, `GET /api/transferencias/inicio`): lo que le toca según el
       perfil —por aprobar y diferencias (aprobador), por despachar / por recibir (bodega), sus solicitudes
       en curso—; cada fila abre Inventario → Solicitudes con su filtro (`?tab=transferencias&estado=`).
