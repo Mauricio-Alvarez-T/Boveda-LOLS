@@ -297,7 +297,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                                     Estado de ausencia
                                 </label>
-                                {/* Compacto: nombre y código en UNA sola línea. 2 columnas en desktop. */}
+                                {/* Compacto: nombre y código en UNA sola línea desde sm: (en el teléfono un nombre largo parte en dos). 2 columnas. */}
                                 <div className="grid grid-cols-2 gap-1.5">
                                     {estadosAusencia.map(est => (
                                         // eslint-disable-next-line no-restricted-syntax -- card selector de estado con color de BD inline (est.color border+bg) y left-align; Button no soporta este patrón
@@ -322,7 +322,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                                 className="w-2 h-2 rounded-full shrink-0"
                                                 style={{ backgroundColor: est.color }}
                                             />
-                                            <span className="text-xs font-semibold text-brand-dark truncate flex-1 min-w-0">
+                                            <span className="text-xs font-semibold text-brand-dark sm:truncate flex-1 min-w-0">
                                                 {est.nombre}
                                             </span>
                                             <span className="text-micro font-bold text-muted-foreground/70 shrink-0">

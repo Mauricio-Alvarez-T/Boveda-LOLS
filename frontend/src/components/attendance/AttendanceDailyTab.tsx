@@ -447,8 +447,9 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                                                         <span className="text-label font-semibold text-brand-dark/65 ml-1.5 lowercase first-letter:uppercase">{worker.nombres}</span>
                                                     </WorkerLink>
                                                     <p className="text-caption text-muted-foreground font-medium mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} className="mr-1 align-middle" />{worker.rut}{worker.cargo_nombre && <> · <span className="text-green-700 dark:text-green-300 font-bold">{worker.cargo_nombre}</span></>}</p>
+                                                    {/* Se lee entero (antes `truncate max-w-[180px]` cortaba las fechas: «(12/10/2026 y 13/…»). */}
                                                     {workerAlerta && (
-                                                        <div className="flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-950/40 border border-red-200/60 dark:border-red-900/60 rounded-lg w-fit"><AlertTriangle className="h-3 w-3 text-red-500 dark:text-red-400 shrink-0" /><span className="text-micro font-bold text-red-700 dark:text-red-300 leading-tight truncate max-w-[180px]">{workerAlerta.alertas[0].mensaje}</span></div>
+                                                        <div className="flex items-start gap-1 mt-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-950/40 border border-red-200/60 dark:border-red-900/60 rounded-lg w-fit max-w-full"><AlertTriangle className="h-3 w-3 text-red-500 dark:text-red-400 shrink-0" /><span className="min-w-0 text-micro font-bold text-red-700 dark:text-red-300 leading-tight break-words">{workerAlerta.alertas[0].mensaje}</span></div>
                                                     )}
                                                 </div>
                                                 {/* eslint-disable-next-line no-restricted-syntax -- botón calendario por fila, tamaño/forma tuneados al grid (h-10 rounded-xl); IconButton fijo regresa layout */}
@@ -696,7 +697,8 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                 )}
             </Modal>
 
-            <div className="md:hidden fixed bottom-6 right-5 z-[900]">
+            {/* Con la ficha rápida abierta (hoja z-61) el botón (z-900) le tapaba la última fila: se oculta. */}
+            {quickViewId === null && <div className="md:hidden fixed bottom-6 right-5 z-[900]">
                 <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={() => { setShowSearchBox(prev => !prev); if (showSearchBox && searchQuery) setSearchQuery(''); }}
@@ -711,7 +713,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                     </AnimatePresence>
                     {!showSearchBox && searchQuery && (<span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 bg-brand-primary rounded-full border-2 border-card" />)}
                 </motion.button>
-            </div>
+            </div>}
         </div>
     );
 };

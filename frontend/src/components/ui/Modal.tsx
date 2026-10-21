@@ -231,15 +231,18 @@ export const Modal: React.FC<ModalProps> = ({
                             <div className="pt-3 pb-2 flex justify-center" onClick={handleClose}>
                                 <div className="w-12 h-1.5 rounded-full bg-muted" />
                             </div>
-                            <div className="flex items-center justify-between px-5 pb-4 pt-1 gap-3">
-                                <div className="flex items-center gap-3 min-w-0">
+                            {/* El título conserva 10rem (`basis-40`): si `headerAction` + cerrar no caben al lado
+                                (ej. Cancelar + Guardar de Vehículos), bajan juntos a su propia línea a la derecha
+                                en vez de partir el título letra por letra. Un solo «Guardar» sigue al lado. */}
+                            <div className="flex flex-wrap items-center justify-between px-5 pb-4 pt-1 gap-3">
+                                <div className="flex items-center gap-3 min-w-0 flex-1 basis-40">
                                     {Icon && <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10"><Icon className="h-5 w-5 text-brand-primary" /></span>}
                                     <div className="min-w-0">
                                         <h3 className="text-lg font-bold text-brand-dark break-words leading-tight">{title}</h3>
                                         {description && <p className="text-caption text-muted-foreground break-words mt-0.5">{description}</p>}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0">
+                                <div className="flex items-center gap-2 shrink-0 ml-auto">
                                     {headerAction}
                                     {/* eslint-disable-next-line no-restricted-syntax -- interno de primitiva: cierre sheet móvil */}
                                     <button

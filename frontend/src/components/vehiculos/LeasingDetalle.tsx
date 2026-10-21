@@ -48,11 +48,13 @@ export const LeasingDetalle: React.FC<Props> = ({ vehiculo, onClose, onEditar })
         <Modal isOpen={!!vehiculo} onClose={onClose} title="Leasing" size="sm"
             description={v ? `${v.patente} · ${v.marca} ${v.modelo ?? ''} ${v.anio ?? ''}`.trim() : undefined}
             footer={
+                // flex-auto (no flex-1): en el teléfono cada botón parte de su ancho natural; con mitades iguales
+                // «Editar leasing» no cabía en 155 px y se partía en dos líneas.
                 <div className="flex gap-3 w-full justify-end">
-                    <Button variant="ghost" onClick={onClose} className="flex-1 md:flex-none">Cerrar</Button>
+                    <Button variant="ghost" onClick={onClose} className="flex-auto sm:flex-1 md:flex-none">Cerrar</Button>
                     {onEditar && v && (
                         <Button variant="outline" onClick={() => onEditar(v)} leftIcon={<Edit2 className="h-4 w-4" />}
-                            className="flex-1 md:flex-none">
+                            className="flex-auto sm:flex-1 md:flex-none">
                             Editar leasing
                         </Button>
                     )}
