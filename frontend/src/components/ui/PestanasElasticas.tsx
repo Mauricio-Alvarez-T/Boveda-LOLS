@@ -138,6 +138,16 @@ interface PestanasElasticasProps<K extends string, T extends { key: K }> {
     titulo?: (opcion: T) => string | undefined;
     /** Contenido de una opción. `sobreIndicador` = la copia blanca que se ve dentro del indicador verde. */
     render: (opcion: T, sobreIndicador: boolean) => React.ReactNode;
+    /**
+     * Estilo extra por opción, igual en la fila y en la copia del indicador (para que calcen al píxel). Lo usa
+     * `BarraPaginada` para repartir el ancho de cada página y marcar dónde empieza cada una.
+     */
+    estiloOpcion?: (indice: number) => React.CSSProperties | undefined;
+    /**
+     * Traer la opción elegida a la vista del scroll horizontal (por defecto sí). `BarraPaginada` lo apaga: ella
+     * mueve la barra de a páginas enteras.
+     */
+    revelar?: boolean;
 }
 
 /**
@@ -170,6 +180,8 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
     colorIndicador,
     titulo,
     render,
+    estiloOpcion,
+    revelar = true,
 }: PestanasElasticasProps<K, T>) {
     const reducir = useReducedMotion();
     const filaRef = useRef<HTMLDivElement>(null);
@@ -238,10 +250,10 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
         // Desde o hacia «ninguna» no hay recorrido que mostrar: aparece o se va en seco.
         if (!fila || fila.offsetWidth === 0 || reducir || desde < 0 || indice < 0) saltar(motor, tramos.current[indice] ?? NADA);
         else viajar(motor, tramos.current[indice]);
-        if (fila && fila.offsetWidth > 0 && indice >= 0) {
+        if (revelar && fila && fila.offsetWidth > 0 && indice >= 0) {
             mostrarOpcion(fila, fila.querySelectorAll<HTMLElement>(':scope > [role="tab"]')[indice], !reducir);
         }
-    }, [indice, reducir, motor]);
+    }, [indice, reducir, motor, revelar]);
 
     useEffect(() => () => detener(motor), [motor]);
 
@@ -250,7 +262,7 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
     // arriba no lo hace porque al montar no hay cambio de pestaña (Marcos 2026-10-21).
     useEffect(() => {
         const fila = filaRef.current;
-        if (fila && fila.offsetWidth > 0 && indice >= 0) {
+        if (revelar && fila && fila.offsetWidth > 0 && indice >= 0) {
             mostrarOpcion(fila, fila.querySelectorAll<HTMLElement>(':scope > [role="tab"]')[indice], false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar
@@ -281,6 +293,7 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
                     onKeyDown={e => alTeclear(e, i)}
                     // `text-center` en ambas filas: el botón lo trae del navegador y el span no.
                     className={clsx(claseOpcion, 'text-center transition-colors', i !== indice && claseInactiva)}
+                    style={estiloOpcion?.(i)}
                 >
                     {render(opcion, false)}
                 </button>
@@ -297,8 +310,8 @@ export function PestanasElasticas<K extends string, T extends { key: K }>({
                 )}
                 style={{ clipPath, backgroundColor: colorIndicador }}
             >
-                {opciones.map(opcion => (
-                    <span key={opcion.key} className={clsx(claseOpcion, 'text-center')}>
+                {opciones.map((opcion, i) => (
+                    <span key={opcion.key} className={clsx(claseOpcion, 'text-center')} style={estiloOpcion?.(i)}>
                         {render(opcion, true)}
                     </span>
                 ))}

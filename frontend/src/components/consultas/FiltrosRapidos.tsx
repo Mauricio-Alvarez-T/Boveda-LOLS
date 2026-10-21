@@ -16,8 +16,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 
 import { Button } from '../ui/Button';
-import { BordeScroll } from '../ui/BordeScroll';
-import { useBordesScroll } from '../../hooks/useBordesScroll';
+import { BarraPaginada } from '../ui/BarraPaginada';
 import { cn } from '../../utils/cn';
 
 export interface FiltroRapido {
@@ -41,9 +40,6 @@ const TONOS = {
 } as const;
 
 export const FiltrosRapidos: React.FC<{ filtros: FiltroRapido[] }> = ({ filtros }) => {
-    // Degradado en el borde por donde quedan atajos escondidos (diseno.md §9): sin él, en el celular la
-    // pista se veía cortada a la mitad, como un botón sin terminar (Marcos 2026-10-21).
-    const { ref: refPista, antes, despues } = useBordesScroll<HTMLDivElement>(filtros.map(f => `${f.id}:${f.activo}`).join(','));
     if (!filtros.length) return null;
     return (
         // Viven DENTRO de la barra de la cabecera de la grilla (2026-09-16), donde antes había hueco
@@ -51,14 +47,17 @@ export const FiltrosRapidos: React.FC<{ filtros: FiltroRapido[] }> = ({ filtros 
         // que se desliza cuando no caben, y sin rótulo "Atajos" (el contexto de la barra ya lo dice).
         // Formato único de menús (dueño 2026-10-16): pista rectangular y opciones `rounded-xl`, no
         // pastillas ovaladas. Se pueden encender varios a la vez, así que no hay indicador elástico.
-        <div className="relative min-w-0">
-        <div ref={refPista} className="overflow-x-auto scrollbar-none">
-        <div className="flex w-max flex-nowrap items-center gap-1 rounded-2xl bg-muted p-1">
-            {filtros.map(f => {
+        // Si no caben (celular): de a páginas con flechas, sin atajos cortados (ui/BarraPaginada, Marcos 2026-10-21).
+        <div className="flex w-fit min-w-0 max-w-full rounded-2xl bg-muted p-1">
+        <BarraPaginada fondo="muted" selector="[data-atajo]" className="flex-1">{p => (
+        <div className="flex shrink-0 flex-nowrap items-center gap-1">
+            {filtros.map((f, i) => {
                 const Icon = f.icon;
                 return (
                     <Button
                         key={f.id}
+                        data-atajo
+                        style={p.estiloOpcion(i)}
                         size="sm"
                         variant="ghost"
                         aria-pressed={f.activo}
@@ -76,10 +75,7 @@ export const FiltrosRapidos: React.FC<{ filtros: FiltroRapido[] }> = ({ filtros 
                 );
             })}
         </div>
-        </div>
-        {/* La barra de la grilla es bg-card: el degradado sale de `card` y se funde en ambos temas. */}
-        <BordeScroll lado="inicio" visible={antes} />
-        <BordeScroll lado="fin" visible={despues} />
+        )}</BarraPaginada>
         </div>
     );
 };

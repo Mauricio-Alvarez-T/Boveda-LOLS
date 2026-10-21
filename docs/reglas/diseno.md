@@ -412,12 +412,19 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    tamaño del contenedor). `medirCuando` es la identidad del contenido (los ids de los chips, no la
    cantidad) y vuelve a cablear el observer para los hijos nuevos. Referencia: la franja de chips mobile de
    `AttendanceSummaryRow`. Prohibido apilar `backdrop-filter` o usar `mask-image` (§8.9).
-   **Barras de PESTAÑAS que se deslizan (celular): `ui/FlechaScroll`** (Marcos 2026-10-21: «SOLICIT…» cortada
-   no decía que se podía deslizar). Es el mismo degradado con un círculo y una flecha encima; tocarla avanza la
-   barra 60 % de su ancho y se apaga al llegar al extremo. `fondo="card" | "muted"` según la barra. Va en las
-   pestañas de Inventario y de Solicitudes de ingreso; para chips sueltos basta `BordeScroll` (atajos de la
-   grilla de Trabajadores, que en el celular van en su propia fila). `PestanasElasticas` además muestra la
-   pestaña elegida al montar, sin animar, si quedó fuera de la vista.
+   **Barras de opciones que no caben (celular): `ui/BarraPaginada`** (Marcos 2026-10-21: «los títulos quedan
+   por la mitad»; reemplazó a la flecha superpuesta del mismo día). Nunca una palabra cortada en el borde: la
+   barra va de a PÁGINAS que muestran solo opciones enteras y reparten el espacio que sobra entre ellas
+   (`utils/paginasBarra.ts`, con tests); las flechas van cada una en su espacio a los costados (no encima del
+   texto), pasan de página y se apagan en el extremo; el dedo también pasa de página (imán del scroll). Si todo
+   cabe no hay flechas ni páginas. La pestaña elegida queda siempre a la vista (la barra pasa sola a su
+   página). Uso con `PestanasElasticas`: `<BarraPaginada>{p => <PestanasElasticas … estiloOpcion={p.estiloOpcion}
+   revelar={p.revelar} />}</BarraPaginada>`; con botones sueltos, `selector="[data-…]"` y `style={p.estiloOpcion(i)}`
+   en cada uno. El marco de la barra (`bg-card`/`bg-muted`, `p-1`) va AFUERA, con `w-fit min-w-0 max-w-full`,
+   para que no se deslice con las opciones. Hoy: pestañas y estados de Inventario, Solicitudes de ingreso,
+   atajos de Trabajadores, «Crear» de Gestiones, Ideas (estado y tipo), Presupuestos (vistas, pestañas de la
+   obra, Gastos, meses), Centro de ayuda, empresas de Vehículos y categorías del catálogo de movimientos.
+   `BordeScroll` queda para chips cortos que no son opciones a elegir (resumen de Asistencia).
 7. **Wizards:** el conector se llena con `scale-x` desde `origin-left` en 200 ms (al volver se vacía
    hacia la izquierda; nunca `width`). El paso entra ±12 px desde el lado hacia el que se avanza, en
    150 ms, con UN solo `motion.div` con `key={paso}`, sin `AnimatePresence`, sin `exit`, sin

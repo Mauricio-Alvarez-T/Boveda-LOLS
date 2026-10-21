@@ -8,8 +8,7 @@ import { flagOff } from '../utils/flags';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
-import { useBordesScroll } from '../hooks/useBordesScroll';
-import { FlechaScroll } from '../components/ui/FlechaScroll';
+import { BarraPaginada } from '../components/ui/BarraPaginada';
 import { useInventarioData } from '../hooks/inventario/useInventarioData';
 import { useBodegaVirtualModo } from '../hooks/inventario/useBodegaVirtualModo';
 import BodegaVirtualToggle from '../components/inventario/BodegaVirtualToggle';
@@ -194,10 +193,6 @@ const InventarioPage: React.FC = () => {
         () => tabs.filter(t => !t.requiresPerm || hasPermission(t.requiresPerm)),
         [hasPermission]
     );
-    // Barra del celular: ¿quedan pestañas escondidas a un lado? Ahí va una flecha (Marcos 2026-10-21: «SOLICIT…»
-    // cortada no decía que la barra se desliza).
-    const { ref: refPestanasMovil, antes: pestanasAntes, despues: pestanasDespues } =
-        useBordesScroll<HTMLDivElement>(visibleTabs.map(t => t.key).join(','));
 
     // Si el activeTab actual queda sin permiso (por cambio de overrides o
     // ingreso a un módulo sin la tab por defecto), saltar al primer tab
@@ -297,8 +292,10 @@ const InventarioPage: React.FC = () => {
                 {/* ── Mobile: compacto vertical (ícono pequeño + label corto) ──
                     `text-base` (16 px) es el tamaño que siempre se vio: los `text-micro`/`text-caption` que había
                     los borraba `cn()` (antes de que utils/cn.ts conociera los tamaños propios) y el texto heredaba 16 px. */}
-                <div className="relative md:hidden">
-                <div ref={refPestanasMovil} className="flex items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
+                {/* Sin palabras cortadas (Marcos 2026-10-21): la barra va de a páginas con flechas a los
+                    costados (ui/BarraPaginada). El selector de bodega virtual queda fuera, siempre a la vista. */}
+                <div className="flex md:hidden items-center gap-1 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shadow-sm">
+                <BarraPaginada className="flex-1">{p => (
                     <PestanasElasticas
                         opciones={visibleTabs}
                         activa={activeTab}
@@ -307,6 +304,8 @@ const InventarioPage: React.FC = () => {
                         claseFila="gap-0.5"
                         claseOpcion="flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-2.5 shrink-0"
                         claseInactiva="text-muted-foreground"
+                        estiloOpcion={p.estiloOpcion}
+                        revelar={p.revelar}
                         render={(tab) => {
                             const TabIcon = tab.icon;
                             return (
@@ -319,12 +318,10 @@ const InventarioPage: React.FC = () => {
                             );
                         }}
                     />
+                )}</BarraPaginada>
                     {showVirtualToggle && (
-                        <BodegaVirtualToggle modo={bodegaVirtualModo} onCycle={cycleBodegaVirtual} className="ml-1" />
+                        <BodegaVirtualToggle modo={bodegaVirtualModo} onCycle={cycleBodegaVirtual} className="shrink-0" />
                     )}
-                </div>
-                <FlechaScroll lado="inicio" visible={pestanasAntes} scrollRef={refPestanasMovil} />
-                <FlechaScroll lado="fin" visible={pestanasDespues} scrollRef={refPestanasMovil} />
                 </div>
                 {/* ── Desktop: horizontal compacto (mismo estilo que Configuración) ── */}
                 <div className="hidden md:flex items-center gap-1 p-2 bg-card/80 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">

@@ -3,6 +3,7 @@ import { ChevronRight, TrendingDown, TrendingUp } from 'lucide-react';
 import { Section } from '../ui/Section';
 import { Chip } from '../ui/Chip';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
+import { BarraPaginada } from '../ui/BarraPaginada';
 import { fmtMoney, fmtNumber } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import { CATEGORIAS, GRUPOS_CATEGORIA, netoGasto, nombreMes } from './costosConfig';
@@ -134,12 +135,14 @@ export const GastosMesAMes: React.FC<{ gastos: CostoGasto[]; onDetalle: (v: Vist
             ) : null}
 
             <div className={cn('flex flex-col gap-3', modo === 'tabla' && 'md:hidden')}>
-                <div className="flex items-center overflow-x-auto -mx-1 px-1 [scrollbar-width:none]">
-                    <div className="flex shrink-0 rounded-2xl border border-border bg-card p-1">
-                        <PestanasElasticas opciones={opcionesMes} activa={elegido} onCambiar={setMes} aria-label="Mes"
+                <div className="flex items-center min-w-0">
+                    <div className="flex w-fit min-w-0 max-w-full rounded-2xl border border-border bg-card p-1">
+                    <BarraPaginada>{p => (
+                        <PestanasElasticas estiloOpcion={p.estiloOpcion} revelar={p.revelar} opciones={opcionesMes} activa={elegido} onCambiar={setMes} aria-label="Mes"
                             claseFila="gap-1"
                             claseOpcion="inline-flex h-9 shrink-0 items-center justify-center rounded-xl px-3 text-sm font-medium whitespace-nowrap"
                             claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark" render={o => o.label} />
+                    )}</BarraPaginada>
                     </div>
                 </div>
 

@@ -7,6 +7,7 @@ import { EstadoPill } from '../components/ideas/Meta';
 import { EmptyState } from '../components/ui/EmptyState';
 import { SearchBar } from '../components/ui/SearchBar';
 import { PestanasElasticas } from '../components/ui/PestanasElasticas';
+import { BarraPaginada } from '../components/ui/BarraPaginada';
 import { IdeaDetalle } from '../components/ideas/IdeaDetalle';
 import { ProponerMejoraModal } from '../components/ideas/ProponerMejoraModal';
 import { Button } from '../components/ui/Button';
@@ -158,9 +159,10 @@ const IdeasPage: React.FC = () => {
             {/* Filtros */}
             {/* En el celular cada fila se desliza de lado en vez de apilarse en tres pisos. */}
             <div className={cn('flex flex-col md:flex-row md:items-center gap-2 md:gap-3', verDetalleMovil && 'hidden lg:flex')}>
-                <div className="flex items-center overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0 [scrollbar-width:none]">
-                    <div className="flex shrink-0 rounded-2xl border border-border bg-card p-1">
-                    <PestanasElasticas
+                <div className="flex items-center min-w-0">
+                    <div className="flex w-fit min-w-0 max-w-full rounded-2xl border border-border bg-card p-1">
+                    <BarraPaginada>{p => (
+                    <PestanasElasticas estiloOpcion={p.estiloOpcion} revelar={p.revelar}
                         opciones={FILTROS}
                         activa={filtro}
                         onCambiar={setFiltro}
@@ -175,11 +177,13 @@ const IdeasPage: React.FC = () => {
                             </>
                         )}
                     />
+                    )}</BarraPaginada>
                     </div>
                 </div>
-                <div className="flex items-center overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0 md:ml-auto [scrollbar-width:none]">
-                    <div className="flex shrink-0 rounded-2xl border border-border bg-card p-1">
-                        <PestanasElasticas
+                <div className="flex items-center md:ml-auto min-w-0">
+                    <div className="flex w-fit min-w-0 max-w-full rounded-2xl border border-border bg-card p-1">
+                    <BarraPaginada>{p => (
+                        <PestanasElasticas estiloOpcion={p.estiloOpcion} revelar={p.revelar}
                             opciones={OPCIONES_TIPO}
                             activa={tipo}
                             onCambiar={setTipo}
@@ -197,6 +201,7 @@ const IdeasPage: React.FC = () => {
                                 );
                             }}
                         />
+                    )}</BarraPaginada>
                     </div>
                 </div>
                 <SearchBar value={busqueda} onChange={setBusqueda} placeholder="Buscar idea, persona, pantalla…" className="md:w-64" />

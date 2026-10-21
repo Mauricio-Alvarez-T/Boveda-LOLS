@@ -13,6 +13,7 @@ import { JOURNEYS, type JourneyDef } from '../components/ayuda/journey/journeys'
 import { textoBusqueda } from '../components/ayuda/journey/buscarJourneys';
 import { useTutorialProgreso } from '../hooks/ayuda/useTutorialProgreso';
 import { PestanasElasticas } from '../components/ui/PestanasElasticas';
+import { BarraPaginada } from '../components/ui/BarraPaginada';
 
 /** Clave de «Todas» en la fila de categorías (ningún módulo se llama así). */
 const TODAS = '__todas';
@@ -183,9 +184,10 @@ const CentroAyuda: React.FC = () => {
                         className="w-full h-11 pl-9 pr-3 text-sm bg-card border border-input rounded-control outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary"
                     />
                 </div>
-                <div className="overflow-x-auto scrollbar-none">
-                    <div className="flex w-max rounded-2xl border border-border bg-card p-1">
-                        <PestanasElasticas
+                <div className="min-w-0">
+                    <div className="flex w-fit min-w-0 max-w-full rounded-2xl border border-border bg-card p-1">
+                    <BarraPaginada>{p => (
+                        <PestanasElasticas estiloOpcion={p.estiloOpcion} revelar={p.revelar}
                             opciones={opcionesCat}
                             activa={cat ?? TODAS}
                             onCambiar={(k) => setCat(k === TODAS ? null : k)}
@@ -199,6 +201,7 @@ const CentroAyuda: React.FC = () => {
                                 return `${o.key}${cp && cp.disp > 0 ? ` · ${cp.comp}/${cp.disp}` : ''}`;
                             }}
                         />
+                    )}</BarraPaginada>
                     </div>
                 </div>
             </div>

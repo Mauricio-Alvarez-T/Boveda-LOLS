@@ -1,6 +1,7 @@
 import React from 'react';
 import { crearItems } from './crearItems';
 import { Button } from '../ui/Button';
+import { BarraPaginada } from '../ui/BarraPaginada';
 
 interface CreatePanelProps {
     hasPermission: (perm: string) => boolean;
@@ -23,12 +24,17 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
     if (visible.length === 0) return null;
 
     return (
-        <div className="flex items-center gap-1 p-2 bg-card/80 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
-            {visible.map(item => {
+        // Si no caben (celular): de a páginas con flechas, sin botones cortados (ui/BarraPaginada, Marcos 2026-10-21).
+        <div className="flex items-center p-2 bg-card/80 backdrop-blur-xl rounded-2xl border border-border shadow-sm">
+        <BarraPaginada selector="[data-crear]" className="flex-1">{p => (
+        <div className="flex shrink-0 items-center gap-1">
+            {visible.map((item, i) => {
                 const Icon = item.icon;
                 return (
                     <Button
                         key={item.label}
+                        data-crear
+                        style={p.estiloOpcion(i)}
                         variant="ghost"
                         size="sm"
                         onClick={item.onClick}
@@ -40,6 +46,8 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
                     </Button>
                 );
             })}
+        </div>
+        )}</BarraPaginada>
         </div>
     );
 };

@@ -2,11 +2,13 @@ import React from 'react';
 import { Clock, CheckCircle2, PackageCheck, AlertTriangle, LayoutGrid, History } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
+import { BarraPaginada } from '../ui/BarraPaginada';
 
 /**
  * Filtro de estado de Transferencias — SIEMPRE visible, sin desplegable.
  * Formato único de menús (dueño 2026-10-16): `PestanasElasticas` en una sola fila
- * (con scroll horizontal si no cabe); «Diferencias» activo va en rojo.
+ * (con scroll horizontal si no cabe); «Diferencias» activo va en rojo. En el celular no cabe: va de a páginas
+ * con flechas a los costados, sin nombres cortados (ui/BarraPaginada, Marcos 2026-10-21).
  */
 
 const STATUS_CHIPS: { value: string; label: string; icon: React.ElementType; discrepancia?: boolean }[] = [
@@ -39,7 +41,8 @@ const StatusFilterBar: React.FC<Props> = ({
     const chips = STATUS_CHIPS.filter(c => c.value !== 'discrepancias' || canVerDiscrepancias);
 
     return (
-        <div className={cn('flex shrink-0 rounded-2xl bg-muted p-1', className)}>
+        <div className={cn('flex w-fit min-w-0 max-w-full rounded-2xl bg-muted p-1', className)}>
+            <BarraPaginada fondo="muted" className="flex-1">{p => (
             <PestanasElasticas
                 opciones={chips.map(c => ({ ...c, key: c.value }))}
                 activa={active}
@@ -53,6 +56,8 @@ const StatusFilterBar: React.FC<Props> = ({
                 // «Diferencias» se marca en rojo: el color es el significado (diseno.md §9.12).
                 claseIndicador={active === 'discrepancias' ? 'bg-red-600 text-white' : undefined}
                 titulo={c => c.label}
+                estiloOpcion={p.estiloOpcion}
+                revelar={p.revelar}
                 render={(c, sobreIndicador) => {
                     const Icon = c.icon;
                     return (
@@ -69,6 +74,7 @@ const StatusFilterBar: React.FC<Props> = ({
                     );
                 }}
             />
+            )}</BarraPaginada>
         </div>
     );
 };
