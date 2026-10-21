@@ -773,7 +773,10 @@ firma en la obra (papel) → el portador devuelve los firmados → RRHH recibe.
   **Ventana al iniciar sesión** (`AlertaAtrasosAlEntrar`, `GET /documentos-lotes/atrasados`): en CADA inicio
   de sesión mientras haya lotes atrasados —RRHH ve todos con su portador; el portador, solo los suyos—, con
   los documentos aún en terreno. La marca `sgdl_recien_ingreso` (sessionStorage, la pone `login`) evita que
-  se repita al recargar. Las alertas B7 (umbrales configurables, días corridos) siguen aparte.
+  se repita al recargar. **Las alertas B7 se alinearon (2026-10-21)**: todo lo EN TERRENO —el lote
+  (LOTE_EN_TERRENO) y sus documentos— alerta por esta tenencia (aviso el día 4, crítico desde el 5; `dias`
+  = día hábil), ignorando los umbrales por tipo y los días de LOTE_EN_TERRENO (su interruptor `activo` sí
+  vale; Configuración la muestra como regla fija). Las otras etapas siguen en días corridos con sus umbrales.
 - **Velocidad neta**: RRHH 2 acciones por viaje (crear lote / registrar recepción), portador 1 tap, el
   trabajador no toca nada. Los umbrales de alerta viven en B7 (sección siguiente).
 

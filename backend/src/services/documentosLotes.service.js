@@ -22,6 +22,7 @@ const logger = require('../utils/logger-structured');
 const { hasCols } = require('../utils/schema');
 const { hoyChile, sumarDias } = require('../utils/fechaChile');
 const { tenencia, MAX_DIAS_HABILES_TERRENO } = require('../utils/tenenciaTerreno');
+const { feriadosEntre } = require('../utils/feriadosSet');
 
 const httpError = (msg, statusCode, extra = {}) => Object.assign(new Error(msg), { statusCode, ...extra });
 const ERR_ESQUEMA = new Set([1146, 1054]);
@@ -114,22 +115,12 @@ function proyectarLote(r, ctx = null) {
     };
 }
 
-/** Feriados activos entre dos fechas, como Set de 'YYYY-MM-DD'. Sin la tabla: vacío (cuentan solo los fines de semana). */
-async function _feriados(desde, hasta) {
-    try {
-        const [rows] = await db.query("SELECT DATE_FORMAT(fecha, '%Y-%m-%d') AS f FROM feriados WHERE activo = 1 AND fecha BETWEEN ? AND ?", [desde, hasta]);
-        return new Set((rows || []).map(r => r.f));
-    } catch (err) {
-        logger.warn('No se pudieron leer los feriados para la tenencia en terreno', { err: err.message });
-        return new Set();
-    }
-}
 
 /** Contexto de tenencia para un grupo de filas: hoy (Chile) y los feriados desde el retiro más antiguo. */
 async function _ctxTenencia(rows) {
     const hoy = hoyChile();
     const dias = (rows || []).filter(r => r.estado === 'en_terreno' && r.retirado_dia).map(r => r.retirado_dia).sort();
-    return { hoy, feriados: dias.length ? await _feriados(dias[0], sumarDias(hoy, 60)) : new Set() };
+    return { hoy, feriados: dias.length ? await feriadosEntre(dias[0], sumarDias(hoy, 60)) : new Set() };
 }
 
 function proyectarItem(r) {

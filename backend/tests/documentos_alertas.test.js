@@ -212,3 +212,39 @@ describe('GET /mios — cartel de atrasos del portador (supervisor), 2026-10-19'
         await expect(service.misAtrasos(7)).resolves.toEqual({ documentos: { total: 0, criticos: 0, items: [] }, lotes: { sin_retirar: [], en_terreno: [] }, por_devolver: 0 });
     });
 });
+
+describe('B7 alineado con la tenencia de 4 días hábiles (jefatura 2026-10-21)', () => {
+    const { evaluar } = service._interno;
+    const ctx = { hoy: '2026-10-23', feriados: new Set() }; // viernes 23
+    afterEach(() => jest.useRealTimers());
+
+    test('en terreno: avisa el día 4 (último), crítico desde el 5; antes no alerta; ignora los umbrales por tipo', () => {
+        const umbral = { dias_aviso: 1, dias_critico: 2 };
+        expect(evaluar({ estado: 'en_terreno', retirado_dia: '2026-10-21', dias: 30 }, umbral, ctx)).toBeNull(); // día 3
+        expect(evaluar({ estado: 'en_terreno', retirado_dia: '2026-10-20', dias: 30 }, umbral, ctx)).toEqual({ dias: 4, critical: false, dias_aviso: 4, dias_critico: 5 });
+        expect(evaluar({ estado: 'en_terreno', retirado_dia: '2026-10-19', dias: 0 }, umbral, ctx)).toEqual({ dias: 5, critical: true, dias_aviso: 4, dias_critico: 5 });
+    });
+
+    test('fuera de terreno: días corridos contra sus umbrales, como antes', () => {
+        const umbral = { dias_aviso: 3, dias_critico: 7 };
+        expect(evaluar({ estado: 'descargado', dias: 2 }, umbral, ctx)).toBeNull();
+        expect(evaluar({ estado: 'descargado', dias: 3 }, umbral, ctx)).toMatchObject({ dias: 3, critical: false });
+        expect(evaluar({ estado: 'pendiente_retiro', dias: 7 }, umbral, ctx)).toMatchObject({ critical: true });
+    });
+
+    test('pendientes(): el documento y el lote en terreno usan la tenencia; el SQL ya no filtra en terreno por días', async () => {
+        jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+        jest.setSystemTime(new Date('2026-10-23T15:00:00Z'));
+        expect(service._interno.SELECT_DOCS).toMatch(/d\.estado = 'en_terreno' OR DATEDIFF/);
+        db.query.mockReset()
+            .mockResolvedValueOnce([[{ id: 1, estado: 'en_terreno', lote_id: 5, lote_estado: 'en_terreno', retirado_dia: '2026-10-19', dias: 1, dias_aviso: 10, dias_critico: 20, tipo_codigo: 'DAS', tipo_nombre: 'DAS', nombres: 'Ana', apellido_paterno: 'Pérez' },
+                { id: 2, estado: 'en_terreno', lote_id: 6, lote_estado: 'en_terreno', retirado_dia: '2026-10-22', dias: 40, dias_aviso: 10, dias_critico: 20, tipo_codigo: 'DAS', tipo_nombre: 'DAS', nombres: 'Luis', apellido_paterno: 'Soto' }]])
+            .mockResolvedValueOnce([[{ id: 5, estado: 'en_terreno', retirado_dia: '2026-10-19', dias: 4, documentos: 1 }]])
+            .mockResolvedValueOnce([[{ categoria: 'LOTE_EN_TERRENO', activo: 1, dias_aviso: 30, dias_critico: 60 }]])
+            .mockResolvedValue([[]]);
+        const out = await service.pendientes();
+        expect(out.items.map(i => [i.documento_id, i.dias, i.critical])).toEqual([[1, 5, true]]);
+        expect(out.por_etapa.en_terreno).toEqual({ total: 1, criticos: 1 });
+        expect(out.lotes.en_terreno).toMatchObject({ total: 1, criticos: 1, items: [{ lote_id: 5, dias: 5, critical: true }] });
+    });
+});
