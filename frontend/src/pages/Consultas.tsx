@@ -59,6 +59,7 @@ import { GestionesInicio } from '../components/consultas/GestionesInicio';
 import { SECCION_LABEL, type SeccionGestiones } from '../components/consultas/gestionesNav';
 import { TrabajadoresGrilla } from '../components/consultas/TrabajadoresGrilla';
 import { BuscadorTrabajadores } from '../components/consultas/BuscadorTrabajadores';
+import { ObraSelector } from '../components/layout/ObraSelector';
 import { indexar, tokenizar, coincide, ranking } from '../utils/busquedaTrabajadores';
 import { FiltrosRapidos, type FiltroRapido } from '../components/consultas/FiltrosRapidos';
 import { mesEnCurso, ultimosDias } from '../components/consultas/rangosFecha';
@@ -107,10 +108,12 @@ const VolverAGestiones: React.FC<{ seccion: SeccionGestiones; onVolver: () => vo
  * píldora verde «‹ Documentos físicos» que vuelve a la portada de Gestiones. Reemplaza la fila «← Gestiones»
  * sobre la sección y gana su alto.
  */
+// Compacta (Marcos 2026-10-21: «achicar los botones»): con los cuatro botones de la grilla de Trabajadores no
+// cabía y se montaba sobre el «+» en celulares de 360–393 px.
 const SeccionEnCurso: React.FC<{ titulo: string; onVolver: () => void }> = ({ titulo, onVolver }) => (
     // eslint-disable-next-line no-restricted-syntax -- píldora del encabezado
     <button type="button" onClick={onVolver} aria-label={`${titulo}: volver a Gestiones`}
-        className="inline-flex h-9 max-w-full items-center gap-1.5 rounded-full bg-green-700 pl-2.5 pr-4 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(21,128,61,0.30)] transition-colors duration-200 hover:bg-green-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-700/40 focus-visible:ring-offset-2 motion-reduce:transition-none dark:bg-green-600 dark:hover:bg-green-700">
+        className="inline-flex h-9 max-w-full items-center gap-1 rounded-full bg-green-700 pl-2 pr-3 text-section font-semibold text-white shadow-[0_4px_12px_rgba(21,128,61,0.30)] transition-colors duration-200 hover:bg-green-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-700/40 focus-visible:ring-offset-2 motion-reduce:transition-none dark:bg-green-600 dark:hover:bg-green-700">
         <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden />
         <span className="break-words text-left leading-tight">{titulo}</span>
     </button>
@@ -514,7 +517,9 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
             {/* Mobile Actions — icon-buttons del DS: gris idle → verde hover, sin
                 relleno activo. El estado se indica por el icono (Plus rota, Filter↔X,
                 Filter↔X) y el badge, no por el color de fondo. */}
-            <div className="md:hidden flex items-center gap-2">
+            {/* Botones de 40 px (36 bajo 370 px) en vez de 44 (Marcos 2026-10-21, «achicar los botones»): con la
+                píldora de la sección no cabían en un celular de 360–393 px. `[&>*]` pisa el tamaño de IconButton. */}
+            <div className="md:hidden flex items-center gap-1 [&>button]:h-10 [&>button]:w-10 max-[369px]:[&>button]:h-9 max-[369px]:[&>button]:w-9">
                 {conCrear && (
                 <IconButton
                     variant="ghost"
@@ -559,11 +564,12 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
 
     useSetPageHeader(headerTitle, headerActions);
     // Celular: la sección en curso va al centro del encabezado. Documentos físicos no depende de la obra:
-    // oculta el selector para que la píldora tenga el ancho.
+    // oculta el selector para que la píldora tenga el ancho. En la grilla de Trabajadores el selector baja a
+    // la fila del buscador (Marcos 2026-10-21: arriba se veía todo amontonado).
     const centroMovil = useMemo(() => (conSwitcher && seccion && seccion !== 'inicio'
         ? <SeccionEnCurso titulo={SECCION_LABEL[seccion]} onVolver={() => irASeccion('inicio')} />
         : null), [conSwitcher, seccion, irASeccion]);
-    useSetCentroMovil(centroMovil, { ocultarObra: seccion === 'fisicos' });
+    useSetCentroMovil(centroMovil, { ocultarObra: seccion === 'fisicos' || (esGrilla && !conRail) });
 
     // Los mismos controles para el rail (desktop) y la hoja (móvil): se instancian UNA vez y se montan
     // en el sitio que corresponda al ancho. Nunca los dos a la vez (antes sí, y duplicaba aria-labels).
@@ -620,12 +626,16 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
             {/* Buscador móvil. Se renderiza SOLO acá o SOLO en el header, nunca en los dos (regla §8.3):
                 dos instancias tendrían dos textos locales y se desincronizarían al girar el teléfono. */}
             {esGrilla && !conRail && (
-                <BuscadorTrabajadores
-                    key={resetBusqueda}
-                    obtenerValorInicial={leerBusquedaInicial}
-                    onCambio={publicarBusqueda}
-                    className="relative shrink-0"
-                />
+                <div className="flex shrink-0 items-center gap-2">
+                    <BuscadorTrabajadores
+                        key={resetBusqueda}
+                        obtenerValorInicial={leerBusquedaInicial}
+                        onCambio={publicarBusqueda}
+                        className="relative min-w-0 flex-1"
+                    />
+                    {/* El selector de obra, al lado del buscador (en el encabezado se oculta: ocultarObra). */}
+                    <ObraSelector />
+                </div>
             )}
 
             {/* Panel Crear. Los filtros ya no viven acá: se fueron al rail lateral, que no le quita alto

@@ -10,6 +10,13 @@ import { Menu, Smartphone } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import { useAuth } from '../../context/AuthContext';
 
+/**
+ * Secciones que no dependen de la obra elegida: en el celular no muestran el selector «Obra» del encabezado
+ * (Marcos 2026-10-21: «acá no es necesario su uso»), así la barra respira. En el computador sigue visible.
+ * Las demás páginas pueden ocultarlo igual con `useSetCentroMovil(…, { ocultarObra: true })`.
+ */
+const SIN_OBRA_EN_CELULAR = ['/configuracion', '/ideas', '/ayuda', '/costos', '/obras-finalizadas', '/vehiculos'];
+
 export const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -89,8 +96,8 @@ export const MainLayout: React.FC = () => {
                         )}
 
                         <div className="hidden md:block h-6 w-px bg-border mx-1" />
-                        {/* Una página que no depende de la obra puede ocultarlo en el celular (useSetCentroMovil). */}
-                        <div className={ocultarObraMovil ? 'hidden md:contents' : 'contents'}><ObraSelector /></div>
+                        {/* Una página que no depende de la obra lo oculta en el celular (lista de arriba o useSetCentroMovil). */}
+                        <div className={ocultarObraMovil || SIN_OBRA_EN_CELULAR.some(r => location.pathname.startsWith(r)) ? 'hidden md:contents' : 'contents'}><ObraSelector /></div>
                     </div>
                 </header>
 
