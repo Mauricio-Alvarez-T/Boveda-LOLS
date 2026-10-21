@@ -59,8 +59,9 @@ const TarjetaPendientes: React.FC<Props> = ({ icon, titulo, subtitulo, items, to
                             >
                                 <Icono className={cn('mt-0.5 h-4 w-4 shrink-0', sobreVerde ? (it.severity === 'info' ? 'text-white' : 'text-yellow-300') : COLOR[it.severity])} aria-hidden />
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-semibold text-foreground truncate">{it.title}</p>
-                                    {it.description && <p className="text-xs text-muted-foreground truncate">{it.description}</p>}
+                                    {/* Sin «…»: los pendientes (documentos físicos incluidos) se leen enteros. */}
+                                    <p className="text-sm font-semibold text-foreground break-words">{it.title}</p>
+                                    {it.description && <p className="text-xs text-muted-foreground break-words">{it.description}</p>}
                                 </div>
                             </button>
                         );

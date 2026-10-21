@@ -32,9 +32,11 @@ export const EncabezadoTarjeta: React.FC<EncabezadoProps> = ({ icon: Icon, tono 
             <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors duration-200', activa ? ICONO_SOBRE_VERDE[tono] : CIRCULO_TARJETA[tono])}>
                 <Icon className="h-5 w-5" aria-hidden />
             </span>
+            {/* Título y subtítulo parten línea, nunca «…» (dueño 2026-10-21: «Documentos físicos fuera de
+                plazo» se cortaba en el teléfono). */}
             <div className="min-w-0">
-                <h3 className="text-base font-semibold text-foreground truncate">{titulo}</h3>
-                {subtitulo && <p className="text-caption text-muted-foreground truncate">{subtitulo}</p>}
+                <h3 className="text-base font-semibold text-foreground break-words">{titulo}</h3>
+                {subtitulo && <p className="text-caption text-muted-foreground break-words">{subtitulo}</p>}
             </div>
         </div>
         {extra}

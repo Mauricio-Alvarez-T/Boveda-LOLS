@@ -89,8 +89,8 @@ const Row: React.FC<{ icon: React.ElementType; color: string; title: string; des
         >
             <Icon className={cn('h-4 w-4 shrink-0', color)} />
             <div className="flex-1 min-w-0">
-                <p className="text-sm text-foreground leading-snug truncate">{title}</p>
-                {description && <p className="text-caption text-muted-foreground truncate">{description}</p>}
+                <p className="text-sm text-foreground leading-snug break-words">{title}</p>
+                {description && <p className="text-caption text-muted-foreground break-words">{description}</p>}
             </div>
             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
         </div>

@@ -142,7 +142,8 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-[1fr_14rem] gap-3">
-                    <Input placeholder="Buscar por nombre, RUT, tipo de documento u obra…" value={q} onChange={e => setQ(e.target.value)} leftIcon={<Search className="h-4 w-4" />} />
+                    {/* Placeholder corto: el largo se cortaba en el teléfono (cabe a 320 px); el aria-label dice todo. */}
+                    <Input placeholder="Buscar nombre, RUT u obra" aria-label="Buscar por nombre, RUT, tipo de documento u obra" value={q} onChange={e => setQ(e.target.value)} leftIcon={<Search className="h-4 w-4" />} />
                     {/* Filtro opcional, NO un campo a completar. Las obras salen de los documentos
                         disponibles (no del catálogo): una obra sin nada impreso por retirar no tiene qué
                         filtrar, así que no aparece. */}

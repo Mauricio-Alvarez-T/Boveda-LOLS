@@ -111,8 +111,10 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
             ) : (
                 <ul className="space-y-2">
                     {docs.map(d => (
-                        <li key={d.id} className="flex items-center justify-between gap-2 rounded-xl bg-background px-3 py-2">
-                            <div className="min-w-0 flex-1">
+                        <li key={d.id} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 rounded-xl bg-background px-3 py-2">
+                            {/* basis-48: en el teléfono el estado y los botones bajan a otra línea y el nombre no
+                                queda en una columna angosta. */}
+                            <div className="min-w-0 flex-1 basis-48">
                                 <p className="text-xs font-semibold text-brand-dark break-words" title={d.nombre_archivo}>{d.tipo_nombre || d.nombre_archivo}</p>
                                 {/* Sin «…»: la custodia («con Jhoan desde …») debe leerse entera (dueño 2026-10-21). */}
                                 <p className="text-caption text-muted-foreground break-words">
