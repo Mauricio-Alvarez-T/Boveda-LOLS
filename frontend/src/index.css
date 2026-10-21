@@ -510,3 +510,15 @@
 @media (prefers-reduced-motion: no-preference) {
     .barra-modulos { animation: barra-sube 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 }
+
+/* ── Celular: sin desenfoque de fondo (Marcos 2026-10-21, «Android viejito que carga lento») ──
+   `backdrop-filter` obliga a re-pintar y desenfocar lo que hay debajo en cada cuadro de scroll: en una GPU
+   barata es lo que más se nota (§8.9). Bajo 768 px se apaga en todas partes; las superficies ya son casi
+   opacas (bg-card/80–95) y los velos de los modales siguen oscureciendo. En el computador no cambia nada.
+   Los avisos (sonner) conservan el suyo: su regla es más específica y duran segundos. */
+@media (max-width: 767px) {
+  *, *::before, *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}

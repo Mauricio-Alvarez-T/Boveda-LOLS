@@ -284,7 +284,10 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    Cada frame obliga al navegador a rehacer el layout, y una tabla de ancho automático vuelve a medir
    todas las celdas de todas las filas: con 40 filas ya se nota el tirón, con 250 es inusable. El panel
    toma su ancho **de una vez** (un solo reflow) y lo que se anima es `transform`/`opacity`. Por la misma
-   razón, nada de `backdrop-blur` sobre una tabla mientras algo se mueve encima.
+   razón, nada de `backdrop-blur` sobre una tabla mientras algo se mueve encima. **En el celular (bajo
+   768 px) no hay `backdrop-filter` en ninguna parte** (regla global al final de `index.css`, 2026-10-21:
+   en un Android barato re-desenfocar en cada cuadro de scroll es lo que más se nota); por eso una
+   superficie que va sobre contenido que se desliza debe ser casi opaca (`bg-card/90` o más).
 10. **Una lista flotante nunca se cierra por «un scroll cualquiera».** `scroll` no burbujea, pero un
     listener en `window` con `capture: true` **sí** recibe el de la propia lista, así que cerrar ahí la
     vuelve inusable: un tic de rueda y desaparece (pasó el 2026-09-16 con `FilterSelect`). El handler
