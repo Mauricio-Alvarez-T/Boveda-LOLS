@@ -51,6 +51,11 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
 
 ## Leasing (migs 095 + 103)
 
+- **Ver sin editar (2026-10-21, pedido de Daphne)**: el sello «Leasing ›» de la fila es un botón que abre
+  `LeasingDetalle` (estado, inicio, término, traspaso si terminó, aviso 30 días) en modo lectura, con
+  `vehiculos.ver`. «Editar leasing» abre el formulario del vehículo y solo aparece con `vehiculos.editar`.
+  El clic en el sello no selecciona la fila (`stopPropagation`).
+
 - `es_leasing` + **fechas de contrato** `leasing_fecha_inicio` / `leasing_fecha_termino` (mig 103).
 - **La sección de CUOTAS se retiró del formulario** (jefatura 2026-08-27, 2ª vuelta; antes ya se había
   quitado el toggle "Pagada"). La tabla `vehiculo_leasing_cuotas` conserva los datos históricos sin

@@ -18,6 +18,7 @@ import { VehiculoForm } from '../components/vehiculos/VehiculoForm';
 import { VenderVehiculoForm } from '../components/vehiculos/VenderVehiculoForm';
 import { EmpresaForm } from '../components/vehiculos/EmpresaForm';
 import { VehiculoDocumentos } from '../components/vehiculos/VehiculoDocumentos';
+import { LeasingDetalle } from '../components/vehiculos/LeasingDetalle';
 import { VehiculosVendidos } from '../components/vehiculos/VehiculosVendidos';
 import { VencimientosBadge } from '../components/vehiculos/VencimientosBadge';
 import { useVencimientosVehiculos } from '../hooks/useVencimientosVehiculos';
@@ -100,6 +101,7 @@ const VehiculosPage: React.FC = () => {
     const [editEmpresa, setEditEmpresa] = useState<EmpresaVehiculo | null>(null);
     // Modal de venta (dar de baja por venta)
     const [vehiculoVender, setVehiculoVender] = useState<Vehiculo | null>(null);
+    const [leasingVer, setLeasingVer] = useState<Vehiculo | null>(null);
 
     // ── Fetch ─────────────────────────────────────────────────────────────────
 
@@ -544,7 +546,14 @@ const VehiculosPage: React.FC = () => {
                                         <span className="text-caption text-muted-foreground">{v.modelo} {v.anio}</span>
                                         <span className="text-caption px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-semibold capitalize">{v.tipo}</span>
                                         {v.es_leasing && (
-                                            <span className="text-caption px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 font-semibold dark:bg-amber-500/20 dark:text-amber-300">Leasing</span>
+                                            // Abre los datos del leasing sin pasar por Editar. El after: agranda
+                                            // la zona de toque en el celular sin cambiar el tamaño del sello.
+                                            // eslint-disable-next-line no-restricted-syntax -- es un sello (chip) que se puede tocar, no un botón de acción
+                                            <button type="button" title="Ver los datos del leasing"
+                                                onClick={e => { e.stopPropagation(); setLeasingVer(v); }}
+                                                className="relative inline-flex items-center gap-0.5 text-caption pl-1.5 pr-1 py-0.5 rounded-md bg-amber-100 text-amber-800 font-semibold hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring after:absolute after:-inset-x-1 after:-inset-y-3 after:content-[''] dark:bg-amber-500/20 dark:text-amber-300 dark:hover:bg-amber-500/30">
+                                                Leasing <ChevronRight className="h-3 w-3" />
+                                            </button>
                                         )}
                                         <span className="text-caption text-muted-foreground">{fmtNumber(v.kilometraje_actual || 0)} km</span>
                                     </div>
@@ -861,6 +870,11 @@ const VehiculosPage: React.FC = () => {
                         }} />
                 )}
             </Modal>
+
+            <LeasingDetalle vehiculo={leasingVer} onClose={() => setLeasingVer(null)}
+                onEditar={hasPermission('vehiculos.editar')
+                    ? v => { setLeasingVer(null); setEditVehiculo(v); setModalVehiculo(true); }
+                    : undefined} />
 
         </div>
     );
