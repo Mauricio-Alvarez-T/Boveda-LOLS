@@ -32,7 +32,7 @@ export const NOVEDADES: EntregaNovedades[] = [
             },
             {
                 icon: ImagePlus,
-                titulo: 'Buzón de ideas, más fácil',
+                titulo: '«Comparte tu idea», más fácil',
                 texto: 'Elige a la izquierda si es una idea, algo que te cuesta o algo que no funciona, y arrastra o pega tu pantallazo.',
             },
             {

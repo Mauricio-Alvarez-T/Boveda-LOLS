@@ -92,9 +92,9 @@ sigue en el backend por si se quiere volver a mostrar en otro lugar.
 ## UI
 
 - **Un solo botón para quien revisa** (Marcos, 20-10: él y Mauricio reciben las ideas, no las mandan):
-  con `ideas.revisar` el menú muestra solo **"Revisar ideas"** (la bandeja) y no "Buzón de ideas"; si
+  con `ideas.revisar` el menú muestra solo **"Revisar ideas"** (la bandeja) y no "Comparte tu idea"; si
   quieren proponer algo, la bandeja tiene **"Proponer una idea"** en la cabecera (abre el mismo modal).
-- **"Buzón de ideas"**: último ítem del menú lateral, bajo Configuración (Marcos, 15-10), para todos los
+- **"Comparte tu idea"** (antes «Buzón de ideas», renombrado el 21-10): último ítem del menú lateral, bajo Configuración (Marcos, 15-10), para todos los
   que no revisan.
   No es una página: abre `ProponerMejoraModal`; con novedades lleva un número ámbar y abre directo en
   "Mis ideas". El nombre vive en una sola constante, `ETIQUETA_BUZON_IDEAS` (`ideasConfig.ts`).
