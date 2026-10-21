@@ -35,7 +35,7 @@ async function migrate() {
             nombre VARCHAR(255) NOT NULL,
             asunto VARCHAR(500) DEFAULT '',
             cuerpo TEXT DEFAULT '',
-            predeterminada TINYINT(1) DEFAULT 0,
+            es_predeterminada TINYINT(1) NOT NULL DEFAULT 0, -- mismo nombre que la migración 009
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
