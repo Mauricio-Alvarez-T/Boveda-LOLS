@@ -8,9 +8,14 @@
  *               receptor_id/recibido_por/fecha_recepcion del header.
  *   · total   → estado recibida, discrepancia para cualquier gap acumulado.
  *
- * Stock por evento: cada llamada decrementa origen + incrementa destino
- * SOLO por la cantidad de ESTE viaje. FIFO por split via
+ * Stock por evento (regla del dueño 2026-10-21): se mueve SOLO lo ENVIADO.
+ * Un parcial mueve lo de ESTE viaje (el tope de over-receive impide pasar de
+ * lo enviado); el 'total' que cierra mueve el resto hasta la enviada completa,
+ * aunque se declare de más o de menos (la diferencia queda como discrepancia
+ * pendiente, diferencia_aplicada = 0). FIFO por split via
  * transferencia_item_origenes.cantidad_decrementada.
+ * Escenarios de sobrante/faltante con stock en memoria:
+ * transferencia_discrepancia_regla_nueva.test.js.
  */
 
 jest.mock('../src/config/db', () => ({
@@ -248,9 +253,10 @@ describe('recibir() — modo parcial', () => {
             .mockResolvedValueOnce([[{ id: 200, item_id: 5, cantidad_enviada: 10, cantidad_recibida: 7, origen_obra_id: null, origen_bodega_id: 2 }]])
             .mockResolvedValueOnce([{ insertId: 5001 }])  // INSERT header
             .mockResolvedValueOnce([[{ id: 700, origen_obra_id: null, origen_bodega_id: 2, cantidad_enviada: 10, cantidad_decrementada: 7 }]])
-            // En este "total" trae solo 2 más. 7+2=9 < 10 enviada → discrepancia de 1.
-            .mockResolvedValueOnce([{ affectedRows: 1 }])  // decremento origen 2
-            .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE split decrementada=9
+            // En este "total" declara solo 2 más. 7+2=9 < 10 enviada → discrepancia de 1 (pendiente).
+            // El stock se mueve por lo ENVIADO: el resto, 3.
+            .mockResolvedValueOnce([{ affectedRows: 1 }])  // decremento origen 3
+            .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE split decrementada=10
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE cantidad_recibida (7+2=9)
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT destino
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT recepcion_items
@@ -269,8 +275,25 @@ describe('recibir() — modo parcial', () => {
         );
         expect(discrepCalls).toHaveLength(1);
         // Args: [transferencia_id, item_id, cantidad_enviada, cantidad_recibida_acumulada, observacion, reportado_por]
-        // (reportado_por = receptorId=77, agregado en mig 061 / commit 7f7a0a8)
+        // (reportado_por = receptorId=77, agregado en mig 061 / commit 7f7a0a8). diferencia_aplicada va como
+        // literal 0 en el SQL (mig 130): la diferencia NO está en el stock.
         expect(discrepCalls[0][1]).toEqual([100, 5, 10, 9, null, 77]);
+        expect(discrepCalls[0][0]).toMatch(/diferencia_aplicada\)\s*VALUES \(\?, \?, \?, \?, \?, \?, 0\)/);
+
+        // Regla nueva: el total mueve el RESTO de lo enviado (10 − 7 = 3), no lo declarado en este viaje (2).
+        const decrementCalls = conn.query.mock.calls.filter(c =>
+            /UPDATE ubicaciones_stock SET cantidad = GREATEST/.test(c[0])
+        );
+        expect(decrementCalls).toHaveLength(1);
+        expect(decrementCalls[0][1][0]).toBe(3);
+        const incrementCalls = conn.query.mock.calls.filter(c =>
+            /INSERT INTO ubicaciones_stock/.test(c[0]) && /ON DUPLICATE KEY/.test(c[0])
+        );
+        expect(incrementCalls).toHaveLength(1);
+        expect(incrementCalls[0][1][3]).toBe(3);
+        // Lo declarado se acumula igual (7 + 2)
+        const acumCall = conn.query.mock.calls.find(c => /UPDATE transferencia_items SET cantidad_recibida/.test(c[0]));
+        expect(acumCall[1][0]).toBe(2);
 
         // UPDATE estado debe ser → recibida con recibido_por
         const updateTrf = conn.query.mock.calls.find(c =>

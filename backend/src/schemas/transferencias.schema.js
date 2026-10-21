@@ -10,8 +10,6 @@
  * específicas (solicitud-materiales, etc.).
  */
 
-const { CODIGOS_CAUSA } = require('../config/causasDiscrepancia');
-
 const crearTransferencia = {
     items: {
         type: 'array', itemRules: {
@@ -68,12 +66,12 @@ const recibir = {
 };
 
 // PUT /discrepancias/:id/resolver
-// `causa` (mig 129): opcional en la forma; el service la exige con estado='resuelta' y
-// verifica que calce con el signo de la diferencia (sobrante/faltante). Con 'descartada' se ignora.
+// 'resuelta' = aprobar lo declarado por el receptor; 'descartada' = rechazarlo (regla del dueño 2026-10-21).
+// `resolucion` es opcional: vacía → el service guarda un texto generado. Ya no hay `causa`: si llega, el strip
+// la descarta.
 const resolverDiscrepancia = {
     estado: { required: true, type: 'string', in: ['resuelta', 'descartada'] },
-    resolucion: { required: true, type: 'string', minLength: 1, maxLength: 1000 },
-    causa: { type: 'string', in: CODIGOS_CAUSA },
+    resolucion: { type: 'string', maxLength: 1000 },
 };
 
 // ── Flujos especiales (antes sin validateBody) ──

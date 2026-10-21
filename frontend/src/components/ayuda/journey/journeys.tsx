@@ -162,7 +162,7 @@ export const JOURNEYS: JourneyDef[] = [
     {
         id: 'discrepancias', modulo: 'Solicitudes', icon: AlertTriangle,
         titulo: 'Resolver una discrepancia',
-        descripcion: 'Cuando llega menos de lo enviado: el sistema crea una discrepancia y la resuelves.',
+        descripcion: 'Cuando quien recibe declara otra cantidad: al stock entra lo enviado y la diferencia queda pendiente para aprobarla o rechazarla.',
         estado: 'disponible', duracion: 'Interactivo · 5 min', modo: 'pedir', conDiscrepancia: true,
         textos: {
             crear: 'Paso 1 — Crear la solicitud (catálogo) como siempre.',
@@ -172,8 +172,8 @@ export const JOURNEYS: JourneyDef[] = [
         },
         recap: [
             'Creaste y aprobaste una solicitud.',
-            'Al recibir llegó menos de lo enviado → se generó una discrepancia.',
-            'Resolviste la discrepancia eligiendo la causa (el stock se ajusta según ella) y dejando una nota.',
+            'Al recibir se declaró menos de lo enviado → al stock entró lo enviado y la diferencia quedó pendiente.',
+            'La resolviste: aprobar suma o resta lo declarado (destino y origen); descartar deja lo enviado.',
         ],
     },
 

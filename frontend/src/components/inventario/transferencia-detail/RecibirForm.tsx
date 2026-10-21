@@ -7,12 +7,16 @@ import type { TransferenciaItem } from '../../../types/entities';
 import { ProgressBar } from '../../ui/ProgressBar';
 import { ImagePicker } from '../../ui/ImagePicker';
 import { QtyStepper } from '../../ui/QtyStepper';
+import { lineaDiferenciaRecepcion } from '../mensajeDiferencia';
 
 interface ReceiveItem { item_id: number; cantidad_recibida: number; correcto: boolean; observacion: string; }
 
 /**
  * Form de recepción de catálogo (parcial vs total): tabla +/− por ítem, checkbox
- * "entrega final", banner/modal de merma. Extraído de TransferenciaDetail.tsx
+ * "entrega final", aviso/modal de diferencia. Regla del dueño (2026-10-21): al stock
+ * entra SOLO lo enviado; si lo declarado difiere, la diferencia queda PENDIENTE y la
+ * revisa Inventario (la aprueba o la rechaza): quien recibe no la puede corregir
+ * después, por eso se le muestra antes de cerrar. Extraído de TransferenciaDetail.tsx
  * (Fase 1) — única instancia (catálogo, items.length>0). El estado vive en el hook
  * useTransferenciaDetail y se pasa por props; el padre lo monta condicionalmente.
  */
@@ -95,6 +99,19 @@ export const RecibirForm: React.FC<{
         })
         .filter((x): x is { descripcion: string; cantidad: number; unidad: string } => x !== null);
     const haySobrante = sobrantesAlCerrar.length > 0;
+
+    // Diferencias con lo enviado que quedarán PENDIENTES si se cierra ahora (con su signo:
+    // + de más, − de menos). Los faltantes solo cuentan si es la entrega final.
+    const diferenciasAlCerrar = [
+        ...(cierreFinal ? faltantesAlCerrar.map(f => ({ ...f, cantidad: -f.cantidad })) : []),
+        ...sobrantesAlCerrar,
+    ];
+    const lineaDiferencia = lineaDiferenciaRecepcion(diferenciasAlCerrar);
+    // Para el modal de confirmar (cierra igual aunque no se haya marcado «entrega final»).
+    const lineaDiferenciaCierre = lineaDiferenciaRecepcion([
+        ...faltantesAlCerrar.map(f => ({ ...f, cantidad: -f.cantidad })),
+        ...sobrantesAlCerrar,
+    ]);
 
     const handleCerrarTotal = async () => {
         const recepcionId = await onRecibir(
@@ -224,7 +241,7 @@ export const RecibirForm: React.FC<{
                                     {sobrante > 0 && (
                                         <span
                                             className="text-micro font-bold text-amber-700 bg-amber-100 border border-amber-300 dark:text-amber-200 dark:bg-amber-500/15 dark:border-amber-800 px-1.5 py-0.5 rounded-full"
-                                            title="Vino más de lo enviado — se registrará como sobrante al cerrar"
+                                            title="Declaras más de lo enviado: al stock entra lo enviado y lo de más queda pendiente para Inventario"
                                         >
                                             +{sobrante} sobrante
                                         </span>
@@ -325,7 +342,7 @@ export const RecibirForm: React.FC<{
                                             {sobrante > 0 && (
                                                 <span
                                                     className="ml-1 text-micro font-bold text-amber-700 bg-amber-100 border border-amber-300 dark:text-amber-200 dark:bg-amber-500/15 dark:border-amber-800 px-1.5 py-0.5 rounded-full"
-                                                    title="Vino más de lo enviado — se registrará como sobrante al cerrar"
+                                                    title="Declaras más de lo enviado: al stock entra lo enviado y lo de más queda pendiente para Inventario"
                                                 >
                                                     +{sobrante} sobrante
                                                 </span>
@@ -386,29 +403,35 @@ export const RecibirForm: React.FC<{
                             className="mt-0.5 h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500 cursor-pointer"
                         />
                         <span className="text-xs text-brand-dark">
-                            <span className="font-bold">Esta es la entrega final</span> — los ítems faltantes quedarán como merma.
+                            <span className="font-bold">Esta es la entrega final</span> — lo que falta queda como diferencia pendiente.
                             <Info className="inline h-3 w-3 ml-0.5 text-muted-foreground" />
                             <span className="block text-caption text-muted-foreground mt-0.5">
-                                Marca esta opción si NO van a venir más viajes. Los ítems no recibidos se registrarán como diferencia.
+                                Marca esta opción si NO van a venir más viajes. Al stock entra lo enviado y lo que falta lo revisa Inventario.
                             </span>
                         </span>
                     </label>
                 )}
 
-                {/* Banner amber resumen — solo si checkbox marcado */}
-                {cierreFinal && faltantesAlCerrar.length > 0 && (
+                {/* Diferencia con lo enviado (ámbar = pendiente): de menos si es la entrega final, de más siempre.
+                    Al stock entra lo ENVIADO; la diferencia la revisa Inventario y quien recibe no la puede corregir después. */}
+                {lineaDiferencia && (
                     <div className="bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-lg px-3 py-2 text-label text-amber-900 dark:text-amber-200">
                         <div className="font-bold mb-1 flex items-center gap-1.5">
-                            <AlertTriangle className="h-3.5 w-3.5" /> Se registrarán como merma:
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> Distinto de lo enviado:
                         </div>
                         <ul className="ml-5 space-y-0.5 list-disc">
-                            {faltantesAlCerrar.map((f, i) => (
-                                <li key={i}>
-                                    <span className="font-bold">{f.cantidad}</span>
+                            {diferenciasAlCerrar.map((f, i) => (
+                                <li key={i} className="break-words">
+                                    <span className="font-bold">{f.cantidad > 0 ? '+' : '−'}{Math.abs(f.cantidad)}</span>
                                     {f.unidad ? ` ${f.unidad}` : ''} · {f.descripcion}
                                 </li>
                             ))}
                         </ul>
+                        <p className="mt-1.5 font-semibold break-words">{lineaDiferencia}</p>
+                        <p className="mt-0.5 break-words">Revisa bien antes de cerrar: después no podrás corregirlo.</p>
+                        {haySobrante && !cierreFinal && (
+                            <p className="mt-0.5 break-words">Lo de más solo se declara al cerrar con «Esta es toda la entrega».</p>
+                        )}
                     </div>
                 )}
 
@@ -435,11 +458,15 @@ export const RecibirForm: React.FC<{
                         <Button
                             variant="secondary"
                             onClick={handleParcial}
-                            disabled={loading || (totalRecibidoEsteViaje + totalCustomEsteViaje) === 0}
+                            // Un viaje parcial no puede pasar de lo enviado (el servidor responde 400): lo de más
+                            // solo se declara al cerrar.
+                            disabled={loading || haySobrante || (totalRecibidoEsteViaje + totalCustomEsteViaje) === 0}
                             isLoading={loading}
                             leftIcon={<PackageOpen className="h-3.5 w-3.5" />}
                             title={
-                                (totalRecibidoEsteViaje + totalCustomEsteViaje) === 0
+                                haySobrante
+                                    ? 'Declaras más de lo enviado: eso solo se puede al cerrar la entrega'
+                                    : (totalRecibidoEsteViaje + totalCustomEsteViaje) === 0
                                     ? 'Marca al menos 1 unidad de algún ítem antes de registrar'
                                     : 'Registra lo de este viaje. La transferencia queda abierta esperando próximos viajes.'
                             }
@@ -454,7 +481,7 @@ export const RecibirForm: React.FC<{
                         disabled={loading}
                         isLoading={loading}
                         leftIcon={<PackageCheck className="h-3.5 w-3.5" />}
-                        title="Cierra la transferencia. Cualquier diferencia entre lo enviado y lo recibido se registra como diferencia."
+                        title="Cierra la transferencia. Al stock entra lo enviado; si lo que declaras es distinto, la diferencia queda pendiente para Inventario."
                         className="flex-1 min-w-[160px]"
                     >
                         {loading ? 'Cerrando...' : 'Esta es toda la entrega'}
@@ -494,7 +521,7 @@ export const RecibirForm: React.FC<{
                 <div className="space-y-3 text-sm">
                     {faltantesAlCerrar.length > 0 && (
                         <div>
-                            <p className="text-brand-dark">Quedan estos ítems sin recibir (merma):</p>
+                            <p className="text-brand-dark">Declaras <strong>menos</strong> de lo enviado:</p>
                             <ul className="ml-5 mt-1 space-y-1 list-disc text-xs">
                                 {faltantesAlCerrar.map((f, i) => (
                                     <li key={i}>
@@ -507,7 +534,7 @@ export const RecibirForm: React.FC<{
                     )}
                     {sobrantesAlCerrar.length > 0 && (
                         <div>
-                            <p className="text-brand-dark">Llegó <strong>más</strong> de lo enviado (sobrante):</p>
+                            <p className="text-brand-dark">Declaras <strong>más</strong> de lo enviado:</p>
                             <ul className="ml-5 mt-1 space-y-1 list-disc text-xs">
                                 {sobrantesAlCerrar.map((f, i) => (
                                     <li key={i}>
@@ -518,9 +545,12 @@ export const RecibirForm: React.FC<{
                             </ul>
                         </div>
                     )}
-                    <p className="text-xs text-muted-foreground bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-lg px-3 py-2">
-                        Las diferencias se registrarán como <strong>diferencia</strong>. La transferencia se cerrará y <strong>no podrás registrar más viajes</strong>.
-                    </p>
+                    <div className="text-xs text-amber-900 bg-amber-50 border border-amber-200 dark:text-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-lg px-3 py-2 space-y-1">
+                        {lineaDiferenciaCierre && <p className="font-semibold break-words">{lineaDiferenciaCierre}</p>}
+                        <p className="break-words">
+                            La transferencia se cerrará: <strong>no podrás registrar más viajes ni corregir</strong> lo que declaraste.
+                        </p>
+                    </div>
                 </div>
             </Modal>
         </div>

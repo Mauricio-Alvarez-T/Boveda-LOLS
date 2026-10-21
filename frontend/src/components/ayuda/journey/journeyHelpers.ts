@@ -1,10 +1,12 @@
 import type {
-    AjusteStockDiscrepancia, CausaDiscrepancia, Transferencia, TransferenciaItem, TransferenciaConDiscrepancias,
-    TransferenciaDiscrepanciaItem,
+    AjusteStockDiscrepancia, SimulacionResolverDiscrepancia, Transferencia, TransferenciaItem,
+    TransferenciaConDiscrepancias, TransferenciaDiscrepanciaItem,
 } from '../../../types/entities';
 import type { WizardEngine } from '../../inventario/nuevo-movimiento/wizardEngine';
-import { signoDiscrepancia } from '../../inventario/discrepanciaCausa';
-import { itemsDemo, obrasDemo, bodegasDemo } from '../demo/mockData';
+import {
+    TEXTO_CALCULANDO_STOCK, numeroONull, redondear, resolucionPorDefecto, signoDiscrepancia,
+} from '../../inventario/mensajeDiferencia';
+import { itemsDemo, obrasDemo, bodegasDemo, stockMapDemo } from '../demo/mockData';
 
 /**
  * Helpers del motor de journeys: construyen y hacen avanzar una `Transferencia` de
@@ -179,8 +181,25 @@ export function tieneDiferencia(trf: DemoTransferencia): boolean {
     });
 }
 
-/** Construye la discrepancia de ejemplo a partir de una TRF recibida con diferencia. */
+/** Stock de ejemplo de un ítem en una ubicación (0 si no figura). */
+function stockDemo(itemId: number, tipo: 'obra' | 'bodega', id: number | null | undefined): number {
+    if (id == null) return 0;
+    return stockMapDemo[itemId]?.find(l => l.type === tipo && l.id === id)?.cantidad ?? 0;
+}
+
+/**
+ * Construye la discrepancia de ejemplo a partir de una TRF recibida con diferencia. Regla nueva: al
+ * recibir se movió lo ENVIADO (origen −enviada, destino +enviada) y lo declarado de más o de menos
+ * quedó pendiente (`diferencia_aplicada: 0`). El origen de una solicitud sin origen fijo es la
+ * Bodega Central (de donde sale en el paso de aprobar del tutorial).
+ */
 export function buildDiscrepanciaDemo(trf: DemoTransferencia): TransferenciaConDiscrepancias {
+    const origenTipo: 'obra' | 'bodega' = trf.origen_obra_id != null ? 'obra' : 'bodega';
+    const origenId = trf.origen_obra_id ?? trf.origen_bodega_id ?? 101;
+    const origenNombre = trf.origen_obra_nombre || trf.origen_bodega_nombre || bodegaNombre(origenId) || 'Bodega Central';
+    const destinoTipo: 'obra' | 'bodega' = trf.destino_obra_id != null ? 'obra' : 'bodega';
+    const destinoId = trf.destino_obra_id ?? trf.destino_bodega_id;
+    const destinoNombre = trf.destino_obra_nombre || trf.destino_bodega_nombre || 'Destino';
     const discrepancias: TransferenciaDiscrepanciaItem[] = (trf.items || [])
         .map((it, idx): TransferenciaDiscrepanciaItem | null => {
             const enviada = Number(it.cantidad_enviada) || Number(it.cantidad_solicitada) || 0;
@@ -207,6 +226,11 @@ export function buildDiscrepanciaDemo(trf: DemoTransferencia): TransferenciaConD
                 reportado_por: -3,
                 reportado_por_nombre: 'Receptor (demostración)',
                 created_at: ahora(),
+                diferencia_aplicada: 0,
+                origen_nombre: origenNombre,
+                destino_nombre: destinoNombre,
+                origen_stock_actual: Math.max(0, stockDemo(it.item_id, origenTipo, origenId) - enviada),
+                destino_stock_actual: stockDemo(it.item_id, destinoTipo, destinoId) + enviada,
             };
         })
         .filter((x): x is TransferenciaDiscrepanciaItem => x !== null);
@@ -237,45 +261,78 @@ export function buildDiscrepanciaDemo(trf: DemoTransferencia): TransferenciaConD
 }
 
 /**
- * Ajustes de EJEMPLO para el tutorial (sin backend): lo que el servidor haría con la causa
- * en el caso simple (origen con stock suficiente, sin splits). El real lo calcula el servidor.
+ * Ajustes de EJEMPLO al APROBAR lo declarado (sin backend), en el caso simple (sin splits, stock
+ * suficiente): sobrante → destino +N y origen −N; faltante → destino −N y origen +N.
  */
-export function ajustesDemo(
-    disc: TransferenciaConDiscrepancias,
-    item: TransferenciaDiscrepanciaItem,
-    causa: CausaDiscrepancia,
-): AjusteStockDiscrepancia[] {
+export function ajustesDemo(item: TransferenciaDiscrepanciaItem): AjusteStockDiscrepancia[] {
     const sig = signoDiscrepancia(item.cantidad_enviada, item.cantidad_recibida);
     if (!sig) return [];
-    const origen = disc.origen_obra_nombre || disc.origen_bodega_nombre || 'Origen';
-    const destino = disc.destino_obra_nombre || disc.destino_bodega_nombre || 'Destino';
+    const origen = item.origen_nombre || 'Origen';
+    const destino = item.destino_nombre || 'Destino';
     const en = (ubicacion_nombre: string, cantidad: number): AjusteStockDiscrepancia =>
-        ({ obra_id: null, bodega_id: null, ubicacion_nombre, cantidad });
-    switch (causa) {
-        case 'error_conteo_recepcion': return [en(destino, -sig.n), en(origen, sig.n)];
-        case 'perdida_en_transito': return [en(origen, -sig.n)];
-        case 'llego_despues': return [en(origen, -sig.n), en(destino, sig.n)];
-        default: return [];
-    }
+        ({ obra_id: null, bodega_id: null, ubicacion_nombre, cantidad: redondear(cantidad) });
+    return sig.signo === 'sobrante'
+        ? [en(destino, sig.n), en(origen, -sig.n)]
+        : [en(destino, -sig.n), en(origen, sig.n)];
 }
 
-/** Marca un ítem de la discrepancia como resuelto (con causa y ajustes de ejemplo) o descartado. */
+/**
+ * SIMULACIÓN de ejemplo (sin backend) de aprobar / rechazar: los ajustes de `ajustesDemo` con el
+ * stock de la demo («hoy A → quedará B»). Rechazar no mueve stock.
+ */
+export function simularDiscrepanciaDemo(
+    disc: TransferenciaConDiscrepancias,
+    itemId: number,
+    estado: 'resuelta' | 'descartada',
+): SimulacionResolverDiscrepancia {
+    const d = disc.discrepancias.find(x => x.id === itemId);
+    if (!d || estado === 'descartada') return { ajustes: [], aviso: null, bloqueo: null };
+    // ajustesDemo devuelve [destino, origen].
+    const hoy = [numeroONull(d.destino_stock_actual) ?? 0, numeroONull(d.origen_stock_actual) ?? 0];
+    const ajustes = ajustesDemo(d).map((a, i) => ({
+        ...a, antes: hoy[i], despues: Math.max(0, redondear(hoy[i] + a.cantidad)),
+    }));
+    return { ajustes, aviso: null, bloqueo: null };
+}
+
+/**
+ * Aprueba (resuelta: ajustes de ejemplo) o rechaza (descartada: sin ajustes) un ítem de la
+ * discrepancia. Nota vacía → el mismo texto que generaría el servidor.
+ */
 export function resolverDiscrepanciaDemo(
     disc: TransferenciaConDiscrepancias,
     itemId: number,
     estado: 'resuelta' | 'descartada',
     resolucion: string,
-    causa: CausaDiscrepancia | null = null,
 ): TransferenciaConDiscrepancias {
-    const causaFinal = estado === 'resuelta' ? causa : null;
     return {
         ...disc,
         discrepancias: disc.discrepancias.map(d => d.id === itemId
             ? {
-                ...d, estado, resolucion, resuelto_por: 0, resuelto_por_nombre: 'Tú (demostración)', fecha_resolucion: ahora(),
-                causa: causaFinal,
-                ajuste_stock: causaFinal ? { ajustes: ajustesDemo(disc, d, causaFinal), aviso: null } : null,
+                ...d, estado,
+                resolucion: resolucion.trim() || resolucionPorDefecto(estado, d.cantidad_enviada, d.cantidad_recibida),
+                resuelto_por: 0, resuelto_por_nombre: 'Tú (demostración)', fecha_resolucion: ahora(),
+                ajuste_stock: { ajustes: estado === 'resuelta' ? ajustesDemo(d) : [], aviso: null },
             }
             : d),
     };
+}
+
+/**
+ * Instrucción del globo en el paso «Resolver» del tutorial, según el botón resaltado. «Aprobar y
+ * ajustar stock» deshabilitado es, casi siempre, la simulación cargando (texto neutro); solo con un
+ * bloqueo de la simulación se dice que no se puede aprobar.
+ */
+export function instruccionResolverDemo(label: string | null, habilitado: boolean, bloqueada: boolean): string {
+    const m: Record<string, string> = {
+        'Aprobar y ajustar stock': habilitado
+            ? 'Lee qué se suma y qué se resta (con los nombres reales) y pulsa "Aprobar y ajustar stock". La nota es opcional.'
+            : bloqueada
+                ? 'El destino ya no tiene esas unidades: no se puede aprobar. Cancela y usa "Descartar".'
+                : TEXTO_CALCULANDO_STOCK,
+        'Rechazar lo declarado': 'Rechazar deja el stock con lo enviado (no mueve nada). Pulsa "Rechazar lo declarado".',
+        'Resolver': 'Pulsa "Resolver" para aprobar lo que declaró quien recibió (el stock se ajusta).',
+        'Descartar': 'O "Descartar" si quien recibió se equivocó al contar: queda lo enviado.',
+    };
+    return (label && m[label]) || 'Pulsa "Resolver" para aprobar lo declarado o "Descartar" para rechazarlo, y confirma.';
 }
