@@ -92,10 +92,11 @@ describe('ActividadesSugeridas — audit trail en mutaciones', () => {
 });
 
 describe('ActividadesSugeridas — validaciones críticas presentes', () => {
-    test('validarSemana exige lunes y rechaza semana pasada', () => {
+    test('validarSemana exige lunes y acepta hasta la semana pasada', () => {
         expect(SOURCE).toMatch(/getDay\(\) !== MONDAY/);
-        expect(SOURCE).toMatch(/semanaOnly < lunesActual/);
-        expect(SOURCE).toMatch(/No se permite una semana pasada/);
+        expect(SOURCE).toMatch(/const SEMANAS_ATRAS = 1;/);
+        expect(SOURCE).toMatch(/semanaOnly < minimo/);
+        expect(SOURCE).toMatch(/desde la semana pasada en adelante/);
     });
 
     test('validarSemana rechaza más de 1 año adelante', () => {

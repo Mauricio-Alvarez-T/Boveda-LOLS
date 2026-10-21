@@ -37,12 +37,18 @@ describe('semanas (lista de actividades sugeridas: semana lun–vie)', () => {
         expect(fmtSemanaCorta('2026-09-21')).toBe('21/09 – 25/09');
     });
 
-    test('opcionesSemanas arranca en la semana en curso (aunque hoy sea viernes) y avanza de 7 en 7', () => {
+    test('opcionesSemanas ofrece la semana pasada, la en curso (aunque hoy sea viernes) y avanza de 7 en 7', () => {
         const ops = opcionesSemanas('2026-09-25', 3); // viernes
-        expect(ops.map(o => o.value)).toEqual(['2026-09-21', '2026-09-28', '2026-10-05']);
-        expect(ops[0].label).toBe('Semana lun 21/09 – vie 25/09 (en curso)');
-        expect(ops[1].label).toBe('Semana lun 28/09 – vie 02/10');
-        expect(opcionesSemanas('2026-09-27', 1)[0].value).toBe('2026-09-21'); // domingo aún cuenta la semana en curso
+        expect(ops.map(o => o.value)).toEqual(['2026-09-14', '2026-09-21', '2026-09-28', '2026-10-05']);
+        expect(ops[0].label).toBe('Semana lun 14/09 – vie 18/09 (semana pasada)');
+        expect(ops[1].label).toBe('Semana lun 21/09 – vie 25/09 (en curso)');
+        expect(ops[2].label).toBe('Semana lun 28/09 – vie 02/10');
+        expect(opcionesSemanas('2026-09-27', 1, 0)[0].value).toBe('2026-09-21'); // domingo aún cuenta la semana en curso
+    });
+
+    test('opcionesSemanas el lunes ofrece la semana recién terminada', () => {
+        const ops = opcionesSemanas('2026-10-26', 1); // lunes
+        expect(ops.map(o => o.value)).toEqual(['2026-10-19', '2026-10-26']);
     });
 
     test('aIso formatea local con ceros', () => {

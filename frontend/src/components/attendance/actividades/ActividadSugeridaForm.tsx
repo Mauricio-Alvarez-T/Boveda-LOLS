@@ -6,7 +6,7 @@ import { Select } from '../../ui/Select';
 import api from '../../../services/api';
 import { useObra } from '../../../context/ObraContext';
 import { useActividadesSugeridas } from '../../../hooks/attendance/useActividadesSugeridas';
-import { aIso, opcionesSemanas } from '../../../utils/semanas';
+import { aIso, lunesDeSemana, opcionesSemanas } from '../../../utils/semanas';
 import WorkerCheckList from './WorkerCheckList';
 import AddFromOtherObraModal from './AddFromOtherObraModal';
 import type { Trabajador } from '../../../types/entities';
@@ -20,7 +20,8 @@ interface Props {
 /**
  * Form para armar una lista nueva de trabajadores en actividades sugeridas.
  * Inputs:
- *   - semana (selector: desde la semana en curso; valor = lunes YYYY-MM-DD).
+ *   - semana (selector: desde la semana pasada —dueño 2026-10-21— y por defecto la en curso;
+ *     valor = lunes YYYY-MM-DD).
  *     Jefatura 2026-09-21: la lista NO fija un día.
  *   - obra anfitriona (del contexto, read-only)
  *   - selector de trabajadores (de la obra + opción "agregar de otra obra")
@@ -32,8 +33,9 @@ const ActividadSugeridaForm: React.FC<Props> = ({ onCreated, onCancel }) => {
     const { selectedObra, obras } = useObra();
     const { crearLista } = useActividadesSugeridas();
 
-    const semanas = useMemo(() => opcionesSemanas(aIso(new Date())), []);
-    const [semana, setSemana] = useState<string>(semanas[0]?.value ?? '');
+    const hoy = aIso(new Date());
+    const semanas = useMemo(() => opcionesSemanas(hoy), [hoy]);
+    const [semana, setSemana] = useState<string>(() => lunesDeSemana(hoy));
     const [observacionesGlobales, setObservacionesGlobales] = useState('');
     const [observacionesPorCargo, setObservacionesPorCargo] = useState<Record<string, string>>({});
     const [workers, setWorkers] = useState<Trabajador[]>([]);
@@ -170,7 +172,7 @@ const ActividadSugeridaForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                         options={semanas}
                         value={semana}
                         onChange={e => setSemana(e.target.value)}
-                        helperText="La lista se asigna a una semana (lunes a viernes), no a un día."
+                        helperText="La lista se asigna a una semana (lunes a viernes), no a un día. Si se te pasó, puedes armar la de la semana pasada."
                     />
                 </div>
                 <div>

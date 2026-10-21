@@ -38,6 +38,7 @@ const sumarDias = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n);
 const SEMANA_ACTUAL = iso(lunesActual());
 const SEMANA_PROXIMA = iso(sumarDias(lunesActual(), 7));
 const SEMANA_PASADA = iso(sumarDias(lunesActual(), -7));
+const SEMANA_ANTEPASADA = iso(sumarDias(lunesActual(), -14));
 const MARTES_PROXIMO = iso(sumarDias(lunesActual(), 8));
 const SEMANA_LEJANA = iso(sumarDias(lunesActual(), 7 * 60));
 
@@ -83,9 +84,13 @@ describe('ActividadesSugeridas Service', () => {
             );
         });
 
-        test('rechaza la semana pasada', () => {
-            expect(() => validarSemana(SEMANA_PASADA)).toThrow(
-                expect.objectContaining({ message: 'No se permite una semana pasada', statusCode: 400 })
+        test('acepta la semana pasada (se arma el lunes siguiente a la actividad)', () => {
+            expect(() => validarSemana(SEMANA_PASADA)).not.toThrow();
+        });
+
+        test('rechaza la semana antepasada', () => {
+            expect(() => validarSemana(SEMANA_ANTEPASADA)).toThrow(
+                expect.objectContaining({ message: 'Solo se puede armar la lista desde la semana pasada en adelante', statusCode: 400 })
             );
         });
 
@@ -114,10 +119,10 @@ describe('ActividadesSugeridas Service', () => {
             ).rejects.toMatchObject({ message: 'La semana debe indicarse por su lunes', statusCode: 400 });
         });
 
-        test('rechaza semana pasada', async () => {
+        test('rechaza la semana antepasada', async () => {
             await expect(
-                service.crearLista({ obra_id: 1, semana: SEMANA_PASADA, trabajadores: [{ trabajador_id: 1 }] }, 1)
-            ).rejects.toMatchObject({ message: 'No se permite una semana pasada', statusCode: 400 });
+                service.crearLista({ obra_id: 1, semana: SEMANA_ANTEPASADA, trabajadores: [{ trabajador_id: 1 }] }, 1)
+            ).rejects.toMatchObject({ message: 'Solo se puede armar la lista desde la semana pasada en adelante', statusCode: 400 });
         });
 
         test('rechaza si falta obra_id o semana', async () => {
