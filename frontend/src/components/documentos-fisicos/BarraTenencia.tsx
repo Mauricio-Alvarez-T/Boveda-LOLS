@@ -3,7 +3,7 @@ import { cn } from '../../utils/cn';
 import { segmentosTenencia, textoTenencia, tonoTenencia, type TenenciaLote } from './documentosFisicos';
 
 /**
- * Tenencia en terreno (jefatura 2026-10-21): barra de 4 tramos, uno por día hábil permitido, como la de
+ * Tenencia en terreno (jefatura 2026-10-21; desde la hora del retiro): barra de 4 tramos, uno por día hábil permitido, como la de
  * «Asistencia guardada» del Inicio. Verde dentro del plazo, ámbar el último día, rojo pasado el plazo.
  * La usan la tarjeta del lote (Documentos físicos) y «Tus documentos» del Inicio del portador.
  */

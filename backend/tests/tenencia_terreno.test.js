@@ -1,34 +1,52 @@
 /**
- * Tenencia en terreno (jefatura 2026-10-21): máx. 4 días hábiles; el día del retiro es el día 1.
- * Octubre 2026: lun 19, mar 20, mié 21, jue 22, vie 23, sáb 24, dom 25, lun 26.
+ * Tenencia en terreno: máx. 4 días hábiles, contados desde la HORA EXACTA del retiro confirmado
+ * (dueño 2026-10-21). Octubre 2026: lun 19, mar 20, mié 21, jue 22, vie 23, sáb 24, dom 25, lun 26, mar 27.
  */
-const { diaTenencia, venceEl, tenencia, esHabil } = require('../src/utils/tenenciaTerreno');
+const { tenencia, esHabil, siguienteHabil, inicioTenencia } = require('../src/utils/tenenciaTerreno');
+const { ahoraChile } = require('../src/utils/fechaChile');
 
 describe('tenenciaTerreno', () => {
-    test('lunes = día 1, jueves = día 4 (último permitido), viernes ya está atrasado', () => {
-        expect(diaTenencia('2026-10-19', '2026-10-19')).toBe(1);
-        expect(diaTenencia('2026-10-19', '2026-10-22')).toBe(4);
-        expect(tenencia('2026-10-19', '2026-10-22')).toMatchObject({ dia: 4, atrasado: false, dias_atraso: 0, vence_el: '2026-10-22' });
-        expect(tenencia('2026-10-19', '2026-10-23')).toMatchObject({ dia: 5, atrasado: true, dias_atraso: 1 });
+    test('aceptado el mié 21 a las 16:26: vence el mar 27 a las 16:26 (el ejemplo del dueño)', () => {
+        const r = '2026-10-21 16:26';
+        expect(tenencia(r, '2026-10-21 16:30')).toEqual({ dia: 1, max: 4, vence_el: '2026-10-27', vence_hora: '16:26', atrasado: false, dias_atraso: 0 });
+        expect(tenencia(r, '2026-10-22 16:25').dia).toBe(1);
+        expect(tenencia(r, '2026-10-22 16:26').dia).toBe(2);
+        expect(tenencia(r, '2026-10-23 17:00').dia).toBe(3);
+        expect(tenencia(r, '2026-10-25 12:00').dia).toBe(3); // el fin de semana queda dentro del día 3
+        expect(tenencia(r, '2026-10-26 16:26').dia).toBe(4);
+        expect(tenencia(r, '2026-10-27 16:25')).toMatchObject({ dia: 4, atrasado: false });
+        expect(tenencia(r, '2026-10-27 16:26')).toMatchObject({ dia: 5, atrasado: true, dias_atraso: 1 });
+        expect(tenencia(r, '2026-10-29 09:00')).toMatchObject({ dia: 6, dias_atraso: 2 });
     });
 
-    test('el fin de semana no cuenta: retiro el jueves vence el martes', () => {
-        expect(venceEl('2026-10-22')).toBe('2026-10-27');
-        expect(tenencia('2026-10-22', '2026-10-25')).toMatchObject({ dia: 2, atrasado: false });
-        expect(tenencia('2026-10-22', '2026-10-28')).toMatchObject({ dia: 5, atrasado: true });
+    test('la tarde del día de aceptación ya no se pierde: aceptado el lun 19 a las 18:00 vence el vie 23 a las 18:00', () => {
+        expect(tenencia('2026-10-19 18:00', '2026-10-23 12:00')).toMatchObject({ dia: 4, atrasado: false, vence_el: '2026-10-23', vence_hora: '18:00' });
+        expect(tenencia('2026-10-19 18:00', '2026-10-23 18:00')).toMatchObject({ dia: 5, atrasado: true });
     });
 
     test('un feriado no cuenta', () => {
-        const feriados = new Set(['2026-10-21']);
-        expect(esHabil('2026-10-21', feriados)).toBe(false);
-        expect(venceEl('2026-10-19', feriados)).toBe('2026-10-23');
-        expect(tenencia('2026-10-19', '2026-10-23', feriados)).toMatchObject({ dia: 4, atrasado: false });
+        const feriados = new Set(['2026-10-22']);
+        expect(esHabil('2026-10-22', feriados)).toBe(false);
+        expect(siguienteHabil('2026-10-21', feriados)).toBe('2026-10-23');
+        expect(tenencia('2026-10-21 10:00', '2026-10-28 09:59', feriados)).toMatchObject({ dia: 4, vence_el: '2026-10-28', atrasado: false });
     });
 
-    test('retiro en un día no hábil: el día 1 es el primer hábil siguiente', () => {
-        expect(diaTenencia('2026-10-24', '2026-10-24')).toBe(1);
-        expect(diaTenencia('2026-10-24', '2026-10-26')).toBe(1);
-        expect(venceEl('2026-10-24')).toBe('2026-10-29');
+    test('aceptado en un día no hábil: el reloj parte el hábil siguiente a las 00:00', () => {
+        expect(inicioTenencia('2026-10-24 11:00')).toEqual({ fecha: '2026-10-26', hora: '00:00' });
+        // desde las 00:00 cada día hábil cuenta entero: lun, mar, mié, jue → vence al final del jue 29
+        expect(tenencia('2026-10-24 11:00', '2026-10-25 20:00')).toMatchObject({ dia: 1, vence_el: '2026-10-29', vence_hora: null });
+        expect(tenencia('2026-10-24 11:00', '2026-10-30 00:00')).toMatchObject({ dia: 5, atrasado: true });
+        expect(tenencia('2026-10-24 11:00', '2026-10-27 08:00').dia).toBe(2);
+    });
+
+    test('sin hora del retiro y con `ahora` solo fecha da la cuenta por días de antes', () => {
+        expect(tenencia('2026-10-19', '2026-10-22')).toMatchObject({ dia: 4, atrasado: false, vence_el: '2026-10-22', vence_hora: null });
+        expect(tenencia('2026-10-19', '2026-10-23')).toMatchObject({ dia: 5, atrasado: true });
+    });
+
+    test('ahoraChile: reloj de pared de Chile', () => {
+        expect(ahoraChile(new Date('2026-10-21T19:26:00Z'))).toBe('2026-10-21 16:26'); // UTC-3 en octubre
+        expect(ahoraChile(new Date('2026-10-22T02:30:00Z'))).toBe('2026-10-21 23:30');
     });
 });
 
@@ -47,7 +65,8 @@ describe('documentosLotes.atrasados', () => {
 
     test('devuelve solo los lotes pasados de 4 días hábiles, con sus documentos en terreno', async () => {
         db.query
-            .mockResolvedValueOnce([[lote(5, '2026-10-19'), lote(8, '2026-10-20')]])
+            // el 6 se aceptó el lun 19 a las 18:00: el vie 23 a mediodía aún va en su día 4 (vence 18:00)
+            .mockResolvedValueOnce([[lote(5, '2026-10-19'), lote(8, '2026-10-20'), lote(6, '2026-10-19', { retirado_hora: '18:00' })]])
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[{ id: 1, lote_id: 5, documento_id: 90, estado: 'retirado', tipo_nombre: 'DAS', nombres: 'Ana', apellido_paterno: 'Pérez', rut: '1-9', obra_nombre: 'Obra Sur', trabajador_id: 3 }]]);
         const out = await service.atrasados({ id: 3, p: ['documentos.entrega.registrar'] });
@@ -63,6 +82,7 @@ describe('documentosLotes.atrasados', () => {
         const out = await service.atrasados({ id: 7, p: ['documentos.entrega.portar'] });
         expect(out).toMatchObject({ alcance: 'propios', lotes: [] });
         expect(String(db.query.mock.calls[0][0])).toMatch(/l\.portador_id = \?/);
+        expect(String(db.query.mock.calls[0][0])).toMatch(/DATE_FORMAT\(l\.retirado_en, '%H:%i'\) AS retirado_hora/);
         expect(db.query.mock.calls[0][1]).toEqual([7]);
     });
 });

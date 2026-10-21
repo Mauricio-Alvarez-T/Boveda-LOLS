@@ -20,7 +20,7 @@ const db = require('../config/db');
 const { logManualActivity } = require('../middleware/logger');
 const logger = require('../utils/logger-structured');
 const { hasCols } = require('../utils/schema');
-const { hoyChile, sumarDias } = require('../utils/fechaChile');
+const { hoyChile, ahoraChile, sumarDias } = require('../utils/fechaChile');
 const { tenencia, MAX_DIAS_HABILES_TERRENO } = require('../utils/tenenciaTerreno');
 const { feriadosEntre } = require('../utils/feriadosSet');
 
@@ -56,7 +56,7 @@ const SELECT_PORTADORES = `
 const SELECT_LOTES = `
     SELECT l.id, l.portador_id, up.nombre AS portador_nombre, l.creado_por, uc.nombre AS creado_por_nombre,
            l.estado, l.observacion, l.creado_en, l.retirado_en, l.cerrado_en,
-           DATE_FORMAT(l.retirado_en, '%Y-%m-%d') AS retirado_dia,
+           DATE_FORMAT(l.retirado_en, '%Y-%m-%d') AS retirado_dia, DATE_FORMAT(l.retirado_en, '%H:%i') AS retirado_hora,
            COUNT(i.id) AS total,
            SUM(i.estado = 'pendiente') AS pendientes, SUM(i.estado = 'retirado') AS en_terreno,
            SUM(i.estado = 'firmado') AS firmados, SUM(i.estado = 'devuelto_sin_firma') AS sin_firma,
@@ -90,7 +90,7 @@ const SELECT_DISPONIBLES = `
      WHERE d.activo = TRUE AND d.origen = 'generado' AND d.estado = 'descargado' AND d.lote_id IS NULL`;
 
 /**
- * `ctx` = { hoy, feriados } para la tenencia en terreno (máx. 4 días hábiles, jefatura 2026-10-21). Sin
+ * `ctx` = { hoy, ahora, feriados } para la tenencia en terreno (máx. 4 días hábiles desde la hora del retiro). Sin
  * ctx, o si el lote no está en terreno, `tenencia` es null.
  */
 function proyectarLote(r, ctx = null) {
@@ -111,16 +111,17 @@ function proyectarLote(r, ctx = null) {
         firmados: toNum(r.firmados),
         sin_firma: toNum(r.sin_firma),
         no_entregados: toNum(r.no_entregados),
-        tenencia: ctx && r.estado === 'en_terreno' && r.retirado_dia ? tenencia(r.retirado_dia, ctx.hoy, ctx.feriados) : null,
+        tenencia: ctx && r.estado === 'en_terreno' && r.retirado_dia ? tenencia(`${r.retirado_dia} ${r.retirado_hora || '00:00'}`, ctx.ahora || ctx.hoy, ctx.feriados) : null,
     };
 }
 
 
-/** Contexto de tenencia para un grupo de filas: hoy (Chile) y los feriados desde el retiro más antiguo. */
+/** Contexto de tenencia para un grupo de filas: hoy y ahora (Chile) y los feriados desde el retiro más antiguo. */
 async function _ctxTenencia(rows) {
     const hoy = hoyChile();
+    const ahora = ahoraChile();
     const dias = (rows || []).filter(r => r.estado === 'en_terreno' && r.retirado_dia).map(r => r.retirado_dia).sort();
-    return { hoy, feriados: dias.length ? await feriadosEntre(dias[0], sumarDias(hoy, 60)) : new Set() };
+    return { hoy, ahora, feriados: dias.length ? await feriadosEntre(dias[0], sumarDias(hoy, 60)) : new Set() };
 }
 
 function proyectarItem(r) {
