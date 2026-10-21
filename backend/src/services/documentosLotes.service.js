@@ -20,6 +20,8 @@ const db = require('../config/db');
 const { logManualActivity } = require('../middleware/logger');
 const logger = require('../utils/logger-structured');
 const { hasCols } = require('../utils/schema');
+const { hoyChile, sumarDias } = require('../utils/fechaChile');
+const { tenencia, MAX_DIAS_HABILES_TERRENO } = require('../utils/tenenciaTerreno');
 
 const httpError = (msg, statusCode, extra = {}) => Object.assign(new Error(msg), { statusCode, ...extra });
 const ERR_ESQUEMA = new Set([1146, 1054]);
@@ -53,6 +55,7 @@ const SELECT_PORTADORES = `
 const SELECT_LOTES = `
     SELECT l.id, l.portador_id, up.nombre AS portador_nombre, l.creado_por, uc.nombre AS creado_por_nombre,
            l.estado, l.observacion, l.creado_en, l.retirado_en, l.cerrado_en,
+           DATE_FORMAT(l.retirado_en, '%Y-%m-%d') AS retirado_dia,
            COUNT(i.id) AS total,
            SUM(i.estado = 'pendiente') AS pendientes, SUM(i.estado = 'retirado') AS en_terreno,
            SUM(i.estado = 'firmado') AS firmados, SUM(i.estado = 'devuelto_sin_firma') AS sin_firma,
@@ -64,7 +67,7 @@ const SELECT_LOTES = `
 const GROUP_LOTES = ' GROUP BY l.id, l.portador_id, up.nombre, l.creado_por, uc.nombre, l.estado, l.observacion, l.creado_en, l.retirado_en, l.cerrado_en';
 
 const SELECT_ITEMS = `
-    SELECT i.id, i.documento_id, i.estado, i.retirado_en, i.resuelto_en, i.observacion,
+    SELECT i.id, i.lote_id, i.documento_id, i.estado, i.retirado_en, i.resuelto_en, i.observacion,
            d.nombre_archivo, d.estado AS documento_estado, td.nombre AS tipo_nombre, td.codigo AS tipo_codigo,
            t.id AS trabajador_id, t.nombres, t.apellido_paterno, t.apellido_materno, t.rut, o.nombre AS obra_nombre
       FROM documentos_lotes_items i
@@ -85,7 +88,11 @@ const SELECT_DISPONIBLES = `
       LEFT JOIN obras o ON o.id = t.obra_id
      WHERE d.activo = TRUE AND d.origen = 'generado' AND d.estado = 'descargado' AND d.lote_id IS NULL`;
 
-function proyectarLote(r) {
+/**
+ * `ctx` = { hoy, feriados } para la tenencia en terreno (máx. 4 días hábiles, jefatura 2026-10-21). Sin
+ * ctx, o si el lote no está en terreno, `tenencia` es null.
+ */
+function proyectarLote(r, ctx = null) {
     return {
         id: r.id,
         portador_id: r.portador_id,
@@ -103,7 +110,26 @@ function proyectarLote(r) {
         firmados: toNum(r.firmados),
         sin_firma: toNum(r.sin_firma),
         no_entregados: toNum(r.no_entregados),
+        tenencia: ctx && r.estado === 'en_terreno' && r.retirado_dia ? tenencia(r.retirado_dia, ctx.hoy, ctx.feriados) : null,
     };
+}
+
+/** Feriados activos entre dos fechas, como Set de 'YYYY-MM-DD'. Sin la tabla: vacío (cuentan solo los fines de semana). */
+async function _feriados(desde, hasta) {
+    try {
+        const [rows] = await db.query("SELECT DATE_FORMAT(fecha, '%Y-%m-%d') AS f FROM feriados WHERE activo = 1 AND fecha BETWEEN ? AND ?", [desde, hasta]);
+        return new Set((rows || []).map(r => r.f));
+    } catch (err) {
+        logger.warn('No se pudieron leer los feriados para la tenencia en terreno', { err: err.message });
+        return new Set();
+    }
+}
+
+/** Contexto de tenencia para un grupo de filas: hoy (Chile) y los feriados desde el retiro más antiguo. */
+async function _ctxTenencia(rows) {
+    const hoy = hoyChile();
+    const dias = (rows || []).filter(r => r.estado === 'en_terreno' && r.retirado_dia).map(r => r.retirado_dia).sort();
+    return { hoy, feriados: dias.length ? await _feriados(dias[0], sumarDias(hoy, 60)) : new Set() };
 }
 
 function proyectarItem(r) {
@@ -258,7 +284,8 @@ const documentosLotesService = {
         const sql = `${SELECT_LOTES}${where.length ? ` WHERE ${where.join(' AND ')}` : ''}${GROUP_LOTES} ORDER BY FIELD(l.estado, 'pendiente_retiro', 'en_terreno', 'cerrado'), l.creado_en DESC LIMIT 200`;
         try {
             const [rows] = await db.query(sql, params);
-            return rows.map(proyectarLote);
+            const ctx = await _ctxTenencia(rows);
+            return rows.map(r => proyectarLote(r, ctx));
         } catch (err) {
             if (esErrorEsquema(err)) return [];
             throw err;
@@ -275,7 +302,7 @@ const documentosLotesService = {
             throw err;
         }
         if (!rows.length) throw httpError('Lote no encontrado', 404);
-        const lote = proyectarLote(rows[0]);
+        const lote = proyectarLote(rows[0], await _ctxTenencia(rows));
         if (!puedeRegistrar(user) && lote.portador_id !== user.id) throw httpError('Este lote es de otro portador', 403);
         const [items] = await db.query(SELECT_ITEMS, [id]);
         return { ...lote, items: items.map(proyectarItem) };
@@ -370,6 +397,51 @@ const documentosLotesService = {
         });
         await _log(user.id, 'DELETE', id, { evento: 'lote_anulado', ...out, resumen: `Lote #${id} anulado (${out.liberados} documento(s) vuelven a "por retirar")` }, req);
         return out;
+    },
+
+    /**
+     * Lotes en terreno que pasaron los 4 días hábiles de tenencia (jefatura 2026-10-21), con sus documentos
+     * aún en terreno. Con registrar, todos; con solo portar, los míos. Es lo que la ventana del inicio de
+     * sesión muestra.
+     */
+    async atrasados(user) {
+        const mio = !puedeRegistrar(user);
+        const vacio = { max_dias_habiles: MAX_DIAS_HABILES_TERRENO, alcance: mio ? 'propios' : 'todos', lotes: [] };
+        let rows;
+        try {
+            [rows] = await db.query(
+                `${SELECT_LOTES} WHERE l.estado = 'en_terreno'${mio ? ' AND l.portador_id = ?' : ''}${GROUP_LOTES}`,
+                mio ? [user.id] : []
+            );
+        } catch (err) {
+            if (esErrorEsquema(err)) return vacio;
+            throw err;
+        }
+        const ctx = await _ctxTenencia(rows);
+        const vencidos = (rows || []).map(r => proyectarLote(r, ctx)).filter(l => l.tenencia?.atrasado && l.en_terreno > 0);
+        if (!vencidos.length) return vacio;
+        const [items] = await db.query(
+            SELECT_ITEMS.replace('WHERE i.lote_id = ?', "WHERE i.lote_id IN (?) AND i.estado = 'retirado'"),
+            [vencidos.map(l => l.id)]
+        );
+        const porLote = new Map();
+        for (const it of items || []) {
+            const k = Number(it.lote_id);
+            if (!porLote.has(k)) porLote.set(k, []);
+            porLote.get(k).push(proyectarItem(it));
+        }
+        return {
+            ...vacio,
+            lotes: vencidos
+                .sort((a, b) => b.tenencia.dias_atraso - a.tenencia.dias_atraso || a.id - b.id)
+                .map(l => ({
+                    lote_id: l.id, portador_id: l.portador_id, portador_nombre: l.portador_nombre, retirado_en: l.retirado_en,
+                    tenencia: l.tenencia,
+                    documentos: (porLote.get(l.id) || []).map(i => ({
+                        documento_id: i.documento_id, tipo_nombre: i.tipo_nombre, trabajador_nombre: i.trabajador_nombre, rut: i.rut, obra_nombre: i.obra_nombre,
+                    })),
+                })),
+        };
     },
 
     /** Contadores para badge/Bandeja: con registrar, globales; con solo portar, los míos. */

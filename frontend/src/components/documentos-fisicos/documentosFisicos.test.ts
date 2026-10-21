@@ -2,7 +2,7 @@ import {
     agruparPorTrabajador, agruparPorObra, filtrarDisponibles, toggleIds, estadoSeleccion,
     buildCrearLotePayload, validarNuevoLote, buildConfirmarRetiroPayload, buildRecepcionPayload,
     diasDesde, resumenLote, accionesLote, filasBandejaLotes, desenlaceLote,
-    type DocumentoDisponible, type LoteResumen, agruparLotesPorEstado, inicialesNombre, lineaTiempoLote, diasEnTerreno, textoDiasTerreno,
+    type DocumentoDisponible, type LoteResumen, agruparLotesPorEstado, inicialesNombre, lineaTiempoLote, segmentosTenencia, tonoTenencia, textoTenencia, diaCorto,
 } from './documentosFisicos';
 
 const doc = (id: number, extra: Partial<DocumentoDisponible> = {}): DocumentoDisponible => ({
@@ -154,14 +154,17 @@ describe('tablero de custodia', () => {
         expect(lineaTiempoLote({ ...base, estado: 'en_terreno', creado_en: '2026-09-10 08:00:00', retirado_en: '2026-09-14 08:00:00' }, hoy)).toBe('En terreno desde ayer');
         expect(lineaTiempoLote({ ...base, estado: 'cerrado', creado_en: '2026-09-01 08:00:00', retirado_en: '2026-09-02 08:00:00', cerrado_en: '2026-09-10 08:00:00' }, hoy)).toBe('Volvió hace 5 días');
     });
-    it('diasEnTerreno cuenta desde el retiro y solo en terreno', () => {
-        const hoy = new Date(2026, 8, 15, 12);
-        expect(diasEnTerreno({ estado: 'en_terreno', creado_en: '2026-09-01 08:00:00', retirado_en: '2026-09-12 18:00:00' }, hoy)).toBe(3);
-        expect(diasEnTerreno({ estado: 'en_terreno', creado_en: '2026-09-15 08:00:00', retirado_en: '2026-09-15 09:00:00' }, hoy)).toBe(0);
-        expect(diasEnTerreno({ estado: 'pendiente_retiro', creado_en: '2026-09-01 08:00:00', retirado_en: null }, hoy)).toBeNull();
-        expect(diasEnTerreno({ estado: 'cerrado', creado_en: '2026-09-01 08:00:00', retirado_en: '2026-09-02 08:00:00' }, hoy)).toBeNull();
-        expect(textoDiasTerreno(0)).toBe('0 días en terreno');
-        expect(textoDiasTerreno(1)).toBe('1 día en terreno');
-        expect(textoDiasTerreno(7)).toBe('7 días en terreno');
+    it('tenencia: barra de 4 tramos, tono y textos (máx. 4 días hábiles)', () => {
+        const t = (dia: number) => ({ dia, max: 4, vence_el: '2026-10-22', atrasado: dia > 4, dias_atraso: Math.max(0, dia - 4) });
+        expect(segmentosTenencia(t(2))).toEqual([true, true, false, false]);
+        expect(segmentosTenencia(t(6))).toEqual([true, true, true, true]);
+        expect(tonoTenencia(t(3))).toBe('ok');
+        expect(tonoTenencia(t(4))).toBe('ultimo');
+        expect(tonoTenencia(t(5))).toBe('atrasado');
+        expect(diaCorto('2026-10-22')).toBe('jue 22');
+        expect(textoTenencia(t(2))).toEqual({ cifra: 'Día 2 de 4', detalle: 'Vence el jue 22 · días hábiles' });
+        expect(textoTenencia(t(4)).detalle).toBe('Hoy es el último día para devolverlos');
+        expect(textoTenencia(t(5))).toEqual({ cifra: '1 día de atraso', detalle: 'Venció el jue 22: debía volver en 4 días hábiles' });
+        expect(textoTenencia(t(7)).cifra).toBe('3 días de atraso');
     });
 });

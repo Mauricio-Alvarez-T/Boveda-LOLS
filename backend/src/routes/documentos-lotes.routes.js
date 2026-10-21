@@ -33,6 +33,11 @@ router.get('/pendientes/count', auth, checkPermission(REGISTRAR, PORTAR), async 
     try { res.json({ data: await service.pendientesCount(req.user) }); } catch (err) { next(err); }
 });
 
+// Lotes en terreno pasados de los 4 días hábiles (ventana al iniciar sesión). RRHH: todos; portador: los suyos.
+router.get('/atrasados', auth, checkPermission(REGISTRAR, PORTAR), async (req, res, next) => {
+    try { res.json({ data: await service.atrasados(req.user) }); } catch (err) { next(err); }
+});
+
 // Lotes visibles (RRHH: todos; portador: los suyos).
 router.get('/', auth, checkPermission(REGISTRAR, PORTAR), async (req, res, next) => {
     try { res.json({ data: await service.listar({ estado: req.query.estado }, req.user) }); } catch (err) { next(err); }

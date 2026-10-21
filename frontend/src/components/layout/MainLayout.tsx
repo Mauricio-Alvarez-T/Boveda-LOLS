@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
+import { AlertaAtrasosAlEntrar } from '../documentos-fisicos/AlertaAtrasosAlEntrar';
 import { IconButton } from '../ui/IconButton';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { EntornoBanner } from './EntornoBanner';
@@ -57,6 +58,8 @@ export const MainLayout: React.FC = () => {
             <main className="flex-1 flex flex-col min-w-0 h-[100dvh]">
                 {/* Franja de entorno: solo en staging (VITE_ENTORNO), encima de todo. */}
                 <EntornoBanner />
+                {/* Al iniciar sesión: documentos en terreno pasados de 4 días hábiles (jefatura 2026-10-21). */}
+                <AlertaAtrasosAlEntrar />
 
                 {/* Top Navbar — fixed above scroll area. Sin marco (dueño 2026-10-20, idea de la propuesta L del
                     lienzo): mismo fondo que la página, sin borde ni sombra, alineado con el contenido (md:px-5). */}
