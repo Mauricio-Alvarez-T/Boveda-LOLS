@@ -2,7 +2,7 @@ import {
     agruparPorTrabajador, agruparPorObra, filtrarDisponibles, toggleIds, estadoSeleccion,
     buildCrearLotePayload, validarNuevoLote, buildConfirmarRetiroPayload, buildRecepcionPayload,
     diasDesde, resumenLote, accionesLote, filasBandejaLotes, desenlaceLote,
-    type DocumentoDisponible, type LoteResumen, agruparLotesPorEstado, inicialesNombre, lineaTiempoLote,
+    type DocumentoDisponible, type LoteResumen, agruparLotesPorEstado, inicialesNombre, lineaTiempoLote, diasEnTerreno, textoDiasTerreno,
 } from './documentosFisicos';
 
 const doc = (id: number, extra: Partial<DocumentoDisponible> = {}): DocumentoDisponible => ({
@@ -153,5 +153,15 @@ describe('tablero de custodia', () => {
         expect(lineaTiempoLote({ ...base, estado: 'pendiente_retiro', creado_en: '2026-09-15 08:00:00' }, hoy)).toBe('Listo desde hoy · lo preparó Matías');
         expect(lineaTiempoLote({ ...base, estado: 'en_terreno', creado_en: '2026-09-10 08:00:00', retirado_en: '2026-09-14 08:00:00' }, hoy)).toBe('En terreno desde ayer');
         expect(lineaTiempoLote({ ...base, estado: 'cerrado', creado_en: '2026-09-01 08:00:00', retirado_en: '2026-09-02 08:00:00', cerrado_en: '2026-09-10 08:00:00' }, hoy)).toBe('Volvió hace 5 días');
+    });
+    it('diasEnTerreno cuenta desde el retiro y solo en terreno', () => {
+        const hoy = new Date(2026, 8, 15, 12);
+        expect(diasEnTerreno({ estado: 'en_terreno', creado_en: '2026-09-01 08:00:00', retirado_en: '2026-09-12 18:00:00' }, hoy)).toBe(3);
+        expect(diasEnTerreno({ estado: 'en_terreno', creado_en: '2026-09-15 08:00:00', retirado_en: '2026-09-15 09:00:00' }, hoy)).toBe(0);
+        expect(diasEnTerreno({ estado: 'pendiente_retiro', creado_en: '2026-09-01 08:00:00', retirado_en: null }, hoy)).toBeNull();
+        expect(diasEnTerreno({ estado: 'cerrado', creado_en: '2026-09-01 08:00:00', retirado_en: '2026-09-02 08:00:00' }, hoy)).toBeNull();
+        expect(textoDiasTerreno(0)).toBe('0 días en terreno');
+        expect(textoDiasTerreno(1)).toBe('1 día en terreno');
+        expect(textoDiasTerreno(7)).toBe('7 días en terreno');
     });
 });

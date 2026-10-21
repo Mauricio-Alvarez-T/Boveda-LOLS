@@ -9,7 +9,7 @@
  * En móvil los carriles se muestran de a uno con un selector; en desktop los tres a la vez.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Truck, PackageOpen, RefreshCw, ChevronRight, PackageCheck, ClipboardCheck, Printer, FileText, AlertTriangle } from 'lucide-react';
+import { Truck, PackageOpen, RefreshCw, ChevronRight, PackageCheck, ClipboardCheck, Printer, FileText, AlertTriangle, Clock } from 'lucide-react';
 
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -26,7 +26,7 @@ import { AlertasDocumentosStrip } from './AlertasDocumentosStrip';
 import { useDocumentosAlertas } from '../../hooks/useDocumentosAlertas';
 import {
     LOTE_ESTADO_LABEL, LOTE_ESTADO_TITULO, LOTE_ESTADO_VACIO, LOTE_ESTADOS, agruparLotesPorEstado, resumenLote, accionesLote, inicialesNombre, lineaTiempoLote,
-    desenlaceLote, DESENLACE_LABEL,
+    desenlaceLote, DESENLACE_LABEL, diasEnTerreno, textoDiasTerreno,
     type LoteEstado, type LoteResumen, type DocumentoDisponible,
 } from './documentosFisicos';
 
@@ -66,7 +66,12 @@ export const DocumentosFisicosPanel: React.FC = () => {
     const puedeRegistrar = hasPermission('documentos.entrega.registrar');
     const puedePortar = hasPermission('documentos.entrega.portar');
     const { refetch: refetchPendientes } = useLotesPendientes();
-    const { refetch: refetchAlertas } = useDocumentosAlertas();
+    const { alertas, refetch: refetchAlertas } = useDocumentosAlertas();
+    // Lotes en terreno que pasaron su umbral (B7): su contador de días se pinta ámbar o rojo.
+    const alertaTerreno = useMemo(
+        () => new Map((alertas?.lotes.en_terreno.items ?? []).map(i => [i.lote_id, i.critical] as const)),
+        [alertas]
+    );
 
     const [lotes, setLotes] = useState<LoteResumen[]>([]);
     const [disponibles, setDisponibles] = useState<number | null>(null);
@@ -151,6 +156,21 @@ export const DocumentosFisicosPanel: React.FC = () => {
                     <FileText className="mt-px h-3.5 w-3.5 shrink-0" /><span className="min-w-0 break-words">{resumenLote(l)}</span>
                 </p>
                 {l.observacion && <p className="mt-1 text-caption text-muted-foreground italic break-words">“{l.observacion}”</p>}
+                {/* Cuántos días lleva en terreno (jefatura 2026-10-21). Azul = informativo; ámbar / rojo si pasó
+                    el umbral de aviso / crítico de las alertas (B7). */}
+                {(() => {
+                    const dias = diasEnTerreno(l);
+                    if (dias === null) return null;
+                    const critico = alertaTerreno.get(l.id);
+                    const tono = critico === true ? 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300'
+                        : critico === false ? 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300'
+                            : 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300';
+                    return (
+                        <span className={cn('mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-caption font-semibold tabular-nums', tono)}>
+                            <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />{textoDiasTerreno(dias)}
+                        </span>
+                    );
+                })()}
                 {/* El carril se llama «Firmados en oficina» porque es lo que pasa casi siempre; cuando un
                     lote terminó de otra forma, lo dice acá, en el lote concreto. */}
                 {(() => {

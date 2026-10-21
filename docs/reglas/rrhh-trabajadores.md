@@ -750,7 +750,8 @@ firma en la obra (papel) → el portador devuelve los firmados → RRHH recibe.
 - **UI**: Gestiones → pestaña **Documentos físicos** (`?tab=fisicos`; el portador sin `trabajadores.ver` cae
   ahí directo; Gestiones es visible para él en el menú). `DocumentosFisicosPanel` (rediseño 2026-09-15:
   **tablero de custodia** con tres carriles en el orden del flujo —Por confirmar → En terreno → Cerrados—;
-  tarjeta = portador, N docs, resumen, qué pasó y hace cuánto, y la acción que le toca a quien mira
+  tarjeta = portador, N docs, resumen, qué pasó y hace cuánto (en terreno: «N días en terreno» desde el
+  retiro confirmado, azul; ámbar/rojo si pasó el umbral de aviso/crítico de B7 — jefatura 2026-10-21), y la acción que le toca a quien mira
   («Confirmar retiro» portador / «Registrar recepción» RRHH); RRHH ve arriba cuántos documentos impresos
   esperan lote; móvil = un carril a la vez; `agruparLotesPorEstado`/`lineaTiempoLote` con test) · `NuevoLoteModal` (documentos impresos agrupados **obra → trabajador**
   con casilla por trabajador —un kit de 6 = 1 clic—, buscador, filtro por obra, portador recordado en
