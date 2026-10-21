@@ -8,8 +8,8 @@ import type { IdeaTipo, IdeaEstado, IdeaMotivo, IdeaFrecuencia, IdeaAlcance, Ide
  * Regla de producto: mejoras del sistema, no mañas (docs/reglas/ideas.md).
  */
 
-/** Nombre del acceso en el menú lateral (una sola fuente: se cambia acá). */
-export const ETIQUETA_BUZON_IDEAS = 'Buzón de ideas';
+/** Nombre del acceso en el menú lateral (una sola fuente: se cambia acá). Antes «Buzón de ideas» (Marcos 2026-10-21). */
+export const ETIQUETA_BUZON_IDEAS = 'Comparte tu idea';
 
 /**
  * El formulario según el tipo: UNA sola casilla y el pantallazo (Marcos 20-10-2026: "es muy
