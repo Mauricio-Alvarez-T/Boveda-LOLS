@@ -4,17 +4,62 @@ import api from '../../services/api';
 import { showApiError } from '../../utils/toastUtils';
 import type { ApiResponse } from '../../types';
 import type {
-    CausaDiscrepancia, ResolverDiscrepanciaResultado, Transferencia, TransferenciaConDiscrepancias,
-    TransferenciaRecepcion,
+    RehacerDiscrepanciaPlan, ResolverDiscrepanciaResultado, SimulacionResolverDiscrepancia, Transferencia,
+    TransferenciaConDiscrepancias, TransferenciaRecepcion,
 } from '../../types/entities';
 import {
-    ESTADOS_ERROR_EN_MODAL, leerCausa, normalizarAjustes, resumenAjustes,
-} from '../../components/inventario/discrepanciaCausa';
+    CODIGO_APLICADA_SIN_SIMULAR, ESTADOS_ERROR_EN_MODAL, TEXTO_REINTENTAR, avisoYaCerrada, esReintentar, esVerdadero,
+    interpretarSimulacion, mensajeResultadoResolver, normalizarAjustes, normalizarPlanRehacer, parseAjusteStock,
+    resumenAjustes, type MomentoDecision,
+} from '../../components/inventario/mensajeDiferencia';
 
-/** Resultado de resolver/descartar una diferencia: datos aplicados o el error (status/code/mensaje). */
+/** Error de una acción sobre una diferencia (status/code del servidor + mensaje legible). */
+export interface ErrorDiscrepancia { status?: number; code?: string; message: string }
+
+/** Resultado de resolver (aprobar) / descartar (rechazar) una diferencia: lo aplicado o el error. */
 export type ResolverDiscrepanciaRespuesta =
     | { ok: true; data: ResolverDiscrepanciaResultado }
-    | { ok: false; error: { status?: number; code?: string; message: string } };
+    | { ok: false; error: ErrorDiscrepancia };
+
+/** Resultado de SIMULAR resolver / descartar (no escribe): el efecto exacto o el error. */
+export type SimularDiscrepanciaRespuesta =
+    | { ok: true; data: SimulacionResolverDiscrepancia }
+    | { ok: false; error: ErrorDiscrepancia };
+
+/**
+ * «Otra persona ya la resolvió / ya no está»: toast INFORMATIVO (no error) con el mensaje del
+ * servidor. Devuelve true si lo mostró (el modal se cierra y la lista se refresca). Al simular el
+ * título no dice «no se aplicó tu decisión» (todavía no había decisión).
+ */
+function toastSiYaCerrada(error: ErrorDiscrepancia, accion: 'resolver' | 'rehacer', momento: MomentoDecision): boolean {
+    const aviso = avisoYaCerrada(error, accion, momento);
+    if (!aviso) return false;
+    toast.info(aviso.titulo, aviso.detalle ? { description: aviso.detalle } : undefined);
+    return true;
+}
+
+/** Resultado de rehacer (simulado o real) una diferencia de la regla anterior. */
+export type RehacerDiscrepanciaRespuesta =
+    | { ok: true; data: RehacerDiscrepanciaPlan }
+    | { ok: false; error: ErrorDiscrepancia };
+
+/** Datos de la fila que ya tiene la pantalla, para completar el plan si el servidor no los manda. */
+export interface RespaldoRehacer {
+    item?: string | null;
+    enviada?: number | string | null;
+    recibida?: number | string | null;
+    unidad?: string | null;
+}
+
+/** status/code/mensaje de un error de axios (el backend manda { error, code }). */
+function leerErrorApi(err: unknown, porDefecto: string): ErrorDiscrepancia {
+    const e = err as { response?: { status?: number; data?: { error?: string; code?: string } }; message?: string };
+    return {
+        status: e.response?.status,
+        code: e.response?.data?.code,
+        message: e.response?.data?.error || e.message || porDefecto,
+    };
+}
 
 interface TransferenciaListResponse {
     data: Transferencia[];
@@ -313,8 +358,9 @@ export function useTransferencias() {
 
     /**
      * Recepción de TRF. `tipo` controla si se cierra la TRF o se deja abierta:
-     *   · 'total'   → cierra (estado 'recibida'). Gaps acumulados → discrepancia.
-     *                 Comportamiento por defecto (back-compat).
+     *   · 'total'   → cierra (estado 'recibida'). Al stock entra lo ENVIADO; si lo declarado
+     *                 difiere, la diferencia queda PENDIENTE para Inventario (la aprueba o la
+     *                 rechaza). Comportamiento por defecto (back-compat).
      *   · 'parcial' → registra lo que llegó en ESTE viaje. Estado queda en
      *                 'recepcion_parcial' para futuros viajes. Sin discrepancia.
      *                 Backend bloquea over-receive (acumulado > enviada).
@@ -440,59 +486,132 @@ export function useTransferencias() {
         }
     }, []);
 
-    // Resolver = elegir la CAUSA (el servidor ajusta stock y deja kardex); descartar no
-    // mueve stock y no lleva causa. Devuelve el resultado (ajustes + aviso) y, si falla,
-    // el error: los 400/409 (destino sin stock, régimen anterior, migración pendiente)
-    // NO van a toast — el modal los muestra adentro y queda abierto para elegir otra causa.
+    // SIMULA resolver (aprobar) / descartar (rechazar) sin escribir: el servidor devuelve las
+    // ubicaciones con su stock de hoy y cómo quedarían, el aviso y el bloqueo si no se puede. Sin
+    // toasts de error (el modal muestra un texto genérico y el servidor decide al confirmar), salvo
+    // «ya la resolvió otra persona» (informativo).
+    const simularResolucionDiscrepancia = useCallback(async (
+        id: number,
+        estado: 'resuelta' | 'descartada',
+    ): Promise<SimularDiscrepanciaRespuesta> => {
+        try {
+            const res = await api.put<{ data?: Record<string, unknown> }>(
+                `/transferencias/discrepancias/${id}/resolver?simular=1`, { estado }
+            );
+            const r = interpretarSimulacion(res.data?.data ?? {});
+            // Backend sin simulación: ignoró ?simular=1 y RESOLVIÓ. Avisar y que el modal se cierre.
+            if (r.tipo === 'aplicada') {
+                const message = 'El servidor aplicó la decisión al abrir la ventana (no sabía simular). Revisa el resultado en la lista.';
+                toast.warning(estado === 'resuelta' ? 'Diferencia aprobada' : 'Diferencia rechazada', { description: message, duration: 12000 });
+                return { ok: false, error: { code: CODIGO_APLICADA_SIN_SIMULAR, message } };
+            }
+            // El 409 NO_PENDIENTE llega como `bloqueo`: es «ya la resolvió otra persona» (aviso sin
+            // «no se aplicó tu decisión»: todavía no había decisión).
+            if (r.tipo === 'ya_cerrada') {
+                toastSiYaCerrada(r.error, 'resolver', 'simular');
+                return { ok: false, error: r.error };
+            }
+            // REINTENTAR como `bloqueo` no bloquea la decisión: la ventana lo trata como simulación fallida.
+            if (r.tipo === 'reintentar') return { ok: false, error: r.error };
+            return { ok: true, data: r.sim };
+        } catch (err) {
+            const error = leerErrorApi(err, 'No se pudo calcular el efecto en el stock');
+            if (!toastSiYaCerrada(error, 'resolver', 'simular')) console.error(err);
+            return { ok: false, error };
+        }
+    }, []);
+
+    // Resolver = APROBAR lo declarado por quien recibió (el servidor suma/resta la diferencia y deja
+    // kardex); descartar = RECHAZARLO (no mueve stock: queda lo enviado). La nota es opcional: vacía,
+    // el servidor guarda un texto generado. Los 400/409 (destino sin stock, regla anterior) NO van a
+    // toast: el modal los muestra adentro y queda abierto. «Ya la resolvió otra persona» (409
+    // NO_PENDIENTE / 404) va a toast INFORMATIVO y el modal se cierra. 409 REINTENTAR (el stock
+    // estaba ocupado) va a toast con el mensaje y el modal queda abierto para reintentar.
+    // Una de la regla anterior que el servidor cerró sin mover stock (`cerrada_regla_anterior`)
+    // tiene su propio toast.
     const resolverDiscrepancia = useCallback(async (
         id: number,
         estado: 'resuelta' | 'descartada',
         resolucion: string,
-        causa: CausaDiscrepancia | null = null,
         unidad?: string | null,
     ): Promise<ResolverDiscrepanciaRespuesta> => {
+        const nota = resolucion.trim();
         try {
-            const body = estado === 'resuelta' && causa ? { estado, resolucion, causa } : { estado, resolucion };
+            const body = nota ? { estado, resolucion: nota } : { estado };
             const res = await api.put<{ data?: Record<string, unknown> }>(
                 `/transferencias/discrepancias/${id}/resolver`, body
             );
             const raw = res.data?.data ?? {};
+            // Contrato: { id, estado, resolucion, ajustes, aviso }; si solo trae ajuste_stock, se lee de ahí.
+            const deColumna = 'ajustes' in raw ? null : parseAjusteStock(raw.ajuste_stock);
+            const avisoRaw = deColumna ? deColumna.aviso : raw.aviso;
             const data: ResolverDiscrepanciaResultado = {
                 id: Number(raw.id ?? id),
                 estado,
-                resolucion: typeof raw.resolucion === 'string' ? raw.resolucion : resolucion,
-                causa: leerCausa(raw.causa),
-                ajustes: normalizarAjustes(raw.ajustes),
-                aviso: typeof raw.aviso === 'string' && raw.aviso.trim() ? raw.aviso.trim() : null,
+                resolucion: typeof raw.resolucion === 'string' ? raw.resolucion : nota,
+                ajustes: deColumna ? deColumna.ajustes : normalizarAjustes(raw.ajustes),
+                aviso: typeof avisoRaw === 'string' && avisoRaw.trim() ? avisoRaw.trim() : null,
+                cerrada_regla_anterior: esVerdadero(raw.cerrada_regla_anterior),
             };
-            if (estado === 'descartada') {
-                toast.success('Discrepancia descartada');
-            } else if (causa && !('causa' in raw)) {
-                // Backend anterior a la mig 129 (validateBody con strip:true borra `causa` en silencio):
-                // quedó resuelta SIN ajuste de stock. Que se note, para corregir a mano.
-                toast.warning('Discrepancia resuelta, pero sin ajuste de stock', {
-                    description: 'El servidor todavía no registra la causa. Revisa el stock a mano.',
-                    duration: 12000,
-                });
+            const t = mensajeResultadoResolver(data, unidad);
+            const opciones = {
+                ...(t.descripcion ? { description: t.descripcion } : {}),
+                ...(t.duracion ? { duration: t.duracion } : {}),
+            };
+            if (t.tipo === 'warning') toast.warning(t.titulo, opciones);
+            else toast.success(t.titulo, opciones);
+            return { ok: true, data };
+        } catch (err) {
+            const error = leerErrorApi(err, 'Error al actualizar la diferencia');
+            if (toastSiYaCerrada(error, 'resolver', 'confirmar')) return { ok: false, error };
+            if (esReintentar(error)) {
+                toast.warning(error.message, { description: TEXTO_REINTENTAR, duration: 10000 });
+                return { ok: false, error };
+            }
+            if (error.status !== undefined && ESTADOS_ERROR_EN_MODAL.includes(error.status)) {
+                console.error(err);
             } else {
-                const resumen = data.ajustes.length ? resumenAjustes(data.ajustes, unidad) : 'Sin cambios de stock';
-                if (data.aviso) {
-                    toast.warning('Discrepancia resuelta', { description: `${resumen}. ${data.aviso}`, duration: 12000 });
-                } else {
-                    toast.success('Discrepancia resuelta', { description: resumen });
-                }
+                showApiError(err, 'Error al actualizar la diferencia');
+            }
+            return { ok: false, error };
+        }
+    }, []);
+
+    // Rehacer una diferencia de la REGLA ANTERIOR (solo Super Administrador): deja el stock como si
+    // hubiera llegado lo enviado y la reabre como pendiente. `simular` = solo el plan, sin escribir.
+    // 400/403/409 se muestran dentro del modal del plan; 404 / 409 YA_REGLA_NUEVA (otra persona ya la
+    // rehízo o la borró) van a toast informativo y el modal se cierra.
+    const rehacerDiscrepancia = useCallback(async (
+        id: number,
+        simular: boolean,
+        respaldo: RespaldoRehacer = {},
+    ): Promise<RehacerDiscrepanciaRespuesta> => {
+        try {
+            const res = await api.post<{ data?: Record<string, unknown> }>(
+                `/transferencias/discrepancias/${id}/rehacer${simular ? '?simular=1' : ''}`
+            );
+            const data = normalizarPlanRehacer(res.data?.data ?? {}, { id, ...respaldo });
+            if (!simular) {
+                const resumen = data.ajustes.length ? resumenAjustes(data.ajustes, respaldo.unidad) : 'Sin cambios de stock';
+                toast.success('Diferencia rehecha: volvió a Pendientes', {
+                    description: data.aviso ? `${resumen}. ${data.aviso}` : resumen,
+                    duration: data.aviso ? 12000 : 6000,
+                });
             }
             return { ok: true, data };
         } catch (err) {
-            const e = err as { response?: { status?: number; data?: { error?: string; code?: string } }; message?: string };
-            const status = e.response?.status;
-            const message = e.response?.data?.error || e.message || 'Error al actualizar la discrepancia';
-            if (status !== undefined && ESTADOS_ERROR_EN_MODAL.includes(status)) {
+            const error = leerErrorApi(err, 'Error al rehacer la diferencia');
+            if (toastSiYaCerrada(error, 'rehacer', simular ? 'simular' : 'confirmar')) return { ok: false, error };
+            if (esReintentar(error)) {
+                toast.warning(error.message, { description: TEXTO_REINTENTAR, duration: 10000 });
+                return { ok: false, error };
+            }
+            if (error.status !== undefined && [400, 403, 409].includes(error.status)) {
                 console.error(err);
             } else {
-                showApiError(err, 'Error al actualizar discrepancia');
+                showApiError(err, 'Error al rehacer la diferencia');
             }
-            return { ok: false, error: { status, code: e.response?.data?.code, message } };
+            return { ok: false, error };
         }
     }, []);
 
@@ -534,7 +653,7 @@ export function useTransferencias() {
         fetchAll, fetchById, crear, solicitudMateriales, pushDirecto, intraBodega, devolucion,
         intraObra, ordenGerencia,
         aprobar, crearFaltante, despachar, recibir, uploadFotoRecepcion, fetchRecepciones, rechazar, rechazarRecepcion, cancelar, eliminar,
-        fetchDiscrepancias, resolverDiscrepancia, eliminarDiscrepancia,
+        fetchDiscrepancias, simularResolucionDiscrepancia, resolverDiscrepancia, rehacerDiscrepancia, eliminarDiscrepancia,
         fetchStockPorItems, fetchSolicitantes, setSelected
     };
 }

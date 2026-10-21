@@ -5,6 +5,7 @@ import { PestanasElasticas } from '../ui/PestanasElasticas';
 import { IconButton } from '../ui/IconButton';
 import type { TransferenciaConDiscrepancias } from '../../types/entities';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
+import { esReglaAnterior } from './mensajeDiferencia';
 
 interface Props {
     discrepancias: TransferenciaConDiscrepancias[];
@@ -118,6 +119,9 @@ const DiscrepanciasList: React.FC<Props> = ({
                         const origenIsObra = !!d.origen_obra_nombre;
                         const destinoIsObra = !!d.destino_obra_nombre;
                         const isSelected = d.id === selectedId;
+                        // Pendientes de la regla anterior (la diferencia ya está en el stock): aprobarlas las
+                        // cierra sin mover nada; rechazarlas exige que un Super Admin las rehaga antes.
+                        const porRehacer = d.discrepancias.filter(x => x.estado === 'pendiente' && esReglaAnterior(x.diferencia_aplicada)).length;
 
                         return (
                             <div
@@ -180,6 +184,15 @@ const DiscrepanciasList: React.FC<Props> = ({
                                         </p>
                                     </div>
                                 </div>
+
+                                {porRehacer > 0 && (
+                                    <p className="mt-1.5 inline-flex items-start gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-micro font-bold text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                                        <AlertTriangle className="h-2.5 w-2.5 shrink-0 mt-0.5" aria-hidden="true" />
+                                        <span className="break-words min-w-0">
+                                            Regla anterior: {porRehacer === 1 ? 'ya está en el stock' : `${porRehacer} ya están en el stock`}
+                                        </span>
+                                    </p>
+                                )}
 
                                 {/* Receptor */}
                                 {d.receptor_nombre && (

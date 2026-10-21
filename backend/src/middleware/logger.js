@@ -259,6 +259,10 @@ const activityLogger = async (req, res, next) => {
             // Custodia de documentos físicos (mig 114): el service loguea lote_creado / lote_retirado /
             // lote_recepcion / lote_anulado con conteos; el log global solo duplicaría listas de ids.
             if (/^\/api\/documentos-lotes(\/|$)/.test(req.originalUrl.split('?')[0])) return;
+            // Diferencias de transferencias (2026-10-21): rehacer (POST) y resolver (PUT) quedaban como CREATE/UPDATE
+            // genérico (item_id 'discrepancias' o vacío, sin TRF ni ajustes), y la simulación (?simular=1) que no
+            // escribe nada también. La ruta loguea manualmente solo lo REAL, con la TRF, el ítem y los ajustes.
+            if (/^\/api\/transferencias\/discrepancias\/[^/]+\/(rehacer|resolver)$/.test(req.originalUrl.split('?')[0])) return;
 
             try {
                 const usuario_id = req.user ? req.user.id : null;

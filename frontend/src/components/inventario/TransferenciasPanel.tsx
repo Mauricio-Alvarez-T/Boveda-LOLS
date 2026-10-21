@@ -8,7 +8,7 @@ import TransferenciasList from './TransferenciasList';
 import TransferenciaDetail from './TransferenciaDetail';
 import { NuevoMovimientoWizard } from './nuevo-movimiento/NuevoMovimientoWizard';
 import type { MovimientoResuelto } from '../../utils/inferMovimiento';
-import type { CausaDiscrepancia } from '../../types/entities';
+import type { RespaldoRehacer } from '../../hooks/inventario/useTransferencias';
 import DiscrepanciasList from './DiscrepanciasList';
 import DiscrepanciaDetail from './DiscrepanciaDetail';
 import TransferenciasHistorico from './TransferenciasHistorico';
@@ -249,12 +249,19 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         trfHook.setSelectedDiscrepancia(trf);
     }, [trfHook.setSelectedDiscrepancia]);
 
+    // Resolver = aprobar lo declarado (ajusta stock) · descartar = rechazarlo (no mueve stock).
     const handleResolverDiscrepancia = useCallback(async (
-        id: number, estado: 'resuelta' | 'descartada', resolucion: string,
-        causa: CausaDiscrepancia | null, unidad?: string | null
+        id: number, estado: 'resuelta' | 'descartada', resolucion: string, unidad?: string | null
     ) => {
-        return await trfHook.resolverDiscrepancia(id, estado, resolucion, causa, unidad);
+        return await trfHook.resolverDiscrepancia(id, estado, resolucion, unidad);
     }, [trfHook.resolverDiscrepancia]);
+
+    // Rehacer una diferencia de la regla anterior (solo Super Admin; el servidor revalida).
+    const { rehacerDiscrepancia } = trfHook;
+    const handleRehacerDiscrepancia = useCallback(
+        (id: number, simular: boolean, respaldo?: RespaldoRehacer) => rehacerDiscrepancia(id, simular, respaldo),
+        [rehacerDiscrepancia],
+    );
 
     const refreshDiscrepancias = useCallback(async () => {
         // Re-fetch current subfilter list
@@ -404,6 +411,11 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                                 canEliminar={hasPermission('inventario.transferencias.eliminar')}
                                 onBack={() => trfHook.setSelectedDiscrepancia(null)}
                                 onResolver={handleResolverDiscrepancia}
+                                // Simulación (?simular=1, no escribe): cifras exactas al abrir Resolver / Descartar.
+                                onSimular={trfHook.simularResolucionDiscrepancia}
+                                // Rehacer (regla anterior) = solo Super Administrador (rol 1); el POST lo revalida.
+                                esSuperAdmin={user?.rol_id === 1}
+                                onRehacer={handleRehacerDiscrepancia}
                                 onEliminarTransferencia={handleEliminarTransferenciaDisc}
                                 onEliminarDiscrepancia={handleEliminarDiscrepancia}
                                 onRefresh={refreshDiscrepancias}

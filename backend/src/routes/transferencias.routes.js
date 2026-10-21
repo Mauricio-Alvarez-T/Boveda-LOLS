@@ -4,6 +4,7 @@ const { checkPermission } = require('../middleware/rbac');
 const validateBody = require('../middleware/validateBody');
 const transferenciaService = require('../services/transferencia.service');
 const uploadTransferencias = require('../middleware/upload-transferencias');
+const { logManualActivity } = require('../middleware/logger');
 const {
     crearTransferencia, aprobar, recibir, resolverDiscrepancia,
     pushDirecto, intraBodega, devolucion, intraObra,
@@ -13,6 +14,48 @@ const {
 // crear/aprobar validan sin strip (el service destructura explícito y el
 // payload de aprobar es variable: legacy vs multi-origen). recibir y
 // resolverDiscrepancia sí usan strip (campos acotados y verificados).
+
+// ?simular de /discrepancias/:id/resolver y /rehacer (revisión 2026-10-21), estricto: '1' | 'true' simula;
+// ausente | '0' | 'false' ejecuta; cualquier otro valor (incluido vacío o repetido) → null = 400.
+function leerSimular(valor) {
+    if (valor === undefined) return false;
+    if (valor === '1' || valor === 'true') return true;
+    if (valor === '0' || valor === 'false') return false;
+    return null;
+}
+const ERROR_SIMULAR = 'El parámetro simular debe ser 1, true, 0 o false';
+
+// Log de actividad de una diferencia aprobada/rechazada/rehecha DE VERDAD (las simulaciones no escriben nada y no se
+// loguean). El activityLogger global excluye estas dos rutas (sin id real ni datos útiles quedaban como CREATE/UPDATE
+// genérico); acá va con la TRF como entidad, el ítem y los ajustes. logManualActivity nunca lanza.
+async function logDiferencia(req, accion, r) {
+    if (!r) return;
+    const codigo = r.transferencia_codigo || (r.transferencia_id != null ? `TRF #${r.transferencia_id}` : 'TRF');
+    const item = (r.item && (r.item.descripcion || (r.item.id != null ? `ítem ${r.item.id}` : null))) || 'ítem';
+    // Aprobar una de la regla anterior la cierra sin mover stock (cerrada_regla_anterior): el log lo dice.
+    const cerradaAnterior = accion !== 'rehacer' && r.cerrada_regla_anterior === true;
+    const resumen = accion === 'rehacer'
+        ? `Diferencia #${r.id} rehecha con la regla nueva (${codigo} · ${item}): vuelve a pendiente`
+        : `Diferencia #${r.id} ${r.estado === 'resuelta' ? 'aprobada' : 'rechazada'} (${codigo} · ${item})`
+            + (cerradaAnterior ? ': regla anterior, se cierra sin mover stock' : '');
+    await logManualActivity(
+        req.user.id, 'transferencias', 'UPDATE', r.transferencia_id != null ? String(r.transferencia_id) : null,
+        JSON.stringify({
+            resumen,
+            accion: accion === 'rehacer' ? 'diferencia_rehecha' : `diferencia_${r.estado}`,
+            discrepancia_id: r.id,
+            transferencia_id: r.transferencia_id ?? null,
+            transferencia_codigo: r.transferencia_codigo ?? null,
+            item: r.item ?? null,
+            ...(accion === 'rehacer' ? { regimen: r.regimen ?? null, estado_anterior: r.estado_anterior ?? null } : { estado: r.estado }),
+            ...(cerradaAnterior ? { cerrada_regla_anterior: true } : {}),
+            ajustes: Array.isArray(r.ajustes) ? r.ajustes : [],
+            aviso: r.aviso ?? null,
+        }),
+        req,
+        { entidad_tipo: 'transferencia', entidad_label: r.transferencia_codigo ?? null }
+    );
+}
 
 // GET /api/transferencias
 // Si NO tiene `inventario.transferencias.ver_todas` → backend scopea por
@@ -72,15 +115,41 @@ router.get('/discrepancias', auth, checkPermission('inventario.transferencias.ap
     } catch (err) { next(err); }
 });
 
-// PUT /api/transferencias/discrepancias/:id/resolver  body: { estado, resolucion, causa? }
-// causa obligatoria con estado='resuelta' (mig 129): el service ajusta el stock según ella y
-// responde { id, estado, resolucion, causa, ajustes, aviso }. 'descartada' no mueve stock.
+// PUT /api/transferencias/discrepancias/:id/resolver[?simular=1]  body: { estado, resolucion? }
+// Regla del dueño 2026-10-21: 'resuelta' = APROBAR lo que declaró el receptor (sobrante: destino +dif /
+// origen −dif; faltante: destino −f / origen + lo que de verdad salió de más); 'descartada' = RECHAZARLO (no
+// mueve stock: queda lo enviado). resolucion opcional (vacía → texto generado). Responde { id, estado,
+// resolucion, ajustes (con antes/despues), aviso, transferencia_id, transferencia_codigo, item, simulado } y
+// `cerrada_regla_anterior: true` si aprobó una de la regla anterior (se cierra sin mover stock).
+// ?simular=1 corre lo mismo sin escribir y responde 200 con `bloqueo` ({ code, message }) donde lo real daría
+// 409 (salvo REINTENTAR, que es pasajero y sale como 409). Solo lo REAL va al log de actividad (logDiferencia).
+// Una `causa` (modelo anterior) la descarta el strip.
 router.put('/discrepancias/:id/resolver', auth, checkPermission('inventario.transferencias.aprobar'), validateBody(resolverDiscrepancia, { strip: true }), async (req, res, next) => {
     try {
-        const { estado, resolucion, causa } = req.body;
+        const simular = leerSimular(req.query.simular);
+        if (simular === null) return res.status(400).json({ error: ERROR_SIMULAR });
+        const { estado, resolucion } = req.body;
         const result = await transferenciaService.resolverDiscrepancia(
-            req.params.id, req.user.id, estado, resolucion, causa
+            req.params.id, req.user.id, estado, resolucion, { simular }
         );
+        if (!simular) await logDiferencia(req, 'resolver', result);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// POST /api/transferencias/discrepancias/:id/rehacer?simular=1 — rehace con la regla nueva una diferencia de
+// la regla ANTERIOR (diferencia_aplicada = 1, mig 130): deja el stock como si hubiera llegado lo enviado y la
+// reabre como pendiente. simular=1 devuelve el plan sin escribir. Solo Super Administrador (rol_id 1),
+// además del permiso de aprobar. Va junto a las rutas /discrepancias (antes de /:id). Solo lo REAL va al log.
+router.post('/discrepancias/:id/rehacer', auth, checkPermission('inventario.transferencias.aprobar'), async (req, res, next) => {
+    try {
+        if (Number(req.user?.rol_id) !== 1) {
+            return res.status(403).json({ error: 'Solo el Super Administrador puede rehacer una diferencia de la regla anterior' });
+        }
+        const simular = leerSimular(req.query.simular);
+        if (simular === null) return res.status(400).json({ error: ERROR_SIMULAR });
+        const result = await transferenciaService.rehacerDiscrepancia(req.params.id, req.user.id, { simular });
+        if (!simular) await logDiferencia(req, 'rehacer', result);
         res.json({ data: result });
     } catch (err) { next(err); }
 });

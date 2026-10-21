@@ -58,9 +58,12 @@ const ResumenAccionModal: React.FC<Props> = ({ isOpen, onClose, t, tipo }) => {
     // (el backend registra la diferencia y el preview muestra "_Enviadas: N (±x)_").
     // Detectamos ese caso para que el copy del modal NO afirme un cierre limpio
     // mientras su propio preview muestra el faltante/sobrante.
-    const cerroConDiscrepancia = tipo === 'recibir_total' && t.estado === 'recibida' && (
-        items.some(it => it.cantidad_enviada != null && it.cantidad_recibida != null
-            && Number(it.cantidad_enviada) !== Number(it.cantidad_recibida))
+    const cerroTotal = tipo === 'recibir_total' && t.estado === 'recibida';
+    // Solo los ítems de catálogo generan diferencia pendiente (y mueven stock); los personalizados no.
+    const difCatalogo = cerroTotal && items.some(it => it.cantidad_enviada != null && it.cantidad_recibida != null
+        && Number(it.cantidad_enviada) !== Number(it.cantidad_recibida));
+    const cerroConDiscrepancia = cerroTotal && (
+        difCatalogo
         || itemsCustom.some(it => {
             const aprobada = it.cantidad_aprobada != null ? Number(it.cantidad_aprobada) : Number(it.cantidad);
             return it.cantidad_recibida != null && Number(it.cantidad_recibida) !== aprobada;
@@ -70,7 +73,10 @@ const ResumenAccionModal: React.FC<Props> = ({ isOpen, onClose, t, tipo }) => {
     const copy = cerroConDiscrepancia
         ? {
             title: 'Recepción registrada con diferencia',
-            subtitle: 'Se cerró la recepción, pero las cantidades no calzan con lo enviado. Revisa la diferencia y comparte el comprobante.',
+            subtitle: difCatalogo
+                // Regla del dueño (2026-10-21): al stock entra lo enviado; la diferencia la revisa Inventario.
+                ? 'Se cerró la recepción, pero lo declarado no calza con lo enviado. Al stock entró solo lo enviado: la diferencia queda pendiente y la revisa Inventario (la aprueba o la rechaza). Comparte el comprobante.'
+                : 'Se cerró la recepción, pero las cantidades no calzan con lo enviado. Revisa la diferencia y comparte el comprobante.',
         }
         : COPY[tipo];
 
@@ -98,7 +104,8 @@ const ResumenAccionModal: React.FC<Props> = ({ isOpen, onClose, t, tipo }) => {
             onClose={onClose}
             title={
                 <span className="flex items-center gap-2">
-                    <HeaderIcon className={`h-5 w-5 shrink-0 ${cerroConDiscrepancia ? 'text-destructive' : 'text-brand-primary'}`} />
+                    {/* Diferencia = pendiente de revisión → ámbar (DS: el rojo es error/destructivo, no «pendiente»). */}
+                    <HeaderIcon className={`h-5 w-5 shrink-0 ${cerroConDiscrepancia ? 'text-amber-600 dark:text-amber-400' : 'text-brand-primary'}`} />
                     {copy.title}
                 </span>
             }

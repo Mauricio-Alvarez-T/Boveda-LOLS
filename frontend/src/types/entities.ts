@@ -811,28 +811,40 @@ export interface RegistroBombaHormigon {
 }
 
 /**
- * Causa elegida al RESOLVER una diferencia de transferencia (mig 128, dueño 2026-10-21).
- * Sobrante (llegó de más): origen_envio_de_mas · error_conteo_recepcion.
- * Faltante (llegó de menos): perdida_en_transito · nunca_salio · llego_despues.
- * El signo se deriva de cantidad_recibida vs cantidad_enviada, NUNCA de `diferencia`
- * (columna generada en BD como enviada − recibida, signo opuesto al del contrato).
+ * Un movimiento de stock de una diferencia (cantidad con signo: + suma, − resta). La simulación y la
+ * respuesta de RESOLVER y el plan de REHACER traen `antes`/`despues`; lo guardado en `ajuste_stock`
+ * de filas viejas puede no traerlos.
  */
-export type CausaDiscrepancia =
-    | 'origen_envio_de_mas'
-    | 'error_conteo_recepcion'
-    | 'perdida_en_transito'
-    | 'nunca_salio'
-    | 'llego_despues';
-
-/** Un movimiento de stock aplicado al resolver (cantidad con signo: + suma, − resta). */
 export interface AjusteStockDiscrepancia {
     obra_id: number | null;
     bodega_id: number | null;
     ubicacion_nombre: string;
     cantidad: number;
+    /** Stock de la ubicación antes del ajuste. */
+    antes?: number;
+    /** Stock de la ubicación después del ajuste. */
+    despues?: number;
 }
 
-/** Lo que el servidor aplicó al resolver: ajustes de stock + aviso (unidades sin respaldo, origen sin stock…). */
+/** Motivo por el que el servidor NO aplicaría la decisión (p. ej. DESTINO_SIN_STOCK). */
+export interface BloqueoDiscrepancia {
+    code: string | null;
+    message: string;
+}
+
+/**
+ * Respuesta de PUT /transferencias/discrepancias/:id/resolver?simular=1 (no escribe): qué ubicaciones
+ * cambiarían, de cuánto a cuánto, el aviso y, si no se puede, el bloqueo.
+ */
+export interface SimulacionResolverDiscrepancia {
+    ajustes: AjusteStockDiscrepancia[];
+    aviso: string | null;
+    bloqueo: BloqueoDiscrepancia | null;
+    /** true = aprobar la cierra con la regla anterior, sin mover stock (su aviso es informativo). */
+    cerrada_regla_anterior?: boolean;
+}
+
+/** Lo que el servidor aplicó al resolver: ajustes de stock + aviso (unidades sin respaldo…). */
 export interface AjusteStockResultado {
     ajustes: AjusteStockDiscrepancia[];
     aviso: string | null;
@@ -843,9 +855,35 @@ export interface ResolverDiscrepanciaResultado {
     id: number;
     estado: 'resuelta' | 'descartada';
     resolucion: string;
-    causa: CausaDiscrepancia | null;
     ajustes: AjusteStockDiscrepancia[];
     aviso: string | null;
+    /** true = se aprobó una de la regla anterior: el servidor la cerró sin mover stock. */
+    cerrada_regla_anterior?: boolean;
+}
+
+/**
+ * Plan de POST /transferencias/discrepancias/:id/rehacer (?simular=1 no escribe): deja el stock
+ * como si hubiera llegado lo ENVIADO y reabre la fila como pendiente (solo Super Administrador).
+ */
+export interface RehacerDiscrepanciaPlan {
+    id: number;
+    transferencia_codigo: string | null;
+    /** Descripción del ítem. */
+    item: string | null;
+    enviada: number;
+    recibida: number;
+    /** recibida − enviada (> 0 sobrante). */
+    dif: number;
+    /** 'nuevo' (el origen descontó al recibir) / 'anterior' (descontó lo enviado al aprobar). */
+    regimen: string | null;
+    ajustes: AjusteStockDiscrepancia[];
+    aviso: string | null;
+    /**
+     * Advertencias sueltas del plan (p. ej. ajustes manuales del ítem posteriores a la recepción,
+     * que el plan no ve), sin repetir `aviso`.
+     */
+    avisos: string[];
+    estado_anterior: string | null;
 }
 
 export interface TransferenciaDiscrepanciaItem {
@@ -857,7 +895,7 @@ export interface TransferenciaDiscrepanciaItem {
     unidad: string;
     cantidad_enviada: number;
     cantidad_recibida: number;
-    /** Columna GENERADA en BD = enviada − recibida (> 0 faltante). No usarla para elegir causas. */
+    /** Columna GENERADA en BD = enviada − recibida (> 0 faltante). El signo sale de las cantidades. */
     diferencia: number;
     observacion: string | null;
     estado: 'pendiente' | 'resuelta' | 'descartada';
@@ -870,20 +908,28 @@ export interface TransferenciaDiscrepanciaItem {
     created_at: string;
     /** Foto de la recepción (mig 078). */
     foto_url?: string | null;
-    /** Causa elegida al resolver (mig 128). Ausente antes de la migración; null si se descartó o es anterior. */
-    causa?: CausaDiscrepancia | null;
     /**
-     * Ajustes aplicados al resolver (mig 128, columna TEXT con JSON). Puede llegar como objeto o
-     * como string JSON según la versión del backend: leer con `parseAjusteStock`.
+     * Ajustes aplicados al resolver (mig 129, columna TEXT con JSON { ajustes, aviso }). Puede llegar
+     * como objeto o como string JSON según la versión del backend: leer con `parseAjusteStock`.
      */
     ajuste_stock?: AjusteStockResultado | string | null;
     /**
-     * Origen propio del ítem (transferencia_items.origen_*), si el backend lo expone. El origen de
-     * la cabecera es el del PRIMER ítem; con estos campos el texto del efecto usa el nombre correcto.
+     * Mig 130. true = regla ANTERIOR: la diferencia ya se aplicó al stock al recibir (aprobarla la
+     * cierra sin mover nada; rechazarla exige rehacerla antes). false = regla nueva: al stock entró lo
+     * enviado y la diferencia está pendiente. null = backend sin la mig 130 (el servidor decide).
      */
-    origen_obra_nombre?: string | null;
-    origen_bodega_nombre?: string | null;
-    origen_bodega_responsable_nombre?: string | null;
+    diferencia_aplicada?: 0 | 1 | boolean | '0' | '1' | null;
+    /**
+     * Causa del modelo anterior (mig 129, solo staging). Ya no se escribe; si viene, la fila ajustó
+     * stock al resolverse y no se puede rehacer sola (el servidor responde 409 CON_AJUSTE).
+     */
+    causa?: string | null;
+    /** Origen primario del ítem (obra o bodega con responsable) y destino, ya armados por el servidor. */
+    origen_nombre?: string | null;
+    destino_nombre?: string | null;
+    /** Stock de HOY del ítem en el origen primario / destino (DECIMAL: puede llegar como string). */
+    origen_stock_actual?: number | string | null;
+    destino_stock_actual?: number | string | null;
 }
 
 export interface TransferenciaConDiscrepancias {
@@ -910,9 +956,8 @@ export interface TransferenciaConDiscrepancias {
     receptor_id: number | null;
     receptor_nombre: string | null;
     /**
-     * Régimen de stock de la transferencia. FALSE/0 = solicitud anterior al cambio de stock: las
-     * causas que mueven stock no se pueden usar (el backend responde 409). Ausente = no se sabe
-     * (backend viejo, tutorial) → se trata como régimen nuevo y el backend decide.
+     * Régimen de stock de la transferencia. FALSE/0 = solicitud antigua (el origen descontó lo
+     * enviado al aprobar). Solo informativo en la pantalla: el servidor lo usa al REHACER.
      */
     stock_reconciliado?: boolean | 0 | 1 | null;
     discrepancias: TransferenciaDiscrepanciaItem[];

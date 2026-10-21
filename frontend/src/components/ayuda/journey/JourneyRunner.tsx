@@ -12,7 +12,7 @@ import type { TransferenciaConDiscrepancias } from '../../../types/entities';
 import { itemsDemo, bodegasDemo, obrasDemo, categoriasDemo, stockMapDemo } from '../demo/mockData';
 import {
     buildTrfDemo, aprobarTrfDemo, recibirTrfDemo, rechazarTrfDemo, cancelarTrfDemo,
-    buildDiscrepanciaDemo, resolverDiscrepanciaDemo, tieneDiferencia,
+    buildDiscrepanciaDemo, instruccionResolverDemo, resolverDiscrepanciaDemo, simularDiscrepanciaDemo, tieneDiferencia,
     type DemoTransferencia,
 } from './journeyHelpers';
 import { useTutorialSpotlight } from './useTutorialSpotlight';
@@ -35,8 +35,8 @@ const DETALLE_LABELS = [
     'Faltan más viajes', 'Registrar viaje (parcial)', 'Registrar otro viaje',
     'Revisar y aprobar', 'Registrar lo que llegó',
 ];
-// 'Confirmar' = botón del modal de resolver (causa + nota); va primero porque solo existe con el modal abierto.
-const DISCREPANCIA_LABELS = ['Confirmar', 'Marcar como descartada', 'Resolver', 'Descartar'];
+// Botones del modal de confirmar (aprobar / rechazar lo declarado): van primero porque solo existen con el modal abierto.
+const DISCREPANCIA_LABELS = ['Aprobar y ajustar stock', 'Rechazar lo declarado', 'Resolver', 'Descartar'];
 const SIN_LABELS: string[] = [];
 
 const ESTADO_LABEL: Record<string, string> = {
@@ -62,11 +62,14 @@ export const JourneyRunner: React.FC<{
     const [trf, setTrf] = useState<DemoTransferencia | null>(null);
     const [discrepancia, setDiscrepancia] = useState<TransferenciaConDiscrepancias | null>(null);
     const [discResuelta, setDiscResuelta] = useState(false);
+    // La última simulación de la demo vino con bloqueo: solo entonces «Aprobar» deshabilitado significa
+    // «no se puede»; si no, es que la simulación todavía está cargando.
+    const [simBloqueada, setSimBloqueada] = useState(false);
     const screenRef = useRef<HTMLDivElement>(null);
     const marcado = useRef(false);
 
     const reiniciar = () => {
-        engine.reset(); setTrf(null); setDiscrepancia(null); setDiscResuelta(false); marcado.current = false;
+        engine.reset(); setTrf(null); setDiscrepancia(null); setDiscResuelta(false); setSimBloqueada(false); marcado.current = false;
     };
 
     const conDiscrepancia = !!journey.conDiscrepancia;
@@ -126,15 +129,7 @@ export const JourneyRunner: React.FC<{
                 : `Revisa el resumen y pulsa "${crearWord}".`;
         }
     } else if (enResolver) {
-        const m: Record<string, string> = {
-            'Confirmar': spot.enabled
-                ? 'Pulsa "Confirmar": el stock se ajusta según la causa que elegiste.'
-                : 'Elige por qué llegó distinto (cada opción dice qué pasa con el stock) y escribe la nota; luego se habilita "Confirmar".',
-            'Marcar como descartada': 'Escribe la nota y pulsa "Marcar como descartada".',
-            'Resolver': 'Pulsa "Resolver" en el ítem con diferencia.',
-            'Descartar': 'O "Descartar" si la diferencia no requiere acción.',
-        };
-        instruccion = (spot.label && m[spot.label]) || 'Resuelve la diferencia: pulsa "Resolver" en el ítem, elige la causa, escribe una nota y confirma.';
+        instruccion = instruccionResolverDemo(spot.label, spot.enabled, simBloqueada);
     } else if (!completado && !terminalMalo) {
         const map: Record<string, string> = {
             'Confirmar Aprobación': spot.enabled ? 'Pulsa "Confirmar Aprobación".' : 'Elige de qué bodega(s) sale cada ítem; luego se habilita "Confirmar Aprobación".',
@@ -218,8 +213,8 @@ export const JourneyRunner: React.FC<{
                         canEdit
                         canEliminar={false}
                         onBack={onExit}
-                        onResolver={async (id, est, resolucion, causa) => {
-                            const upd = resolverDiscrepanciaDemo(discrepancia, id, est, resolucion, causa);
+                        onResolver={async (id, est, resolucion) => {
+                            const upd = resolverDiscrepanciaDemo(discrepancia, id, est, resolucion);
                             setDiscrepancia(upd);
                             if (upd.discrepancias.every(d => d.estado !== 'pendiente')) setDiscResuelta(true);
                             const fila = upd.discrepancias.find(d => d.id === id);
@@ -227,10 +222,15 @@ export const JourneyRunner: React.FC<{
                             return {
                                 ok: true,
                                 data: {
-                                    id, estado: est, resolucion, causa: fila?.causa ?? null,
+                                    id, estado: est, resolucion: fila?.resolucion ?? resolucion,
                                     ajustes: ajuste?.ajustes ?? [], aviso: null,
                                 },
                             };
+                        }}
+                        onSimular={async (id, est) => {
+                            const data = simularDiscrepanciaDemo(discrepancia, id, est);
+                            setSimBloqueada(!!data.bloqueo);
+                            return { ok: true, data };
                         }}
                         onEliminarTransferencia={async () => true}
                         onEliminarDiscrepancia={async () => true}
