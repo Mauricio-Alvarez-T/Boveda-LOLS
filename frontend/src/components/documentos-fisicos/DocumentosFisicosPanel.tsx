@@ -9,7 +9,7 @@
  * En móvil los carriles se muestran de a uno con un selector; en desktop los tres a la vez.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Truck, PackageOpen, RefreshCw, ChevronRight, PackageCheck, ClipboardCheck, Printer, FileText, AlertTriangle, Clock } from 'lucide-react';
+import { Truck, PackageOpen, RefreshCw, ChevronRight, PackageCheck, ClipboardCheck, Printer, FileText, AlertTriangle, Clock, Plus } from 'lucide-react';
 
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -126,6 +126,12 @@ export const DocumentosFisicosPanel: React.FC = () => {
     const botonNuevo = puedeRegistrar
         ? <Button size="sm" leftIcon={<PackageOpen className="h-4 w-4" />} onClick={() => setNuevo(true)} className="shrink-0">Nuevo lote</Button>
         : null;
+    // En la franja de la cabecera: «+ Lote» en el teléfono (cabe junto al texto), «Nuevo lote» desde lg.
+    const botonNuevoFranja = puedeRegistrar
+        ? <Button size="sm" leftIcon={<Plus className="h-4 w-4 lg:hidden" />} onClick={() => setNuevo(true)} aria-label="Nuevo lote" className="shrink-0">
+            <span className="lg:hidden">Lote</span><span className="hidden lg:inline-flex lg:items-center lg:gap-1.5"><PackageOpen className="h-4 w-4" />Nuevo lote</span>
+        </Button>
+        : null;
 
     const renderLote = (l: LoteResumen) => {
         const acc = accionesLote(l, quien);
@@ -135,11 +141,11 @@ export const DocumentosFisicosPanel: React.FC = () => {
         return (
             /* eslint-disable-next-line no-restricted-syntax -- tarjeta completa clickeable (abre el detalle del lote) */
             <button key={l.id} type="button" onClick={() => setAbierto(l.id)}
-                className={cn('w-full text-left rounded-2xl border bg-card p-3.5 shadow-sm transition-all duration-200',
+                className={cn('w-full text-left rounded-2xl border bg-card p-3 lg:p-3.5 shadow-sm transition-all duration-200',
                     'hover:border-brand-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40',
                     acc.confirmarRetiro ? 'border-amber-300 dark:border-amber-700/70' : 'border-border')}>
                 <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary text-section font-bold">
+                    <span className="flex h-9 w-9 lg:h-10 lg:w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary text-section font-bold">
                         {inicialesNombre(l.portador_nombre) || '?'}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -182,7 +188,7 @@ export const DocumentosFisicosPanel: React.FC = () => {
                         : null;
                 })()}
                 {cta ? (
-                    <span className={cn('mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full px-4 text-section font-semibold shadow-sm',
+                    <span className={cn('mt-2.5 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full px-4 text-section font-semibold shadow-sm',
                         acc.confirmarRetiro ? 'bg-amber-500 text-white' : 'bg-brand-primary text-white')}>
                         <cta.icon className="h-4 w-4" /> {cta.texto}
                     </span>
@@ -201,16 +207,18 @@ export const DocumentosFisicosPanel: React.FC = () => {
         const est = CARRIL_ESTILO[estado];
         return (
             <section key={estado} aria-label={LOTE_ESTADO_TITULO[estado]}
-                className={cn('min-h-0 flex-col rounded-2xl bg-muted/60 border border-border/60', carrilMovil === estado ? 'flex' : 'hidden lg:flex')}>
-                <header className="shrink-0 px-3.5 pt-3 pb-2">
-                    <div className="flex items-center gap-2">
+                className={cn('min-h-0 flex-col lg:rounded-2xl lg:bg-muted/60 lg:border lg:border-border/60', carrilMovil === estado ? 'flex' : 'hidden lg:flex')}>
+                {/* En el teléfono (propuesta A, dueño 2026-10-21) las pestañas ya nombran el carril: sin título
+                    ni caja, solo la frase de qué significa. */}
+                <header className="shrink-0 px-1 pb-2 lg:px-3.5 lg:pt-3">
+                    <div className="hidden lg:flex items-center gap-2">
                         <span className={cn('h-2.5 w-2.5 rounded-full', est.punto)} />
                         <h3 className="text-section font-bold text-brand-dark">{LOTE_ESTADO_TITULO[estado]}</h3>
                         <span className={cn('ml-auto flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full text-micro font-bold tabular-nums', est.conteo)}>{todos.length}</span>
                     </div>
                     <p className="mt-0.5 text-caption text-muted-foreground">{CARRIL_HINT[estado][rol]}</p>
                 </header>
-                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-2.5 pb-2.5 space-y-2">
+                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar lg:px-2.5 pb-2.5 space-y-2">
                     {todos.length === 0 ? (
                         <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-caption text-muted-foreground">{LOTE_ESTADO_VACIO[estado]}</p>
                     ) : items.map(renderLote)}
@@ -227,29 +235,39 @@ export const DocumentosFisicosPanel: React.FC = () => {
     return (
         <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
             {/* Cabecera: impresos sin lote (RRHH) + acciones; en móvil, selector de carril */}
-            <div className="border-b border-border px-3 sm:px-4 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
+            {/* Cabecera en UNA franja (propuesta A, dueño 2026-10-21): ícono · qué hay · recargar · + Lote. En el
+                teléfono el texto es corto para que todo quepa en una fila; desde lg vuelve el texto largo. */}
+            <div className="border-b border-border px-3 sm:px-4 py-2.5 lg:py-3 flex flex-wrap items-center gap-x-2.5 gap-y-2 shrink-0">
                 {puedeRegistrar ? (
-                    <div className="flex items-center gap-3 min-w-0">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10"><Printer className="h-5 w-5 text-brand-primary" /></span>
+                    <div className="flex flex-1 items-center gap-2.5 lg:gap-3 min-w-0">
+                        <span className="flex h-9 w-9 lg:h-10 lg:w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10"><Printer className="h-[18px] w-[18px] lg:h-5 lg:w-5 text-brand-primary" /></span>
                         <div className="min-w-0">
                             <p className="text-ui font-bold text-brand-dark leading-tight">
-                                {disponibles === null ? 'Documentos impresos' : disponibles === 0 ? 'Nada impreso esperando salir' : `${disponibles} documento${disponibles === 1 ? '' : 's'} impreso${disponibles === 1 ? '' : 's'}, sin asignar`}
+                                {disponibles === null ? 'Documentos impresos'
+                                    : disponibles === 0 ? 'Nada impreso esperando salir'
+                                        : <><span className="lg:hidden">{disponibles} impreso{disponibles === 1 ? '' : 's'} sin lote</span><span className="hidden lg:inline">{disponibles} documento{disponibles === 1 ? '' : 's'} impreso{disponibles === 1 ? '' : 's'}, sin asignar</span></>}
                             </p>
-                            <p className="text-caption text-muted-foreground">Salieron impresos desde las fichas y todavía no van en ninguna entrega.</p>
+                            <p className="text-caption text-muted-foreground">
+                                <span className="lg:hidden">{disponibles ? 'Arma un lote para enviarlos' : 'Aparecen al imprimir desde una ficha'}</span>
+                                <span className="hidden lg:inline">Salieron impresos desde las fichas y todavía no van en ninguna entrega.</span>
+                            </p>
                         </div>
                     </div>
                 ) : (
-                    <div className="flex items-center gap-3 min-w-0">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10"><Truck className="h-5 w-5 text-brand-primary" /></span>
+                    <div className="flex flex-1 items-center gap-2.5 lg:gap-3 min-w-0">
+                        <span className="flex h-9 w-9 lg:h-10 lg:w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10"><Truck className="h-[18px] w-[18px] lg:h-5 lg:w-5 text-brand-primary" /></span>
                         <div className="min-w-0">
                             <p className="text-ui font-bold text-brand-dark leading-tight">Tus documentos por firmar</p>
-                            <p className="text-caption text-muted-foreground">Confirma lo que retiras en oficina y devuélvelo firmado a RRHH.</p>
+                            <p className="text-caption text-muted-foreground">
+                                <span className="lg:hidden">Confirma el retiro y devuélvelos firmados</span>
+                                <span className="hidden lg:inline">Confirma lo que retiras en oficina y devuélvelo firmado a RRHH.</span>
+                            </p>
                         </div>
                     </div>
                 )}
-                <div className="flex items-center gap-2 ml-auto">
+                <div className="flex shrink-0 items-center gap-1.5 lg:gap-2">
                     <IconButton variant="ghost" size="sm" aria-label="Recargar" title="Recargar" onClick={() => cargar()} icon={<RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />} />
-                    {botonNuevo}
+                    {botonNuevoFranja}
                 </div>
                 <div className="lg:hidden flex w-full items-center rounded-2xl bg-muted p-1">
                     <PestanasElasticas

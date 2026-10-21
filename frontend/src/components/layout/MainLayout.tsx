@@ -13,7 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 export const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
-    const { title, actions, centroMovil } = usePageHeader();
+    const { title, actions, centroMovil, ocultarObraMovil } = usePageHeader();
     const { user } = useAuth();
     const location = useLocation();
 
@@ -89,7 +89,8 @@ export const MainLayout: React.FC = () => {
                         )}
 
                         <div className="hidden md:block h-6 w-px bg-border mx-1" />
-                        <ObraSelector />
+                        {/* Una página que no depende de la obra puede ocultarlo en el celular (useSetCentroMovil). */}
+                        <div className={ocultarObraMovil ? 'hidden md:contents' : 'contents'}><ObraSelector /></div>
                     </div>
                 </header>
 

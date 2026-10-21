@@ -753,7 +753,7 @@ firma en la obra (papel) → el portador devuelve los firmados → RRHH recibe.
   tarjeta = portador, N docs, resumen, qué pasó y hace cuánto (en terreno: «N días en terreno» desde el
   retiro confirmado, azul; ámbar/rojo si pasó el umbral de aviso/crítico de B7 — jefatura 2026-10-21), y la acción que le toca a quien mira
   («Confirmar retiro» portador / «Registrar recepción» RRHH); RRHH ve arriba cuántos documentos impresos
-  esperan lote; móvil = un carril a la vez; `agruparLotesPorEstado`/`lineaTiempoLote` con test) · `NuevoLoteModal` (documentos impresos agrupados **obra → trabajador**
+  esperan lote; móvil = un carril a la vez (propuesta A del lienzo, dueño 2026-10-21: cabecera en una franja «N impresos sin lote · recargar · + Lote», sin el título repetido del carril, la sección «‹ Documentos físicos» en el centro del encabezado y sin selector de obra, que esta vista no usa); `agruparLotesPorEstado`/`lineaTiempoLote` con test) · `NuevoLoteModal` (documentos impresos agrupados **obra → trabajador**
   con casilla por trabajador —un kit de 6 = 1 clic—, buscador, filtro por obra, portador recordado en
   `localStorage`) · `LoteDetalleModal` (portador + por confirmar: casillas pre-marcadas y **"Recibí estos
   documentos"**, pensado para el celular; RRHH + en terreno: por documento Firmado / Sin firma / Sigue en

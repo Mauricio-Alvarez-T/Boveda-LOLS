@@ -23,6 +23,7 @@ import {
     FlaskConical,
     AlertTriangle,
     Save,
+    ChevronLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -43,7 +44,7 @@ import WorkerQuickView from '../components/workers/WorkerQuickView';
 import { DesvincularModal } from '../components/workers/DesvincularModal';
 import { ReactivarModal } from '../components/workers/ReactivarModal';
 import { EmitirAmonestacionModal } from '../components/documents/EmitirAmonestacionModal';
-import { useSetPageHeader } from '../context/PageHeaderContext';
+import { useSetCentroMovil, useSetPageHeader } from '../context/PageHeaderContext';
 import { useAuth } from '../context/AuthContext';
 import { FilterPanel } from '../components/consultas/FilterPanel';
 import { CreatePanel } from '../components/consultas/CreatePanel';
@@ -99,6 +100,20 @@ const VolverAGestiones: React.FC<{ seccion: SeccionGestiones; onVolver: () => vo
         </Button>
         <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate" aria-current="page">{SECCION_LABEL[seccion]}</h1>
     </>
+);
+
+/**
+ * Sección en curso en el CENTRO del encabezado del celular (propuesta A del lienzo, dueño 2026-10-21): una
+ * píldora verde «‹ Documentos físicos» que vuelve a la portada de Gestiones. Reemplaza la fila «← Gestiones»
+ * sobre la sección y gana su alto.
+ */
+const SeccionEnCurso: React.FC<{ titulo: string; onVolver: () => void }> = ({ titulo, onVolver }) => (
+    // eslint-disable-next-line no-restricted-syntax -- píldora del encabezado
+    <button type="button" onClick={onVolver} aria-label={`${titulo}: volver a Gestiones`}
+        className="inline-flex h-9 max-w-full items-center gap-1.5 rounded-full bg-green-700 pl-2.5 pr-4 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(21,128,61,0.30)] transition-colors duration-200 hover:bg-green-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-700/40 focus-visible:ring-offset-2 motion-reduce:transition-none dark:bg-green-600 dark:hover:bg-green-700">
+        <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="break-words text-left leading-tight">{titulo}</span>
+    </button>
 );
 
 /**
@@ -543,6 +558,12 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
         esGrilla, conCrear, hasPermission, handleExportExcel]);
 
     useSetPageHeader(headerTitle, headerActions);
+    // Celular: la sección en curso va al centro del encabezado. Documentos físicos no depende de la obra:
+    // oculta el selector para que la píldora tenga el ancho.
+    const centroMovil = useMemo(() => (conSwitcher && seccion && seccion !== 'inicio'
+        ? <SeccionEnCurso titulo={SECCION_LABEL[seccion]} onVolver={() => irASeccion('inicio')} />
+        : null), [conSwitcher, seccion, irASeccion]);
+    useSetCentroMovil(centroMovil, { ocultarObra: seccion === 'fisicos' });
 
     // Los mismos controles para el rail (desktop) y la hoja (móvil): se instancian UNA vez y se montan
     // en el sitio que corresponda al ancho. Nunca los dos a la vez (antes sí, y duplicaba aria-labels).
@@ -593,13 +614,8 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
         // (MainLayout), así que `flex-1 min-h-0` calcula lo que antes intentaba un calc() a mano — que
         // ignoraba la franja de "Entorno de pruebas" y se pasaba 4px en móvil.
         <div className="flex-1 min-h-0 flex flex-col gap-2 p-0 overflow-hidden w-full">
-            {/* Volver en el celular (Marcos 2026-10-21): bajo 768 px el encabezado no muestra el título, y con él se
-                iba el «← Gestiones»; dentro de una sección solo se podía volver por el menú. */}
-            {conSwitcher && seccion && seccion !== 'inicio' && (
-                <div className="flex shrink-0 items-center gap-2 min-w-0 md:hidden">
-                    <VolverAGestiones seccion={seccion} onVolver={() => irASeccion('inicio')} />
-                </div>
-            )}
+            {/* Volver en el celular (Marcos 2026-10-21): ahora es la píldora «‹ Sección» del centro del encabezado
+                (SeccionEnCurso, dueño 2026-10-21), que no gasta una fila. */}
 
             {/* Buscador móvil. Se renderiza SOLO acá o SOLO en el header, nunca en los dos (regla §8.3):
                 dos instancias tendrían dos textos locales y se desincronizarían al girar el teléfono. */}
