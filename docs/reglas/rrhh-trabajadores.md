@@ -755,7 +755,9 @@ firma en la obra (papel) → el portador devuelve los firmados → RRHH recibe.
   con casilla por trabajador —un kit de 6 = 1 clic—, buscador, filtro por obra, portador recordado en
   `localStorage`) · `LoteDetalleModal` (portador + por confirmar: casillas pre-marcadas y **"Recibí estos
   documentos"**, pensado para el celular; RRHH + en terreno: por documento Firmado / Sin firma / Sigue en
-  terreno con todo pre-marcado como firmado; RRHH + por confirmar: anular). Badge ámbar en el botón y grupo
+  terreno con todo pre-marcado como firmado; RRHH + por confirmar: anular; en el teléfono los nombres de
+  trabajador y documento parten línea en vez de cortarse con «…» —dos «Recepción…» no se distinguen— y el
+  estado con su fecha baja a la línea siguiente). Badge ámbar en el botón y grupo
   "Documentos físicos" en la Bandeja del Día (`useLotesPendientes`, store de módulo). La ficha del trabajador
   muestra "En terreno · con Jhoan desde …" y "Firmado …" en la lista de generados (`statusConfig` gana
   `en_terreno` y `firmado`). Lógica pura en `documentos-fisicos/documentosFisicos.ts` (+ test).
