@@ -41,8 +41,8 @@ const DocumentosAtrasadosLista: React.FC<{ alertas: AlertasDocumentos | null; on
                                 <button type="button" onClick={onAbrir}
                                     className="flex w-full items-center gap-3 border-t border-border py-2 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 -mx-2 px-2 rounded-lg">
                                     <span className="min-w-0 flex-1">
-                                        <span className="block truncate text-sm font-semibold text-foreground">{i.trabajador.nombre}</span>
-                                        <span className="block truncate text-xs text-muted-foreground">
+                                        <span className="block break-words text-sm font-semibold text-foreground">{i.trabajador.nombre}</span>
+                                        <span className="block break-words text-xs text-muted-foreground">
                                             {[i.tipo_nombre, i.obra_nombre, i.portador_nombre ? `con ${i.portador_nombre}` : null].filter(Boolean).join(' · ')}
                                         </span>
                                     </span>

@@ -26,7 +26,7 @@ const Lugar: React.FC<{ punto: string; titulo: string; valor: number | null; uni
     <div className="min-w-0 rounded-2xl bg-muted/60 px-3 py-2.5">
         <p className="flex items-center gap-1.5 text-caption font-semibold text-muted-foreground">
             <span className={cn('h-2 w-2 shrink-0 rounded-full', punto)} aria-hidden />
-            <span className="truncate">{titulo}</span>
+            <span className="min-w-0 break-words">{titulo}</span>
         </p>
         <p className="mt-1.5 text-2xl font-bold leading-none tabular-nums text-foreground">
             {valor === null ? '—' : <NumeroRodante value={valor} />}

@@ -76,7 +76,7 @@ const TileContador: React.FC<{
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-primary/10">
                     <Icon className="h-5 w-5 text-brand-primary" />
                 </span>
-                <h3 className="text-title-sm font-bold text-brand-dark leading-tight truncate">{titulo}</h3>
+                <h3 className="text-title-sm font-bold text-brand-dark leading-tight break-words">{titulo}</h3>
             </div>
             <Button variant="ghost" size="icon" onClick={onEntrar} title={`Ir a ${titulo}`} aria-label={`Ir a ${titulo}`}
                 className="h-9 w-9 shrink-0 text-muted-foreground hover:text-brand-primary">

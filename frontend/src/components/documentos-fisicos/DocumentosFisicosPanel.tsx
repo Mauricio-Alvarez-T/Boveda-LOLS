@@ -138,7 +138,7 @@ export const DocumentosFisicosPanel: React.FC = () => {
                         {inicialesNombre(l.portador_nombre) || '?'}
                     </span>
                     <div className="min-w-0 flex-1">
-                        <p className="text-ui font-bold text-brand-dark leading-tight truncate">{l.portador_nombre || '(usuario eliminado)'}</p>
+                        <p className="text-ui font-bold text-brand-dark leading-tight break-words">{l.portador_nombre || '(usuario eliminado)'}</p>
                         <p className="text-caption text-muted-foreground">Lote #{l.id} · {lineaTiempoLote(l)}</p>
                     </div>
                     <div className="shrink-0 text-right">
@@ -146,10 +146,11 @@ export const DocumentosFisicosPanel: React.FC = () => {
                         <p className="text-micro font-semibold uppercase tracking-wider text-muted-foreground">doc{l.total === 1 ? '' : 's'}</p>
                     </div>
                 </div>
-                <p className="mt-2.5 flex items-center gap-1.5 text-caption text-muted-foreground">
-                    <FileText className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{resumenLote(l)}</span>
+                {/* Ningún texto del apartado se corta con «…» (dueño 2026-10-21): en el teléfono parten línea. */}
+                <p className="mt-2.5 flex items-start gap-1.5 text-caption text-muted-foreground">
+                    <FileText className="mt-px h-3.5 w-3.5 shrink-0" /><span className="min-w-0 break-words">{resumenLote(l)}</span>
                 </p>
-                {l.observacion && <p className="mt-1 text-caption text-muted-foreground italic line-clamp-1">“{l.observacion}”</p>}
+                {l.observacion && <p className="mt-1 text-caption text-muted-foreground italic break-words">“{l.observacion}”</p>}
                 {/* El carril se llama «Firmados en oficina» porque es lo que pasa casi siempre; cuando un
                     lote terminó de otra forma, lo dice acá, en el lote concreto. */}
                 {(() => {
@@ -214,7 +215,7 @@ export const DocumentosFisicosPanel: React.FC = () => {
                             <p className="text-ui font-bold text-brand-dark leading-tight">
                                 {disponibles === null ? 'Documentos impresos' : disponibles === 0 ? 'Nada impreso esperando salir' : `${disponibles} documento${disponibles === 1 ? '' : 's'} impreso${disponibles === 1 ? '' : 's'}, sin asignar`}
                             </p>
-                            <p className="text-caption text-muted-foreground truncate">Salieron impresos desde las fichas y todavía no van en ninguna entrega.</p>
+                            <p className="text-caption text-muted-foreground">Salieron impresos desde las fichas y todavía no van en ninguna entrega.</p>
                         </div>
                     </div>
                 ) : (
@@ -222,7 +223,7 @@ export const DocumentosFisicosPanel: React.FC = () => {
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10"><Truck className="h-5 w-5 text-brand-primary" /></span>
                         <div className="min-w-0">
                             <p className="text-ui font-bold text-brand-dark leading-tight">Tus documentos por firmar</p>
-                            <p className="text-caption text-muted-foreground truncate">Confirma lo que retiras en oficina y devuélvelo firmado a RRHH.</p>
+                            <p className="text-caption text-muted-foreground">Confirma lo que retiras en oficina y devuélvelo firmado a RRHH.</p>
                         </div>
                     </div>
                 )}

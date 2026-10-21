@@ -161,13 +161,13 @@ export const Modal: React.FC<ModalProps> = ({
                             desktopSizes[size]
                         )}
                     >
-                        {/* Header */}
+                        {/* Header. Título y descripción parten línea en vez de cortarse con «…» (dueño 2026-10-21). */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-border gap-3">
                             <div className="flex items-center gap-3 min-w-0">
                                 {Icon && <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10"><Icon className="h-5 w-5 text-brand-primary" /></span>}
                                 <div className="min-w-0">
-                                    <h3 className="text-lg font-semibold text-brand-dark truncate pr-2 leading-tight">{title}</h3>
-                                    {description && <p className="text-caption text-muted-foreground truncate pr-2 mt-0.5">{description}</p>}
+                                    <h3 className="text-lg font-semibold text-brand-dark break-words pr-2 leading-tight">{title}</h3>
+                                    {description && <p className="text-caption text-muted-foreground break-words pr-2 mt-0.5">{description}</p>}
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
@@ -235,8 +235,8 @@ export const Modal: React.FC<ModalProps> = ({
                                 <div className="flex items-center gap-3 min-w-0">
                                     {Icon && <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10"><Icon className="h-5 w-5 text-brand-primary" /></span>}
                                     <div className="min-w-0">
-                                        <h3 className="text-lg font-bold text-brand-dark truncate leading-tight">{title}</h3>
-                                        {description && <p className="text-caption text-muted-foreground truncate mt-0.5">{description}</p>}
+                                        <h3 className="text-lg font-bold text-brand-dark break-words leading-tight">{title}</h3>
+                                        {description && <p className="text-caption text-muted-foreground break-words mt-0.5">{description}</p>}
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">

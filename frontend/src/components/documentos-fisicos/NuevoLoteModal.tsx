@@ -160,7 +160,7 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
                     <EmptyState title="Sin resultados" description="Prueba con otro nombre, RUT u obra." />
                 ) : (
                     <div className="space-y-3">
-                        <div className="flex items-center justify-between text-xs">
+                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
                             <span className="text-muted-foreground">
                                 {visibles.length} de {docs.length} documento{docs.length === 1 ? '' : 's'} sin asignar
                                 {obras.length > 1 ? ` · ${obras.length} obras con documentos impresos` : ''}
@@ -184,17 +184,18 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
                                                         ref={el => { if (el) el.indeterminate = est === 'parcial'; }}
                                                         onChange={e => marcar(ids, e.target.checked)} />
                                                     <span className="min-w-0 flex-1">
-                                                        <span className="block text-sm font-semibold text-brand-dark truncate">{g.trabajador_nombre}</span>
+                                                        <span className="block text-sm font-semibold text-brand-dark break-words">{g.trabajador_nombre}</span>
                                                         <span className="block text-xs text-muted-foreground">{g.rut || '—'} · {ids.length} documento{ids.length === 1 ? '' : 's'}</span>
                                                     </span>
                                                 </label>
                                                 <ul className="mt-1.5 ml-7 space-y-1">
                                                     {g.docs.map(d => (
                                                         <li key={d.id}>
-                                                            <label className={cn('flex items-center gap-2 rounded-lg px-2 py-1 text-xs cursor-pointer', sel.has(d.id) ? 'bg-brand-primary/5' : 'hover:bg-background')}>
+                                                            <label className={cn('flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg px-2 py-1 text-xs cursor-pointer', sel.has(d.id) ? 'bg-brand-primary/5' : 'hover:bg-background')}>
                                                                 <input type="checkbox" className={checkCls} checked={sel.has(d.id)} onChange={e => marcar([d.id], e.target.checked)} />
-                                                                <span className="flex-1 min-w-0 truncate text-brand-dark">{d.tipo_nombre || d.nombre_archivo}</span>
-                                                                <span className="text-muted-foreground shrink-0">impreso {fmtFecha(d.fecha_descarga) || '—'}</span>
+                                                                {/* Sin «…»: el nombre parte línea y, si no cabe la fecha al lado, la fecha baja (dueño 2026-10-21). */}
+                                                                <span className="flex-1 basis-40 min-w-0 break-words text-brand-dark">{d.tipo_nombre || d.nombre_archivo}</span>
+                                                                <span className="text-muted-foreground">impreso {fmtFecha(d.fecha_descarga) || '—'}</span>
                                                             </label>
                                                         </li>
                                                     ))}
