@@ -80,7 +80,10 @@
 - Lo que una persona necesite de más se agrega de a poco como **permiso propio** (override `grant`), no al
   rol — preguntar a Marcos antes. Mig 127: Paula y Matías (RRHH) → emitir documentos laborales, registrar
   entregas físicas, crear y editar trabajadores (editar: el contrato pide completar la ficha); Leonardo →
-  crear y editar vehículos. Se busca a la persona por correo (si no existe en ese entorno, no se agrega). Las personas se asignan en Configuración →
+  crear y editar vehículos. Mig 128: Paula y Matías además → aprobar fichas de ingreso, subir documentos,
+  finiquitar/reactivar, asignar y borrar períodos, feriados; Rodrigo, Luis y Daphne → crear, editar y
+  finalizar obras. Esos cinco reciben también `usuarios.ver` (solo mirar), porque el menú **Configuración**
+  aparece solo con ese permiso (`Sidebar.tsx`) y ahí viven obras y feriados. Se busca a la persona por correo (si no existe en ese entorno, no se agrega). Las personas se asignan en Configuración →
   Usuarios y deben re-loguear (los permisos viajan en el JWT).
 
 ## Middleware y endurecimiento
