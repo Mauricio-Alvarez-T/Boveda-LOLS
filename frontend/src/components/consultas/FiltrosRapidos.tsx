@@ -16,6 +16,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 
 import { Button } from '../ui/Button';
+import { BarraPaginada } from '../ui/BarraPaginada';
 import { cn } from '../../utils/cn';
 
 export interface FiltroRapido {
@@ -46,13 +47,17 @@ export const FiltrosRapidos: React.FC<{ filtros: FiltroRapido[] }> = ({ filtros 
         // que se desliza cuando no caben, y sin rótulo "Atajos" (el contexto de la barra ya lo dice).
         // Formato único de menús (dueño 2026-10-16): pista rectangular y opciones `rounded-xl`, no
         // pastillas ovaladas. Se pueden encender varios a la vez, así que no hay indicador elástico.
-        <div className="min-w-0 overflow-x-auto scrollbar-none">
-        <div className="flex w-max flex-nowrap items-center gap-1 rounded-2xl bg-muted p-1">
-            {filtros.map(f => {
+        // Si no caben (celular): de a páginas con flechas, sin atajos cortados (ui/BarraPaginada, Marcos 2026-10-21).
+        <div className="flex w-fit min-w-0 max-w-full rounded-2xl bg-muted p-1">
+        <BarraPaginada fondo="muted" selector="[data-atajo]" className="flex-1">{p => (
+        <div className="flex shrink-0 flex-nowrap items-center gap-1">
+            {filtros.map((f, i) => {
                 const Icon = f.icon;
                 return (
                     <Button
                         key={f.id}
+                        data-atajo
+                        style={p.estiloOpcion(i)}
                         size="sm"
                         variant="ghost"
                         aria-pressed={f.activo}
@@ -70,6 +75,7 @@ export const FiltrosRapidos: React.FC<{ filtros: FiltroRapido[] }> = ({ filtros 
                 );
             })}
         </div>
+        )}</BarraPaginada>
         </div>
     );
 };

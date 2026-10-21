@@ -12,6 +12,7 @@ import { Button } from '../components/ui/Button';
 import { IconButton } from '../components/ui/IconButton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { PestanasElasticas } from '../components/ui/PestanasElasticas';
+import { BarraPaginada } from '../components/ui/BarraPaginada';
 import { fmtNumber } from '../utils/format';
 import { VehiculoForm } from '../components/vehiculos/VehiculoForm';
 import { VenderVehiculoForm } from '../components/vehiculos/VenderVehiculoForm';
@@ -762,11 +763,12 @@ const VehiculosPage: React.FC = () => {
             <div className="lg:hidden flex flex-col flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
                 {selected ? DetailView : (
                     <>
-                        {/* Chips de empresas (scroll horizontal si hay muchas) */}
-                        <div className="shrink-0 border-b border-border overflow-x-auto">
-                            <div className="p-3 w-max">
-                                <div className="flex rounded-2xl bg-muted p-1">
-                                    <PestanasElasticas
+                        {/* Chips de empresas: si no caben, de a páginas con flechas (ui/BarraPaginada, sin nombres cortados) */}
+                        <div className="shrink-0 border-b border-border">
+                            <div className="p-3">
+                                <div className="flex w-fit min-w-0 max-w-full rounded-2xl bg-muted p-1">
+                                <BarraPaginada fondo="muted">{p => (
+                                    <PestanasElasticas estiloOpcion={p.estiloOpcion} revelar={p.revelar}
                                         opciones={chipsEmpresa}
                                         activa={chipActivo}
                                         onCambiar={(k) => chipsEmpresa.find(c => c.key === k)?.entrar()}
@@ -784,6 +786,7 @@ const VehiculosPage: React.FC = () => {
                                             </>
                                         )}
                                     />
+                                )}</BarraPaginada>
                                 </div>
                             </div>
                         </div>

@@ -29,9 +29,13 @@ import { VencimientosPanel } from '../vehiculos/VencimientosPanel';
 import { VencimientosBadge } from '../vehiculos/VencimientosBadge';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { IconButton } from '../ui/IconButton';
-import { ProponerMejoraModal } from '../ideas/ProponerMejoraModal';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { useMisIdeasResumen, useIdeasPendientes } from '../../hooks/useIdeas';
 import { ETIQUETA_BUZON_IDEAS } from '../ideas/ideasConfig';
+
+// Buzón de ideas (≈45 KB con el visor y la compresión de fotos): se baja al abrirlo, no al entrar (2026-10-21,
+// celular lento). `lazyWithRetry` recupera el «chunk viejo» tras un deploy.
+const ProponerMejoraModal = lazyWithRetry(() => import('../ideas/ProponerMejoraModal'));
 
 interface SidebarProps {
     isCollapsed: boolean;
@@ -56,6 +60,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
     const misIdeas = useMisIdeasResumen();
     const ideasPendientes = useIdeasPendientes();
     const [showIdeas, setShowIdeas] = React.useState(false);
+    // El buzón se baja recién la primera vez que se abre y queda montado (para su animación de cierre).
+    const [ideasCargado, setIdeasCargado] = React.useState(false);
+    if (showIdeas && !ideasCargado) setIdeasCargado(true);
 
     // Auto-close mobile drawer on route change
     React.useEffect(() => {
@@ -233,10 +240,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                     </NavLink>
                 ))}
 
-                {/* Buzón de ideas: último del menú, para todos. No es una página — abre el
-                    modal — así que imita a un ítem inactivo (sin estado "activo"). Con
-                    novedades en "Mis ideas" lleva un número ámbar, como los demás contadores. */}
-                {/* eslint-disable-next-line no-restricted-syntax -- ítem de menú que abre un modal; mismo layout que NavLink, Button no lo soporta */}
+                {/* Buzón de ideas: último del menú, para todos MENOS quien revisa (Marcos 20-10: él y
+                    Mauricio reciben las ideas, no las mandan → un solo botón, "Revisar ideas"; si
+                    quieren proponer, la bandeja tiene "Proponer una idea"). No es una página — abre
+                    el modal — así que imita a un ítem inactivo (sin estado "activo"). Con novedades
+                    en "Mis ideas" lleva un número ámbar, como los demás contadores. */}
+                {!hasPermission('ideas.revisar') && (
+                // eslint-disable-next-line no-restricted-syntax -- ítem de menú que abre un modal; mismo layout que NavLink, Button no lo soporta
                 <button
                     type="button"
                     onClick={() => { setMobileOpen(false); setShowIdeas(true); }}
@@ -264,6 +274,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                         )
                     )}
                 </button>
+                )}
             </nav>
 
             {/* Footer: tema + usuario */}
@@ -350,11 +361,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
 
             {/* Ideas para Bóveda — también UNA vez, fuera de sidebarContent. Con novedades
                 abre directo en "Mis ideas". */}
-            <ProponerMejoraModal
-                isOpen={showIdeas}
-                onClose={() => setShowIdeas(false)}
-                pestanaInicial={misIdeas.novedades > 0 ? 'mias' : 'nueva'}
-            />
+            {ideasCargado && (
+                <React.Suspense fallback={null}>
+                    <ProponerMejoraModal
+                        isOpen={showIdeas}
+                        onClose={() => setShowIdeas(false)}
+                        pestanaInicial={misIdeas.novedades > 0 ? 'mias' : 'nueva'}
+                    />
+                </React.Suspense>
+            )}
 
             {/* Panel de vencimientos — se renderiza UNA vez (fuera de sidebarContent,
                 que se monta dos veces: escritorio y drawer móvil). */}

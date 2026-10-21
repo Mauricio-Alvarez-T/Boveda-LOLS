@@ -2,11 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, ArrowRight, LayoutGrid, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt, Eye, EyeOff } from 'lucide-react';
 import { MixerTruck } from '../components/icons/MixerTruck';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { flagOff } from '../utils/flags';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
+import { BarraPaginada } from '../components/ui/BarraPaginada';
 import { useInventarioData } from '../hooks/inventario/useInventarioData';
 import { useBodegaVirtualModo } from '../hooks/inventario/useBodegaVirtualModo';
 import BodegaVirtualToggle from '../components/inventario/BodegaVirtualToggle';
@@ -123,6 +125,9 @@ const ExportExcelDropdown: React.FC<{ stockData: StockObraData }> = ({ stockData
 
 const InventarioPage: React.FC = () => {
     const { hasPermission } = useAuth();
+    // Enlaces desde el Inicio (tarjeta «Inventario», 2026-10-20): ?tab=transferencias&estado=pendiente abre
+    // esa pestaña con ese filtro. Solo se lee al entrar; si la pestaña no está permitida, manda el primer tab.
+    const [searchParams] = useSearchParams();
     const { obras, selectedObra } = useObra();
     // Modo Bodega Virtual (por usuario): ocultar → mostrar → sumar. Afecta
     // Ejecutivo, Resumen, Obra/Bod. y Facturas.
@@ -142,6 +147,8 @@ const InventarioPage: React.FC = () => {
     // verá la pestaña montada en el primer render y disparará la llamada al API
     // → 403 → toast confuso. El init lazy evita ese efecto.
     const [activeTab, setActiveTab] = useState<TabKey>(() => {
+        const pedido = tabs.find(t => t.key === searchParams.get('tab') && (!t.requiresPerm || hasPermission(t.requiresPerm)));
+        if (pedido) return pedido.key;
         const first = tabs.find(t => !t.requiresPerm || hasPermission(t.requiresPerm));
         return (first?.key ?? 'resumen_ejecutivo') as TabKey;
     });
@@ -151,7 +158,8 @@ const InventarioPage: React.FC = () => {
     const [hideEmptyUbic, setHideEmptyUbic] = useState(false);
     // Intent de navegación desde el Resumen Ejecutivo hacia Transferencias.
     // Se consume como props iniciales del Panel; cambia de valor fuerza remount via `key`.
-    const [trfNavIntent, setTrfNavIntent] = useState<{ estado?: string; id?: number | null; nonce: number }>({ nonce: 0 });
+    const [trfNavIntent, setTrfNavIntent] = useState<{ estado?: string; id?: number | null; nonce: number }>(
+        () => ({ estado: searchParams.get('estado') ?? undefined, nonce: 0 }));
 
     // El subtítulo del header muestra el tab activo como breadcrumb (→ Tab)
     // para que el usuario sepa dónde está sin mirar las pestañas.
@@ -284,7 +292,10 @@ const InventarioPage: React.FC = () => {
                 {/* ── Mobile: compacto vertical (ícono pequeño + label corto) ──
                     `text-base` (16 px) es el tamaño que siempre se vio: los `text-micro`/`text-caption` que había
                     los borraba `cn()` (antes de que utils/cn.ts conociera los tamaños propios) y el texto heredaba 16 px. */}
-                <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
+                {/* Sin palabras cortadas (Marcos 2026-10-21): la barra va de a páginas con flechas a los
+                    costados (ui/BarraPaginada). El selector de bodega virtual queda fuera, siempre a la vista. */}
+                <div className="flex md:hidden items-center gap-1 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shadow-sm">
+                <BarraPaginada className="flex-1">{p => (
                     <PestanasElasticas
                         opciones={visibleTabs}
                         activa={activeTab}
@@ -293,6 +304,8 @@ const InventarioPage: React.FC = () => {
                         claseFila="gap-0.5"
                         claseOpcion="flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-2.5 shrink-0"
                         claseInactiva="text-muted-foreground"
+                        estiloOpcion={p.estiloOpcion}
+                        revelar={p.revelar}
                         render={(tab) => {
                             const TabIcon = tab.icon;
                             return (
@@ -305,8 +318,9 @@ const InventarioPage: React.FC = () => {
                             );
                         }}
                     />
+                )}</BarraPaginada>
                     {showVirtualToggle && (
-                        <BodegaVirtualToggle modo={bodegaVirtualModo} onCycle={cycleBodegaVirtual} className="ml-1" />
+                        <BodegaVirtualToggle modo={bodegaVirtualModo} onCycle={cycleBodegaVirtual} className="shrink-0" />
                     )}
                 </div>
                 {/* ── Desktop: horizontal compacto (mismo estilo que Configuración) ── */}

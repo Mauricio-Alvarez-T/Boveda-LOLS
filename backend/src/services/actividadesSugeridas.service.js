@@ -31,6 +31,9 @@ const { isoDe, esLunesIso, labelSemana } = require('../utils/semana');
 
 const MONDAY = 1; // Date.getDay(): dom=0, lun=1, ..., sab=6
 const ONE_YEAR_DAYS = 365;
+// Semanas hacia atrás que se pueden armar (dueño 2026-10-21): muchos olvidan la lista y la arman el
+// lunes siguiente a la actividad.
+const SEMANAS_ATRAS = 1;
 const MAX_TRABAJADORES_POR_LISTA = 500;
 
 // Sin horas (jefatura 2026-08-17): solo se registra asistió / no asistió.
@@ -49,9 +52,9 @@ function lunesDeSemana(d) {
 }
 
 /**
- * Valida la semana de una lista: llega como su LUNES (YYYY-MM-DD),
- * no puede ser anterior a la semana en curso (el viernes aún se puede crear la
- * lista de esa misma semana) ni más allá de 1 año. Lanza 400 con mensaje específico.
+ * Valida la semana de una lista: llega como su LUNES (YYYY-MM-DD), no puede ser
+ * anterior a la semana PASADA (se arma el lunes siguiente a la actividad; la de
+ * hace dos semanas ya no) ni más allá de 1 año. Lanza 400 con mensaje específico.
  */
 function validarSemana(semana) {
     const dateObj = new Date(semana + 'T12:00:00');
@@ -60,7 +63,8 @@ function validarSemana(semana) {
 
     const lunesActual = lunesDeSemana(new Date());
     const semanaOnly = new Date(semana + 'T00:00:00');
-    if (semanaOnly < lunesActual) throw err400('No se permite una semana pasada');
+    const minimo = new Date(lunesActual); minimo.setDate(minimo.getDate() - 7 * SEMANAS_ATRAS);
+    if (semanaOnly < minimo) throw err400('Solo se puede armar la lista desde la semana pasada en adelante');
 
     const max = new Date(lunesActual); max.setDate(max.getDate() + ONE_YEAR_DAYS);
     if (semanaOnly > max) throw err400('Semana demasiado lejana (máx 1 año)');

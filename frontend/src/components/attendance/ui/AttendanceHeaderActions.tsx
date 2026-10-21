@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Save, MoreHorizontal, FileDown, CalendarRange, CopyPlus, Plus, Building2, Check, Eraser } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { MarcaEstado, type EstadoMarca } from '../../ui/MarcaEstado';
+import { AvisoPendiente } from '../../ui/AvisoPendiente';
 import RequirePermission from '../../auth/RequirePermission';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
 import { cn } from '../../../utils/cn';
@@ -16,6 +17,8 @@ interface AttendanceHeaderActionsProps {
     saving: boolean;
     /** Resultado del último Guardar: en vez del ícono, el botón gira / dibuja check / dibuja cruz. */
     saveStatus: 'idle' | EstadoMarca;
+    /** Falta guardar (el día sin guardar o con cambios): luz ámbar en el borde y un punto (AvisoPendiente). */
+    pendiente?: boolean;
     loading: boolean;
     hasWorkers: boolean;
     hasPermission: (p: string) => boolean;
@@ -54,6 +57,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
     handleSave,
     saving,
     saveStatus,
+    pendiente = false,
     loading,
     hasWorkers,
     hasPermission,
@@ -81,6 +85,9 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
     const iconoGuardar = saveStatus === 'idle'
         ? <Save className="h-4 w-4" />
         : <MarcaEstado estado={saveStatus} className="h-4 w-4" />;
+    // «Falta guardar»: solo si se puede guardar y no se está mostrando el resultado de un guardado.
+    const avisarPendiente = pendiente && !isSaveDisabled && !marcandoGuardado;
+    const tituloGuardar = avisarPendiente ? 'Guardar — falta guardar este día' : 'Guardar';
 
     return (
         <div className="flex items-center gap-2">
@@ -118,6 +125,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     <WhatsAppIcon className="h-4 w-4 shrink-0" />
                 </Button>
 
+                <span className="relative inline-flex shrink-0">
                 <Button
                     onClick={handleSave}
                     disabled={isSaveDisabled}
@@ -128,10 +136,13 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                         isSaveDisabled && !marcandoGuardado && "opacity-40 grayscale pointer-events-none",
                         marcandoGuardado && "disabled:opacity-100"
                     )}
-                    title="Guardar"
+                    title={tituloGuardar}
+                    aria-label={tituloGuardar}
                 >
                     {iconoGuardar}
                 </Button>
+                <AvisoPendiente activo={avisarPendiente} radio={12} />
+                </span>
             </div>
 
             {/* ═══════════════════════════════════════════ */}
@@ -236,10 +247,12 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     availableEmpresas={availableEmpresas}
                 />
 
+                <span className="relative inline-flex shrink-0">
                 <Button
                     onClick={handleSave}
                     disabled={isSaveDisabled}
-                    title="Guardar"
+                    title={tituloGuardar}
+                    aria-label={tituloGuardar}
                     className={cn(
                         "h-9 w-9 p-0 justify-center rounded-xl shadow-lg shadow-brand-primary/20",
                         isSaveDisabled && !marcandoGuardado && "opacity-40 grayscale pointer-events-none",
@@ -248,6 +261,8 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                 >
                     {iconoGuardar}
                 </Button>
+                <AvisoPendiente activo={avisarPendiente} radio={12} />
+                </span>
 
                 {/* Goma de borrar: borrado correctivo de la asistencia guardada del día.
                     Misma gate que Guardar (quien guarda corrige). No se bloquea en

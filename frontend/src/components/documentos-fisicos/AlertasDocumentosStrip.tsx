@@ -65,8 +65,8 @@ export const AlertasDocumentosStrip: React.FC<Props> = ({ onAbrirLote }) => {
                             <ul className="mt-1 space-y-0.5">
                                 {g.items.map(i => (
                                     <li key={i.documento_id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg bg-card/70 px-2 py-1 text-xs">
-                                        <span className="font-semibold text-brand-dark truncate">{i.trabajador.nombre}</span>
-                                        <span className="text-muted-foreground truncate">{i.tipo_nombre}{i.obra_nombre ? ` · ${i.obra_nombre}` : ''}{i.portador_nombre ? ` · con ${i.portador_nombre}` : ''}</span>
+                                        <span className="min-w-0 break-words font-semibold text-brand-dark">{i.trabajador.nombre}</span>
+                                        <span className="min-w-0 break-words text-muted-foreground">{i.tipo_nombre}{i.obra_nombre ? ` · ${i.obra_nombre}` : ''}{i.portador_nombre ? ` · con ${i.portador_nombre}` : ''}</span>
                                         <span className="ml-auto"><Dias dias={i.dias} critical={i.critical} /></span>
                                     </li>
                                 ))}

@@ -5,6 +5,7 @@ import { Chip } from '../ui/Chip';
 import { SearchBar } from '../ui/SearchBar';
 import { EmptyState } from '../ui/EmptyState';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
+import { BarraPaginada } from '../ui/BarraPaginada';
 import { fmtMoney, fmtFechaCorta } from '../../utils/format';
 import { CATEGORIAS, TIPOS_DOC, hoyISO, netoGasto, porCompletar, nombreGasto } from './costosConfig';
 import type { CostoGasto } from '../../types/entities';
@@ -61,9 +62,10 @@ export const GastosObra: React.FC<Props> = ({ gastos, filtro, onFiltro, onNuevo,
     return (
         <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                <div className="flex items-center overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0 [scrollbar-width:none]">
-                    <div className="flex shrink-0 rounded-2xl border border-border bg-card p-1">
-                        <PestanasElasticas
+                <div className="flex items-center min-w-0">
+                    <div className="flex w-fit min-w-0 max-w-full rounded-2xl border border-border bg-card p-1">
+                    <BarraPaginada>{p => (
+                        <PestanasElasticas estiloOpcion={p.estiloOpcion} revelar={p.revelar}
                             opciones={opciones}
                             activa={filtro}
                             onCambiar={onFiltro}
@@ -73,6 +75,7 @@ export const GastosObra: React.FC<Props> = ({ gastos, filtro, onFiltro, onNuevo,
                             claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark"
                             render={o => (<>{o.label}<span className="ml-1.5 opacity-70 tabular-nums">{conteo[o.key]}</span></>)}
                         />
+                    )}</BarraPaginada>
                     </div>
                 </div>
                 {/* «Cargar gasto» vive en la cabecera de la obra: siempre a mano, sin repetirlo aquí. */}

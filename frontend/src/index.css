@@ -67,6 +67,22 @@
     .gira-telefono { animation: gira-telefono 2s ease-in-out infinite; }
 }
 
+/* Falta guardar (ui/AvisoPendiente): la luz ámbar da dos vueltas al borde del botón y se apaga. Con
+   «reducir movimiento» no se dibuja (queda el punto). */
+.luz-pendiente {
+    stroke-dasharray: 16 84;
+    stroke-dashoffset: 0;
+    opacity: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+    .luz-pendiente { animation: luz-pendiente 2.4s linear forwards; }
+}
+@keyframes luz-pendiente {
+    0%   { stroke-dashoffset: 0; opacity: 1; }
+    92%  { opacity: 1; }
+    100% { stroke-dashoffset: -200; opacity: 0; }
+}
+
 /* ──────────────────────────────────────────────────────────────────
    Design tokens
    Los tokens que generan las utilidades (bg-card, text-foreground,
@@ -454,4 +470,55 @@
 
 [data-sonner-toast][data-styled="true"] [data-close-button] svg {
   color: #FFFFFF !important;
+}
+
+/* ── Tarjeta elegida del Inicio (dueño 2026-10-20; diseno.md §9.14) ─────────────────────────────
+   Se pinta entera de verde LOLS, como la antigua tarjeta del día. Los tokens neutros se redefinen
+   adentro, así sus textos, bordes y fondos suaves se adaptan sin tocar cada componente; lo que lleva
+   color propio (círculo, cifra, números) lo resuelve el contexto `TarjetaActiva`. green-700 y no
+   brand-primary: con letra blanca chica el verde de marca no pasa AA. */
+.tarjeta-activa {
+  --card: #15803d;          /* green-700 */
+  --foreground: #ffffff;
+  --muted-foreground: #dcfce7; /* green-100: 4,6:1 sobre green-700 */
+  --border: rgb(255 255 255 / 0.22);
+  --muted: rgb(255 255 255 / 0.14);
+  --brand-dark: #ffffff;
+  color: #ffffff;
+}
+.dark .tarjeta-activa {
+  --card: #14532d;          /* green-900 */
+}
+
+/* Cola de gota de la tarjeta elegida del Inicio (dueño 2026-10-20; diseno.md §9.14): baja desde la
+   tarjeta hacia el detalle, estirándose, cuando las tarjetas ya se plegaron. Sin «reducir movimiento»
+   aparece en seco. */
+@keyframes cola-gota {
+    from { transform: scaleY(0); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .cola-gota { transform-origin: top center; animation: cola-gota 180ms cubic-bezier(0.2, 0.8, 0.2, 1) 120ms both; }
+}
+
+/* Barra de accesos rápidos del Inicio en el celular (dueño 2026-10-20): entra desde abajo al abrir un
+   detalle. Sin «reducir movimiento» aparece en seco. */
+@keyframes barra-sube {
+    from { transform: translateY(100%); }
+    to   { transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .barra-modulos { animation: barra-sube 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+}
+
+/* ── Celular: sin desenfoque de fondo (Marcos 2026-10-21, «Android viejito que carga lento») ──
+   `backdrop-filter` obliga a re-pintar y desenfocar lo que hay debajo en cada cuadro de scroll: en una GPU
+   barata es lo que más se nota (§8.9). Bajo 768 px se apaga en todas partes; las superficies ya son casi
+   opacas (bg-card/80–95) y los velos de los modales siguen oscureciendo. En el computador no cambia nada.
+   Los avisos (sonner) conservan el suyo: su regla es más específica y duran segundos. */
+@media (max-width: 767px) {
+  *, *::before, *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
 }

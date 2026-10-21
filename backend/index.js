@@ -509,6 +509,18 @@ app.get('/api/dashboard/summary', require('./src/middleware/auth'), async (req, 
   } catch (err) { next(err); }
 });
 
+// Detalle «Asistencia» del Inicio (fase 2, 2026-10-20): próximos 14 días, descuentos del mes y horas
+// extra por obra. Se pide al abrir el detalle; cada bloque se recorta por su propio permiso en el servicio.
+const inicioAsistenciaService = require('./src/services/inicioAsistencia.service');
+app.get('/api/dashboard/asistencia', require('./src/middleware/auth'), require('./src/middleware/rbac').checkPermission('asistencia.ver'), async (req, res, next) => {
+  try {
+    const obraId = req.query.obra_id ? Number(req.query.obra_id) : null;
+    if (obraId !== null && !Number.isInteger(obraId)) return res.status(400).json({ error: 'obra_id inválido' });
+    const data = await inicioAsistenciaService.getDetalle(obraId, req.user.p || []);
+    res.json({ data });
+  } catch (err) { next(err); }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

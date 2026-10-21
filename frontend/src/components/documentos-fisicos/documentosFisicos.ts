@@ -300,6 +300,17 @@ export function lineaTiempoLote(l: Pick<LoteResumen, 'estado' | 'creado_en' | 'r
     if (l.estado === 'en_terreno') return `En terreno desde ${d(l.retirado_en ?? l.creado_en)}`;
     return `Volvió ${d(l.cerrado_en ?? l.retirado_en ?? l.creado_en)}`;
 }
+/**
+ * Días que lleva un lote en terreno, contados desde el retiro confirmado (jefatura 2026-10-21: la
+ * tarjeta debe decirlo). null si el lote no está en terreno.
+ */
+export function diasEnTerreno(l: Pick<LoteResumen, 'estado' | 'retirado_en' | 'creado_en'>, hoy: Date = new Date()): number | null {
+    if (l.estado !== 'en_terreno') return null;
+    return diasDesde(l.retirado_en ?? l.creado_en, hoy);
+}
+
+export const textoDiasTerreno = (n: number) => `${n} día${n === 1 ? '' : 's'} en terreno`;
+
 /** Texto para la Bandeja / badge según el alcance del contador. */
 export function filasBandejaLotes(p: PendientesLotes | null | undefined): { severity: 'warning' | 'info'; title: string; description: string }[] {
     if (!p) return [];

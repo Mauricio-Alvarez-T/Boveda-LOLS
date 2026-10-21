@@ -7,6 +7,7 @@ import { QtyStepper } from '../../ui/QtyStepper';
 import type { ItemInventario, CategoriaInventario } from '../../../types/entities';
 import type { ItemInput, CustomItemInput } from '../../../utils/inferMovimiento';
 import { PestanasElasticas } from '../../ui/PestanasElasticas';
+import { BarraPaginada } from '../../ui/BarraPaginada';
 
 const SECCIONES = [{ key: 'catalogo' as const }, { key: 'otros' as const }];
 
@@ -77,9 +78,10 @@ export const CatalogoCarrito: React.FC<{
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar ítem del catálogo..." className="w-full h-10 pl-9 pr-3 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none" />
             </div>
             {cats.length > 0 && (
-                <div className="overflow-x-auto scrollbar-none pb-2 shrink-0">
-                    <div className="flex w-max rounded-2xl bg-muted p-1">
-                        <PestanasElasticas
+                <div className="shrink-0 min-w-0 pb-2">
+                    <div className="flex w-fit min-w-0 max-w-full rounded-2xl bg-muted p-1">
+                    <BarraPaginada fondo="muted">{p => (
+                        <PestanasElasticas estiloOpcion={p.estiloOpcion} revelar={p.revelar}
                             opciones={opcionesCat}
                             activa={catFiltro === null ? 'todas' : String(catFiltro)}
                             onCambiar={(k) => setCatFiltro(k === 'todas' ? null : Number(k))}
@@ -89,6 +91,7 @@ export const CatalogoCarrito: React.FC<{
                             claseInactiva="text-muted-foreground hover:text-brand-dark"
                             render={(o) => o.label}
                         />
+                    )}</BarraPaginada>
                     </div>
                 </div>
             )}

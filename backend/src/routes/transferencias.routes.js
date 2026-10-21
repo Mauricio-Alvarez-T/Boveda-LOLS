@@ -37,6 +37,15 @@ router.get('/pendientes', auth, checkPermission('inventario.transferencias.aprob
     } catch (err) { next(err); }
 });
 
+// GET /api/transferencias/inicio — conteos de la tarjeta «Inventario» del Inicio, según el perfil
+// (transferenciaService.resumenInicio). Va ANTES de /:id para que Express no lo tome como un ID.
+router.get('/inicio', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.resumenInicio(req.user);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // GET /api/transferencias/mis-solicitudes
 router.get('/mis-solicitudes', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {

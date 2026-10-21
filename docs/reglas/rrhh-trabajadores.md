@@ -133,7 +133,8 @@
   (portador puro, terreno puro) no hay portada, switcher ni título clickeable: se entra directo, como
   antes. Dentro de una sección el header muestra un botón explícito **«← Gestiones»** (outline) que
   vuelve a la portada y el nombre de la sección como título (el título clickeable anterior no se
-  reconocía como botón); el header NO muestra las otras secciones (se cambia desde la portada; decisión del dueño 2026-09-15) y
+  reconocía como botón). **En el celular** (bajo 768 px el header no muestra el título) esa misma fila
+  va arriba de la sección (Marcos 2026-10-21: sin ella solo se volvía por el menú); el header NO muestra las otras secciones (se cambia desde la portada; decisión del dueño 2026-09-15) y
   CREAR aparece solo en la grilla (Solicitudes y Documentos físicos traen su propio botón). "Limpiar
   filtros" conserva `tab`. **Grilla** (`components/consultas/TrabajadoresGrilla.tsx`, rediseño 2026-09-15):
   tabla con encabezados en desktop (Trabajador · Empresa/Obra · Cargo · Ingreso · Documentación · Acciones)
@@ -749,13 +750,17 @@ firma en la obra (papel) → el portador devuelve los firmados → RRHH recibe.
 - **UI**: Gestiones → pestaña **Documentos físicos** (`?tab=fisicos`; el portador sin `trabajadores.ver` cae
   ahí directo; Gestiones es visible para él en el menú). `DocumentosFisicosPanel` (rediseño 2026-09-15:
   **tablero de custodia** con tres carriles en el orden del flujo —Por confirmar → En terreno → Cerrados—;
-  tarjeta = portador, N docs, resumen, qué pasó y hace cuánto, y la acción que le toca a quien mira
+  tarjeta = portador, N docs, resumen, qué pasó y hace cuánto (en terreno: «N días en terreno» desde el
+  retiro confirmado, azul; ámbar/rojo si pasó el umbral de aviso/crítico de B7 — jefatura 2026-10-21), y la acción que le toca a quien mira
   («Confirmar retiro» portador / «Registrar recepción» RRHH); RRHH ve arriba cuántos documentos impresos
-  esperan lote; móvil = un carril a la vez; `agruparLotesPorEstado`/`lineaTiempoLote` con test) · `NuevoLoteModal` (documentos impresos agrupados **obra → trabajador**
+  esperan lote; móvil = un carril a la vez (propuesta A del lienzo, dueño 2026-10-21: cabecera en una franja «N impresos sin lote · recargar · + Lote», sin el título repetido del carril, la sección «‹ Documentos físicos» en el centro del encabezado y sin selector de obra, que esta vista no usa); `agruparLotesPorEstado`/`lineaTiempoLote` con test) · `NuevoLoteModal` (documentos impresos agrupados **obra → trabajador**
   con casilla por trabajador —un kit de 6 = 1 clic—, buscador, filtro por obra, portador recordado en
   `localStorage`) · `LoteDetalleModal` (portador + por confirmar: casillas pre-marcadas y **"Recibí estos
   documentos"**, pensado para el celular; RRHH + en terreno: por documento Firmado / Sin firma / Sigue en
-  terreno con todo pre-marcado como firmado; RRHH + por confirmar: anular). Badge ámbar en el botón y grupo
+  terreno con todo pre-marcado como firmado; RRHH + por confirmar: anular). **Ningún texto del apartado se corta
+  con «…»** (dueño 2026-10-21): tarjetas de lote, cabecera, alertas, Nuevo lote, detalle, títulos de modal,
+  custodia en la ficha y tarjetas del Inicio parten línea —dos «Recepción…» no se distinguen—; en el
+  teléfono el estado y su fecha bajan a la línea siguiente. Badge ámbar en el botón y grupo
   "Documentos físicos" en la Bandeja del Día (`useLotesPendientes`, store de módulo). La ficha del trabajador
   muestra "En terreno · con Jhoan desde …" y "Firmado …" en la lista de generados (`statusConfig` gana
   `en_terreno` y `firmado`). Lógica pura en `documentos-fisicos/documentosFisicos.ts` (+ test).
@@ -791,12 +796,12 @@ físicos); sin correo en v1 (un cron de email sería un follow-up con el patrón
   filas **cuentan** en el encabezado de la Bandeja ("N pendientes · M críticas") y en el "Bandeja
   vacía" (fix 2026-10-16: antes se pintaban sin contarse y quien solo tenía lotes pendientes veía la
   bandeja vacía). Los grupos externos se declaran una vez en `BandejaDelDia` (`externos`) y de ahí
-  salen conteo (`bandejaConteo.ts`, con test) y render. **Desde 2026-10-20 RRHH ya no las ve en la
-  bandeja sino en la tarjeta «Documentos físicos» del Inicio** (`DocumentosInicio`, en el lugar de
-  «Asistencia pendiente»): cifra de documentos fuera de plazo, píldora de críticos, etapas donde se atascan
-  y «dónde están ahora» (impresos sin lote vía `GET /documentos-lotes/disponibles`, lotes en oficina y en
-  terreno vía `useLotesPendientes`); el «Actualizar» de la tarjeta verde también la refresca. Esas alertas
-  siguen sumando a los pendientes de la frase del día. El portador conserva su fila en la bandeja. En la
+  salen conteo (`bandejaConteo.ts`, con test) y render. **Desde 2026-10-20 RRHH las ve en la tarjeta
+  «Gestiones» del Inicio** (`DocumentosInicio`): cifra de documentos fuera de plazo, píldora de críticos,
+  etapas donde se atascan y «dónde están ahora» (impresos sin lote vía `GET /documentos-lotes/disponibles`,
+  lotes en oficina y en terreno vía `useLotesPendientes`); su «Ver más» abre el detalle de Gestiones con la
+  lista completa por etapa (`DocumentosAtrasadosLista`) y «Otros pendientes». El «Actualizar» del
+  encabezado del Inicio también la refresca. El portador sigue viendo sus lotes como pendiente. En la
   pestaña Documentos físicos, la franja **"Documentos sin firmar fuera de plazo"** (`AlertasDocumentosStrip`)
   resume por etapa y, desplegada, lista trabajador · tipo · días · portador y los lotes atascados (con
   "Abrir"). Store de módulo `useDocumentosAlertas` (gate `registrar`); lógica pura en

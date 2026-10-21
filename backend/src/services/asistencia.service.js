@@ -2906,9 +2906,20 @@ const asistenciaService = {
      *   - 2 días seguidos de falta (F) dentro del mismo mes
      *   - 2 lunes con falta (F) en el mes
      *   - 3 o más días de falta (F) totales en el mes
-     * Solo se considera el estado con código 'F'.
+     * Solo se considera el estado con código 'F'. Devuelve solo a quien gatilla alguna regla.
      */
     async getAlertasFaltas(obraId, mes, anio) {
+        const todos = await asistenciaService.getFaltasMes(obraId, mes, anio);
+        return todos.filter(t => t.alertas.length > 0);
+    },
+
+    /**
+     * Todos los trabajadores con al menos una falta (F) en el mes, con sus fechas y las alertas
+     * que gatillan (`alertas` vacío si no llegan a ninguna regla). `getAlertasFaltas` se queda con los
+     * reiterados (los que usa la tarjeta «Asistencia» del Inicio, 2026-10-20).
+     * `obra_nombre` = obra de su falta más reciente.
+     */
+    async getFaltasMes(obraId, mes, anio) {
         // 1. Obtener el ID del estado 'F'
         const [estadoF] = await db.query("SELECT id FROM estados_asistencia WHERE codigo = 'F' AND activo = 1");
         if (!estadoF || estadoF.length === 0) return [];
@@ -2924,9 +2935,10 @@ const asistenciaService = {
         //    NUEVA del mismo día en otra obra (duplicado histórico corregido).
         let faltasQuery = `
             SELECT a.trabajador_id, a.fecha, a.obra_id,
-                   t.nombres, t.apellido_paterno, t.rut
+                   t.nombres, t.apellido_paterno, t.rut, o.nombre AS obra_nombre
             FROM asistencias a
             JOIN trabajadores t ON a.trabajador_id = t.id
+            LEFT JOIN obras o ON o.id = a.obra_id
             WHERE a.estado_id = ? AND a.fecha BETWEEN ? AND ? AND t.activo = 1 AND t.es_prueba = 0
               AND NOT EXISTS (
                   SELECT 1 FROM asistencias a2
@@ -2952,7 +2964,7 @@ const asistenciaService = {
         params.push(MAX_FALTAS);
         const [faltas] = await db.query(faltasQuery, params);
         if (faltas.length >= MAX_FALTAS) {
-            logger.warn(`getAlertasFaltas alcanzó el tope de ${MAX_FALTAS} filas — resultado posiblemente truncado`, { obraId, mes, anio });
+            logger.warn(`getFaltasMes alcanzó el tope de ${MAX_FALTAS} filas — resultado posiblemente truncado`, { obraId, mes, anio });
         }
 
         // 4. Agrupar por trabajador
@@ -2968,15 +2980,18 @@ const asistenciaService = {
                     nombres: f.nombres,
                     apellido_paterno: f.apellido_paterno,
                     rut: f.rut,
+                    obra_nombre: null,
                     fechasSet: new Set()
                 };
             }
             const fechaStr = typeof f.fecha === 'string' ? f.fecha.split('T')[0] : f.fecha.toISOString().split('T')[0];
             porTrabajador[f.trabajador_id].fechasSet.add(fechaStr);
+            // Las filas vienen por fecha ascendente: la última que pasa es la falta más reciente.
+            if (f.obra_nombre) porTrabajador[f.trabajador_id].obra_nombre = f.obra_nombre;
         });
 
         // 5. Evaluar reglas por trabajador
-        const alertas = [];
+        const resultado = [];
 
         for (const [tid, data] of Object.entries(porTrabajador)) {
             const fechas = [...data.fechasSet].sort(); // orden ascendente para regla de consecutivas
@@ -3017,20 +3032,19 @@ const asistenciaService = {
                 });
             }
 
-            if (trabajadorAlerts.length > 0) {
-                alertas.push({
-                    trabajador_id: parseInt(tid),
-                    nombres: data.nombres,
-                    apellido_paterno: data.apellido_paterno,
-                    rut: data.rut,
-                    total_faltas: fechas.length,
-                    fechas, // lista 'YYYY-MM-DD' de las faltas del mes (para el aviso WhatsApp)
-                    alertas: trabajadorAlerts
-                });
-            }
+            resultado.push({
+                trabajador_id: parseInt(tid),
+                nombres: data.nombres,
+                apellido_paterno: data.apellido_paterno,
+                rut: data.rut,
+                obra_nombre: data.obra_nombre,
+                total_faltas: fechas.length,
+                fechas, // lista 'YYYY-MM-DD' de las faltas del mes (para el aviso WhatsApp)
+                alertas: trabajadorAlerts
+            });
         }
 
-        return alertas;
+        return resultado;
     }
 };
 

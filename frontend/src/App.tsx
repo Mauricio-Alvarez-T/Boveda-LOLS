@@ -1,7 +1,6 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-import LoginPage from './pages/Login';
 import { MainLayout } from './components/layout/MainLayout';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
@@ -9,6 +8,9 @@ import { lazyWithRetry } from './utils/lazyWithRetry';
 // al entrar a su ruta, no en el bundle inicial. Login y el layout quedan eager
 // porque son el punto de entrada. `lazyWithRetry` auto-recupera el "chunk viejo
 // tras deploy" (reintento + recarga única) en vez de mostrar "Algo salió mal".
+// Login también va aparte (2026-10-21, celular lento): trae zod + react-hook-form (~70 KB) que quien ya
+// tiene sesión —casi todas las aperturas— no necesita.
+const LoginPage = lazyWithRetry(() => import('./pages/Login'));
 const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'));
 const AttendancePage = lazyWithRetry(() => import('./pages/Attendance'));
 const ConsultasPage = lazyWithRetry(() => import('./pages/Consultas'));

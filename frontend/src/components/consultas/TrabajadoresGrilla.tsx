@@ -162,8 +162,10 @@ const TrabajadoresGrillaImpl: React.FC<Props> = ({
                         acabas de aplicar. La selección múltiple sigue existiendo casilla por casilla.
                         El anuncio para lectores de pantalla NO va acá: esta rama se desmonta al marcar la
                         primera casilla, y una región viva tiene que estar siempre montada para anunciar. */}
-                    {atajos && <div className="min-w-0 flex-1">{atajos}</div>}
-                    <span className={cn('shrink-0 text-ui font-bold text-brand-dark tabular-nums', !atajos && 'ml-auto')}>
+                    {/* En el celular los atajos bajan a su propia fila (abajo): entre «Filtros» y el conteo quedaban
+                        ~150 px y se veía un pedazo de un solo atajo (Marcos 2026-10-21). */}
+                    {atajos && <div className="hidden min-w-0 flex-1 sm:block">{atajos}</div>}
+                    <span className="ml-auto shrink-0 text-ui font-bold text-brand-dark tabular-nums">
                         {loading ? 'Buscando…' : `${workers.length} trabajador${workers.length === 1 ? '' : 'es'}`}
                     </span>
                 </>)}
@@ -175,6 +177,10 @@ const TrabajadoresGrillaImpl: React.FC<Props> = ({
                     {loading ? 'Buscando trabajadores' : `${workers.length} trabajador${workers.length === 1 ? '' : 'es'}`}
                 </span>
             </div>
+
+            {/* Celular: los atajos en su fila, a todo el ancho; se deslizan de lado y el degradado avisa que hay
+                más. Siguen a la vista durante una selección para que la lista no salte. */}
+            {atajos && <div className="shrink-0 border-b border-border px-3 py-2 sm:hidden">{atajos}</div>}
 
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                 {loading ? (

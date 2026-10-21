@@ -521,9 +521,9 @@ const BarraFiltros: React.FC<BarraFiltrosProps> = ({
     return (
         <div className="flex flex-col gap-2 shrink-0 mb-2">
             <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                {/* Filtros: una sola fila con scroll horizontal si no cabe (evita que los tabs empujen
-                    las acciones fuera de pantalla; el indicador elástico no admite dos líneas). */}
-                <div className="min-w-0 overflow-x-auto scrollbar-none">
+                {/* Filtros: una sola fila; si no cabe, StatusFilterBar va de a páginas con flechas (evita que los
+                    tabs empujen las acciones fuera de pantalla; el indicador elástico no admite dos líneas). */}
+                <div className="min-w-0">
                     <StatusFilterBar
                         active={statusFilter}
                         onChange={onStatusChange}

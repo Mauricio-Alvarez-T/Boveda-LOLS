@@ -72,17 +72,22 @@ export function fmtSemanaCorta(iso: string | null | undefined): string {
 export interface OpcionSemana { value: string; label: string }
 
 /**
- * Opciones para el selector de semana: desde la semana en curso (aunque hoy
- * sea viernes o domingo) hacia adelante, `n` semanas. Valor = lunes ISO.
+ * Opciones para el selector de semana: `atras` semanas pasadas (dueño 2026-10-21: la lista se arma a
+ * veces el lunes siguiente a la actividad) y desde la semana en curso (aunque hoy sea viernes o
+ * domingo) hacia adelante, `n` semanas. Valor = lunes ISO. Debe calzar con `SEMANAS_ATRAS` del backend.
+ * Por defecto `n = 3` (la en curso + 2): el personal se pide como máximo dos semanas antes (dueño
+ * 2026-10-21; antes eran 26 y la lista mostraba meses que nadie usa).
  */
-export function opcionesSemanas(hoyIso: string, n = 26): OpcionSemana[] {
+export function opcionesSemanas(hoyIso: string, n = 3, atras = 1): OpcionSemana[] {
     const lunes = lunesDeSemana(hoyIso);
     if (!lunes) return [];
     const out: OpcionSemana[] = [];
     const d = aMediodia(lunes);
-    for (let i = 0; i < n; i++) {
+    d.setDate(d.getDate() - 7 * atras);
+    for (let i = -atras; i < n; i++) {
         const iso = aIso(d);
-        out.push({ value: iso, label: fmtSemana(iso) + (i === 0 ? ' (en curso)' : '') });
+        const nota = i === 0 ? ' (en curso)' : i === -1 ? ' (semana pasada)' : '';
+        out.push({ value: iso, label: fmtSemana(iso) + nota });
         d.setDate(d.getDate() + 7);
     }
     return out;

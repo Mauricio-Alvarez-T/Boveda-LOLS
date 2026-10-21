@@ -13,7 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 export const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
-    const { title, actions } = usePageHeader();
+    const { title, actions, centroMovil, ocultarObraMovil } = usePageHeader();
     const { user } = useAuth();
     const location = useLocation();
 
@@ -51,8 +51,9 @@ export const MainLayout: React.FC = () => {
                 {/* Franja de entorno: solo en staging (VITE_ENTORNO), encima de todo. */}
                 <EntornoBanner />
 
-                {/* Top Navbar — fixed above scroll area */}
-                <header className="shrink-0 h-14 md:h-16 border-b border-border bg-card/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-8 z-50 shadow-sm relative gap-2">
+                {/* Top Navbar — fixed above scroll area. Sin marco (dueño 2026-10-20, idea de la propuesta L del
+                    lienzo): mismo fondo que la página, sin borde ni sombra, alineado con el contenido (md:px-5). */}
+                <header className="shrink-0 h-14 md:h-16 bg-background flex items-center justify-between px-3 md:px-5 z-50 relative gap-2">
                     {/* Mobile Hamburger */}
                     <IconButton
                         variant="ghost"
@@ -66,8 +67,8 @@ export const MainLayout: React.FC = () => {
                     <div className="hidden md:flex flex-1 min-w-0 items-center overflow-hidden">
                         {title}
                     </div>
-                    {/* Spacer on mobile to push actions right */}
-                    <div className="flex-1 md:hidden" />
+                    {/* Centro en el celular: lo que ponga la página (el Inicio, su módulo en curso); si no, espacio. */}
+                    <div className="flex min-w-0 flex-1 justify-center md:hidden">{centroMovil}</div>
 
                     <div className="flex items-center justify-end gap-1.5 md:gap-3 min-w-0">
                         {/* Page Actions Injected */}
@@ -88,7 +89,8 @@ export const MainLayout: React.FC = () => {
                         )}
 
                         <div className="hidden md:block h-6 w-px bg-border mx-1" />
-                        <ObraSelector />
+                        {/* Una página que no depende de la obra puede ocultarlo en el celular (useSetCentroMovil). */}
+                        <div className={ocultarObraMovil ? 'hidden md:contents' : 'contents'}><ObraSelector /></div>
                     </div>
                 </header>
 

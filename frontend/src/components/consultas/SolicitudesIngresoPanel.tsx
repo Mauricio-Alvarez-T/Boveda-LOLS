@@ -15,6 +15,7 @@ import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { EmptyState } from '../ui/EmptyState';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
+import { BarraPaginada } from '../ui/BarraPaginada';
 import { StatusBadge } from '../ui/StatusBadge';
 import { RevisarSolicitudModal, type SolicitudAccion } from './RevisarSolicitudModal';
 import {
@@ -154,13 +155,16 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                        {/* Dentro de «Aprobadas» y «Rechazadas» no va la insignia: decir «Aprobada» en cada fila se
+                            repetía y le quitaba ancho al nombre en el celular (Marcos 2026-10-21). Ahí el estado ya lo
+                            dicen la pestaña, el borde y la línea «Aprobada el …». En «Todas» sí va: se mezclan. */}
                         {s.estado === 'pendiente' && puedeAprobar ? (
                             <span className="hidden sm:inline-flex h-9 items-center rounded-full bg-brand-primary px-4 text-section font-semibold text-white shadow-sm">
                                 Revisar
                             </span>
-                        ) : (
+                        ) : filtro !== 'aprobada' && filtro !== 'rechazada' ? (
                             <StatusBadge domain="solicitudIngresoEstado" status={s.estado} showIcon />
-                        )}
+                        ) : null}
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                 </div>
@@ -172,7 +176,9 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
         <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
             {/* Cabecera: pestañas por estado con contador + acciones */}
             <div className="border-b border-border px-3 sm:px-4 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
-                <div className="flex items-center rounded-2xl bg-muted p-1 overflow-x-auto scrollbar-none max-w-full">
+                {/* En el celular las cuatro no caben: de a páginas con flechas, sin nombres cortados (ui/BarraPaginada). */}
+                <div className="flex max-w-full min-w-0 items-center rounded-2xl bg-muted p-1">
+                <BarraPaginada fondo="muted">{p => (
                     <PestanasElasticas
                         opciones={OPCIONES_FILTRO}
                         activa={filtro}
@@ -181,6 +187,8 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                         claseFila="gap-1"
                         claseOpcion="flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-section font-semibold whitespace-nowrap"
                         claseInactiva="text-muted-foreground hover:text-brand-dark"
+                        estiloOpcion={p.estiloOpcion}
+                        revelar={p.revelar}
                         render={(f, sobreIndicador) => {
                             const n = conteo[f.value];
                             return (
@@ -199,6 +207,7 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                             );
                         }}
                     />
+                )}</BarraPaginada>
                 </div>
                 <div className="flex items-center gap-2 ml-auto">
                     <IconButton
@@ -210,7 +219,8 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                         className="shrink-0"
                         icon={<RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />}
                     />
-                    {botonNuevo}
+                    {/* Con la lista vacía el botón va al centro, en el estado vacío: arriba se repetía (Marcos 2026-10-21). */}
+                    {!(!loading && items.length === 0) && botonNuevo}
                 </div>
             </div>
 

@@ -9,6 +9,7 @@ import { SearchBar } from '../components/ui/SearchBar';
 import { Button } from '../components/ui/Button';
 import { Chip } from '../components/ui/Chip';
 import { PestanasElasticas } from '../components/ui/PestanasElasticas';
+import { BarraPaginada } from '../components/ui/BarraPaginada';
 import { fmtMoney, fmtFechaCorta } from '../utils/format';
 import api from '../services/api';
 import { BarraAvance, PctGastado, Aviso } from '../components/costos/piezas';
@@ -126,10 +127,12 @@ const Portada: React.FC<{
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex items-center overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0 [scrollbar-width:none]">
-                <div className="flex shrink-0 rounded-2xl border border-border bg-card p-1">
-                    <PestanasElasticas opciones={VISTAS} activa={vista} onCambiar={onVista} aria-label="Presupuestos"
+            <div className="flex items-center min-w-0">
+                <div className="flex w-fit min-w-0 max-w-full rounded-2xl border border-border bg-card p-1">
+                <BarraPaginada>{p => (
+                    <PestanasElasticas estiloOpcion={p.estiloOpcion} revelar={p.revelar} opciones={VISTAS} activa={vista} onCambiar={onVista} aria-label="Presupuestos"
                         claseFila="gap-1" claseOpcion={CLASE_TAB} claseInactiva={CLASE_INACTIVA} render={o => o.label} />
+                )}</BarraPaginada>
                 </div>
             </div>
             {vista === 'obras' && <ListaObras obras={obras} onAbrir={id => onAbrir(id)} onPropuesta={onPropuesta} />}
@@ -332,9 +335,10 @@ const ObraCostos: React.FC<{
                 </Aviso>
             )}
 
-            <div className="flex items-center overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0 [scrollbar-width:none]">
-                <div className="flex shrink-0 rounded-2xl border border-border bg-card p-1">
-                    <PestanasElasticas
+            <div className="flex items-center min-w-0">
+                <div className="flex w-fit min-w-0 max-w-full rounded-2xl border border-border bg-card p-1">
+                <BarraPaginada>{p => (
+                    <PestanasElasticas estiloOpcion={p.estiloOpcion} revelar={p.revelar}
                         opciones={PESTANAS}
                         activa={pestana}
                         onCambiar={k => ir(k)}
@@ -344,6 +348,7 @@ const ObraCostos: React.FC<{
                         claseInactiva={CLASE_INACTIVA}
                         render={o => (<>{o.key === 'cierre' && bloqueada && <Lock className="h-3.5 w-3.5" />}{o.label}{conteo[o.key] !== undefined && <span className="ml-1 opacity-70 tabular-nums">{conteo[o.key]}</span>}</>)}
                     />
+                )}</BarraPaginada>
                 </div>
             </div>
 

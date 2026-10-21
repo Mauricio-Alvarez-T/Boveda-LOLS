@@ -355,6 +355,8 @@ const vehiculosService = {
             avisar_30d: data.avisar_30d === undefined ? 1 : (Number(data.avisar_30d) ? 1 : 0) };
         const { keys, vals } = await buildInsert('vehiculo_revisiones', obj);
         const [r] = await db.query(`INSERT INTO vehiculo_revisiones (${keys.join(',')}) VALUES (${keys.map(()=>'?').join(',')})`, vals);
+        // Una revisión vigente por tipo: la nueva reemplaza a la anterior (vencida, no sirve y seguía contando).
+        await this._reemplazarAnteriores('vehiculo_revisiones', 'tipo', vehiculoId, data.tipo, r.insertId);
         const [rows] = await db.query('SELECT * FROM vehiculo_revisiones WHERE id = ?', [r.insertId]);
         return rows[0];
     },
@@ -397,6 +399,8 @@ const vehiculosService = {
             avisar_30d: data.avisar_30d === undefined ? 1 : (Number(data.avisar_30d) ? 1 : 0) };
         const { keys, vals } = await buildInsert('vehiculo_mantenciones', obj);
         const [r] = await db.query(`INSERT INTO vehiculo_mantenciones (${keys.join(',')}) VALUES (${keys.map(()=>'?').join(',')})`, vals);
+        // Una mantención vigente por tipo: su «próxima» reemplaza a la de la anterior.
+        await this._reemplazarAnteriores('vehiculo_mantenciones', 'tipo', vehiculoId, data.tipo, r.insertId);
         const [rows] = await db.query('SELECT * FROM vehiculo_mantenciones WHERE id = ?', [r.insertId]);
         return rows[0];
     },
@@ -456,6 +460,24 @@ const vehiculosService = {
         return { id: permisoId, activo: false };
     },
 
+    /**
+     * Un vehículo tiene UN registro vigente por tipo (Marcos 2026-10-21: «si ya está vencido no nos sirve, que
+     * se sobrescriba»): al guardar uno nuevo, los anteriores del mismo tipo se dan de baja (`activo = 0`, nada se
+     * borra en duro). Sin esto el permiso del año pasado seguía en la ficha y en el contador como «vencido»
+     * aunque ya se hubiera subido el nuevo. Se hace DESPUÉS del INSERT: si el alta falla, el anterior sigue.
+     * `tabla` y `columna` salen de este código, nunca del request.
+     */
+    async _reemplazarAnteriores(tabla, columna, vehiculoId, valor, nuevoId) {
+        const tablas = { vehiculo_documentos: 'categoria', vehiculo_revisiones: 'tipo', vehiculo_mantenciones: 'tipo' };
+        if (tablas[tabla] !== columna) throw new Error('Tabla o columna inválida');
+        if (valor === undefined || valor === null || valor === '') return 0;
+        const [r] = await db.query(
+            `UPDATE ${tabla} SET activo = 0 WHERE vehiculo_id = ? AND ${columna} = ? AND activo = 1 AND id <> ?`,
+            [vehiculoId, valor, nuevoId]
+        );
+        return r?.affectedRows ?? 0;
+    },
+
     // ── Documentos / Antecedentes de Circulación ──────────────────────────
 
     async getDocumentos(vehiculoId) {
@@ -485,6 +507,8 @@ const vehiculosService = {
             [vehiculoId, categoria, file.originalname, rutaRelativa, userId || null,
              nullSiVacio(fecha), nullSiVacio(fecha_vencimiento), nullSiVacio(observaciones)]
         );
+        // Un documento vigente por categoría: el nuevo reemplaza al anterior (2026-10-21).
+        await this._reemplazarAnteriores('vehiculo_documentos', 'categoria', vehiculoId, categoria, r.insertId);
         await this._setAvisar30dDocumento(r.insertId, avisar_30d);
         const [rows] = await db.query('SELECT * FROM vehiculo_documentos WHERE id = ?', [r.insertId]);
         return sinRuta(rows[0]);
@@ -506,7 +530,7 @@ const vehiculosService = {
         }
     },
 
-    /** Edita SOLO los datos del documento (fecha/vencimiento/observaciones/aviso); el archivo no se reemplaza. */
+    /** Edita los datos del documento (fecha/vencimiento/observaciones/aviso). El archivo se cambia aparte (`reemplazarArchivoDocumento`). */
     async updateDocumento(vehiculoId, docId, { fecha, fecha_vencimiento, observaciones, avisar_30d }) {
         const [r] = await db.query(
             `UPDATE vehiculo_documentos SET fecha = ?, fecha_vencimiento = ?, observaciones = ?
@@ -526,6 +550,23 @@ const vehiculosService = {
         );
         if (!rows.length) throw Object.assign(new Error('Documento no encontrado'), { statusCode: 404 });
         return { fullPath: path.join(UPLOADS_DIR, rows[0].ruta_archivo), fileName: rows[0].nombre_archivo };
+    },
+
+    /**
+     * Cambia el archivo de un documento ya cargado (al editarlo: se subió la póliza renovada, una foto mejor).
+     * El archivo anterior queda en disco —nada se borra en duro—; el documento apunta al nuevo.
+     */
+    async reemplazarArchivoDocumento(vehiculoId, docId, file) {
+        if (!file) throw Object.assign(new Error('No se recibió archivo'), { statusCode: 400 });
+        const rutaRelativa = path.relative(UPLOADS_DIR, file.path);
+        const [r] = await db.query(
+            `UPDATE vehiculo_documentos SET nombre_archivo = ?, ruta_archivo = ?
+             WHERE id = ? AND vehiculo_id = ? AND activo = 1`,
+            [file.originalname, rutaRelativa, docId, vehiculoId]
+        );
+        if (!r.affectedRows) throw Object.assign(new Error('Documento no encontrado'), { statusCode: 404 });
+        const [rows] = await db.query('SELECT * FROM vehiculo_documentos WHERE id = ?', [docId]);
+        return sinRuta(rows[0]);
     },
 
     async removeDocumento(vehiculoId, docId) {

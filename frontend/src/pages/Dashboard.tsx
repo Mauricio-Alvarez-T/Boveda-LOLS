@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -6,9 +6,12 @@ import { useObra } from '../context/ObraContext';
 import api from '../services/api';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
-import { useSetPageHeader } from '../context/PageHeaderContext';
+import { useSetCentroMovil, useSetPageHeader } from '../context/PageHeaderContext';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
-import { Skeleton, SkeletonText } from '../components/ui/Skeleton';
+import { SkeletonText } from '../components/ui/Skeleton';
+import { Button } from '../components/ui/Button';
+import { CheckSquare, FileWarning, Package, RefreshCw, SearchCheck, Truck } from 'lucide-react';
 
 // Widgets
 import VehicleExpiries from '../components/dashboard/widgets/VehicleExpiries';
@@ -20,19 +23,28 @@ import { filasBandejaLotes } from '../components/documentos-fisicos/documentosFi
 import { useDocumentosAlertas } from '../hooks/useDocumentosAlertas';
 import { filasBandejaAlertas } from '../components/documentos-fisicos/documentosAlertas';
 import type { DashboardAlerta } from '../hooks/inventario/useDashboardEjecutivo';
-import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
-import AbsencesToday from '../components/dashboard/widgets/AbsencesToday';
-import QuickActions from '../components/dashboard/widgets/QuickActions';
-import AbsenceAlerts, { type TrabajadorConAlerta } from '../components/dashboard/widgets/AbsenceAlerts';
 import ObraRanking from '../components/dashboard/widgets/ObraRanking';
 import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
-import InicioHero from '../components/dashboard/widgets/InicioHero';
-import AsistenciaPendiente from '../components/dashboard/widgets/AsistenciaPendiente';
 import DocumentosInicio from '../components/dashboard/widgets/DocumentosInicio';
 import { resumenDocumentosInicio } from '../components/dashboard/widgets/resumenDocumentosInicio';
+import AsistenciaInicio from '../components/dashboard/widgets/AsistenciaInicio';
+import DetalleAsistencia from '../components/dashboard/widgets/DetalleAsistencia';
+import type { AusentesHoy } from '../components/dashboard/widgets/resumenAsistenciaHoy';
+import type { DetalleAsistenciaApi } from '../components/dashboard/widgets/resumenAsistenciaDetalle';
+import InventarioInicio, { FilaInventarioInicio } from '../components/dashboard/widgets/InventarioInicio';
+import { resumenInventarioInicio, type FilaInventario, type ResumenInventarioApi } from '../components/dashboard/widgets/resumenInventarioInicio';
+import TarjetaPendientes from '../components/dashboard/widgets/TarjetaPendientes';
+import DocumentosAtrasadosLista from '../components/dashboard/widgets/DocumentosAtrasadosLista';
+import { DetalleModulo } from '../components/dashboard/widgets/DetalleModulo';
+import { EncabezadoTarjeta } from '../components/dashboard/widgets/EncabezadoTarjeta';
+import { TarjetaActiva, type TonoTarjeta } from '../components/dashboard/widgets/tarjetaActiva';
+import { BarraModulos, ColaGota, ModuloEnCurso, TarjetaCompacta, type AccesoModulo } from '../components/dashboard/widgets/TarjetaCompacta';
+import { ID_DETALLE_INICIO } from '../components/dashboard/widgets/BotonVerMas';
+import { nombreMes, type FaltasMesData, type TrabajadorFaltas } from '../components/dashboard/widgets/resumenFaltasMes';
 import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
 import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
 import { AvisoAtrasosPortador } from '../components/documentos-fisicos/AvisoAtrasosPortador';
+import { NovedadesModal } from '../components/novedades/NovedadesModal';
 
 // ─── Types ───
 interface DocExpiryItem {
@@ -84,21 +96,72 @@ interface DashboardData {
     obraRanking: ObraRankingItem[];
     attendanceStatus: Record<string, AttendanceStatusEntry>;
     // Faltas reiteradas del mes (Art. 160 N°3); incluye fechas[] (strip de evidencia).
-    trabajadoresConAlertas: TrabajadorConAlerta[];
+    trabajadoresConAlertas: TrabajadorFaltas[];
+    /** Reiterados del mes con su total real (tarjeta «Asistencia»); null si el backend no pudo calcularlo. */
+    faltasMes?: FaltasMesData | null;
+    /** Ausentes de hoy completos y por motivo (tarjeta y detalle de Asistencia, 2026-10-20). */
+    ausentesHoy?: AusentesHoy | null;
     saludo: { nombre: string; resumen: string; totalAlertas: number };
 }
 
-// ─── Panel: tarjeta blanca del Inicio H (2026-10-16): sin borde, sombra suave (en oscuro la sombra
+// ─── Panel: tarjeta blanca del Inicio (2026-10-16): sin borde, sombra suave (en oscuro la sombra
 // trae su anillo de 1 px), esquinas grandes. El color va en el círculo de cada encabezado
-// (EncabezadoTarjeta), nunca en el fondo; la única superficie verde es la tarjeta del día.
-const Panel: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
-    <div className={cn('rounded-3xl bg-card p-6 shadow-[var(--shadow-md)]', className)}>{children}</div>
+// (EncabezadoTarjeta), nunca en el fondo.
+/**
+ * Contenido que se pliega y despliega animando la altura (fila de grid de 0fr a 1fr, 250 ms; en seco con
+ * «reducir movimiento»). Plegado queda `inert`: ni Tab ni lector de pantalla entran.
+ */
+const Plegable: React.FC<{ abierto: boolean; llena?: boolean; children: React.ReactNode }> = ({ abierto, llena, children }) => (
+    <div inert={!abierto}
+        className={cn('grid transition-[grid-template-rows,opacity] duration-[250ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none',
+            abierto ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0', llena && abierto && 'flex-1')}>
+        <div className="min-h-0 overflow-hidden">{children}</div>
+    </div>
 );
+
+const Panel: React.FC<{
+    children: React.ReactNode; className?: string; onClick?: () => void; activa?: boolean;
+    /** Con un detalle abierto, las tarjetas se pliegan a su franja `resumen` (dueño 2026-10-20). */
+    compacta?: boolean; resumen?: React.ReactNode;
+    /** Clases de visibilidad de la cola de gota de la tarjeta elegida (solo con las tarjetas en una fila). */
+    cola?: string;
+}> = ({ children, className, onClick, activa = false, compacta = false, resumen, cola }) => {
+    const plegada = compacta && resumen !== undefined;
+    return (
+        <div
+            className={cn('relative flex flex-col rounded-3xl bg-card text-foreground shadow-[var(--shadow-md)]',
+                'transition-[background-color,box-shadow,padding] duration-[250ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none',
+                plegada ? 'px-5 py-4' : 'p-6',
+                onClick && 'cursor-pointer hover:ring-1 hover:ring-border',
+                activa && 'tarjeta-activa', className)}
+            // Tarjeta entera pinchable (atajo con mouse/dedo): los botones y enlaces de adentro mandan sobre ella.
+            // Con teclado, el camino es su botón «Ver más» (o la franja, que es un botón).
+            onClick={onClick ? (e) => {
+                if ((e.target as HTMLElement).closest('button, a, input, select, textarea, [role="button"]')) return;
+                onClick();
+            } : undefined}
+        >
+            <TarjetaActiva.Provider value={activa}>
+                {resumen !== undefined && <Plegable abierto={plegada}>{resumen}</Plegable>}
+                <Plegable abierto={!plegada} llena>{children}</Plegable>
+            </TarjetaActiva.Provider>
+            {activa && plegada && cola !== undefined && <ColaGota className={cola} />}
+        </div>
+    );
+};
+
+/** Columnas de la fila de tarjetas según cuántas ve el perfil: todas en una línea desde 1280 px. */
+const COLUMNAS: Record<number, string> = {
+    1: 'grid-cols-1',
+    2: 'grid-cols-1 sm:grid-cols-2',
+    3: 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3',
+    4: 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4',
+};
 
 // ─── Dashboard ───
 const Dashboard: React.FC = () => {
     const { user } = useAuth();
-    const { selectedObra } = useObra();
+    const { selectedObra, isLoading: cargandoObras } = useObra();
     const navigate = useNavigate();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -153,18 +216,19 @@ const Dashboard: React.FC = () => {
     // fijo; el permiso decide qué zonas se montan, no el orden.
     const shown = useMemo(() => new Set(visibleWidgets.map(w => w.id)), [visibleWidgets]);
 
-    // ─── Page Header (solo el rótulo de sección) ───
-    const headerTitle = useMemo(() => (
-        <h1 className="text-base font-semibold text-foreground">Inicio</h1>
-    ), []);
-    useSetPageHeader(headerTitle);
-
     // ─── Fetch Data (reutilizable para el botón refrescar) ───
+    // Turno de la última petición (2026-10-20): al entrar, el resumen se pedía con «todas las obras» antes
+    // de que el selector restaurara la obra guardada, y si esa respuesta llegaba DESPUÉS de la buena la
+    // pisaba (se veía la obra elegida arriba con los datos de todas). Solo la respuesta del último turno
+    // escribe, y no se pide nada hasta que el selector cargó.
+    const turnoResumen = useRef(0);
     const fetchSummary = useCallback(async () => {
+        const turno = ++turnoResumen.current;
         setLoading(true);
         try {
             const query = selectedObra ? `?obra_id=${selectedObra.id}` : '';
             const res = await api.get<ApiResponse<DashboardData>>(`/dashboard/summary${query}`);
+            if (turno !== turnoResumen.current) return;
             const raw = res.data.data;
             // Defensive defaults for new fields (backward compat with old backend)
             setData({
@@ -183,13 +247,13 @@ const Dashboard: React.FC = () => {
             });
             setLastUpdated(new Date());
         } catch {
-            toast.error('Error al cargar resumen del dashboard');
+            if (turno === turnoResumen.current) toast.error('Error al cargar resumen del dashboard');
         } finally {
-            setLoading(false);
+            if (turno === turnoResumen.current) setLoading(false);
         }
     }, [selectedObra]);
 
-    useEffect(() => { fetchSummary(); }, [fetchSummary]);
+    useEffect(() => { if (!cargandoObras) fetchSummary(); }, [fetchSummary, cargandoObras]);
 
     // Inventario: fetch DIFERIDO y gated por permiso (no bloquea la bandeja de
     // asistencia/docs; si falla o no hay permiso, simplemente no agrega filas).
@@ -227,23 +291,47 @@ const Dashboard: React.FC = () => {
 
     useEffect(() => { fetchImpresos(); }, [fetchImpresos]);
 
+    // Inventario: lo que le toca a quien mira según su perfil (tarjeta «Inventario», dueño 2026-10-20).
+    const [resumenInv, setResumenInv] = useState<ResumenInventarioApi | null>(null);
+    const fetchResumenInv = useCallback(async () => {
+        if (!canInventario) { setResumenInv(null); return; }
+        try {
+            const res = await api.get<ApiResponse<ResumenInventarioApi>>('/transferencias/inicio');
+            setResumenInv(res.data.data ?? null);
+        } catch {
+            setResumenInv(null);
+        }
+    }, [canInventario]);
+
+    useEffect(() => { fetchResumenInv(); }, [fetchResumenInv]);
+
     const { refetch: refetchAlertasDocs } = alertasDocs;
     const { refetch: refetchLotes } = lotes;
     const refreshAll = useCallback(() => {
-        fetchSummary(); fetchInventory(); fetchImpresos(); refetchAlertasDocs(); refetchLotes();
-    }, [fetchSummary, fetchInventory, fetchImpresos, refetchAlertasDocs, refetchLotes]);
+        fetchSummary(); fetchInventory(); fetchImpresos(); fetchResumenInv(); refetchAlertasDocs(); refetchLotes();
+    }, [fetchSummary, fetchInventory, fetchImpresos, fetchResumenInv, refetchAlertasDocs, refetchLotes]);
+
+    // ─── Encabezado: rótulo, fecha y «Actualizar» (antes vivían en la tarjeta verde, que se fue el 2026-10-20) ───
+    const hora = lastUpdated ? lastUpdated.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : null;
+    const headerTitle = useMemo(() => (
+        <div className="flex min-w-0 items-center gap-3">
+            <h1 className="text-base font-semibold text-foreground">Inicio</h1>
+            <span className="hidden truncate text-sm text-muted-foreground md:inline">{fechaDelDia(new Date())}</span>
+            <Button variant="ghost" size="sm" onClick={refreshAll} isLoading={loading} aria-label="Actualizar"
+                title={hora ? `Actualizado ${hora}` : undefined} leftIcon={<RefreshCw className="h-4 w-4" aria-hidden />}>
+                <span className="hidden sm:inline">Actualizar</span>
+            </Button>
+        </div>
+    ), [refreshAll, loading, hora]);
+    useSetPageHeader(headerTitle);
 
     // Skeletons por-widget. `ready` narrowea `data` a no-null en cada zona.
     const ready = !loading && !!data;
     const showFaltas = shown.has('absence_alerts');
-    const showTrend = shown.has('chart_attendance_trend');
-    const showAusentes = shown.has('list_absences_today');
     const showVencVehiculos = shown.has('vehiculo_vencimientos');
     const showRanking = shown.has('obra_ranking') && selectedObra == null; // solo ámbito "Todas"
 
-    // ─── Inicio H (propuesta «Marca LOLS», dueño 2026-10-16; diseno.md §9.14) ───
-    // La asistencia pendiente y los vehículos tienen tarjeta propia; la bandeja queda con el resto
-    // («Otros pendientes») para no mostrar lo mismo dos veces.
+    // Pendientes que no son asistencia (documentos por vencer, contratos de 10 meses): van al detalle de Gestiones.
     const otrasTareas = useMemo(
         () => (data?.pendingTasks ?? []).filter(t => t.category !== 'asistencia'),
         [data?.pendingTasks],
@@ -254,6 +342,7 @@ const Dashboard: React.FC = () => {
     );
     const hoy = new Date();
     const diaSemana = hoy.getDay();
+    // Obras con y sin asistencia guardada hoy (detalle de Asistencia).
     const resumen = useMemo(
         () => resumenDelDia(data?.attendanceStatus ?? {}, {
             obraId: selectedObra?.id ?? null,
@@ -265,128 +354,291 @@ const Dashboard: React.FC = () => {
     );
     // `asistencia_hoy` solo llega con permiso de asistencia (dashboard.service, bloque 3).
     const conAsistencia = typeof data?.counters.asistencia_hoy === 'number';
-    const verAsistenciaPendiente = ready && conAsistencia && resumen.total > 0 && !resumen.finDeSemana;
-    // Documentos físicos (dueño 2026-10-20): para RRHH ocupa el lugar de «Asistencia pendiente» —la cifra de
-    // obras ya está en la tarjeta verde— y sus filas salen de la bandeja para no contarlas dos veces a la vista.
-    // Quien no registra entregas sigue viendo la nube de obras sin guardar.
-    const verDocumentos = canRegistrarEntregas;
+
+    // ─── Inicio por módulos (dueño 2026-10-20; diseno.md §9.14) ───
+    // Una tarjeta por apartado —Asistencia, Gestiones, Inventario, Vehículos— con lo primero de cada uno y
+    // «Ver más»; debajo se despliega el detalle del módulo elegido (parte abierto el primero visible).
     const resumenDocs = useMemo(
         () => resumenDocumentosInicio(alertasDocs.alertas, lotes.pendientes, impresosSinAsignar),
         [alertasDocs.alertas, lotes.pendientes, impresosSinAsignar],
     );
-    // Detalle de faltas y ausentes solo cuando hay algo: el «0» ya se lee en la tarjeta verde.
-    const verFaltasDetalle = ready && showFaltas && (data?.trabajadoresConAlertas?.length ?? 0) > 0;
-    const verAusentesDetalle = ready && showAusentes && (data?.counters.ausentes_hoy ?? 0) > 0;
-    const columnaLateral = verFaltasDetalle || verAusentesDetalle;
+    const modeloInv = useMemo(() => resumenInventarioInicio(resumenInv), [resumenInv]);
+    // Gestiones para quien NO registra entregas: sus pendientes de siempre (solicitudes, documentos por
+    // vencer, contratos, trabajadores sin documentos, sus lotes de portador), los más graves primero.
+    const gestionesItems = useMemo((): BandejaItem[] => {
+        const orden = { critical: 0, warning: 1, info: 2 } as const;
+        const sinDocs = data?.counters.trabajadoresSinDocs ?? 0;
+        return [
+            ...solicitudItems,
+            ...(canRegistrarEntregas ? [] : documentosFisicosItems),
+            ...otrasTareas.map(t => ({ severity: t.severity, title: t.title, description: t.description, ruta: t.action.ruta })),
+            ...(sinDocs > 0 ? [{
+                severity: 'warning' as const,
+                title: `${sinDocs} trabajador${sinDocs === 1 ? '' : 'es'} sin documentos obligatorios`,
+                description: 'Completar su carpeta en Gestiones',
+                ruta: '/consultas?completitud=faltantes',
+            }] : []),
+        ].sort((a, b) => orden[a.severity] - orden[b.severity]);
+    }, [solicitudItems, canRegistrarEntregas, documentosFisicosItems, otrasTareas, data?.counters.trabajadoresSinDocs]);
+    const totalGestiones = useMemo(
+        () => contarBandeja(otrasTareas, data?.counters.trabajadoresSinDocs ?? 0, [solicitudItems, canRegistrarEntregas ? [] : documentosFisicosItems]).total,
+        [otrasTareas, data?.counters.trabajadoresSinDocs, solicitudItems, canRegistrarEntregas, documentosFisicosItems],
+    );
+
+    type Modulo = 'asistencia' | 'gestiones' | 'inventario' | 'vehiculos';
+    const verGestiones = canRegistrarEntregas || permisos.includes('trabajadores.ver')
+        || permisos.includes('trabajadores.solicitud.crear') || canAprobarSolicitudes
+        || permisos.includes('documentos.entrega.portar');
+    const visibles: Modulo[] = [
+        ...(showFaltas ? ['asistencia' as const] : []),
+        ...(verGestiones ? ['gestiones' as const] : []),
+        ...(canInventario ? ['inventario' as const] : []),
+        ...(showVencVehiculos ? ['vehiculos' as const] : []),
+    ];
+    const [elegido, setElegido] = useState<Modulo | null>(null);
+    // Al entrar no hay detalle abierto (dueño 2026-10-20: «que abajo no haya nada»); pinchar una tarjeta lo
+    // abre y pincharla de nuevo lo cierra.
+    // En el CELULAR no hay tarjetas (dueño 2026-10-20): se entra directo al detalle del primer módulo y la
+    // barra de abajo cambia entre ellos, así que siempre hay uno abierto.
+    const esCelular = useMediaQuery('(max-width: 639.98px)');
+    const activo: Modulo | null = elegido && visibles.includes(elegido) ? elegido : esCelular ? (visibles[0] ?? null) : null;
+    // Abrir el detalle NO mueve la pantalla (dueño 2026-10-20: el salto repentino desorienta). El detalle
+    // aparece bajo las tarjetas y la tarjeta elegida se pinta verde; el usuario baja cuando quiere.
+    const verMas = useCallback((m: Modulo) => {
+        setElegido(actual => (actual === m ? null : m));
+    }, []);
+    // Las cifras de la tarjeta abren el detalle (sin cerrarlo si ya estaba abierto) y tampoco mueven la pantalla.
+    const abrirSeccion = useCallback(() => setElegido('asistencia'), []);
+    // Detalle de Asistencia, fase 2: se pide SOLO al abrirlo (no pesa en el resumen) y al cambiar de obra o
+    // pulsar «Actualizar» con el detalle abierto.
+    const [mesAsistencia, setMesAsistencia] = useState<DetalleAsistenciaApi | null>(null);
+    const [cargandoMesAsistencia, setCargandoMesAsistencia] = useState(false);
+    const asistenciaAbierta = activo === 'asistencia';
+    const turnoMes = useRef(0);
+    const fetchMesAsistencia = useCallback(async () => {
+        const turno = ++turnoMes.current;
+        setCargandoMesAsistencia(true);
+        try {
+            const query = selectedObra ? `?obra_id=${selectedObra.id}` : '';
+            const res = await api.get<ApiResponse<DetalleAsistenciaApi>>(`/dashboard/asistencia${query}`);
+            if (turno === turnoMes.current) setMesAsistencia(res.data.data ?? null);
+        } catch {
+            if (turno === turnoMes.current) setMesAsistencia(null);
+        } finally {
+            if (turno === turnoMes.current) setCargandoMesAsistencia(false);
+        }
+    }, [selectedObra]);
+    useEffect(() => {
+        if (asistenciaAbierta) fetchMesAsistencia();
+    }, [asistenciaAbierta, fetchMesAsistencia, lastUpdated]);
+    const irATrabajador = (rut: string) => navigate(`/asistencia?q=${encodeURIComponent(rut)}`);
+    const irAFilaInventario = (f: FilaInventario) => navigate(`/inventario?tab=transferencias&estado=${f.estado}`);
+    const mes = nombreMes(hoy);
+    // Obras con y sin asistencia guardada hoy, para la tarjeta y el detalle de Asistencia.
+    const obrasHoy = conAsistencia ? {
+        total: resumen.total, guardadas: resumen.guardadas, sinGuardar: resumen.sinGuardar, finDeSemana: resumen.finDeSemana,
+    } : null;
+    const fechaAsistencia = { anio: hoy.getFullYear(), mes: hoy.getMonth() + 1, hoyDia: hoy.getDate() };
+
+    // ─── Franjas compactas (tarjetas plegadas mientras hay un detalle abierto, dueño 2026-10-20) ───
+    const reiteradosN = ready ? (data?.faltasMes?.reiterados ?? 0) : null;
+    const tonoAsistencia: TonoTarjeta = (reiteradosN ?? 0) > 0 ? 'rojo'
+        : obrasHoy && !obrasHoy.finDeSemana && obrasHoy.sinGuardar.length > 0 ? 'ambar' : 'verde';
+    const tonoGestiones: TonoTarjeta = canRegistrarEntregas ? resumenDocs.tono
+        : gestionesItems.some(i => i.severity === 'critical') ? 'rojo' : totalGestiones > 0 ? 'ambar' : 'verde';
+    const porVencerVeh = vencimientos.items.length - vehiculosVencidos;
+    const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
+    // Lo que muestra cada módulo plegado: la franja (pantallas anchas) y el botón de la barra (celular).
+    const resumenes: Record<Modulo, Omit<AccesoModulo, 'key'> & { detalle: string }> = {
+        asistencia: { icon: CheckSquare, tono: tonoAsistencia, titulo: 'Asistencia', cifra: reiteradosN,
+            detalle: plural(reiteradosN ?? 0, 'falta reiterada', 'faltas reiteradas') },
+        gestiones: canRegistrarEntregas
+            ? { icon: FileWarning, tono: tonoGestiones, titulo: 'Gestiones', cifra: resumenDocs.fueraDePlazo, detalle: 'fuera de plazo' }
+            : { icon: SearchCheck, tono: tonoGestiones, titulo: 'Gestiones', cifra: ready ? totalGestiones : null,
+                detalle: plural(totalGestiones, 'pendiente', 'pendientes') },
+        inventario: { icon: Package, tono: modeloInv.tono, titulo: 'Inventario', cifra: modeloInv.cifra, detalle: modeloInv.etiqueta },
+        vehiculos: { icon: Truck, titulo: 'Vehículos', tono: vehiculosVencidos > 0 ? 'rojo' : porVencerVeh > 0 ? 'ambar' : 'verde',
+            cifra: vencimientos.loading && vencimientos.items.length === 0 ? null : vehiculosVencidos > 0 ? vehiculosVencidos : porVencerVeh,
+            detalle: vehiculosVencidos > 0 ? plural(vehiculosVencidos, 'vencido', 'vencidos') : 'por vencer' },
+    };
+    const compactas = Object.fromEntries((Object.keys(resumenes) as Modulo[]).map(m => [m,
+        <TarjetaCompacta key={m} {...resumenes[m]} onClick={() => verMas(m)} />])) as Record<Modulo, React.ReactNode>;
+    // Barra del celular: cambiar de módulo deja ver el detalle nuevo desde su comienzo si se había bajado más
+    // allá (convención de pestañas); abrir o cerrar no mueve nada.
+    const elegirDesdeBarra = (clave: string) => {
+        const m = clave as Modulo;
+        if (activo === m) return; // pestaña: tocar la abierta no la cierra
+        setElegido(m);
+        window.requestAnimationFrame(() => {
+            const el = document.getElementById(ID_DETALLE_INICIO);
+            if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: 'start' });
+        });
+    };
+    // Celular: el módulo en curso va al centro del encabezado (en vez de la fila de título del detalle).
+    const iconoEnCurso = activo ? resumenes[activo].icon : null;
+    const tituloEnCurso = activo ? resumenes[activo].titulo : null;
+    const centroMovil = useMemo(() => {
+        if (!esCelular || !activo || !iconoEnCurso || !tituloEnCurso) return null;
+        const ruta: Record<Modulo, string> = {
+            asistencia: '/asistencia', gestiones: '/consultas?tab=inicio', inventario: '/inventario?tab=transferencias', vehiculos: '/vehiculos',
+        };
+        return <ModuloEnCurso icon={iconoEnCurso} titulo={tituloEnCurso} onIr={() => navigate(ruta[activo])} />;
+    }, [esCelular, activo, iconoEnCurso, tituloEnCurso, navigate]);
+    useSetCentroMovil(centroMovil);
+    // La cola solo se ve cuando las tarjetas van en UNA fila (si no, apuntaría a la tarjeta de abajo).
+    const colaVisible = visibles.length <= 1 ? '' : visibles.length === 2 ? 'hidden sm:block' : 'hidden xl:block';
 
     return (
-        <div className="space-y-6">
+        <div className={cn('space-y-6', visibles.length > 0 && 'max-sm:pb-28')}>
             {/* Cartel de atrasos del supervisor que lleva documentos a firmar (pedido de RRHH, 2026-10-19). */}
             <AvisoAtrasosPortador />
-            {ready && data ? (
-                <InicioHero
-                    resumen={resumen}
-                    fecha={fechaDelDia(hoy)}
-                    ambito={selectedObra ? selectedObra.nombre : 'Todas las obras'}
-                    presentesPct={conAsistencia ? data.counters.asistencia_hoy ?? 0 : null}
-                    ausentes={showAusentes ? data.counters.ausentes_hoy ?? 0 : null}
-                    faltas={showFaltas ? data.trabajadoresConAlertas?.length ?? 0 : null}
-                    actualizado={lastUpdated ? lastUpdated.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : null}
-                    cargando={loading}
-                    onActualizar={refreshAll}
-                    onAsistencia={conAsistencia ? () => navigate('/asistencia') : undefined}
-                    onVehiculos={showVencVehiculos && vencimientos.items.length > 0 ? () => navigate('/vehiculos') : undefined}
-                />
-            ) : (
-                <div className="h-60 rounded-3xl bg-green-700/80 dark:bg-green-900 motion-safe:animate-pulse" aria-hidden />
-            )}
+            {/* Lo nuevo de la última entrega, una vez por persona (config/novedades.ts). */}
+            <NovedadesModal />
 
-            {/* Tarjetas con círculo de color: vehículos, documentos físicos (o asistencia pendiente) y actividades. */}
-            {(showVencVehiculos || verDocumentos || verAsistenciaPendiente || canActividades) && (
-                <div className="grid gap-6 items-stretch grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))]">
+            {/* Una tarjeta por apartado, todas en una línea desde 1280 px (2×2 en tablet, una bajo otra en celular). */}
+            {visibles.length > 0 && (
+                <div className={cn('grid gap-6 items-stretch', COLUMNAS[visibles.length], 'max-sm:hidden')}>
+                    {/* Con un detalle abierto, todas se pliegan a su franja (`compacta`) y la elegida lleva la cola. */}
+                    {showFaltas && (
+                        <Panel className="h-full" activa={activo === 'asistencia'} onClick={() => verMas('asistencia')}
+                            compacta={activo !== null} resumen={compactas.asistencia} cola={colaVisible}>
+                            {ready && data
+                                ? <AsistenciaInicio faltas={data.faltasMes ?? null} ausentes={data.ausentesHoy ?? null} obras={obrasHoy}
+                                    fechaTexto={fechaDelDia(hoy)} mesNombre={mes}
+                                    onTrabajador={irATrabajador} onObras={() => navigate('/asistencia')} onSeccion={abrirSeccion}
+                                    activo={activo === 'asistencia'} onVerMas={() => verMas('asistencia')} />
+                                : <SkeletonText lines={5} />}
+                        </Panel>
+                    )}
+                    {verGestiones && (
+                        <Panel className="h-full" activa={activo === 'gestiones'} onClick={() => verMas('gestiones')}
+                            compacta={activo !== null} resumen={compactas.gestiones} cola={colaVisible}>
+                            {canRegistrarEntregas
+                                ? <DocumentosInicio resumen={resumenDocs} activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')} />
+                                : ready
+                                    ? <TarjetaPendientes icon={SearchCheck} titulo="Gestiones" subtitulo="Trabajadores, solicitudes y documentos"
+                                        items={gestionesItems} total={totalGestiones} onNavigate={(r) => navigate(r)}
+                                        activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')} modulo="Gestiones" />
+                                    : <SkeletonText lines={5} />}
+                        </Panel>
+                    )}
+                    {canInventario && (
+                        <Panel className="h-full" activa={activo === 'inventario'} onClick={() => verMas('inventario')}
+                            compacta={activo !== null} resumen={compactas.inventario} cola={colaVisible}>
+                            <InventarioInicio modelo={modeloInv} onFila={irAFilaInventario}
+                                activo={activo === 'inventario'} onVerMas={() => verMas('inventario')} />
+                        </Panel>
+                    )}
                     {showVencVehiculos && (
-                        <Panel>
+                        <Panel className="h-full" activa={activo === 'vehiculos'} onClick={() => verMas('vehiculos')}
+                            compacta={activo !== null} resumen={compactas.vehiculos} cola={colaVisible}>
                             {vencimientos.loading && vencimientos.items.length === 0
                                 ? <SkeletonText lines={5} />
-                                : <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')} />}
-                        </Panel>
-                    )}
-                    {verDocumentos ? (
-                        <Panel>
-                            <DocumentosInicio resumen={resumenDocs} onNavigate={() => navigate('/consultas?tab=fisicos')} />
-                        </Panel>
-                    ) : verAsistenciaPendiente && (
-                        <Panel>
-                            <AsistenciaPendiente sinGuardar={resumen.sinGuardar} total={resumen.total} onNavigate={() => navigate('/asistencia')} />
-                        </Panel>
-                    )}
-                    {/* Trae sus datos (tiene selector de semana), por eso no depende de `ready`. */}
-                    {canActividades && (
-                        <Panel>
-                            <ActividadesSemana />
+                                : <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')}
+                                    activo={activo === 'vehiculos'} onVerMas={() => verMas('vehiculos')} />}
                         </Panel>
                     )}
                 </div>
             )}
 
-            {/* Otros pendientes (izq) + detalle de faltas y ausentes cuando los hay (der). */}
-            <div className={cn('grid grid-cols-1 gap-6 items-start', columnaLateral && 'lg:grid-cols-[1.5fr_1fr]')}>
-                <Panel>
-                    {ready && data
-                        ? <BandejaDelDia
-                            titulo="Otros pendientes"
-                            vacio={{ titulo: 'Nada más por resolver hoy', descripcion: 'Sin pendientes de documentos, contratos, inventario ni solicitudes.' }}
-                            tasks={otrasTareas}
-                            trabajadoresSinDocs={data.counters.trabajadoresSinDocs}
-                            inventoryItems={invItems}
-                            solicitudItems={solicitudItems}
-                            documentosFisicosItems={verDocumentos ? [] : documentosFisicosItems}
-                            onNavigate={(route) => navigate(route)}
-                        />
-                        : <SkeletonText lines={6} />}
-                </Panel>
+            {/* ─── Detalle del módulo elegido (se irá sumando más información y gráficos) ─── */}
+            {activo === 'asistencia' && (
+                <DetalleModulo icon={CheckSquare} titulo="Asistencia"
+                    descripcion={`Lo que exige acción en ${mes}, el día de hoy y la tendencia`}
+                    accion={{ texto: 'Ir a Asistencia', onClick: () => navigate('/asistencia') }}>
+                    <DetalleAsistencia faltas={data?.faltasMes ?? null} ausentes={data?.ausentesHoy ?? null} obras={obrasHoy}
+                        mesNombre={mes} {...fechaAsistencia} cargando={!ready}
+                        mesExtra={mesAsistencia} cargandoMes={cargandoMesAsistencia}
+                        verMes={permisos.includes('asistencia.exportar_excel') || permisos.includes('asistencia.horas_extra.ver')}
+                        onTrabajador={irATrabajador} onAsistencia={() => navigate('/asistencia')}>
+                        {(canActividades || showRanking) && (
+                            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                                {/* Trae sus datos (tiene selector de semana), por eso no depende de `ready`. */}
+                                {canActividades && (
+                                    <Panel>
+                                        <ActividadesSemana />
+                                    </Panel>
+                                )}
+                                {showRanking && (
+                                    <Panel className={canActividades ? undefined : 'lg:col-span-2'}>
+                                        {ready && data
+                                            ? <ObraRanking data={data.obraRanking ?? []} onNavigate={(id) => navigate(`/consultas?obra_id=${id}`)} />
+                                            : <SkeletonText lines={5} />}
+                                    </Panel>
+                                )}
+                            </div>
+                        )}
+                    </DetalleAsistencia>
+                </DetalleModulo>
+            )}
 
-                {columnaLateral && data && (
-                    <div className="space-y-6 lg:sticky lg:top-6">
-                        {verFaltasDetalle && (
+            {activo === 'gestiones' && (
+                <DetalleModulo icon={SearchCheck} titulo="Gestiones"
+                    descripcion={canRegistrarEntregas ? 'Documentos físicos fuera de plazo y el resto de los pendientes' : 'Pendientes de trabajadores, solicitudes y documentos'}
+                    accion={{ texto: 'Ir a Gestiones', onClick: () => navigate('/consultas?tab=inicio') }}>
+                    <div className={cn('grid grid-cols-1 gap-6', canRegistrarEntregas && 'lg:grid-cols-2')}>
+                        {canRegistrarEntregas && (
                             <Panel>
-                                <AbsenceAlerts data={data.trabajadoresConAlertas ?? []} onNavigate={(rut) => navigate(`/asistencia?q=${rut}`)} />
+                                <EncabezadoTarjeta icon={FileWarning} tono={resumenDocs.tono} titulo="Documentos físicos fuera de plazo"
+                                    subtitulo="Por etapa, con quién los tiene y hace cuántos días" />
+                                <DocumentosAtrasadosLista alertas={alertasDocs.alertas} onAbrir={() => navigate('/consultas?tab=fisicos')} />
                             </Panel>
                         )}
-                        {verAusentesDetalle && (
-                            <Panel>
-                                <AbsencesToday data={data.ausentesDetalle ?? []} total={data.counters.ausentes_hoy} />
-                            </Panel>
-                        )}
+                        <Panel>
+                            {ready && data
+                                ? <BandejaDelDia
+                                    titulo="Otros pendientes"
+                                    vacio={{ titulo: 'Nada más por resolver', descripcion: 'Sin solicitudes, documentos por vencer, contratos ni trabajadores sin documentos.' }}
+                                    tasks={otrasTareas}
+                                    trabajadoresSinDocs={data.counters.trabajadoresSinDocs}
+                                    solicitudItems={solicitudItems}
+                                    documentosFisicosItems={canRegistrarEntregas ? [] : documentosFisicosItems}
+                                    onNavigate={(route) => navigate(route)}
+                                />
+                                : <SkeletonText lines={6} />}
+                        </Panel>
                     </div>
-                )}
-            </div>
-
-            {/* Contexto de asistencia: tendencia 7d. */}
-            {showTrend && (
-                <Panel>
-                    {ready && data
-                        ? <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />
-                        : <Skeleton className="h-48 w-full" />}
-                </Panel>
+                </DetalleModulo>
             )}
 
-            {/* Ranking de obras (comparativa multi-obra; solo en ámbito "Todas") */}
-            {showRanking && (
-                <Panel>
-                    {ready && data
-                        ? <ObraRanking data={data.obraRanking ?? []} onNavigate={(id) => navigate(`/consultas?obra_id=${id}`)} />
-                        : <SkeletonText lines={5} />}
-                </Panel>
+            {activo === 'inventario' && (
+                <DetalleModulo icon={Package} titulo="Inventario"
+                    descripcion="Solicitudes que te tocan y alertas de transferencias"
+                    accion={{ texto: 'Ir a Inventario', onClick: () => navigate('/inventario?tab=transferencias') }}>
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <Panel>
+                            <EncabezadoTarjeta icon={Package} tono={modeloInv.tono} titulo="Solicitudes" subtitulo="Según tu perfil: aprobar, despachar, recibir y las tuyas" />
+                            {modeloInv.filas.length === 0
+                                ? <p className="text-sm text-muted-foreground">{resumenInv ? 'Tu perfil no tiene solicitudes por revisar.' : 'Cargando…'}</p>
+                                : <div>{modeloInv.filas.map(f => <FilaInventarioInicio key={f.clave} f={f} onClick={() => irAFilaInventario(f)} />)}</div>}
+                        </Panel>
+                        <Panel>
+                            <BandejaDelDia
+                                titulo="Alertas de inventario"
+                                vacio={{ titulo: 'Sin alertas', descripcion: 'Ninguna transferencia atrasada, rechazada ni con diferencias.' }}
+                                tasks={[]}
+                                inventoryItems={invItems}
+                                grupoAbierto="inventario"
+                                onNavigate={(route) => navigate(route)}
+                            />
+                        </Panel>
+                    </div>
+                </DetalleModulo>
             )}
 
-            {/* Acciones rápidas (footer) */}
-            {shown.has('quick_actions') && (
-                <Panel>
-                    {ready
-                        ? <QuickActions permisos={permisos} onNavigate={(route) => navigate(route)} />
-                        : <Skeleton className="h-10 w-full" />}
-                </Panel>
+            {activo === 'vehiculos' && (
+                <DetalleModulo icon={Truck} titulo="Vehículos"
+                    descripcion="Todos los vencimientos de los próximos 30 días"
+                    accion={{ texto: 'Ir a Vehículos', onClick: () => navigate('/vehiculos') }}>
+                    <Panel>
+                        <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')} maxFilas={Number.POSITIVE_INFINITY} />
+                    </Panel>
+                </DetalleModulo>
+            )}
+            {/* Celular: en vez de tarjetas, barra de accesos fija abajo (oculta desde 640 px). */}
+            {visibles.length > 0 && (
+                <BarraModulos activo={activo} onElegir={elegirDesdeBarra}
+                    items={visibles.map(m => ({ key: m, ...resumenes[m] }))} />
             )}
         </div>
     );

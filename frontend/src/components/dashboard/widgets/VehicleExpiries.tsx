@@ -5,14 +5,17 @@ import { Button } from '../../ui/Button';
 import { textoVencimiento, etiquetaVencimiento } from '../../../utils/vencimientos';
 import type { VehiculoVencimiento } from '../../../types/entities';
 import { EncabezadoTarjeta, CifraTarjeta, type TonoTarjeta } from './EncabezadoTarjeta';
+import { BotonVerMas } from './BotonVerMas';
 
 interface Props {
     data: VehiculoVencimiento[];
     onNavigate: () => void;
+    /** Filas visibles antes de cortar con «y N más»: 3 en la tarjeta (dueño 2026-10-20), todas en el detalle. */
+    maxFilas?: number;
+    /** En la tarjeta: «Ver más» abre el detalle de abajo. Sin él (en el detalle) el pie lleva a /vehiculos. */
+    onVerMas?: () => void;
+    activo?: boolean;
 }
-
-/** Filas visibles antes de cortar con «y N más» (tarjeta de un tercio de ancho). */
-const MAX_FILAS = 5;
 
 /**
  * Vencimientos de vehículos — tarjeta del Inicio (propuesta H, 2026-10-16).
@@ -26,7 +29,7 @@ const MAX_FILAS = 5;
  * Color = estado (regla 4 del DS): rojo si hay algo YA vencido, ámbar si solo
  * hay cosas por vencer, verde si no hay nada en 30 días.
  */
-const VehicleExpiries: React.FC<Props> = ({ data, onNavigate }) => {
+const VehicleExpiries: React.FC<Props> = ({ data, onNavigate, maxFilas = 3, onVerMas, activo = false }) => {
     // Más urgente primero: dias_restantes ascendente deja arriba los negativos
     // (ya vencidos) y luego lo que vence antes.
     const items = useMemo(
@@ -55,7 +58,7 @@ const VehicleExpiries: React.FC<Props> = ({ data, onNavigate }) => {
                         tono={tono}
                     />
                     <div>
-                        {items.slice(0, MAX_FILAS).map(v => (
+                        {items.slice(0, maxFilas).map(v => (
                             // eslint-disable-next-line no-restricted-syntax -- fila de lista (toda la fila navega)
                             <button
                                 key={`${v.categoria}-${v.id}`}
@@ -82,11 +85,15 @@ const VehicleExpiries: React.FC<Props> = ({ data, onNavigate }) => {
                     </div>
                     <div className="mt-auto flex items-center justify-between gap-3 pt-3">
                         <span className="text-xs text-muted-foreground">
-                            {items.length > MAX_FILAS ? `y ${items.length - MAX_FILAS} más` : ''}
+                            {items.length > maxFilas ? `y ${items.length - maxFilas} más` : ''}
                         </span>
-                        <Button variant="link" size="sm" onClick={onNavigate} className="text-green-700 dark:text-green-300">
-                            Ver vehículos
-                        </Button>
+                        {onVerMas
+                            ? <BotonVerMas activo={activo} onClick={onVerMas} modulo="Vehículos" />
+                            : (
+                                <Button variant="link" size="sm" onClick={onNavigate} className="text-green-700 dark:text-green-300">
+                                    Ver vehículos
+                                </Button>
+                            )}
                     </div>
                 </>
             )}

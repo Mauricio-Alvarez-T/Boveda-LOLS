@@ -187,20 +187,24 @@ export const LoteDetalleModal: React.FC<Props> = ({ loteId, onClose, onCambio })
                                     const idsTerreno = g.docs.filter(d => d.estado === 'retirado').map(d => d.documento_id);
                                     return (
                                         <li key={g.key} className="px-3 py-2">
-                                            <div className="flex items-center gap-3">
+                                            {/* En el teléfono los botones masivos bajan a su propia línea: el nombre conserva
+                                                10rem (`basis-40`) y, si no caben al lado, la fila se parte (desde sm: van en la misma).
+                                                Los nombres (trabajador y documento) parten línea en vez de cortarse con «…»: dos
+                                                «Recepción…» no se distinguen (dueño 2026-10-21: ningún texto del apartado se corta). */}
+                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                                                 {acciones.confirmarRetiro && idsPend.length > 0 && (
                                                     <input type="checkbox" className={checkCls} checked={est === 'todos'} aria-label={`Recibí todos los documentos de ${g.trabajador_nombre}`}
                                                         ref={el => { if (el) el.indeterminate = est === 'parcial'; }}
                                                         onChange={e => setRecibidos(prev => toggleIds(prev, idsPend, e.target.checked))} />
                                                 )}
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-semibold text-brand-dark truncate">{g.trabajador_nombre}</p>
+                                                <div className="min-w-0 flex-1 basis-40">
+                                                    <p className="text-sm font-semibold text-brand-dark break-words">{g.trabajador_nombre}</p>
                                                     <p className="text-xs text-muted-foreground">{g.rut || '—'} · {g.docs.length} documento{g.docs.length === 1 ? '' : 's'}</p>
                                                 </div>
                                                 {acciones.recepcion && idsTerreno.length > 1 && (
-                                                    <div className="flex gap-1 shrink-0">
-                                                        <Button size="sm" variant="ghost" onClick={() => setDesenlaces(prev => { const n = { ...prev }; idsTerreno.forEach(id => { n[id] = 'firmado'; }); return n; })}>Todos firmados</Button>
-                                                        <Button size="sm" variant="ghost" onClick={() => setDesenlaces(prev => { const n = { ...prev }; idsTerreno.forEach(id => { n[id] = 'en_terreno'; }); return n; })}>Siguen en terreno</Button>
+                                                    <div className="flex flex-wrap gap-1 w-full sm:w-auto sm:flex-nowrap sm:shrink-0">
+                                                        <Button size="sm" variant="ghost" className="flex-auto sm:flex-none" onClick={() => setDesenlaces(prev => { const n = { ...prev }; idsTerreno.forEach(id => { n[id] = 'firmado'; }); return n; })}>Todos firmados</Button>
+                                                        <Button size="sm" variant="ghost" className="flex-auto sm:flex-none" onClick={() => setDesenlaces(prev => { const n = { ...prev }; idsTerreno.forEach(id => { n[id] = 'en_terreno'; }); return n; })}>Siguen en terreno</Button>
                                                     </div>
                                                 )}
                                             </div>
@@ -211,11 +215,15 @@ export const LoteDetalleModal: React.FC<Props> = ({ loteId, onClose, onCambio })
                                                             <input type="checkbox" className={checkCls} checked={setRec.has(item.documento_id)} aria-label={`Recibí ${item.tipo_nombre || item.nombre_archivo}`}
                                                                 onChange={e => setRecibidos(prev => toggleIds(prev, [item.documento_id], e.target.checked))} />
                                                         )}
-                                                        <span className="flex-1 min-w-0 truncate text-brand-dark" title={item.nombre_archivo}>{item.tipo_nombre || item.nombre_archivo}</span>
+                                                        {/* basis-40: con estado + fecha al lado no queda espacio en el teléfono → bajan a la línea
+                                                            siguiente. Desde sm, basis 0 como antes (los botones siguen al lado del nombre). */}
+                                                        <span className="flex-1 basis-40 min-w-0 break-words text-brand-dark sm:basis-0" title={item.nombre_archivo}>{item.tipo_nombre || item.nombre_archivo}</span>
                                                         {acciones.recepcion && item.estado === 'retirado' ? (
-                                                            <div className="flex gap-1 shrink-0" role="radiogroup" aria-label={`Desenlace de ${item.tipo_nombre || item.nombre_archivo}`}>
+                                                            // En el teléfono los tres no caben en una línea (~290 px útiles): ocupan el ancho y
+                                                            // se reparten en dos (Firmado · Sin firma / Sigue en terreno). Desde sm: van al lado del nombre.
+                                                            <div className="flex flex-wrap gap-1 w-full sm:w-auto sm:flex-nowrap sm:shrink-0" role="radiogroup" aria-label={`Desenlace de ${item.tipo_nombre || item.nombre_archivo}`}>
                                                                 {([['firmado', 'Firmado', CheckCircle2], ['sin_firma', 'Sin firma', Undo2], ['en_terreno', 'Sigue en terreno', Truck]] as [Desenlace, string, React.ElementType][]).map(([val, label, Icon]) => (
-                                                                    <Button key={val} size="sm" variant={desenlaces[item.documento_id] === val ? (val === 'sin_firma' ? 'destructive' : 'primary') : 'outline'}
+                                                                    <Button key={val} size="sm" className="flex-auto sm:flex-none" variant={desenlaces[item.documento_id] === val ? (val === 'sin_firma' ? 'destructive' : 'primary') : 'outline'}
                                                                         aria-pressed={desenlaces[item.documento_id] === val} leftIcon={<Icon className="h-3.5 w-3.5" />}
                                                                         onClick={() => setDesenlaces(prev => ({ ...prev, [item.documento_id]: val }))}>{label}</Button>
                                                                 ))}

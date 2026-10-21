@@ -284,7 +284,10 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    Cada frame obliga al navegador a rehacer el layout, y una tabla de ancho automático vuelve a medir
    todas las celdas de todas las filas: con 40 filas ya se nota el tirón, con 250 es inusable. El panel
    toma su ancho **de una vez** (un solo reflow) y lo que se anima es `transform`/`opacity`. Por la misma
-   razón, nada de `backdrop-blur` sobre una tabla mientras algo se mueve encima.
+   razón, nada de `backdrop-blur` sobre una tabla mientras algo se mueve encima. **En el celular (bajo
+   768 px) no hay `backdrop-filter` en ninguna parte** (regla global al final de `index.css`, 2026-10-21:
+   en un Android barato re-desenfocar en cada cuadro de scroll es lo que más se nota); por eso una
+   superficie que va sobre contenido que se desliza debe ser casi opaca (`bg-card/90` o más).
 10. **Una lista flotante nunca se cierra por «un scroll cualquiera».** `scroll` no burbujea, pero un
     listener en `window` con `capture: true` **sí** recibe el de la propia lista, así que cerrar ahí la
     vuelve inusable: un tic de rueda y desaparece (pasó el 2026-09-16 con `FilterSelect`). El handler
@@ -409,6 +412,19 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    tamaño del contenedor). `medirCuando` es la identidad del contenido (los ids de los chips, no la
    cantidad) y vuelve a cablear el observer para los hijos nuevos. Referencia: la franja de chips mobile de
    `AttendanceSummaryRow`. Prohibido apilar `backdrop-filter` o usar `mask-image` (§8.9).
+   **Barras de opciones que no caben (celular): `ui/BarraPaginada`** (Marcos 2026-10-21: «los títulos quedan
+   por la mitad»; reemplazó a la flecha superpuesta del mismo día). Nunca una palabra cortada en el borde: la
+   barra va de a PÁGINAS que muestran solo opciones enteras y reparten el espacio que sobra entre ellas
+   (`utils/paginasBarra.ts`, con tests); las flechas van cada una en su espacio a los costados (no encima del
+   texto), pasan de página y se apagan en el extremo; el dedo también pasa de página (imán del scroll). Si todo
+   cabe no hay flechas ni páginas. La pestaña elegida queda siempre a la vista (la barra pasa sola a su
+   página). Uso con `PestanasElasticas`: `<BarraPaginada>{p => <PestanasElasticas … estiloOpcion={p.estiloOpcion}
+   revelar={p.revelar} />}</BarraPaginada>`; con botones sueltos, `selector="[data-…]"` y `style={p.estiloOpcion(i)}`
+   en cada uno. El marco de la barra (`bg-card`/`bg-muted`, `p-1`) va AFUERA, con `w-fit min-w-0 max-w-full`,
+   para que no se deslice con las opciones. Hoy: pestañas y estados de Inventario, Solicitudes de ingreso,
+   atajos de Trabajadores, «Crear» de Gestiones, Ideas (estado y tipo), Presupuestos (vistas, pestañas de la
+   obra, Gastos, meses), Centro de ayuda, empresas de Vehículos y categorías del catálogo de movimientos.
+   `BordeScroll` queda para chips cortos que no son opciones a elegir (resumen de Asistencia).
 7. **Wizards:** el conector se llena con `scale-x` desde `origin-left` en 200 ms (al volver se vacía
    hacia la izquierda; nunca `width`). El paso entra ±12 px desde el lado hacia el que se avanza, en
    150 ms, con UN solo `motion.div` con `key={paso}`, sin `AnimatePresence`, sin `exit`, sin
@@ -431,7 +447,8 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     `'framer-motion'`). Prohibido sumar `gsap`, `ogl`, `three`, `motion` o `@hugeicons`. Cada archivo
     derivado lleva en el encabezado la línea de procedencia
     `// Idea: <Componente> de React Bits (reactbits.dev, MIT + Commons Clause). Reescrito; sin código copiado.`
-    (hoy: `MarcaEstado`, `NumeroRodante`, `useBordesScroll`, `BordeScroll`, `PestanasElasticas`, y como comentario junto al
+    (hoy: `MarcaEstado`, `NumeroRodante`, `useBordesScroll`, `BordeScroll`, `PestanasElasticas`, `NovedadesModal`,
+    `AvisoPendiente`, y como comentario junto al
     conector de `WizardStepper` y al panel de `NuevoMovimientoWizardView`). Si alguna vez se copia
     código, el archivo lleva en el encabezado «Copyright (c) 2026 David Haz» con el texto de permiso, y
     se agrega una entrada en `frontend/THIRD_PARTY_NOTICES.md` (hoy no existe porque no se copió nada).
@@ -444,6 +461,18 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     Magnet, bordes eléctricos).
     RubberSegment salió de esta lista el 2026-10-16 porque el dueño lo pidió para las pestañas de
     Inventario (§9.12), sin el arrastre del indicador.
+    **Sumados el 2026-10-20** (revisión del catálogo completo de reactbits.dev con Marcos):
+    - **Carousel → `novedades/NovedadesModal`**: «Novedades de Bóveda», lo nuevo de cada entrega en
+      tarjetas que se pasan con el dedo, las flechas o los puntos. Se abre sola UNA vez por persona y
+      entrega al entrar al Inicio (marca en `localStorage`: comodidad, no registro). Sin avance automático;
+      la tarjeta entra 24 px desde el lado al que se avanza, en 200 ms (como §9.7). El contenido vive en
+      `config/novedades.ts`: solo lo que ya está en el ambiente donde se muestra, escrito para quien usa
+      Bóveda; una tarjeta con `permiso` la ve solo quien lo tiene.
+    - **Star Border → `ui/AvisoPendiente`**: el Guardar de Asistencia avisa cuando falta guardar (el día de
+      la obra sin registros guardados, o cambios desde la última carga; en «Todas las obras» no). Una luz
+      ámbar da dos vueltas al borde (`.luz-pendiente`, 2,4 s, CSS) y queda un punto ámbar mientras siga
+      pendiente; las vueltas se repiten solo al pasar de «al día» a «pendiente». Ámbar = pendiente.
+      Con «reducir movimiento», solo el punto.
 12. **Pestañas de sección: `ui/PestanasElasticas`** (idea: RubberSegment). Al cambiar de pestaña el
     indicador verde se estira en 190 ms (ease-out) hasta cubrir su posición actual y la pestaña de
     destino: el borde de adelante queda ya en su lugar. A los 150 ms el borde de atrás lo sigue con un
@@ -507,24 +536,73 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     componente se remonta con `key`: así aparece quieto en la nueva lista en vez de «viajar» desde una
     posición de la lista anterior. Las sub-pestañas de escritorio de Configuración también lo usan desde la regla 13.
 
-14. **Inicio «Marca LOLS» (propuesta H del lienzo de diseño, elegida por el dueño 2026-10-16).**
-    El Inicio abre con **una tarjeta verde** (`InicioHero`): fecha y ámbito arriba, la frase del día
-    como título («15 obras aún no guardan la asistencia de hoy»), el estado como detalle, y a la
-    derecha la barra «obras con asistencia guardada», presentes, ausentes y faltas reiteradas. Es la
-    **única superficie grande verde de la app** (excepción explícita a la regla 1 del DS): usa
-    `green-700` (oscuro: `green-900`), no `brand-primary`, porque con letra blanca chica el verde de
-    marca no pasa AA. Su botón «Ir a Asistencia» es blanco con letra verde. La frase sale de
-    `utils/resumenInicio.ts` (`resumenDelDia`, con test): fin de semana no cobra la asistencia,
-    singular/plural, la obra elegida se cuenta en el detalle y sin permiso de asistencia la frase habla
-    de la bandeja. Debajo, **tarjetas blancas sin borde** (`rounded-3xl`, sombra `--shadow-md`) con
-    `EncabezadoTarjeta`: **círculo de color sólido** con el ícono en blanco + título `text-base`, y
-    `CifraTarjeta`: número grande en el mismo color (rampa 700/300). Tonos: rojo = vencido, ámbar =
-    pendiente, azul = informativo, verde = al día, neutro = solo dato. Tarjetas: Vehículos
-    (`VehicleExpiries`), **Documentos físicos** (`DocumentosInicio`, dueño 2026-10-20: para quien
-    registra entregas reemplaza a «Asistencia pendiente», cuya cifra ya está en la tarjeta verde —
-    documentos sin firmar fuera de plazo, críticos, etapas donde se atascan y «dónde están ahora»:
-    impresos sin lote, lotes en oficina, lotes en terreno; lógica en `resumenDocumentosInicio.ts` con
-    test) o, sin ese permiso, Asistencia pendiente (`AsistenciaPendiente`, nube de obras), y Actividades
-    sugeridas (barras por cargo). La bandeja pasa a **«Otros pendientes»** (sin asistencia, vehículos ni
-    documentos físicos, que ya tienen tarjeta) y el detalle de faltas y de ausentes **solo aparece si hay algo**:
-    el 0 ya se lee en la tarjeta verde. Reemplaza los «Destacados» del 2026-08-25.
+14. **Inicio por módulos (dueño 2026-10-20; reemplaza al Inicio «Marca LOLS» del 2026-10-16).**
+    Arriba, **una tarjeta por apartado** —Asistencia, Gestiones, Inventario, Vehículos— y, debajo, el
+    **detalle del módulo elegido**. Cada tarjeta es la puerta: cifra grande, **lo primero (3 filas)** y el
+    botón **«Ver más ↓»** (`BotonVerMas`); el detalle se despliega bajo las cuatro (`DetalleModulo`, una
+    sección a la vez) con la lista completa y el resto del módulo —listas, gráficos— que se irá sumando.
+    **Al entrar no hay nada abajo** y **abrir el detalle no mueve la pantalla** (sin scroll automático:
+    el salto desorienta, dueño 2026-10-20): el detalle se abre al pinchar una tarjeta (toda la tarjeta es
+    pinchable; sus filas y botones mandan sobre ella) o su «Ver más», y se cierra pinchándola de nuevo
+    («Ocultar ↑»). **Con un detalle abierto, las tarjetas se pliegan** a una franja (`TarjetaCompacta`:
+    ícono, título, lo que cuenta y su cifra, flecha) animando la altura en 250 ms (fila de grid 1fr→0fr,
+    `inert` lo plegado; en seco con «reducir movimiento») y funcionan como pestañas: otra franja cambia el
+    detalle, la elegida lo cierra y todo vuelve a crecer. **Bajo la elegida, una cola de gota** (`ColaGota`,
+    SVG con `fill: var(--card)`) baja hacia el detalle y dice de qué tarjeta es; solo se ve con las
+    tarjetas en una fila. **En el celular (< 640 px) no hay tarjetas**: se entra directo al detalle del primer módulo
+    y una barra de accesos fija abajo (`BarraModulos`) cambia entre ellos —blanca, íconos y nombres en gris,
+    el módulo en curso en verde LOLS sobre una píldora que viaja con el indicador elástico de
+    `PestanasElasticas` (§9.12); cifra en burbuja solo si avisa (rojo/ámbar/azul); tocar la abierta no la
+    cierra; si se había bajado más allá, el módulo nuevo se ve desde su comienzo—. En el celular el detalle
+    no lleva su fila de título: el módulo en curso sube al **centro del encabezado** como una píldora verde
+    LOLS (`ModuloEnCurso`: ícono, nombre y flecha; lleva al módulo completo), vía `useSetCentroMovil`. **La tarjeta abierta se pinta entera de verde LOLS** (`.tarjeta-activa`: green-700,
+    oscuro green-900, letra blanca; redefine los tokens neutros adentro). Sobre verde el rojo y el verde
+    no se leen: el círculo pasa a **blanco con el ícono en su color** (el significado sigue ahí) y las
+    cifras que avisan (rojo/ámbar) pasan a **amarillo claro** (`yellow-300`); las demás, blancas
+    (contexto `TarjetaActiva` en `tarjetaActiva.ts`). **El amarillo sobre green-700 mide 3,8:1**: solo para
+    cifras ≥ 19 px en negrita; un texto chico de aviso va en blanco. Los chips conservan su fondo claro. Ya **no hay tarjeta
+    verde** (la excepción de superficie grande verde se fue con ella) ni bloques fijos debajo («Otros
+    pendientes», tendencia, acciones rápidas): todo vive en el detalle de su módulo. «Actualizar» y la
+    fecha pasan al encabezado de la página. **El encabezado global no tiene marco** (toda la app, idea de la
+    propuesta L del lienzo): mismo fondo que la página, sin borde ni sombra, alineado con el contenido.
+    - **Asistencia** (`AsistenciaInicio`, «Pulso del día»; elegida por el dueño en el
+      lienzo de bocetos el 2026-10-20): barra «N de M obras guardaron hoy» (un segmento por obra hasta 24;
+      «Faltan X e Y»), dos cifras —**ausentes hoy** con su desglose «5 F · 4 LM · 3 otros» y **faltas
+      reiteradas** del mes (Art. 160 N°3)— y los 3 reiterados más urgentes (2 seguidos primero,
+      `ordenarReiterados`), cada uno con **solo su nombre y su regla principal** en una píldora chica en
+      minúsculas (fiel al boceto B: la tira por trabajador saturaba la tarjeta, dueño 2026-10-20). Las
+      cifras abren el detalle. Detalle «Por urgencia» (`DetalleAsistencia`), sin fila de números clave
+      (repetían la tarjeta, dueño 2026-10-20): **Requiere acción** en **fichas por
+      persona** (`FichasReiterados`, opción A del lienzo, dueño 2026-10-20 «tal cual»; 3 por fila en xl):
+      iniciales en círculo (rojo si tiene 2 seguidos), nombre y obra, total de faltas, la frase «Faltó el
+      lun 5, lun 12 y mar 13», reglas en píldoras chicas y un **mini calendario de lunes a viernes**
+      (`semanasDelMes`: «2 lunes» se lee como columna, «2 seguidos» como celdas juntas; faltas en rojo,
+      futuro punteado, anillo en hoy) + «Ver en asistencia». Reemplazó a la tabla con tira del mes → **Hoy** (ausentes en barra apilada por motivo:
+      F rojo, LM azul, V gris, PSG ámbar; obras sin guardar) junto a **Próximos 14 días** (con límite: en escritorio toma el alto de la columna de al lado y en
+      celular 520 px; lo cortado se desvanece y «Ver los N» lo despliega; empiezan o
+      terminan licencias/vacaciones —«vuelve el lun 26 oct»— y feriados) → **Este mes** (descuentos por
+      trabajador y horas extra por obra, cada uno con su permiso; los descuentos avisan que el cálculo
+      oficial es el Excel) → **Tendencia y obras** (fase 3: ausentismo de 6 meses en área azul con las
+      faltas F en línea roja punteada y la diferencia en puntos con el mes anterior —ámbar si sube, verde
+      si baja—, faltas del mes por obra en barras rojas; luego actividades sugeridas y ranking. La tendencia de
+      7 días se quitó: la cubre la de 6 meses). Bajo las fichas, un aviso ámbar desplegable de **faltas pegadas al fin de
+      semana** (no es causal del Art. 160). Las fases 2 y 3 se piden al abrir el detalle
+      (`GET /api/dashboard/asistencia`). Las cifras usan
+      `NumeroRodante` (sin count-up, §9.4).
+    - **Gestiones**: para quien registra entregas, `DocumentosInicio` (documentos físicos fuera de plazo,
+      críticos, etapas, «dónde están ahora»); sin ese permiso, `TarjetaPendientes` con sus pendientes
+      (solicitudes, documentos por vencer, contratos, sin documentos, lotes del portador). Detalle:
+      documentos atrasados por etapa (`DocumentosAtrasadosLista`) + «Otros pendientes» (bandeja).
+    - **Inventario** (`InventarioInicio`, `GET /api/transferencias/inicio`): lo que le toca según el
+      perfil —por aprobar y diferencias (aprobador), por despachar / por recibir (bodega), sus solicitudes
+      en curso—; cada fila abre Inventario → Solicitudes con su filtro (`?tab=transferencias&estado=`).
+      Detalle: todos los grupos + alertas de transferencias.
+    - **Vehículos** (`VehicleExpiries`, 3 filas en la tarjeta): sin cambios de contenido; detalle con
+      todos los vencimientos de 30 días.
+    Piel común: **tarjetas blancas sin borde** (`rounded-3xl`, sombra `--shadow-md`) con
+    `EncabezadoTarjeta` (**círculo de color sólido** + título `text-base`) y `CifraTarjeta` (número grande
+    en el mismo color, rampa 700/300). Tonos: rojo = vencido o grave, ámbar = pendiente, azul =
+    informativo, verde = al día, neutro = solo dato. Las cuatro van **en una sola línea desde 1280 px**
+    (`xl`), 2×2 en tablet y una bajo otra en celular (`COLUMNAS` según cuántas ve el perfil). Lógica pura
+    con test: `resumenFaltasMes.ts`,
+    `resumenDocumentosInicio.ts`, `resumenInventarioInicio.ts`.

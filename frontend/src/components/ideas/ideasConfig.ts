@@ -1,4 +1,4 @@
-import { Lightbulb, Hourglass, Bug, type LucideIcon } from 'lucide-react';
+import { Lightbulb, Hourglass, Wrench, type LucideIcon } from 'lucide-react';
 import type { ChipTone } from '../ui/Chip';
 import type { IdeaTipo, IdeaEstado, IdeaMotivo, IdeaFrecuencia, IdeaAlcance, IdeaBeneficio, Idea } from '../../types/entities';
 
@@ -58,7 +58,7 @@ export const ALCANCES_IDEA: Record<IdeaAlcance, string> = {
 export const TIPOS: Record<IdeaTipo, { label: string; ayuda: string; icon: LucideIcon; tone: ChipTone }> = {
     idea: { label: 'Tengo una idea', ayuda: 'Algo nuevo que haría mejor el trabajo', icon: Lightbulb, tone: 'neutral' },
     cuesta: { label: 'Algo me cuesta', ayuda: 'Funciona, pero toma más tiempo o pasos de los que debería', icon: Hourglass, tone: 'neutral' },
-    falla: { label: 'Algo no funciona', ayuda: 'Un error: sale un mensaje, no guarda, se ve mal', icon: Bug, tone: 'danger' },
+    falla: { label: 'Algo no funciona', ayuda: 'Un error: sale un mensaje, no guarda, se ve mal', icon: Wrench, tone: 'danger' },
 };
 
 /** Color = significado: pendiente es ámbar (por hacer), aceptada azul (en curso), hecha verde, desechada neutra (no es un error). */

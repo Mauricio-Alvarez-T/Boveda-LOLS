@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { ScrollText, Plus, Eye, Trash2, Loader2, X, Upload, FileText, Save, Bell, Pencil, ExternalLink, Download } from 'lucide-react';
+import { ScrollText, Plus, Eye, Trash2, Loader2, X, Upload, FileText, Save, Bell, Pencil, ExternalLink, Download, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
@@ -9,6 +9,7 @@ import { compressImage } from '../../utils/compressImage';
 import { cn } from '../../utils/cn';
 import { navegadorMuestraPdf, formatearTamano } from '../../utils/archivos';
 import { EstadoVencimiento } from './EstadoVencimiento';
+import { diasHastaVencimiento, estadoVencimiento } from '../../utils/vencimientos';
 import type { VehiculoDocumento, VehiculoDocumentoCategoria, VehiculoRevision, VehiculoMantencion } from '../../types/entities';
 
 // navegadorMuestraPdf / formatearTamano viven en utils/archivos.ts: los usan
@@ -83,6 +84,11 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
     const [preview, setPreview] = useState<string | null>(null);
     const [form, setForm] = useState({ ...EMPTY_FORM });
     const [editing, setEditing] = useState<{ kind: 'revision' | 'mantencion' | 'documento'; id: number } | null>(null);
+    // Al editar (2026-10-21): el archivo que ya tiene el registro, para verlo o cambiarlo por otro (se
+    // sobrescribe). `renovando` = se entró por «Renovar» (vencido o por vencer): el formulario viene con las
+    // fechas en blanco y pide el archivo nuevo, que reemplaza al viejo — un vencido no sirve, no se guarda aparte.
+    const [adjunto, setAdjunto] = useState<{ nombre: string; url: string; clave: string } | null>(null);
+    const [renovando, setRenovando] = useState(false);
     const [busy, setBusy] = useState(false);
     // Clave del archivo que se está abriendo ('doc_3', 'rev_7'…): los adjuntos ya
     // no son solo de documentos, así que un id numérico no alcanza para saber cuál.
@@ -92,13 +98,18 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
 
     const tipo = TIPOS.find(t => t.value === tipoValue)!;
     const isData = tipo.kind === 'data';
-    // Editando un documento ya cargado: se corrigen sus datos, el archivo no se reemplaza.
+    // Editando un documento ya cargado: se corrigen sus datos y, si se elige otro, se cambia el archivo.
     const editandoDoc = editing?.kind === 'documento';
     // Obligatorios para guardar: lugar ≥ 4, fecha, vencimiento y email ≥ 5 caracteres.
     const dataValido = form.lugar.trim().length >= 4 && !!form.fecha && !!form.vencimiento && form.emailAlerta.trim().length >= 5;
     // En los documentos de archivo lo ÚNICO obligatorio es el archivo: fecha y
     // vencimiento son opcionales porque hay documentos que no vencen (padrón).
-    const listoParaGuardar = isData ? dataValido : (editandoDoc || !!file);
+    // Al editar un documento basta con guardar; al RENOVARLO falta el archivo nuevo.
+    const listoParaGuardar = isData ? dataValido : (editandoDoc ? !(renovando && !file) : !!file);
+    // Agregar uno de un tipo que el vehículo ya tiene: el nuevo reemplaza al vigente (uno por tipo, backend).
+    const yaExiste = !editing ? (isData
+        ? (tipo.endpoint === 'revisiones' ? revisiones.find(r => r.tipo === tipo.revTipo) : mantenciones[0])
+        : docs.find(d => d.categoria === tipoValue)) : undefined;
 
     const fetchAll = useCallback(async () => {
         try {
@@ -132,7 +143,22 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
         setForm({ ...EMPTY_FORM });
         setTipoValue('permiso_circulacion');
         setEditing(null);
+        setAdjunto(null);
+        setRenovando(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    /** Descarta el archivo nuevo elegido y vuelve al actual. */
+    const deshacerArchivo = () => {
+        handleFileChange(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    /** «Renovar»: lo mismo que editar, con las fechas en blanco y pidiendo el archivo nuevo (sobrescribe). */
+    const renovar = (abrirEdicion: () => void) => {
+        abrirEdicion();
+        setRenovando(true);
+        setForm(f => ({ ...f, fecha: '', vencimiento: '' }));
     };
 
     const toDateInput = (s?: string | null) => s ? String(s).split('T')[0] : '';
@@ -148,10 +174,12 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
             avisar30d: r.avisar_30d == null ? true : !!Number(r.avisar_30d),
         });
         setEditing({ kind: 'revision', id: r.id });
+        setAdjunto(r.nombre_archivo ? { nombre: r.nombre_archivo, url: `/vehiculos/${vehiculoId}/revisiones/${r.id}/archivo`, clave: `rev_${r.id}` } : null);
+        setRenovando(false);
+        handleFileChange(null);
         setShowAdd(true);
     };
-    // Documentos de archivo: se editan SOLO los datos (fecha/vencimiento/observaciones).
-    // Para cambiar el archivo hay que eliminar el documento y subirlo de nuevo.
+    // Documentos de archivo: se editan los datos (fecha/vencimiento/observaciones) y se puede cambiar el archivo.
     const handleEditDocumento = (d: VehiculoDocumento) => {
         setTipoValue(d.categoria);
         setForm({
@@ -160,8 +188,10 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
             observaciones: d.observaciones || '',
             avisar30d: d.avisar_30d == null ? true : !!Number(d.avisar_30d),
         });
-        setFile(null);
+        handleFileChange(null);
         setEditing({ kind: 'documento', id: d.id });
+        setAdjunto({ nombre: d.nombre_archivo, url: `/vehiculos/${vehiculoId}/documentos/${d.id}/download`, clave: `doc_${d.id}` });
+        setRenovando(false);
         setShowAdd(true);
     };
     const handleEditMantencion = (m: VehiculoMantencion) => {
@@ -173,22 +203,39 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
             avisar30d: m.avisar_30d == null ? true : !!Number(m.avisar_30d),
         });
         setEditing({ kind: 'mantencion', id: m.id });
+        setAdjunto(m.nombre_archivo ? { nombre: m.nombre_archivo, url: `/vehiculos/${vehiculoId}/mantenciones/${m.id}/archivo`, clave: `man_${m.id}` } : null);
+        setRenovando(false);
+        handleFileChange(null);
         setShowAdd(true);
     };
 
-    // Subir archivo (tipos "file"). Si estamos editando, solo se actualizan los
-    // datos del documento (PUT), sin volver a subir el archivo.
+    // Subir archivo (tipos "file"). Si estamos editando: los datos van por PUT y, si se eligió otro archivo,
+    // ese reemplaza al actual en una segunda llamada (multipart).
     const handleUpload = async () => {
         if (editandoDoc) {
+            if (renovando && !file) { toast.error('Sube el documento nuevo'); return; }
             setBusy(true);
             try {
+                let archivoNuevo: File | null = null;
+                if (file) {
+                    archivoNuevo = await compressImage(file, { maxBytes: 500 * 1024 });
+                    if (archivoNuevo.size > 10 * 1024 * 1024) {
+                        toast.error('El archivo supera los 10 MB incluso comprimido. Sube un PDF más liviano.');
+                        setBusy(false); return;
+                    }
+                }
                 await api.put(`/vehiculos/${vehiculoId}/documentos/${editing!.id}`, {
                     fecha: form.fecha || null,
                     fecha_vencimiento: form.vencimiento || null,
                     observaciones: form.observaciones.trim() || null,
                     avisar_30d: form.avisar30d ? 1 : 0,
                 });
-                toast.success('Documento actualizado');
+                if (archivoNuevo) {
+                    const fd = new FormData();
+                    fd.append('archivo', archivoNuevo);
+                    await api.put(`/vehiculos/${vehiculoId}/documentos/${editing!.id}/archivo`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                }
+                toast.success(renovando ? 'Documento renovado' : archivoNuevo ? 'Documento actualizado con el archivo nuevo' : 'Documento actualizado');
                 resetForm();
                 fetchAll();
             } catch (err) {
@@ -213,7 +260,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
             fd.append('observaciones', form.observaciones.trim());
             fd.append('avisar_30d', form.avisar30d ? '1' : '0');
             await api.post(`/vehiculos/${vehiculoId}/documentos`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-            toast.success('Documento agregado');
+            toast.success(yaExiste ? 'Documento agregado: reemplazó al anterior' : 'Documento agregado');
             resetForm();
             fetchAll();
         } catch (err) {
@@ -266,7 +313,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                         { headers: { 'Content-Type': 'multipart/form-data' } });
                 }
             }
-            toast.success(editing ? 'Registro actualizado' : 'Registro guardado');
+            toast.success(renovando ? 'Registro renovado' : editing ? 'Registro actualizado' : yaExiste ? 'Registro guardado: reemplazó al anterior' : 'Registro guardado');
             resetForm();
             fetchAll();
         } catch (err) {
@@ -314,6 +361,12 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
         catch { toast.error('Error al eliminar el registro'); }
     };
 
+    /** Vencido o por vencer (≤ 30 días): ahí aparece «Renovar». */
+    const puedeRenovar = (fecha?: string | null) => {
+        const e = estadoVencimiento(diasHastaVencimiento(fecha));
+        return e === 'vencido' || e === 'por_vencer';
+    };
+
     const vacio = docs.length === 0 && revisiones.length === 0 && mantenciones.length === 0;
 
     const AlertaBadge = ({ dias, email }: { dias?: number | null; email?: string | null }) =>
@@ -343,7 +396,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
             {showAdd && (
                 <div className="mb-2 p-3 rounded-xl border border-border bg-muted/40 space-y-2">
                     <div className="flex items-center justify-between">
-                        <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">{editing ? 'Editar registro' : 'Nuevo registro'}</span>
+                        <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">{renovando ? 'Renovar' : editing ? 'Editar registro' : 'Nuevo registro'}</span>
                         <div className="flex items-center gap-2">
                             {/* Gris (plomo) hasta estar listo; verde cuando se puede guardar */}
                             <Button size="sm" aria-label={isData || editandoDoc ? 'Guardar registro' : 'Subir documento'} title={isData || editandoDoc ? 'Guardar registro' : 'Subir documento'}
@@ -363,14 +416,58 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                         {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
 
-                    {/* Selector de archivo. En los tipos "data" (revisión/mantención) es
-                        OPCIONAL: sirve para adjuntar el certificado o la boleta. Al editar
-                        un documento de archivo no aparece — ahí el archivo no se reemplaza. */}
-                    {!editandoDoc && (
+                    {/* Archivo. En los tipos "data" (revisión/mantención) es OPCIONAL: el certificado o la boleta.
+                        Al editar se ve el archivo actual con Ver / Cambiar / Quitar (Marcos 2026-10-21). */}
+                    {editing && adjunto && !renovando && !file && (
+                        <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-2.5">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                                <FileText className="h-4 w-4 text-muted-foreground" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-micro font-bold uppercase text-muted-foreground">Archivo actual</p>
+                                <p className="truncate text-xs font-semibold text-brand-dark" title={adjunto.nombre}>{adjunto.nombre}</p>
+                            </div>
+                            <IconButton size="sm" aria-label="Ver el archivo actual" title="Ver"
+                                onClick={() => abrirArchivo(adjunto.clave, adjunto.url, adjunto.nombre)} disabled={viewingId === adjunto.clave}
+                                icon={viewingId === adjunto.clave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} />
+                            <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()}
+                                leftIcon={<RefreshCw className="h-3.5 w-3.5" />} className="h-8 px-2.5 text-xs">
+                                Cambiar
+                            </Button>
+                        </div>
+                    )}
+                    {renovando && !file && (
+                        <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-brand-dark">
+                            {editandoDoc ? 'Sube el documento nuevo' : 'Pon las fechas nuevas y, si lo tienes, el certificado'}
+                            {adjunto ? <>: reemplaza a <span className="font-semibold">«{adjunto.nombre}»</span></> : ''}. El vencido no se guarda aparte.
+                        </p>
+                    )}
+                    {yaExiste && (
+                        <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-brand-dark">
+                            Este vehículo ya tiene {tipo.label.toLowerCase()}
+                            {(() => {
+                                const v = 'fecha_vencimiento' in yaExiste ? yaExiste.fecha_vencimiento : ('fecha_proxima' in yaExiste ? yaExiste.fecha_proxima : null);
+                                if (!v) return '';
+                                return (diasHastaVencimiento(v) ?? 0) < 0 ? ` (venció el ${fmtFecha(v)})` : ` (vence el ${fmtFecha(v)})`;
+                            })()}:
+                            {' '}el nuevo lo reemplaza y queda uno solo.
+                        </p>
+                    )}
+                    {editing && adjunto && file && (
+                        <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2">
+                            <p className="min-w-0 text-xs text-brand-dark">
+                                Al guardar, <span className="font-semibold">«{file.name}»</span> reemplaza a <span className="font-semibold">«{adjunto.nombre}»</span>.
+                            </p>
+                            <Button size="sm" variant="ghost" onClick={deshacerArchivo} className="h-8 shrink-0 px-2 text-xs">Deshacer</Button>
+                        </div>
+                    )}
+                    {/* Selector (oculto mientras se ve el archivo actual: lo abre «Cambiar»). */}
                         <>
                             <input ref={fileInputRef} type="file" accept=".pdf,image/*"
                                 onChange={e => handleFileChange(e.target.files?.[0] || null)}
-                                className="w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-brand-primary/10 file:text-brand-primary file:text-xs file:font-semibold hover:file:bg-brand-primary/20" />
+                                className={cn('w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-brand-primary/10 file:text-brand-primary file:text-xs file:font-semibold hover:file:bg-brand-primary/20',
+                                    // Con el archivo actual a la vista, el selector se abre desde «Cambiar».
+                                    editing && adjunto && !renovando && !file && 'hidden')} />
                             {file && (
                                 preview ? (
                                     <div className="rounded-lg border border-border bg-card p-2 flex flex-col items-center gap-1">
@@ -408,7 +505,6 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                                 PDF o imagen. Las imágenes se comprimen automáticamente (objetivo ≤ 500 KB); los PDF se suben tal cual.
                             </p>
                         </>
-                    )}
 
                     {/* FILE: fecha (y vencimiento salvo tipos soloFecha) — OPCIONALES.
                         Observaciones se retiró del form a pedido (2026-08-27); el estado
@@ -532,6 +628,12 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                                     )}
                                     {doc.observaciones && <span className="text-micro text-muted-foreground/70 italic">{doc.observaciones}</span>}
                                     <EstadoVencimiento fecha={doc.fecha_vencimiento} />
+                                    {canEdit && puedeRenovar(doc.fecha_vencimiento) && (
+                                        <Button size="sm" variant="outline" onClick={() => renovar(() => handleEditDocumento(doc))}
+                                            leftIcon={<RefreshCw className="h-3.5 w-3.5" />} className="mt-1 h-8 w-fit px-2.5 text-xs">
+                                            Renovar
+                                        </Button>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
                                     <IconButton size="sm" aria-label="Ver documento" title="Ver documento" onClick={() => handleView(doc)}
@@ -539,7 +641,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                                         className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary"
                                         icon={viewingId === `doc_${doc.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} />
                                     {canEdit && (
-                                        <IconButton size="sm" aria-label="Editar datos del documento" title="Editar fecha y vencimiento"
+                                        <IconButton size="sm" aria-label="Editar documento" title="Editar fechas o cambiar el archivo"
                                             onClick={() => handleEditDocumento(doc)}
                                             className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary" icon={<Pencil className="h-4 w-4" />} />
                                     )}
@@ -560,6 +662,12 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                                     </span>
                                     {r.observaciones && <span className="text-micro text-muted-foreground/70 italic">{r.observaciones}</span>}
                                     <EstadoVencimiento fecha={r.fecha_vencimiento} />
+                                    {canEdit && puedeRenovar(r.fecha_vencimiento) && (
+                                        <Button size="sm" variant="outline" onClick={() => renovar(() => handleEditRevision(r))}
+                                            leftIcon={<RefreshCw className="h-3.5 w-3.5" />} className="mt-1 h-8 w-fit px-2.5 text-xs">
+                                            Renovar
+                                        </Button>
+                                    )}
                                     <AlertaBadge dias={r.dias_alerta} email={r.email_alerta} />
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
@@ -591,6 +699,12 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                                     </span>
                                     {m.descripcion && <span className="text-micro text-muted-foreground/70 italic">{m.descripcion}</span>}
                                     <EstadoVencimiento fecha={m.fecha_proxima} />
+                                    {canEdit && puedeRenovar(m.fecha_proxima) && (
+                                        <Button size="sm" variant="outline" onClick={() => renovar(() => handleEditMantencion(m))}
+                                            leftIcon={<RefreshCw className="h-3.5 w-3.5" />} className="mt-1 h-8 w-fit px-2.5 text-xs">
+                                            Renovar
+                                        </Button>
+                                    )}
                                     <AlertaBadge dias={m.dias_alerta} email={m.email_alerta} />
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0 mt-0.5">

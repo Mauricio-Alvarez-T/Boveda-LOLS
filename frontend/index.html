@@ -29,10 +29,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Inter (familia UI, con optical sizing para titulares grandes estilo SF Pro)
-       + DM Sans 700 SOLO para el wordmark del Logo (Logo.tsx usa DM Sans en su SVG). -->
-  <link
+       + DM Sans 700 SOLO para el wordmark del Logo (Logo.tsx usa DM Sans en su SVG).
+       Sin bloquear (2026-10-21, celular lento): como hoja normal de otro dominio, el navegador no corría la
+       app hasta bajarla. Se pide como `preload` y se aplica al llegar; mientras, la letra del sistema
+       (display=swap ya lo permitía). -->
+  <link rel="preload" as="style"
     href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=DM+Sans:wght@700&display=swap"
-    rel="stylesheet">
+    onload="this.onload=null;this.rel='stylesheet'">
+  <noscript>
+    <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=DM+Sans:wght@700&display=swap">
+  </noscript>
   <title>Bóveda LOLS</title>
 </head>
 

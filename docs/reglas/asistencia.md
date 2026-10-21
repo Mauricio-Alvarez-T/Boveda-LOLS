@@ -102,6 +102,41 @@ mes calendario (deduplicadas por día):
 Consumo: dashboard (top 20) y **aviso en el WhatsApp diario** ("⚠️ VERIFICAR ASISTENCIA" con las
 fechas DD/MM/YYYY) vía `GET /asistencias/alertas/:obraId?mes&anio` (permiso `asistencia.ver`).
 
+`getAlertasFaltas` es un filtro de **`getFaltasMes(obraId, mes, anio)`**, que devuelve a TODOS los
+trabajadores con al menos una `F` en el mes (fechas, `total_faltas`, `obra_nombre` de su falta más
+reciente y `alertas` vacío si no gatillan regla). La tarjeta **«Asistencia» del Inicio** (dueño
+2026-10-20: "era un dato muy usado en versiones anteriores"; precisó que van SOLO los reiterados) usa
+`/dashboard/summary` → `faltasMes = { reiterados, lista (200, más faltas arriba) }`: 3 filas en la
+tarjeta (obra · faltas: días + chips de regla, rojo = 2 seguidos) y la lista completa con RUT en el
+detalle; la fila abre Asistencia con `?q=RUT`. `trabajadoresConAlertas` (top 20) se mantiene.
+
+Desde la tarjeta «Pulso del día» (2026-10-20) `/dashboard/summary` trae además **`ausentesHoy =
+{ fecha, total, porEstado: [{ codigo, nombre, n }] (más numeroso primero), lista (tope 500) }`**: los no
+presentes de hoy con la regla de fila vigente; `ausentesDetalle` conserva sus 20 de antes. **«Hoy» es el
+día de Chile** (`utils/fechaChile.js`, `America/Santiago`): con `toISOString()` el Inicio preguntaba desde
+las ~21:00 por el día siguiente; lo mismo vale para «ayer», el ranking de obras y el mes de las faltas.
+**Obras sin guardar hoy** (`attendanceStatus`, tarjeta y detalle de Asistencia, pendientes del Inicio):
+solo cuentan las obras que deben marcar — activas, no finalizadas ni de prueba, con
+`participa_asistencia = 1` y **al menos un trabajador activo** (2026-10-20: antes una obra sin
+trabajadores figuraba siempre como pendiente).
+
+**`GET /api/dashboard/asistencia?obra_id=`** (`asistencia.ver`; `inicioAsistencia.service`, fase 2 del
+detalle del Inicio, se pide al abrirlo). Tres bloques, cada uno `null` sin su permiso o si falla:
+- `proximos` — períodos activos (`asistencia.periodo.ver`) que **empiezan** en (hoy, hoy+14] o
+  **terminan** en [hoy, hoy+14), con `vuelve = fin + 1` (el front lo corre al día hábil), y feriados
+  activos de [hoy, hoy+14]. Trabajadores activos, sin prueba; con obra, la obra actual del trabajador.
+- `descuentos` (`asistencia.exportar_excel`) — días del mes por trabajador en estados con
+  `cuenta_dia_trabajado = 0` (F, LM, PSG…) y días JI aparte; fila vigente, sin prueba. **Referencia**:
+  el cálculo oficial (base 30, relleno de febrero, horas JI) sigue siendo el Excel.
+- `horasExtra` (`asistencia.horas_extra.ver`) — `SUM(horas_extra)` del mes por obra del registro.
+- Fase 3 (`asistencia.ver`), días hábiles (lunes a viernes) con la fila vigente:
+  - `tendencia` — 6 meses (el actual, parcial): `tasa` = no presentes **sin contar vacaciones (V)** /
+    días registrados; `tasaFaltas` = solo F. Mes sin registros → `tasa: null` (no 0 %).
+  - `faltasObra` — F del mes hasta hoy por obra del registro, con su tasa sobre los días de esa obra.
+  - `patronFinde` — trabajadores activos con **2 o más F en viernes o lunes en los últimos 60 días**
+    (ausentismo pegado al fin de semana que la regla de 2 días seguidos no ve). Es una alerta para
+    conversar, **no** una causal del Art. 160.
+
 ## Lista de trabajadores en actividades sugeridas (`actividades_sugeridas`, mig 038/040/116)
 
 Antes "Sábados extra". **Jefatura 2026-09-21: eliminar toda referencia a que los trabajos
@@ -111,11 +146,15 @@ claves de permiso, archivos) en la migración 116.
 - Qué es: una **lista** de trabajadores, por obra, asignados a actividades sugeridas; se envía
   por WhatsApp y luego se registra quién asistió. Aislada de la asistencia diaria.
 - **Semana, no día.** La lista se asigna a una semana **lunes a viernes** identificada por su
-  lunes en la columna `semana` (DATE). El selector del form ofrece semanas desde la en curso
-  (`utils/semanas.ts`: `opcionesSemanas`, `fmtSemana` → "Semana lun 21/09 – vie 25/09"). Fines de
+  lunes en la columna `semana` (DATE). El selector del form ofrece 4 semanas: la pasada, la en
+  curso (por defecto) y las 2 siguientes —el personal se pide como máximo dos semanas antes, dueño
+  2026-10-21— (`utils/semanas.ts`: `opcionesSemanas`,
+  `fmtSemana` → "Semana lun 21/09 – vie 25/09"). Fines de
   semana descartados. Las listas históricas (fechas de sábado) migraron al lunes de su semana.
 - Validación (`actividadesSugeridas.service.js` → `validarSemana`): debe ser lunes; no anterior
-  al lunes de la semana en curso (el viernes aún se puede armar la de esa semana); máx. 1 año.
+  al lunes de la **semana pasada** (`SEMANAS_ATRAS = 1`, dueño 2026-10-21: muchos olvidan la lista
+  y la arman el lunes siguiente a la actividad; la de hace dos semanas ya no) — 400 "Solo se puede
+  armar la lista desde la semana pasada en adelante"; máx. 1 año.
   **Sin cruce con feriados** (una semana no "coincide" con un feriado).
 - **Una lista por obra y semana** (UNIQUE `uniq_obra_semana` + `SELECT … FOR UPDATE`); 409 "Ya
   existe una lista para esta obra en esa semana" → la UI abre la existente.
