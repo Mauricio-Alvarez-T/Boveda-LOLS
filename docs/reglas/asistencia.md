@@ -146,8 +146,9 @@ claves de permiso, archivos) en la migración 116.
 - Qué es: una **lista** de trabajadores, por obra, asignados a actividades sugeridas; se envía
   por WhatsApp y luego se registra quién asistió. Aislada de la asistencia diaria.
 - **Semana, no día.** La lista se asigna a una semana **lunes a viernes** identificada por su
-  lunes en la columna `semana` (DATE). El selector del form ofrece la semana pasada y desde la en
-  curso hacia adelante, con la en curso por defecto (`utils/semanas.ts`: `opcionesSemanas`,
+  lunes en la columna `semana` (DATE). El selector del form ofrece 4 semanas: la pasada, la en
+  curso (por defecto) y las 2 siguientes —el personal se pide como máximo dos semanas antes, dueño
+  2026-10-21— (`utils/semanas.ts`: `opcionesSemanas`,
   `fmtSemana` → "Semana lun 21/09 – vie 25/09"). Fines de
   semana descartados. Las listas históricas (fechas de sábado) migraron al lunes de su semana.
 - Validación (`actividadesSugeridas.service.js` → `validarSemana`): debe ser lunes; no anterior

@@ -46,6 +46,10 @@ describe('semanas (lista de actividades sugeridas: semana lun–vie)', () => {
         expect(opcionesSemanas('2026-09-27', 1, 0)[0].value).toBe('2026-09-21'); // domingo aún cuenta la semana en curso
     });
 
+    test('opcionesSemanas por defecto: semana pasada, en curso y 2 más (no meses)', () => {
+        expect(opcionesSemanas('2026-10-21').map(o => o.value)).toEqual(['2026-10-12', '2026-10-19', '2026-10-26', '2026-11-02']);
+    });
+
     test('opcionesSemanas el lunes ofrece la semana recién terminada', () => {
         const ops = opcionesSemanas('2026-10-26', 1); // lunes
         expect(ops.map(o => o.value)).toEqual(['2026-10-19', '2026-10-26']);

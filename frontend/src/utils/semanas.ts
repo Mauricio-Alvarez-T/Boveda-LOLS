@@ -75,8 +75,10 @@ export interface OpcionSemana { value: string; label: string }
  * Opciones para el selector de semana: `atras` semanas pasadas (dueño 2026-10-21: la lista se arma a
  * veces el lunes siguiente a la actividad) y desde la semana en curso (aunque hoy sea viernes o
  * domingo) hacia adelante, `n` semanas. Valor = lunes ISO. Debe calzar con `SEMANAS_ATRAS` del backend.
+ * Por defecto `n = 3` (la en curso + 2): el personal se pide como máximo dos semanas antes (dueño
+ * 2026-10-21; antes eran 26 y la lista mostraba meses que nadie usa).
  */
-export function opcionesSemanas(hoyIso: string, n = 26, atras = 1): OpcionSemana[] {
+export function opcionesSemanas(hoyIso: string, n = 3, atras = 1): OpcionSemana[] {
     const lunes = lunesDeSemana(hoyIso);
     if (!lunes) return [];
     const out: OpcionSemana[] = [];
