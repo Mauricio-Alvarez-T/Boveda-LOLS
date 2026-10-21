@@ -102,7 +102,7 @@ const ActividadesSugeridasList: React.FC<Props> = ({ onSelect, onCreate }) => {
                                 <span className="text-xs font-black leading-tight whitespace-nowrap">{fmtSemanaCorta(s.semana)}</span>
                             </div>
                             {/* En el teléfono el sello baja bajo el nombre de la obra si no cabe al lado (antes quedaba «Obra D…»). */}
-                            <div className="flex-1 min-w-0 basis-40">
+                            <div className="flex-1 min-w-0">
                                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-1 mb-0.5">
                                     <span className="text-sm font-bold text-brand-dark truncate">
                                         {s.obra_nombre}
