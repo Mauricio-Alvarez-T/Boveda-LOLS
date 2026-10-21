@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import type { ItemInventario } from '../../types/entities';
 import type { StockLocation } from '../../hooks/inventario/useItemDetail';
 import { fmtMoneyExacto } from '../../utils/format';
+import { MovimientosItem } from './MovimientosItem';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
@@ -56,6 +57,8 @@ const ItemDetailModal: React.FC<Props> = ({
 }) => {
     const { hasPermission } = useAuth();
     const canEditCosts = hasPermission('inventario.costos.editar');
+    // Movimientos del ítem al lado de sus ubicaciones (dueño 2026-10-21): con permiso, el modal se ensancha.
+    const canMovimientos = hasPermission('inventario.movimientos.ver');
 
     const [imageZoom, setImageZoom] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -156,11 +159,11 @@ const ItemDetailModal: React.FC<Props> = ({
                     ) : (
                         <div className="flex items-center gap-2 min-w-0">
                             <Package className="h-4 w-4 text-brand-primary shrink-0" />
-                            <span className="truncate">{item?.descripcion || 'Cargando...'}</span>
+                            <span className="break-words">{item?.descripcion || 'Cargando...'}</span>
                         </div>
                     )
                 }
-                size="md"
+                size={canMovimientos ? 'xl' : 'md'}
             >
                 {loading ? (
                     /* ── Loading skeleton ── */
@@ -340,7 +343,8 @@ const ItemDetailModal: React.FC<Props> = ({
                             )}
                         </div>
 
-                        {/* ═══ STOCK POR UBICACIÓN ═══ */}
+                        {/* ═══ UBICACIONES | MOVIMIENTOS (dos recuadros, dueño 2026-10-21) ═══ */}
+                        <div className={cn('grid grid-cols-1 gap-3', canMovimientos && 'md:grid-cols-2 md:items-start')}>
                         <div className="rounded-xl border border-border overflow-hidden">
                             <div className="px-3 py-2 bg-muted border-b border-border flex items-center justify-between">
                                 <span className="text-caption font-black uppercase tracking-wider text-brand-dark">
@@ -373,7 +377,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                             <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300 flex items-center justify-center shrink-0">
                                                 <Warehouse className="h-3 w-3" />
                                             </div>
-                                            <span className="flex-1 text-xs font-medium text-brand-dark truncate">{loc.nombre}</span>
+                                            <span className="flex-1 min-w-0 text-xs font-medium text-brand-dark break-words">{loc.nombre}</span>
                                             <span className={cn(
                                                 "px-2 py-0.5 rounded-full text-label font-black",
                                                 qtyColor(loc.cantidad)
@@ -388,7 +392,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                             <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300 flex items-center justify-center shrink-0">
                                                 <MapPin className="h-3 w-3" />
                                             </div>
-                                            <span className="flex-1 text-xs font-medium text-brand-dark truncate">{loc.nombre}</span>
+                                            <span className="flex-1 min-w-0 text-xs font-medium text-brand-dark break-words">{loc.nombre}</span>
                                             <span className={cn(
                                                 "px-2 py-0.5 rounded-full text-label font-black",
                                                 qtyColor(loc.cantidad)
@@ -399,6 +403,8 @@ const ItemDetailModal: React.FC<Props> = ({
                                     ))}
                                 </div>
                             )}
+                        </div>
+                        {canMovimientos && item?.id != null && <MovimientosItem key={item.id} itemId={Number(item.id)} unidad={item.unidad} />}
                         </div>
                     </div>
                 ) : null}
