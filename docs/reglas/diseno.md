@@ -591,8 +591,12 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       `NumeroRodante` (sin count-up, §9.4).
     - **Gestiones**: para quien registra entregas, `DocumentosInicio` (documentos físicos fuera de plazo,
       críticos, etapas, «dónde están ahora»); sin ese permiso, `TarjetaPendientes` con sus pendientes
-      (solicitudes, documentos por vencer, contratos, sin documentos, lotes del portador). Detalle:
-      documentos atrasados por etapa (`DocumentosAtrasadosLista`) + «Otros pendientes» (bandeja).
+      (solicitudes, documentos por vencer, contratos, sin documentos). Detalle de RRHH (2026-10-21,
+      detalle D del lienzo): `FlujoDocumentos`, el flujo en 5 pasos (sin imprimir → impreso sin portador →
+      en oficina → en terreno → firmados esta semana) como pestañas-tarjeta, la elegida en verde, con su
+      lista debajo (8 a la vista + «Ver los N») + «Otros pendientes». **Portador** (portar sin registrar):
+      su Inicio abre con `TusDocumentosInicio` («Tus documentos»: por entregar, en oficina / en tus manos /
+      devueltos esta semana) y su detalle `DetalleTusDocumentos` (lotes con `BarraTenencia`).
     - **Inventario** (`InventarioInicio`, `GET /api/transferencias/inicio`): lo que le toca según el
       perfil —por aprobar y diferencias (aprobador), por despachar / por recibir (bodega), sus solicitudes
       en curso—; cada fila abre Inventario → Solicitudes con su filtro (`?tab=transferencias&estado=`).

@@ -444,6 +444,104 @@ const documentosLotesService = {
         };
     },
 
+    /**
+     * Flujo completo de los documentos físicos para el detalle de Gestiones del Inicio (detalle D del lienzo,
+     * dueño 2026-10-21; solo RRHH): una lista por etapa —sin imprimir, impreso sin portador, en oficina
+     * esperando retiro, en terreno (con tenencia) y firmados esta semana—. Los días de las dos primeras se
+     * cuentan desde `fecha_generacion`, como las alertas B7. Cada lista llega hasta LIMITE_FLUJO filas; `n`
+     * es el total real.
+     */
+    async flujo(user) {
+        const LIMITE_FLUJO = 300;
+        const hoy = hoyChile();
+        const dow = new Date(`${hoy}T12:00:00Z`).getUTCDay();
+        const lunes = sumarDias(hoy, -((dow + 6) % 7));
+        const persona = r => (r.trabajador_id ? nombreCompleto(r) : null);
+        const doc = r => ({
+            documento_id: r.id, tipo_nombre: r.tipo_nombre ?? null, trabajador_id: r.trabajador_id ?? null,
+            trabajador_nombre: persona(r), rut: r.rut ?? null, obra_nombre: r.obra_nombre ?? null, dias: toNum(r.dias),
+        });
+        const BASE = `
+            FROM documentos d
+            JOIN tipos_documento td ON td.id = d.tipo_documento_id
+            LEFT JOIN trabajadores t ON t.id = d.trabajador_id
+            LEFT JOIN obras o ON o.id = t.obra_id
+           WHERE d.activo = TRUE AND d.origen = 'generado'`;
+        const COLS = `SELECT d.id, td.nombre AS tipo_nombre, t.id AS trabajador_id, t.nombres, t.apellido_paterno, t.apellido_materno, t.rut, o.nombre AS obra_nombre`;
+        try {
+            const [[sinImprimir], [cSin], [impresos], [cImp], [firmados], [cFir], lotes] = await Promise.all([
+                db.query(`${COLS}, DATEDIFF(CURDATE(), d.fecha_generacion) AS dias ${BASE} AND d.estado = 'generado' ORDER BY d.fecha_generacion, d.id LIMIT ?`, [LIMITE_FLUJO]),
+                db.query(`SELECT COUNT(*) AS n ${BASE} AND d.estado = 'generado'`),
+                db.query(`${COLS}, DATEDIFF(CURDATE(), d.fecha_generacion) AS dias ${BASE} AND d.estado = 'descargado' AND d.lote_id IS NULL ORDER BY d.fecha_generacion, d.id LIMIT ?`, [LIMITE_FLUJO]),
+                db.query(`SELECT COUNT(*) AS n ${BASE} AND d.estado = 'descargado' AND d.lote_id IS NULL`),
+                db.query(`${COLS}, DATE_FORMAT(d.fecha_firmado, '%Y-%m-%d') AS firmado_el, 0 AS dias ${BASE} AND d.estado = 'firmado' AND d.fecha_firmado >= ? ORDER BY d.fecha_firmado DESC, d.id DESC LIMIT ?`, [lunes, LIMITE_FLUJO]),
+                db.query(`SELECT COUNT(*) AS n ${BASE} AND d.estado = 'firmado' AND d.fecha_firmado >= ?`, [lunes]),
+                this.listar({}, user),
+            ]);
+            return {
+                hoy, desde_firmados: lunes,
+                sin_imprimir: { n: toNum(cSin[0]?.n), items: sinImprimir.map(doc) },
+                impresos: { n: toNum(cImp[0]?.n), items: impresos.map(doc) },
+                en_oficina: lotes.filter(l => l.estado === 'pendiente_retiro'),
+                en_terreno: lotes.filter(l => l.estado === 'en_terreno'),
+                firmados: { n: toNum(cFir[0]?.n), items: firmados.map(r => ({ ...doc(r), firmado_el: r.firmado_el ?? null })) },
+            };
+        } catch (err) {
+            if (esErrorEsquema(err)) {
+                return { hoy, desde_firmados: lunes, sin_imprimir: { n: 0, items: [] }, impresos: { n: 0, items: [] }, en_oficina: [], en_terreno: [], firmados: { n: 0, items: [] } };
+            }
+            throw err;
+        }
+    },
+
+    /**
+     * Los lotes DEL usuario como portador, para su tarjeta «Tus documentos» del Inicio (dueño 2026-10-21):
+     * los que lo esperan en oficina y los que tiene en sus manos (con tenencia), cada uno con sus documentos
+     * aún abiertos, más cuántos devolvió esta semana. Siempre por portador_id, aunque también registre.
+     */
+    async misLotes(user) {
+        const hoy = hoyChile();
+        const dow = new Date(`${hoy}T12:00:00Z`).getUTCDay();
+        const lunes = sumarDias(hoy, -((dow + 6) % 7));
+        const vacio = { en_oficina: [], en_mano: [], devueltos_semana: 0 };
+        let rows;
+        try {
+            [rows] = await db.query(
+                `${SELECT_LOTES} WHERE l.portador_id = ? AND l.estado IN ('pendiente_retiro', 'en_terreno')${GROUP_LOTES} ORDER BY l.retirado_en, l.creado_en`,
+                [user.id]
+            );
+        } catch (err) {
+            if (esErrorEsquema(err)) return vacio;
+            throw err;
+        }
+        const ctx = await _ctxTenencia(rows);
+        const lotes = (rows || []).map(r => proyectarLote(r, ctx));
+        const porLote = new Map();
+        if (lotes.length) {
+            const [items] = await db.query(
+                SELECT_ITEMS.replace('WHERE i.lote_id = ?', "WHERE i.lote_id IN (?) AND i.estado IN ('pendiente', 'retirado')"),
+                [lotes.map(l => l.id)]
+            );
+            for (const it of items || []) {
+                const k = Number(it.lote_id);
+                if (!porLote.has(k)) porLote.set(k, []);
+                porLote.get(k).push(proyectarItem(it));
+            }
+        }
+        const [dev] = await db.query(
+            `SELECT COUNT(*) AS n FROM documentos_lotes_items i JOIN documentos_lotes l ON l.id = i.lote_id
+              WHERE l.portador_id = ? AND i.estado IN ('firmado', 'devuelto_sin_firma') AND i.resuelto_en >= ?`,
+            [user.id, lunes]
+        );
+        const conDocs = l => ({ ...l, documentos: porLote.get(l.id) || [] });
+        return {
+            en_oficina: lotes.filter(l => l.estado === 'pendiente_retiro').map(conDocs),
+            en_mano: lotes.filter(l => l.estado === 'en_terreno').map(conDocs)
+                .sort((a, b) => (b.tenencia?.dia ?? 0) - (a.tenencia?.dia ?? 0)),
+            devueltos_semana: toNum(dev?.[0]?.n),
+        };
+    },
+
     /** Contadores para badge/Bandeja: con registrar, globales; con solo portar, los míos. */
     async pendientesCount(user) {
         const mio = !puedeRegistrar(user);

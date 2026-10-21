@@ -66,3 +66,73 @@ describe('documentosLotes.atrasados', () => {
         expect(db.query.mock.calls[0][1]).toEqual([7]);
     });
 });
+
+describe('documentosLotes.flujo', () => {
+    const db = require('../src/config/db');
+    const service = require('../src/services/documentosLotes.service');
+    beforeEach(() => {
+        jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+        jest.setSystemTime(new Date('2026-10-21T15:00:00Z')); // miércoles 21
+        db.query.mockReset().mockResolvedValue([[]]);
+    });
+    afterEach(() => jest.useRealTimers());
+
+    test('arma las 5 etapas; firmados desde el lunes de la semana', async () => {
+        db.query.mockImplementation(async (sql) => {
+            const s = String(sql);
+            if (s.includes('COUNT(*) AS n') && s.includes("d.estado = 'generado'")) return [[{ n: 7 }]];
+            if (s.includes("d.estado = 'generado'")) return [[{ id: 1, tipo_nombre: 'Contrato', trabajador_id: 3, nombres: 'Ana', apellido_paterno: 'Pérez', rut: '1-9', obra_nombre: 'Sur', dias: 5 }]];
+            if (s.includes('FROM documentos_lotes l')) return [[{ id: 9, estado: 'pendiente_retiro', total: 2 }, { id: 7, estado: 'en_terreno', retirado_dia: '2026-10-19', total: 3, en_terreno: 3 }]];
+            return [[]];
+        });
+        const out = await service.flujo({ id: 3, p: ['documentos.entrega.registrar'] });
+        expect(out.sin_imprimir.n).toBe(7);
+        expect(out.sin_imprimir.items[0]).toMatchObject({ documento_id: 1, trabajador_nombre: 'Pérez Ana', dias: 5 });
+        expect(out.en_oficina.map(l => l.id)).toEqual([9]);
+        expect(out.en_terreno[0]).toMatchObject({ id: 7, tenencia: { dia: 3, atrasado: false } });
+        expect(out.desde_firmados).toBe('2026-10-19');
+        const firm = db.query.mock.calls.find(([sql]) => /d\.estado = 'firmado' AND d\.fecha_firmado >= \?/.test(String(sql)) && /LIMIT/.test(String(sql)));
+        expect(firm[1][0]).toBe('2026-10-19');
+    });
+
+    test('la ruta exige registrar (el portador no la ve)', async () => {
+        const request = require('supertest');
+        const app = require('../index');
+        const jwt = require('jsonwebtoken');
+        const token = jwt.sign({ id: 7, email: 'j@lols.cl', rol_id: 2, rv: 1, p: ['documentos.entrega.portar'] }, process.env.JWT_SECRET || 'secret');
+        jest.useRealTimers();
+        const res = await request(app).get('/api/documentos-lotes/flujo').set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(403);
+    });
+});
+
+describe('documentosLotes.misLotes', () => {
+    const db = require('../src/config/db');
+    const service = require('../src/services/documentosLotes.service');
+    beforeEach(() => {
+        jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+        jest.setSystemTime(new Date('2026-10-23T15:00:00Z')); // viernes 23
+        db.query.mockReset().mockResolvedValue([[]]);
+    });
+    afterEach(() => jest.useRealTimers());
+
+    test('separa en oficina / en mis manos con sus documentos y cuenta lo devuelto esta semana', async () => {
+        db.query.mockImplementation(async (sql) => {
+            const s = String(sql);
+            if (s.includes('FROM documentos_lotes l') && s.includes('l.portador_id = ?') && !s.includes('COUNT(*) AS n')) {
+                return [[{ id: 9, estado: 'pendiente_retiro', total: 1, pendientes: 1 }, { id: 5, estado: 'en_terreno', retirado_dia: '2026-10-19', total: 2, en_terreno: 2 }]];
+            }
+            if (s.includes('FROM documentos_lotes_items i') && s.includes('i.lote_id IN (?)')) {
+                return [[{ id: 1, lote_id: 5, documento_id: 90, estado: 'retirado', tipo_nombre: 'DAS', nombres: 'Ana', apellido_paterno: 'Pérez', trabajador_id: 3 }]];
+            }
+            if (s.includes('COUNT(*) AS n')) return [[{ n: 4 }]];
+            return [[]];
+        });
+        const out = await service.misLotes({ id: 7, p: ['documentos.entrega.registrar', 'documentos.entrega.portar'] });
+        expect(out.en_oficina.map(l => l.id)).toEqual([9]);
+        expect(out.en_mano[0]).toMatchObject({ id: 5, tenencia: { dia: 5, atrasado: true } });
+        expect(out.en_mano[0].documentos[0]).toMatchObject({ documento_id: 90, trabajador_nombre: 'Pérez Ana' });
+        expect(out.devueltos_semana).toBe(4);
+        expect(db.query.mock.calls[0][1]).toEqual([7]);
+    });
+});
