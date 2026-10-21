@@ -237,7 +237,9 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
             </span>
             <div className="flex-1 min-w-0">
                 <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-sm font-bold text-brand-dark truncate">{obra.nombre}</span>
+                    {/* En el teléfono el monto (que no se abrevia, §5) dejaba el nombre en «BLANCO EN…»: ahí el nombre
+                        se parte en líneas; desde sm: una línea truncada como antes. */}
+                    <span className="min-w-0 text-sm font-bold text-brand-dark break-words sm:truncate">{obra.nombre}</span>
                     <span className="shrink-0 text-sm font-black text-brand-dark">
                         {fmtMoney(obra.valor_mensual)}
                     </span>
@@ -339,17 +341,20 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
                 type="button"
                 onClick={onClick}
                 aria-label={`${alerta.titulo}. ${alerta.detalle}. ${diasLabel}. Click para ver.`}
-                className="flex items-center gap-3 w-full p-3.5 text-left hover:opacity-90 active:scale-[0.995] transition-all"
+                // En el teléfono el título (~350 px) quedaba en 112 px al lado de «Revisar»: «TRF-202604-…». Ahora el
+                // texto conserva 10rem (`basis-40`) y se lee entero en varias líneas; el botón baja a la derecha.
+                // Desde sm: igual que antes (una línea, truncada, con el botón al lado).
+                className="flex flex-wrap items-center gap-x-3 gap-y-2 w-full p-3.5 text-left hover:opacity-90 active:scale-[0.995] transition-all"
             >
                 <div className={cn('shrink-0 p-2 rounded-lg', iconBg)}>
                     {isEstancada ? <Timer className="h-4 w-4" /> : t.icon}
                 </div>
-                <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-brand-dark truncate">
+                <div className="flex-1 min-w-0 basis-40">
+                    <div className="text-sm font-bold text-brand-dark break-words sm:truncate">
                         {alerta.titulo}
                         <span className="ml-2 text-label font-semibold text-muted-foreground">— {diasLabel}</span>
                     </div>
-                    <div className="text-xs text-muted-foreground truncate mt-0.5">
+                    <div className="text-xs text-muted-foreground break-words sm:truncate mt-0.5">
                         {alerta.detalle}
                     </div>
                     {alerta.solicitante && (
@@ -359,7 +364,7 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
                         </div>
                     )}
                 </div>
-                <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-card/80 border border-current/10 text-xs font-bold">
+                <span className="shrink-0 ml-auto flex items-center gap-1 px-3 py-1.5 rounded-lg bg-card/80 border border-current/10 text-xs font-bold">
                     {isEstancada ? 'Modificar' : t.cta}
                     <ChevronRight className="h-3.5 w-3.5" />
                 </span>

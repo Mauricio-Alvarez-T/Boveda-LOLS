@@ -139,22 +139,22 @@ export const IdeaDetalle: React.FC<Props> = ({ idea, parecidas, onSeleccionar, o
                     // Desde el 20-10 llega en un solo texto (el título es su primera línea).
                     <>
                         <p className={ETIQUETA}>{idea.tipo === 'falla' ? 'Qué pasó' : idea.tipo === 'idea' ? 'Qué se le ocurre' : 'Qué le cuesta'}</p>
-                        <p className="text-base text-brand-dark leading-relaxed whitespace-pre-wrap">{idea.detalle}</p>
+                        <p className="text-base text-brand-dark leading-relaxed whitespace-pre-wrap break-words">{idea.detalle}</p>
                     </>
                 ) : (
                     <>
                         <p className={ETIQUETA}>{idea.tipo === 'falla' ? 'Qué estaba haciendo' : idea.tipo === 'idea' ? 'Qué se le ocurre' : 'Qué le gustaría que cambie'}</p>
-                        <h3 className="text-title-sm font-bold tracking-tight text-brand-dark leading-snug">{idea.resumen}</h3>
+                        <h3 className="text-title-sm font-bold tracking-tight text-brand-dark leading-snug break-words">{idea.resumen}</h3>
 
                         <p className={`${ETIQUETA} mt-4`}>{idea.tipo === 'falla' ? 'Qué pasó' : idea.tipo === 'idea' ? 'Cómo se lo imagina' : 'Qué le cuesta o no entiende'}</p>
-                        <p className="text-sm text-brand-dark leading-relaxed whitespace-pre-wrap">{idea.detalle}</p>
+                        <p className="text-sm text-brand-dark leading-relaxed whitespace-pre-wrap break-words">{idea.detalle}</p>
                     </>
                 )}
 
                 {idea.esperado && idea.tipo !== 'cuesta' && (
                     <>
                         <p className={`${ETIQUETA} mt-4`}>{idea.tipo === 'falla' ? 'Qué esperaba' : 'Cómo lo hace hoy, sin esto'}</p>
-                        <p className="text-sm text-brand-dark leading-relaxed whitespace-pre-wrap">{idea.esperado}</p>
+                        <p className="text-sm text-brand-dark leading-relaxed whitespace-pre-wrap break-words">{idea.esperado}</p>
                     </>
                 )}
 

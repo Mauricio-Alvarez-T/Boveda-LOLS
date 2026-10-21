@@ -76,6 +76,7 @@ import AlertasDocumentosPanel from '../components/settings/AlertasDocumentosPane
 import { CargoSueldoModal } from '../components/settings/CargoSueldoModal';
 import { Modal } from '../components/ui/Modal';
 import { PestanasElasticas } from '../components/ui/PestanasElasticas';
+import { BarraPaginada } from '../components/ui/BarraPaginada';
 
 type TabKey = 'empresas' | 'obras' | 'cargos' | 'conductores' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'reportes_suscriptores' | 'avisos' | 'alertas_documentos' | 'logs' | 'seguridad' | 'cat_inventario' | 'bodegas' | 'items_inventario';
 
@@ -426,26 +427,33 @@ const SettingsPage: React.FC = () => {
 
                 {/* ── Mobile Sub-Tabs: pill card flotante (sin wrapper blanco encima) ──
                     `key` por categoría: la lista cambia entera, así que se remonta quieta en vez de
-                    "viajar" desde una posición de la lista anterior (diseno.md §9.12). */}
+                    "viajar" desde una posición de la lista anterior (diseno.md §9.12).
+                    Las 7 de Sistema no caben en 360 px (quedaban pegadas, «CORREO PLANTILLAS REPORTES»): van de a
+                    páginas con flechas (ui/BarraPaginada, diseno.md §9.6). `min-w-full` y no `w-full`: con páginas la
+                    fila toma su ancho real y el indicador (copia con inset-0) cubre también la segunda. Si caben, flex-1
+                    las reparte a lo ancho como antes. */}
                 <div className="md:hidden bg-card/80 backdrop-blur-xl rounded-2xl border border-border shadow-sm px-1.5 py-1.5 flex items-center shrink-0">
-                    <PestanasElasticas
-                        key={activeGroup.title}
-                        opciones={activeGroup.items}
-                        activa={activeTab}
-                        onCambiar={setActiveTab}
-                        aria-label={`Secciones de ${activeGroup.title}`}
-                        claseFila="gap-0.5 w-full"
-                        claseOpcion="flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl"
-                        claseInactiva="text-muted-foreground active:bg-background"
-                        render={(tab) => (
-                            <>
-                                <tab.icon className="h-[18px] w-[18px]" />
-                                <span className="text-micro font-black uppercase tracking-tight leading-none">
-                                    {tab.shortLabel || tab.label}
-                                </span>
-                            </>
-                        )}
-                    />
+                    <BarraPaginada key={activeGroup.title} className="flex-1">{p => (
+                        <PestanasElasticas
+                            opciones={activeGroup.items}
+                            activa={activeTab}
+                            onCambiar={setActiveTab}
+                            aria-label={`Secciones de ${activeGroup.title}`}
+                            claseFila="gap-0.5 min-w-full"
+                            claseOpcion="flex flex-col items-center gap-0.5 flex-1 py-2 px-2 rounded-xl shrink-0"
+                            claseInactiva="text-muted-foreground active:bg-background"
+                            estiloOpcion={p.estiloOpcion}
+                            revelar={p.revelar}
+                            render={(tab) => (
+                                <>
+                                    <tab.icon className="h-[18px] w-[18px]" />
+                                    <span className="text-micro font-black uppercase tracking-tight leading-none whitespace-nowrap">
+                                        {tab.shortLabel || tab.label}
+                                    </span>
+                                </>
+                            )}
+                        />
+                    )}</BarraPaginada>
                 </div>
 
                 {/* ── Desktop Sub-Tabs ── formato único de menús (dueño 2026-10-16): rectángulo verde, no pastilla

@@ -208,7 +208,7 @@ const IdeasPage: React.FC = () => {
             </div>
 
             {cargando ? (
-                <div className="grid lg:grid-cols-[380px_minmax(0,1fr)] gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] gap-4">
                     <div className="animate-pulse rounded-card border border-border bg-card h-96" />
                     <div className="hidden lg:block animate-pulse rounded-card border border-border bg-card h-96" />
                 </div>
@@ -219,7 +219,9 @@ const IdeasPage: React.FC = () => {
                     description={filtro === 'pendiente' ? 'No quedan ideas pendientes de revisar.' : 'No hay ideas con este filtro.'}
                 />
             ) : (
-                <div className="grid lg:grid-cols-[380px_minmax(0,1fr)] gap-4 items-start">
+                // `grid-cols-1` (= minmax(0,1fr)) en el teléfono: con la columna implícita `auto`, un texto sin espacios
+                // (una URL, «DESPIHAJD…» de 46 letras) la estiraba a 900 px y el detalle se salía de la pantalla.
+                <div className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] gap-4 items-start">
                     {/* Lista */}
                     <ul className={cn('flex flex-col gap-2 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:pr-1', verDetalleMovil && 'hidden lg:flex')}>
                         {visibles.map(i => {
