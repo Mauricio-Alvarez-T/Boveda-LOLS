@@ -35,6 +35,7 @@ import InventarioInicio, { FilaInventarioInicio } from '../components/dashboard/
 import { resumenInventarioInicio, type FilaInventario, type ResumenInventarioApi } from '../components/dashboard/widgets/resumenInventarioInicio';
 import TarjetaPendientes from '../components/dashboard/widgets/TarjetaPendientes';
 import FlujoDocumentos from '../components/dashboard/widgets/FlujoDocumentos';
+import { InicioMarca } from '../components/dashboard/widgets/InicioMarca';
 import { DetalleTusDocumentos, TusDocumentosInicio } from '../components/dashboard/widgets/TusDocumentos';
 import { resumenTusDocumentos } from '../components/dashboard/widgets/resumenTusDocumentos';
 import type { MisLotesRespuesta } from '../components/documentos-fisicos/documentosFisicos';
@@ -565,6 +566,12 @@ const Dashboard: React.FC = () => {
             )}
 
             {/* ─── Detalle del módulo elegido (se irá sumando más información y gráficos) ─── */}
+            {/* Sin detalle abierto, el espacio bajo las tarjetas lleva la marca y accesos directos (propuesta C,
+                dueño 2026-10-21). En el celular siempre hay un módulo abierto, así que no aparece. */}
+            {activo === null && (
+                <InicioMarca nombre={user?.nombre} permisos={permisos} onIr={(r) => navigate(r)} className="max-sm:hidden" />
+            )}
+
             {activo === 'asistencia' && (
                 <DetalleModulo icon={CheckSquare} titulo="Asistencia"
                     descripcion={`Lo que exige acción en ${mes}, el día de hoy y la tendencia`}
