@@ -77,8 +77,10 @@
   Asistencia (con horas extra y todas las obras), Trabajadores (con financiero), Documentos (descargar
   incluido laborales), Gestiones (exportar/enviar), catálogos, Inventario completo con valores + aprobar y
   orden de gerencia, Vehículos y Presupuestos (`costos.gestionar`, único permiso del módulo).
-- Lo que una persona necesite de más (p. ej. RRHH que opera documentos físicos) se agrega de a poco, al rol
-  o como override de esa persona — preguntar a Marcos antes. Las personas se asignan en Configuración →
+- Lo que una persona necesite de más se agrega de a poco como **permiso propio** (override `grant`), no al
+  rol — preguntar a Marcos antes. Mig 127: Paula y Matías (RRHH) → emitir documentos laborales, registrar
+  entregas físicas, crear y editar trabajadores (editar: el contrato pide completar la ficha); Leonardo →
+  crear y editar vehículos. Se busca a la persona por correo (si no existe en ese entorno, no se agrega). Las personas se asignan en Configuración →
   Usuarios y deben re-loguear (los permisos viajan en el JWT).
 
 ## Middleware y endurecimiento
