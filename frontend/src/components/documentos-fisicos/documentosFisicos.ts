@@ -49,14 +49,17 @@ export interface LoteResumen {
 }
 
 /**
- * Tenencia en terreno (jefatura 2026-10-21): máximo 4 DÍAS HÁBILES; el día del retiro es el día 1 (lunes = 1,
- * jueves = 4, el viernes ya está fuera de plazo). La calcula el backend (`utils/tenenciaTerreno.js`).
+ * Tenencia en terreno (jefatura 2026-10-21): máximo 4 DÍAS HÁBILES, contados desde la HORA EXACTA en que el
+ * portador confirma el retiro (dueño 2026-10-21): aceptado el mié 16:26 → vence el mar siguiente a las 16:26.
+ * La calcula el backend (`utils/tenenciaTerreno.js`).
  */
 export interface TenenciaLote {
     dia: number;
     max: number;
-    /** Último día hábil permitido, 'YYYY-MM-DD'. */
+    /** Día en que vence, 'YYYY-MM-DD'. */
     vence_el: string;
+    /** Hora en que vence ('HH:MM', la de la aceptación). null/ausente = vence al final de `vence_el`. */
+    vence_hora?: string | null;
     atrasado: boolean;
     dias_atraso: number;
 }
@@ -346,12 +349,20 @@ export function tonoTenencia(t: TenenciaLote): 'ok' | 'ultimo' | 'atrasado' {
     return t.atrasado ? 'atrasado' : t.dia >= t.max ? 'ultimo' : 'ok';
 }
 
+/** Cuándo vence: «mar 27, 16:26» (o «jue 22» si vence al final del día). */
+export function venceTenencia(t: Pick<TenenciaLote, 'vence_el' | 'vence_hora'>): string {
+    return `${diaCorto(t.vence_el)}${t.vence_hora ? `, ${t.vence_hora}` : ''}`;
+}
+
 /** Cifra a la derecha y línea bajo la barra. */
 export function textoTenencia(t: TenenciaLote): { cifra: string; detalle: string } {
     if (t.atrasado) {
-        return { cifra: `${t.dias_atraso} día${t.dias_atraso === 1 ? '' : 's'} de atraso`, detalle: `Venció el ${diaCorto(t.vence_el)}: debía volver en ${t.max} días hábiles` };
+        return { cifra: `${t.dias_atraso} día${t.dias_atraso === 1 ? '' : 's'} de atraso`, detalle: `Venció el ${venceTenencia(t)}: debía volver en ${t.max} días hábiles` };
     }
-    return { cifra: `Día ${t.dia} de ${t.max}`, detalle: t.dia >= t.max ? 'Hoy es el último día para devolverlos' : `Vence el ${diaCorto(t.vence_el)} · días hábiles` };
+    if (t.dia >= t.max) {
+        return { cifra: `Día ${t.dia} de ${t.max}`, detalle: t.vence_hora ? `Último día: vence el ${venceTenencia(t)}` : 'Hoy es el último día para devolverlos' };
+    }
+    return { cifra: `Día ${t.dia} de ${t.max}`, detalle: `Vence el ${venceTenencia(t)} · días hábiles` };
 }
 
 /** Texto para la Bandeja / badge según el alcance del contador. */

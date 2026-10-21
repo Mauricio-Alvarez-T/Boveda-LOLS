@@ -20,4 +20,15 @@ const sumarDias = (iso, dias) => {
 const hoyChile = () => fechaChile();
 const ayerChile = () => sumarDias(hoyChile(), -1);
 
-module.exports = { fechaChile, hoyChile, ayerChile, sumarDias };
+const FORMATO_HORA = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Santiago', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+});
+
+/** 'YYYY-MM-DD HH:MM' de `d` en Chile (reloj de pared; se compara como texto). */
+const ahoraChile = (d = new Date()) => {
+    const p = Object.fromEntries(FORMATO_HORA.formatToParts(d).map(x => [x.type, x.value]));
+    return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+};
+
+module.exports = { fechaChile, hoyChile, ayerChile, ahoraChile, sumarDias };

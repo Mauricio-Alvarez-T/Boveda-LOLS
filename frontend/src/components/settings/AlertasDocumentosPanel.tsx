@@ -79,7 +79,7 @@ export const AlertasDocumentosPanel: React.FC = () => {
                     <p className="font-semibold text-brand-dark">{r.etiqueta}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                         {fija
-                            ? <>Regla fija: <b>4 días hábiles</b> desde el retiro (el día del retiro es el 1; sin fines de semana ni feriados). Avisa el último día y se marca crítico al pasarse.</>
+                            ? <>Regla fija: <b>4 días hábiles</b> desde la hora en que el portador confirma el retiro (aceptado el mié a las 16:26, vence el mar siguiente a las 16:26; sin fines de semana ni feriados). Avisa el último día y se marca crítico al pasarse.</>
                             : <>Aparece en la Bandeja desde el día <b>{r.dias_aviso}</b>; se marca crítico desde el día <b>{r.dias_critico}</b>.
                                 {esCategoriaLote(r.categoria) ? '' : ' Cuenta desde la emisión del documento; mientras está en terreno manda la regla de 4 días hábiles.'}</>}
                     </p>

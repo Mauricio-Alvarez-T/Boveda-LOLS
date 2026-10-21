@@ -2,7 +2,7 @@ import {
     agruparPorTrabajador, agruparPorObra, filtrarDisponibles, toggleIds, estadoSeleccion,
     buildCrearLotePayload, validarNuevoLote, buildConfirmarRetiroPayload, buildRecepcionPayload,
     diasDesde, resumenLote, accionesLote, filasBandejaLotes, desenlaceLote,
-    type DocumentoDisponible, type LoteResumen, agruparLotesPorEstado, inicialesNombre, lineaTiempoLote, segmentosTenencia, tonoTenencia, textoTenencia, diaCorto,
+    type DocumentoDisponible, type LoteResumen, agruparLotesPorEstado, inicialesNombre, lineaTiempoLote, segmentosTenencia, tonoTenencia, textoTenencia, venceTenencia, diaCorto,
 } from './documentosFisicos';
 
 const doc = (id: number, extra: Partial<DocumentoDisponible> = {}): DocumentoDisponible => ({
@@ -164,6 +164,12 @@ describe('tablero de custodia', () => {
         expect(diaCorto('2026-10-22')).toBe('jue 22');
         expect(textoTenencia(t(2))).toEqual({ cifra: 'Día 2 de 4', detalle: 'Vence el jue 22 · días hábiles' });
         expect(textoTenencia(t(4)).detalle).toBe('Hoy es el último día para devolverlos');
+        // desde la hora exacta del retiro (dueño 2026-10-21): la hora acompaña al día
+        const h = (dia: number) => ({ ...t(dia), vence_el: '2026-10-27', vence_hora: '16:26' });
+        expect(venceTenencia(h(1))).toBe('mar 27, 16:26');
+        expect(textoTenencia(h(1))).toEqual({ cifra: 'Día 1 de 4', detalle: 'Vence el mar 27, 16:26 · días hábiles' });
+        expect(textoTenencia(h(4)).detalle).toBe('Último día: vence el mar 27, 16:26');
+        expect(textoTenencia(h(5)).detalle).toBe('Venció el mar 27, 16:26: debía volver en 4 días hábiles');
         expect(textoTenencia(t(5))).toEqual({ cifra: '1 día de atraso', detalle: 'Venció el jue 22: debía volver en 4 días hábiles' });
         expect(textoTenencia(t(7)).cifra).toBe('3 días de atraso');
     });

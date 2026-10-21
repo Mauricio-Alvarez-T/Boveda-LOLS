@@ -10,14 +10,14 @@
  *    silencia). Etapas: generado → sin_imprimir; descargado → por_retirar (o por_confirmar si ya está en
  *    un lote pendiente); en_terreno → en_terreno. `firmado` sale del radar.
  *  - Los lotes tienen sus propias categorías: LOTE_SIN_CONFIRMAR (desde creado_en) y LOTE_EN_TERRENO.
- *  - EN TERRENO manda la tenencia de 4 DÍAS HÁBILES (jefatura 2026-10-21, `utils/tenenciaTerreno`): el lote
- *    y sus documentos avisan el último día (día 4, ámbar) y son críticos al pasarse (día 5+). `dias` es el
- *    día hábil de tenencia. Los umbrales por tipo y los de LOTE_EN_TERRENO no aplican ahí (su `activo` sí).
+ *  - EN TERRENO manda la tenencia de 4 DÍAS HÁBILES (jefatura 2026-10-21, `utils/tenenciaTerreno`), contada
+ *    desde la hora exacta en que el portador confirmó el retiro (dueño 2026-10-21): el lote y sus documentos
+ *    avisan el último día (día 4, ámbar) y son críticos al pasarse (día 5+). `dias` es el día hábil de tenencia. Los umbrales por tipo y los de LOTE_EN_TERRENO no aplican ahí (su `activo` sí).
  *  - Trabajadores de prueba (es_prueba = 1) no alertan. Solo in-app: sin correo en v1.
  *  - Degradación (D-I): sin la mig 115/114/110 (errno 1146/1054) → estructura vacía, nunca 500.
  */
 const db = require('../config/db');
-const { hoyChile, sumarDias } = require('../utils/fechaChile');
+const { hoyChile, ahoraChile, sumarDias } = require('../utils/fechaChile');
 const { tenencia, MAX_DIAS_HABILES_TERRENO } = require('../utils/tenenciaTerreno');
 const { feriadosEntre } = require('../utils/feriadosSet');
 
@@ -38,7 +38,8 @@ const SELECT_DOCS = `
            o.nombre AS obra_nombre,
            c.dias_aviso, c.dias_critico,
            DATEDIFF(CURDATE(), d.fecha_generacion) AS dias,
-           l.estado AS lote_estado, up.nombre AS portador_nombre, DATE_FORMAT(l.retirado_en, '%Y-%m-%d') AS retirado_dia
+           l.estado AS lote_estado, up.nombre AS portador_nombre, DATE_FORMAT(l.retirado_en, '%Y-%m-%d') AS retirado_dia,
+           DATE_FORMAT(l.retirado_en, '%H:%i') AS retirado_hora
       FROM documentos d
       JOIN tipos_documento td ON td.id = d.tipo_documento_id
       JOIN documentos_alertas_config c ON c.categoria = td.codigo AND c.activo = 1
@@ -55,7 +56,7 @@ const SELECT_DOCS = `
 // Lotes abiertos con su antigüedad: sin confirmar desde creado_en, en terreno desde retirado_en.
 const SELECT_LOTES = `
     SELECT l.id, l.estado, l.portador_id, up.nombre AS portador_nombre, l.creado_en, l.retirado_en,
-           DATE_FORMAT(l.retirado_en, '%Y-%m-%d') AS retirado_dia,
+           DATE_FORMAT(l.retirado_en, '%Y-%m-%d') AS retirado_dia, DATE_FORMAT(l.retirado_en, '%H:%i') AS retirado_hora,
            DATEDIFF(CURDATE(), CASE WHEN l.estado = 'pendiente_retiro' THEN l.creado_en ELSE l.retirado_en END) AS dias,
            COUNT(i.id) AS documentos
       FROM documentos_lotes l
@@ -74,7 +75,8 @@ const SELECT_MIS_DOCS = `
            o.nombre AS obra_nombre,
            c.dias_aviso, c.dias_critico,
            DATEDIFF(CURDATE(), d.fecha_generacion) AS dias,
-           l.estado AS lote_estado, DATE_FORMAT(l.retirado_en, '%Y-%m-%d') AS retirado_dia
+           l.estado AS lote_estado, DATE_FORMAT(l.retirado_en, '%Y-%m-%d') AS retirado_dia,
+           DATE_FORMAT(l.retirado_en, '%H:%i') AS retirado_hora
       FROM documentos d
       JOIN documentos_lotes l ON l.id = d.lote_id AND l.portador_id = ? AND l.estado IN ('pendiente_retiro', 'en_terreno')
       JOIN tipos_documento td ON td.id = d.tipo_documento_id
@@ -106,11 +108,12 @@ const vacio = () => ({
     items: [],
 });
 
-/** hoy (Chile) y los feriados desde el retiro más antiguo de las filas en terreno. */
+/** hoy y ahora (Chile) y los feriados desde el retiro más antiguo de las filas en terreno. */
 async function ctxTenencia(...listas) {
     const hoy = hoyChile();
+    const ahora = ahoraChile();
     const dias = listas.flat().filter(r => r.estado === 'en_terreno' && r.retirado_dia).map(r => r.retirado_dia).sort();
-    return { hoy, feriados: dias.length ? await feriadosEntre(dias[0], sumarDias(hoy, 60)) : new Set() };
+    return { hoy, ahora, feriados: dias.length ? await feriadosEntre(dias[0], sumarDias(hoy, 60)) : new Set() };
 }
 
 /**
@@ -119,7 +122,7 @@ async function ctxTenencia(...listas) {
  */
 function evaluar(r, umbral, ctx) {
     if (r.estado === 'en_terreno' && r.retirado_dia) {
-        const t = tenencia(r.retirado_dia, ctx.hoy, ctx.feriados);
+        const t = tenencia(`${r.retirado_dia} ${r.retirado_hora || '00:00'}`, ctx.ahora || ctx.hoy, ctx.feriados);
         if (t.dia < t.max) return null;
         return { dias: t.dia, critical: t.atrasado, dias_aviso: t.max, dias_critico: t.max + 1 };
     }

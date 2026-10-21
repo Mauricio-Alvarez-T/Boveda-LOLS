@@ -13,7 +13,7 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { diaCorto, type AtrasadosRespuesta } from './documentosFisicos';
+import { venceTenencia, type AtrasadosRespuesta } from './documentosFisicos';
 
 const MARCA = 'sgdl_recien_ingreso';
 
@@ -76,7 +76,7 @@ export const AlertaAtrasosAlEntrar: React.FC = () => {
                                     {l.tenencia.dias_atraso} día{l.tenencia.dias_atraso === 1 ? '' : 's'} hábil{l.tenencia.dias_atraso === 1 ? '' : 'es'} de atraso
                                 </span>
                             </p>
-                            <p className="text-xs text-muted-foreground">Venció el {diaCorto(l.tenencia.vence_el)}</p>
+                            <p className="text-xs text-muted-foreground">Venció el {venceTenencia(l.tenencia)}</p>
                             <ul className="mt-2 space-y-1">
                                 {l.documentos.map(d => (
                                     <li key={d.documento_id} className="rounded-lg bg-card px-2.5 py-1.5 text-xs">
