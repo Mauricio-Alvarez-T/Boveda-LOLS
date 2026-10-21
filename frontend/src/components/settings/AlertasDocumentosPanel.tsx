@@ -71,17 +71,22 @@ export const AlertasDocumentosPanel: React.FC = () => {
 
     const Card: React.FC<{ r: AlertaConfig }> = ({ r }) => {
         const activo = !!r.activo;
+        // En terreno manda la regla de jefatura (2026-10-21): 4 días hábiles; los días de esta fila no aplican.
+        const fija = r.categoria === 'LOTE_EN_TERRENO';
         return (
             <div className={cn('bg-card rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3', activo ? 'border-border' : 'border-border opacity-60')}>
                 <div className="flex-1 min-w-0">
                     <p className="font-semibold text-brand-dark">{r.etiqueta}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                        Aparece en la Bandeja desde el día <b>{r.dias_aviso}</b>; se marca crítico desde el día <b>{r.dias_critico}</b>.
-                        {esCategoriaLote(r.categoria) ? '' : ' Cuenta desde la emisión del documento.'}
+                        {fija
+                            ? <>Regla fija: <b>4 días hábiles</b> desde el retiro (el día del retiro es el 1; sin fines de semana ni feriados). Avisa el último día y se marca crítico al pasarse.</>
+                            : <>Aparece en la Bandeja desde el día <b>{r.dias_aviso}</b>; se marca crítico desde el día <b>{r.dias_critico}</b>.
+                                {esCategoriaLote(r.categoria) ? '' : ' Cuenta desde la emisión del documento; mientras está en terreno manda la regla de 4 días hábiles.'}</>}
                     </p>
                     {errores[r.id] && <p className="text-xs text-destructive mt-1">{errores[r.id]}</p>}
                 </div>
                 <div className="flex items-end gap-2 shrink-0">
+                    {!fija && (<>
                     <div className="w-24">
                         <Input label="Aviso" type="number" min={0} max={3650} defaultValue={r.dias_aviso} disabled={!puedeGestionar}
                             onBlur={e => onDiasBlur(r, 'dias_aviso', e.target.value)} aria-label={`Días de aviso · ${r.etiqueta}`} />
@@ -90,6 +95,7 @@ export const AlertasDocumentosPanel: React.FC = () => {
                         <Input label="Crítico" type="number" min={0} max={3650} defaultValue={r.dias_critico} disabled={!puedeGestionar}
                             onBlur={e => onDiasBlur(r, 'dias_critico', e.target.value)} aria-label={`Días para crítico · ${r.etiqueta}`} />
                     </div>
+                    </>)}
                     <IconButton disabled={!puedeGestionar} onClick={() => void guardar(r, { activo: !activo })}
                         aria-label={activo ? 'Desactivar alerta' : 'Activar alerta'} title={activo ? 'Desactivar' : 'Activar'} className="h-11 w-11"
                         icon={activo ? <Power className="h-4 w-4 text-brand-primary" /> : <PowerOff className="h-4 w-4" />} />

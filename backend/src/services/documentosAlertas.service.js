@@ -9,12 +9,17 @@
  *  - Los días de un documento cuentan desde `fecha_generacion` — NUNCA desde la descarga (re-imprimir no
  *    silencia). Etapas: generado → sin_imprimir; descargado → por_retirar (o por_confirmar si ya está en
  *    un lote pendiente); en_terreno → en_terreno. `firmado` sale del radar.
- *  - Los lotes tienen sus propias categorías: LOTE_SIN_CONFIRMAR (desde creado_en) y LOTE_EN_TERRENO
- *    (desde retirado_en).
+ *  - Los lotes tienen sus propias categorías: LOTE_SIN_CONFIRMAR (desde creado_en) y LOTE_EN_TERRENO.
+ *  - EN TERRENO manda la tenencia de 4 DÍAS HÁBILES (jefatura 2026-10-21, `utils/tenenciaTerreno`): el lote
+ *    y sus documentos avisan el último día (día 4, ámbar) y son críticos al pasarse (día 5+). `dias` es el
+ *    día hábil de tenencia. Los umbrales por tipo y los de LOTE_EN_TERRENO no aplican ahí (su `activo` sí).
  *  - Trabajadores de prueba (es_prueba = 1) no alertan. Solo in-app: sin correo en v1.
  *  - Degradación (D-I): sin la mig 115/114/110 (errno 1146/1054) → estructura vacía, nunca 500.
  */
 const db = require('../config/db');
+const { hoyChile, sumarDias } = require('../utils/fechaChile');
+const { tenencia, MAX_DIAS_HABILES_TERRENO } = require('../utils/tenenciaTerreno');
+const { feriadosEntre } = require('../utils/feriadosSet');
 
 const ERR_ESQUEMA = new Set([1146, 1054]);
 const esErrorEsquema = err => err && ERR_ESQUEMA.has(err.errno);
@@ -33,7 +38,7 @@ const SELECT_DOCS = `
            o.nombre AS obra_nombre,
            c.dias_aviso, c.dias_critico,
            DATEDIFF(CURDATE(), d.fecha_generacion) AS dias,
-           l.estado AS lote_estado, up.nombre AS portador_nombre
+           l.estado AS lote_estado, up.nombre AS portador_nombre, DATE_FORMAT(l.retirado_en, '%Y-%m-%d') AS retirado_dia
       FROM documentos d
       JOIN tipos_documento td ON td.id = d.tipo_documento_id
       JOIN documentos_alertas_config c ON c.categoria = td.codigo AND c.activo = 1
@@ -44,12 +49,13 @@ const SELECT_DOCS = `
      WHERE d.activo = TRUE AND d.origen = 'generado'
        AND d.estado IN ('generado', 'descargado', 'en_terreno')
        AND d.fecha_generacion IS NOT NULL
-       AND DATEDIFF(CURDATE(), d.fecha_generacion) >= c.dias_aviso
+       AND (d.estado = 'en_terreno' OR DATEDIFF(CURDATE(), d.fecha_generacion) >= c.dias_aviso)
      ORDER BY dias DESC, d.id ASC`;
 
 // Lotes abiertos con su antigüedad: sin confirmar desde creado_en, en terreno desde retirado_en.
 const SELECT_LOTES = `
     SELECT l.id, l.estado, l.portador_id, up.nombre AS portador_nombre, l.creado_en, l.retirado_en,
+           DATE_FORMAT(l.retirado_en, '%Y-%m-%d') AS retirado_dia,
            DATEDIFF(CURDATE(), CASE WHEN l.estado = 'pendiente_retiro' THEN l.creado_en ELSE l.retirado_en END) AS dias,
            COUNT(i.id) AS documentos
       FROM documentos_lotes l
@@ -68,7 +74,7 @@ const SELECT_MIS_DOCS = `
            o.nombre AS obra_nombre,
            c.dias_aviso, c.dias_critico,
            DATEDIFF(CURDATE(), d.fecha_generacion) AS dias,
-           l.estado AS lote_estado
+           l.estado AS lote_estado, DATE_FORMAT(l.retirado_en, '%Y-%m-%d') AS retirado_dia
       FROM documentos d
       JOIN documentos_lotes l ON l.id = d.lote_id AND l.portador_id = ? AND l.estado IN ('pendiente_retiro', 'en_terreno')
       JOIN tipos_documento td ON td.id = d.tipo_documento_id
@@ -78,7 +84,7 @@ const SELECT_MIS_DOCS = `
      WHERE d.activo = TRUE AND d.origen = 'generado'
        AND d.estado IN ('descargado', 'en_terreno')
        AND d.fecha_generacion IS NOT NULL
-       AND DATEDIFF(CURDATE(), d.fecha_generacion) >= c.dias_aviso
+       AND (d.estado = 'en_terreno' OR DATEDIFF(CURDATE(), d.fecha_generacion) >= c.dias_aviso)
      ORDER BY dias DESC, d.id ASC`;
 
 // Sus lotes abiertos con su antigüedad (sin retirar desde creado_en, en terreno desde retirado_en).
@@ -99,6 +105,28 @@ const vacio = () => ({
     lotes: { sin_confirmar: { total: 0, criticos: 0, items: [] }, en_terreno: { total: 0, criticos: 0, items: [] } },
     items: [],
 });
+
+/** hoy (Chile) y los feriados desde el retiro más antiguo de las filas en terreno. */
+async function ctxTenencia(...listas) {
+    const hoy = hoyChile();
+    const dias = listas.flat().filter(r => r.estado === 'en_terreno' && r.retirado_dia).map(r => r.retirado_dia).sort();
+    return { hoy, feriados: dias.length ? await feriadosEntre(dias[0], sumarDias(hoy, 60)) : new Set() };
+}
+
+/**
+ * Cómo alerta una fila (documento o lote). En terreno con día de retiro: por tenencia (aviso el último día,
+ * crítico al pasarse; `dias` = día hábil). Si no: por días corridos contra sus umbrales. null = no alerta.
+ */
+function evaluar(r, umbral, ctx) {
+    if (r.estado === 'en_terreno' && r.retirado_dia) {
+        const t = tenencia(r.retirado_dia, ctx.hoy, ctx.feriados);
+        if (t.dia < t.max) return null;
+        return { dias: t.dia, critical: t.atrasado, dias_aviso: t.max, dias_critico: t.max + 1 };
+    }
+    const dias = toNum(r.dias);
+    if (dias < toNum(umbral.dias_aviso)) return null;
+    return { dias, critical: dias >= toNum(umbral.dias_critico), dias_aviso: toNum(umbral.dias_aviso), dias_critico: toNum(umbral.dias_critico) };
+}
 
 /** Regla cruzada del CRUD de config: días enteros ≥ 0 y crítico ≥ aviso (validateBody es por campo). */
 async function validarConfig(id, safeData, conn) {
@@ -142,11 +170,13 @@ const documentosAlertasService = {
             throw err;
         }
 
+        const ctx = await ctxTenencia(docs, lotes);
         const out = vacio();
         const porTipo = new Map();
         for (const r of docs) {
-            const dias = toNum(r.dias);
-            const critical = dias >= toNum(r.dias_critico);
+            const ev = evaluar(r, r, ctx);
+            if (!ev) continue;
+            const { dias, critical } = ev;
             const etapa = etapaDe(r);
             out.total++;
             if (critical) out.criticos++;
@@ -158,7 +188,7 @@ const documentosAlertasService = {
             porTipo.set(r.tipo_codigo, t);
             out.items.push({
                 documento_id: r.id, tipo_codigo: r.tipo_codigo, tipo_nombre: r.tipo_nombre, etapa, dias, critical,
-                dias_aviso: toNum(r.dias_aviso), dias_critico: toNum(r.dias_critico),
+                dias_aviso: ev.dias_aviso, dias_critico: ev.dias_critico,
                 trabajador: { id: r.trabajador_id, nombre: nombreCompleto(r), rut: r.rut ?? null },
                 obra_nombre: r.obra_nombre ?? null,
                 lote_id: r.lote_id ?? null, portador_nombre: r.portador_nombre ?? null,
@@ -171,9 +201,9 @@ const documentosAlertasService = {
             const cat = l.estado === 'pendiente_retiro' ? CAT_LOTE_SIN_CONFIRMAR : CAT_LOTE_EN_TERRENO;
             const c = cfg.get(cat);
             if (!c || !toNum(c.activo)) continue;
-            const dias = toNum(l.dias);
-            if (dias < toNum(c.dias_aviso)) continue;
-            const critical = dias >= toNum(c.dias_critico);
+            const ev = evaluar(l, c, ctx);
+            if (!ev) continue;
+            const { dias, critical } = ev;
             const bucket = l.estado === 'pendiente_retiro' ? out.lotes.sin_confirmar : out.lotes.en_terreno;
             bucket.total++;
             if (critical) bucket.criticos++;
@@ -202,15 +232,17 @@ const documentosAlertasService = {
             if (esErrorEsquema(err)) return vacioMio();
             throw err;
         }
+        const ctx = await ctxTenencia(docs, lotes);
         const out = vacioMio();
         for (const r of docs) {
-            const dias = toNum(r.dias);
-            const critical = dias >= toNum(r.dias_critico);
+            const ev = evaluar(r, r, ctx);
+            if (!ev) continue;
+            const { dias, critical } = ev;
             out.documentos.total++;
             if (critical) out.documentos.criticos++;
             out.documentos.items.push({
                 documento_id: r.id, tipo_codigo: r.tipo_codigo, tipo_nombre: r.tipo_nombre, dias, critical,
-                dias_critico: toNum(r.dias_critico),
+                dias_critico: ev.dias_critico,
                 trabajador: { id: r.trabajador_id, nombre: nombreCompleto(r) },
                 obra_nombre: r.obra_nombre ?? null, lote_id: r.lote_id ?? null,
                 en_oficina: r.lote_estado === 'pendiente_retiro',
@@ -222,14 +254,14 @@ const documentosAlertasService = {
             const sinRetirar = l.estado === 'pendiente_retiro';
             const c = cfg.get(sinRetirar ? CAT_LOTE_SIN_CONFIRMAR : CAT_LOTE_EN_TERRENO);
             if (!c || !toNum(c.activo)) continue;
-            const dias = toNum(l.dias);
-            if (dias < toNum(c.dias_aviso)) continue;
+            const ev = evaluar(l, c, ctx);
+            if (!ev) continue;
             (sinRetirar ? out.lotes.sin_retirar : out.lotes.en_terreno)
-                .push({ lote_id: l.id, documentos: toNum(l.documentos), dias, critical: dias >= toNum(c.dias_critico) });
+                .push({ lote_id: l.id, documentos: toNum(l.documentos), dias: ev.dias, critical: ev.critical });
         }
         return out;
     },
 };
 
 module.exports = documentosAlertasService;
-module.exports._interno = { etapaDe, SELECT_DOCS, SELECT_LOTES, SELECT_MIS_DOCS, SELECT_MIS_LOTES };
+module.exports._interno = { etapaDe, evaluar, SELECT_DOCS, SELECT_LOTES, SELECT_MIS_DOCS, SELECT_MIS_LOTES, MAX_DIAS_HABILES_TERRENO };
