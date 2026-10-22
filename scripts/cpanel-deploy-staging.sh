@@ -463,6 +463,44 @@ estado_deploy() {
         > "$FRONT_DEST/deploy-status.txt" 2>/dev/null || true
 }
 
+# --- cache-index:begin — index.html sin caché del navegador (2026-10-22) ---
+# El Apache del hosting entregaba index.html SIN Cache-Control: Chrome lo guardaba por heurística y,
+# tras un deploy, seguía mostrando la versión anterior hasta recargar a mano (visto al verificar el
+# parpadeo entre pantallas en el Chrome del dueño). Los /assets llevan hash y caché de un año
+# (assets/.htaccess); index.html es el que apunta a ellos y debe revalidarse SIEMPRE ("no-cache" =
+# guarda pero pregunta: un 304 barato con Last-Modified/ETag).
+# El .htaccess RAÍZ del docroot no viene del build (routing del SPA; el rsync lo excluye) y no hay
+# SSH, así que el bloque se agrega aquí, UNA vez (marcas BEGIN/END = idempotente), con respaldo y
+# comprobación: si después el sitio no responde 200, se restaura el respaldo. Solo staging.
+# Quitarlo: borrar las líneas entre las marcas del .htaccess raíz (File Manager) y esta función.
+cache_index() {
+    local ht="$FRONT_DEST/.htaccess"
+    local marca="# BEGIN boveda: index.html sin cache"
+    [ -f "$ht" ] || { echo "$(date '+%F %T') · cache-index: no hay $ht — no lo creo"; return 0; }
+    grep -qF "$marca" "$ht" && return 0
+    command -v curl >/dev/null 2>&1 || { echo "$(date '+%F %T') · cache-index: sin curl para comprobar — no toco el .htaccess"; return 0; }
+    local resp="$REPO_DIR/.htaccess-raiz.bak-cache-index"   # fuera del docroot: el rsync --delete no lo borra
+    cp -p "$ht" "$resp"
+    {
+        printf '\n%s (lo agrega scripts/cpanel-deploy-staging.sh; no editar a mano)\n' "$marca"
+        printf '<IfModule mod_headers.c>\n'
+        printf '    <Files "index.html">\n'
+        printf '        Header set Cache-Control "no-cache"\n'
+        printf '    </Files>\n'
+        printf '</IfModule>\n'
+        printf '# END boveda: index.html sin cache\n'
+    } >> "$ht"
+    local code
+    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "https://test.boveda.lols.cl/?cache-index=$(date +%s)" || echo 000)"
+    if [ "$code" != "200" ]; then
+        cp -p "$resp" "$ht"
+        echo "$(date '+%F %T') · cache-index: el sitio respondió $code con el bloque — .htaccess restaurado"
+        return 1
+    fi
+    echo "$(date '+%F %T') · cache-index: bloque agregado al .htaccess raíz (respaldo en $resp)"
+}
+# --- cache-index:end ---
+
 # 1) Traer lo último de la rama de build
 git fetch origin "$BRANCH" --quiet
 REMOTE="$(git rev-parse "origin/$BRANCH")"
@@ -529,6 +567,8 @@ else
     find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.htaccess' ! -name 'migrate-status.txt' ! -name 'datos-status.txt' ! -name 'deploy-status.txt' ! -name 'api' -exec rm -rf {} +
     cp -a "$REPO_DIR/frontend/dist/." "$FRONT_DEST/"
 fi
+
+cache_index || echo "$(date '+%F %T') · cache-index: falló (rc=$?) — no fatal"
 
 # 3) Backend: copiar código (sin node_modules/tmp/uploads/.env — se preservan en destino)
 mkdir -p "$BACK_DEST"
