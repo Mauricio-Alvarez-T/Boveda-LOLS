@@ -201,7 +201,7 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
     const elegir = (s: Seleccion, foco = false) => {
         setSel(s);
         requestAnimationFrame(() => {
-            const el = panelRef.current;
+            const el = (window.matchMedia('(min-width: 1280px)').matches ? null : tituloRef.current) ?? panelRef.current;
             if (!el) return;
             // El botón tocado desaparece (la lista se cambia por la ficha): el foco va al título de la ficha.
             if (foco) tituloRef.current?.focus({ preventScroll: true });
@@ -218,7 +218,7 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
         if (f) void shareViaWhatsApp(mensajeWhatsApp(f.v, urgenteDeEvento(f.v, e)));
     };
 
-    const rotulo = <RotuloFichas titulo="Calendario · qué vence y cuándo" nota="Toca un día, un vencido o una fila para ver la ficha del vehículo" />;
+    const rotulo = <RotuloFichas titulo="Calendario · qué vence y cuándo" />;
 
     if (!data) {
         return (
@@ -243,11 +243,24 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
     }
 
     return (
-        <section className="space-y-3" aria-busy={pendiente}>
-            {rotulo}
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <section aria-busy={pendiente}>
+            {/* Desde 1280 px: fila de rótulos (el del calendario y, si hay algo elegido, el de su ficha a la misma
+                altura) y debajo las dos columnas. En el celular, una columna: rótulo, calendario, rótulo de la
+                ficha y la columna de la derecha (`order-*`). */}
+            <div className="grid grid-cols-1 gap-x-6 gap-y-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <div className="order-1 self-center xl:flex xl:min-h-9 xl:items-center">{rotulo}</div>
+                <div className={cn('order-3 flex min-w-0 items-center justify-between gap-3 self-center xl:order-2 xl:min-h-9', !selV && 'max-xl:hidden')}>
+                    {selV && (
+                        <>
+                            <p ref={tituloRef} tabIndex={-1} className={cn(ROTULO_FICHAS, 'focus:outline-none')}>{titulo}</p>
+                            <EnlaceFicha apagado onClick={verVencidos} icono={<ArrowLeft className="h-4 w-4" aria-hidden />}>
+                                Ver vencidos
+                            </EnlaceFicha>
+                        </>
+                    )}
+                </div>
                 {/* Izquierda (arriba en el celular): el calendario de lo que vence en los próximos 30 días. */}
-                <div className={cn(CARD, 'min-w-0 space-y-4 self-start')}>
+                <div className={cn(CARD, 'order-2 min-w-0 space-y-4 self-start max-xl:mb-3 xl:order-3')}>
                     <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
                         {LETRAS.map((l, i) => <span key={i} className="text-center text-micro font-bold text-muted-foreground" aria-hidden>{l}</span>)}
                         {calendario.map(d => {
@@ -286,17 +299,11 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
                 </div>
 
                 {/* Derecha (abajo en el celular): lo ya vencido —o la ficha de lo elegido— y, debajo, los próximos 60 días. */}
-                <div className="flex min-w-0 flex-col gap-6">
+                <div className="order-4 flex min-w-0 flex-col gap-6">
                     <div ref={panelRef} className="min-w-0 scroll-mt-20">
                         <p className="sr-only" aria-live="polite">{anuncio}</p>
                         {selV ? (
                             <div className="space-y-3">
-                                <div className="flex items-center justify-between gap-3">
-                                    <p ref={tituloRef} tabIndex={-1} className={cn(ROTULO_FICHAS, 'focus:outline-none')}>{titulo}</p>
-                                    <EnlaceFicha apagado onClick={verVencidos} icono={<ArrowLeft className="h-4 w-4" aria-hidden />}>
-                                        Ver vencidos
-                                    </EnlaceFicha>
-                                </div>
                                 {elegidas.map(({ v, urg }) => <FichaVehiculo key={v.vehiculo_id} v={v} urg={urg} puede={puede} />)}
                                 {/* Sobre blanco, como en la ficha: el gris «al día» no se ve sobre el fondo de la página. */}
                                 <div className="rounded-2xl bg-card px-4 py-2.5 shadow-[var(--shadow-sm)]">
