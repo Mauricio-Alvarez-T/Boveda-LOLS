@@ -628,15 +628,17 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     - **Vehículos** (`VehicleExpiries`, 3 filas en la tarjeta; tarjeta y franja siguen con el número del
       menú, que cuenta papeles). Detalle **«Calendario + ficha»** (`DetalleVehiculos`, Marcos 2026-10-22:
       la opción B «Calendario» del lienzo combinada con la ficha de la opción A;
-      `GET /api/vehiculos/papeles?dias=30`, se pide al abrirlo y con «Actualizar»). Fila 1fr/2fr desde
-      1280 px (apilada antes: a 1024 la ficha no cabe en un tercio): a la izquierda **«N papeles ya
-      vencidos»** (cifra roja + lista «PATENTE · papel / vehículo · venció hace N días», toma el alto del
-      calendario); a la derecha el **calendario desde el lunes de esta semana hasta hoy + 30** (cinco
-      semanas, seis si hoy es sábado o domingo; `diasCalendario`): lo pasado y lo que queda fuera de la
-      ventana de datos apagados, hoy con anillo, el día con vencimientos en ámbar con
-      las patentes (puntos en el celular), y debajo **«Próximos 30 días»** («24 oct · PATENTE · papel · vence
-      en N días» + «Avisar» por WhatsApp de ESE papel). **Al tocar un día, un vencido o una fila**, la
-      columna izquierda cambia a la **ficha del vehículo** (la de la opción A, misma familia que las fichas
+      `GET /api/vehiculos/papeles?dias=30` y `?dias=60` para la lista, se piden al abrirlo y con «Actualizar»).
+      Fila 2fr/1fr desde 1280 px (apilada antes; en el celular: calendario, vencidos, lista) — Marcos
+      2026-10-22 pidió el calendario a la izquierda: a la izquierda el **calendario desde el lunes de esta
+      semana hasta hoy + 30** (cinco semanas, seis si hoy es sábado o domingo; `diasCalendario`): lo pasado y
+      lo que queda fuera de la ventana de datos apagados, hoy con anillo, el día con vencimientos en ámbar con
+      las patentes (puntos en el celular). A la derecha **«N papeles ya vencidos»** (cifra roja + lista
+      «PATENTE · papel / vehículo · venció hace N días») y, debajo, **«Próximos 60 días»** por mes (`porMes`,
+      «para que nada llegue por sorpresa»): lo de hoy a 30 días en ámbar y se toca para abrir la ficha; de 31
+      a 60, gris «para planificar» (aún no avisa, no abre ficha); cada fila con «Avisar» por WhatsApp de ESE
+      papel (solo el ícono desde 1280 px); 8 a la vista + «Ver los N». **Al tocar un día, un vencido o una
+      fila de 30 días**, el lugar de los vencidos cambia a la **ficha del vehículo** (la de la opción A, misma familia que las fichas
       de Asistencia: camión en círculo, «PATENTE · conduce Óscar Núñez», cuántos papeles requieren acción,
       la frase «Venció la revisión de gases hace 124 días…», una píldora por papel y el **semáforo de sus
       cinco papeles** Permiso · Póliza · Técnica · Gases · Mant.), con «← Ver vencidos» para volver; en el
@@ -651,7 +653,7 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       abrió; si tras «Actualizar» lo elegido ya no tiene nada, vuelve a los vencidos. Todo con `eventosFlota`
       (vencido o por vencer que avisa, papel por papel). Reemplazó a la lista de vencimientos y, el mismo
       día, a la grilla de fichas.
-    Vehículos va en dos tarjetas `rounded-3xl` (vencidos y calendario, como «Hoy» y «Próximos 14 días» de
+    Vehículos va en tarjetas `rounded-3xl` (calendario, vencidos y próximos, como «Hoy» y «Próximos 14 días» de
     Asistencia) más la ficha `rounded-[20px]` al tocar, con las piezas de `FichaInicio.tsx` + `fichasInicio.ts`
     (`PILDORA`, `CIFRA`, `CUADRO`), que copian las clases de `FichasReiterados` sin tocar los archivos de Asistencia.
     Piel común: **tarjetas blancas sin borde** (`rounded-3xl`, sombra `--shadow-md`) con

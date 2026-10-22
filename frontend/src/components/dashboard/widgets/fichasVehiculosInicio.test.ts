@@ -1,5 +1,5 @@
 import {
-    abreFormulario, ariaSemaforo, diasCalendario, eventosFlota, fechaConDia, fechaCorta, hoyIso, textoPlazo, urgenteDeEvento, bajadaVehiculo, fichasVehiculos, fraseVehiculo, mensajeWhatsApp, ordenSemaforo, PAPELES_META, papelDesdeUrl,
+    abreFormulario, ariaSemaforo, diasCalendario, porMes, eventosFlota, fechaConDia, fechaCorta, hoyIso, textoPlazo, urgenteDeEvento, bajadaVehiculo, fichasVehiculos, fraseVehiculo, mensajeWhatsApp, ordenSemaforo, PAPELES_META, papelDesdeUrl,
     pildora, primerNombre, rutaSubir, textoAvisar, tipoDocumentoDePapel, tituloVehiculo, tonoCelda, tonoFicha, urgentes,
     type PapelApi, type PapelClave, type PapelOtroApi, type VehiculoPapelesApi,
 } from './fichasVehiculosInicio';
@@ -183,6 +183,18 @@ describe('fichasVehiculosInicio', () => {
         expect(mensajeWhatsApp(juan, urgenteDeEvento(juan, ev[1])))
             .toBe('Hola Juan, al PRLG-45 le vence la revisión técnica en 8 días. Coordinemos para dejarlo al día.');
         expect(urgenteDeEvento(sin, ev[2]).map(u => u.nombre)).toEqual(['Fin de leasing']);
+    });
+
+    test('próximos 60 días por mes: lo que entra en el aviso de 30 días y lo que es para planificar', () => {
+        const e = (fecha: string, dias: number, patente = 'X') =>
+            ({ key: fecha + patente, vehiculo_id: 1, patente, vehiculo: 'V', fecha, dias, papel: 'P', clave: null, estado: 'por_vencer' as const });
+        const g = porMes([e('2026-11-27', 36), e('2026-10-30', 8), e('2026-11-06', 15, 'B'), e('2026-11-06', 15, 'A'), e('2026-12-15', 54)]);
+        expect(g.map(x => [x.titulo, x.eventos.map(y => [y.fecha, y.patente, y.dentro])])).toEqual([
+            ['Octubre', [['2026-10-30', 'X', true]]],
+            ['Noviembre', [['2026-11-06', 'A', true], ['2026-11-06', 'B', true], ['2026-11-27', 'X', false]]],
+            ['Diciembre', [['2026-12-15', 'X', false]]],
+        ]);
+        expect(porMes([])).toEqual([]);
     });
 
     test('plazos y fechas en palabras', () => {

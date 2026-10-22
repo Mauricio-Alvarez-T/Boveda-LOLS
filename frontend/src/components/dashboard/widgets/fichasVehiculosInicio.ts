@@ -319,6 +319,23 @@ const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 's
 const aUtc = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d); };
 const deUtc = (t: number) => new Date(t).toISOString().slice(0, 10);
 
+const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+/**
+ * «Próximos 60 días» agrupados por mes (Marcos 2026-10-22: «que aparezca también lo del próximo mes y no lo agarre
+ * por sorpresa»). `dentro` marca lo que entra en la ventana de aviso (hoy a `dias`): lo demás es para planificar.
+ */
+export function porMes(eventos: EventoPapel[], dias = 30): { mes: string; titulo: string; eventos: (EventoPapel & { dentro: boolean })[] }[] {
+    const grupos: { mes: string; titulo: string; eventos: (EventoPapel & { dentro: boolean })[] }[] = [];
+    for (const e of [...eventos].sort((a, b) => a.fecha.localeCompare(b.fecha) || a.patente.localeCompare(b.patente, 'es'))) {
+        const mes = e.fecha.slice(0, 7);
+        let g = grupos[grupos.length - 1];
+        if (!g || g.mes !== mes) { g = { mes, titulo: MESES_LARGOS[Number(mes.slice(5, 7)) - 1] ?? mes, eventos: [] }; grupos.push(g); }
+        g.eventos.push({ ...e, dentro: e.dias <= dias });
+    }
+    return grupos;
+}
+
 /** «24 oct». */
 export const fechaCorta = (iso: string) => `${Number(iso.slice(8, 10))} ${MESES_CORTOS[Number(iso.slice(5, 7)) - 1]}`;
 /** «vie 6 nov». */
