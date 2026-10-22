@@ -705,7 +705,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                     onClick={() => { setShowSearchBox(prev => !prev); if (showSearchBox && searchQuery) setSearchQuery(''); }}
                     className={cn("h-12 w-12 rounded-full flex items-center justify-center shadow-lg transition-colors duration-200", showSearchBox ? "bg-brand-dark text-white shadow-brand-dark/30" : "bg-brand-primary text-white shadow-brand-primary/30")}
                 >
-                    <AnimatePresence mode="wait">
+                    <AnimatePresence mode="wait" initial={false}>
                         {showSearchBox ? (
                             <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}><X className="h-5 w-5" /></motion.div>
                         ) : (
