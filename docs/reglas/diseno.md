@@ -624,13 +624,48 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     - **Inventario** (`InventarioInicio`, `GET /api/transferencias/inicio`): lo que le toca según el
       perfil —por aprobar y diferencias (aprobador), por despachar / por recibir (bodega), sus solicitudes
       en curso—; cada fila abre Inventario → Solicitudes con su filtro (`?tab=transferencias&estado=`).
-      Detalle: todos los grupos + alertas de transferencias.
-    - **Vehículos** (`VehicleExpiries`, 3 filas en la tarjeta): sin cambios de contenido; detalle con
-      todos los vencimientos de 30 días.
+      Detalle «Fichas por solicitud» (`DetalleInventario`, opción A del lienzo, Marcos 2026-10-22;
+      `GET /api/transferencias/inicio/fichas`, mismo alcance que la tarjeta; se pide al abrirlo y con
+      «Actualizar»): **Requiere acción** en una ficha por solicitud —iniciales del solicitante (rojo si
+      espera más de 30 días), destino, «desde {origen} · {código}», días esperando (gris hasta 7, ámbar
+      8-30, rojo > 30), la frase «Ana pidió Andamio ×4, Carretilla ×7 y 2 ítems más.» (en diferencias, qué
+      llegó de cada ítem), píldoras (etapa, Estancada, «Falta 1 u.»/«Faltan 2 SACO» —si se mezclan unidades,
+      «2 ítems con faltante»—, lo mismo con sobrantes en ámbar y, si no puede actuar, por qué:
+      «Pedida por ti», «Va a otra bodega»…) y el **camino P·A·D·R** (hecho relleno, en curso como anillo
+      azul en tránsito y ámbar en el resto, lo que falta punteado, la R roja si llegó con diferencias)—.
+      Pie: «Ver N ítems» (despliega la lista dentro de la ficha) y el enlace verde con lo que le toca a
+      quien mira (Aprobar · Recibir · Resolver, o «Ver solicitud»), que abre Inventario con esa solicitud
+      (`&id=`): aprobar o recibir piden formulario, no se hacen desde el Inicio. Filtro por etapa
+      (`FiltroFichas`: `PestanasElasticas` dentro de `BarraPaginada`, §9.6) solo con los grupos del perfil
+      y los totales de la tarjeta (se oculta si ve un solo grupo); primero las que llevan más días; 9 a la
+      vista + «Ver las N» y, si la tarjeta cuenta más de las que llegaron (máx. 50 por etapa), «Ver todas
+      en Inventario». Las solicitudes propias (`mis_solicitudes`) no van en fichas: se nombran abajo («Además
+      tienes 3 solicitudes tuyas en curso · Ver tus solicitudes») o en el vacío. Reemplazó a las filas por
+      grupo + «Alertas de inventario».
+    - **Vehículos** (`VehicleExpiries`, 3 filas en la tarjeta; tarjeta y franja siguen con el número del
+      menú, que cuenta papeles). Detalle «Fichas por vehículo» (`DetalleVehiculos`, opción A del lienzo,
+      Marcos 2026-10-22; `GET /api/vehiculos/papeles?dias=30`, se pide al abrirlo y con «Actualizar»): una
+      ficha por vehículo con algo vencido o por vencer que avisa, lo más vencido primero —camión en círculo
+      (rojo si algo venció, si no ámbar), marca y modelo, «PATENTE · conduce Óscar Núñez», cuántos papeles
+      requieren acción, la frase «Venció la revisión de gases hace 124 días. Vence la póliza de seguro en
+      6 días.», una píldora por papel («Gases · vencido», «Póliza · 6 d») y el **semáforo de sus cinco
+      papeles** (Permiso · Póliza · Técnica · Gases · Mant.: rojo vencido, ámbar por vencer, gris al día o
+      sin fecha, punteado sin registro; sin verde, como el día hábil de Asistencia)—. Pie: «Avisar a
+      {conductor}» (WhatsApp con el texto listo: no hay teléfono del conductor, la persona elige el
+      contacto; ícono en verde de la escala, sin hex) y «Subir el nuevo» solo si el enlace abre un formulario
+      (renovar pide editar; agregar, o un papel de las tablas antiguas, pide crear; lo de `otros` no se abre
+      por enlace) —si no, «Ver vehículo»—, que abre `/vehiculos?vehiculo=&papel=`. 9 a la vista + «Ver los N».
+      Vacío: «Ningún aviso de papeles vencidos ni por vencer…» (no «todo al día»: el número del menú puede
+      contar registros viejos o con el aviso apagado). Reemplazó a la lista de vencimientos.
+    Los detalles de Inventario y Vehículos van **sin `Panel`** (las fichas son la superficie, como
+    Asistencia) y usan las piezas de `FichaInicio.tsx` + `fichasInicio.ts` (`PILDORA`, `CIFRA`, `CUADRO`):
+    copian las clases de `FichasReiterados` (ficha `rounded-[20px]`, sombra `--shadow-sm`, grilla 1/2/3
+    columnas) sin tocar los archivos de Asistencia.
     Piel común: **tarjetas blancas sin borde** (`rounded-3xl`, sombra `--shadow-md`) con
     `EncabezadoTarjeta` (**círculo de color sólido** + título `text-base`) y `CifraTarjeta` (número grande
     en el mismo color, rampa 700/300). Tonos: rojo = vencido o grave, ámbar = pendiente, azul =
     informativo, verde = al día, neutro = solo dato. Las cuatro van **en una sola línea desde 1280 px**
     (`xl`), 2×2 en tablet y una bajo otra en celular (`COLUMNAS` según cuántas ve el perfil). Lógica pura
     con test: `resumenFaltasMes.ts`,
-    `resumenDocumentosInicio.ts`, `resumenInventarioInicio.ts`.
+    `resumenDocumentosInicio.ts`, `resumenInventarioInicio.ts`, `fichasInventarioInicio.ts`,
+    `fichasVehiculosInicio.ts`.

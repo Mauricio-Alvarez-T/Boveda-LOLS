@@ -1,6 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Plus, ArrowLeftRight, AlertTriangle, Search, X, Filter } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
+import api from '../../services/api';
+import type { TransferenciaConDiscrepancias } from '../../types/entities';
 import { useTransferencias } from '../../hooks/inventario/useTransferencias';
 import { useAuth } from '../../context/AuthContext';
 import StatusFilterBar from './StatusFilterBar';
@@ -65,6 +68,20 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         (async () => {
             const list = await trfHook.fetchDiscrepancias('pendiente');
             setPendientesCount(list.length);
+            // Llegó a diferencias con una solicitud (ficha del Inicio, 2026-10-22): abre la suya si sigue pendiente.
+            if (!initialSelectedId || !isDiscrepanciasMode) return;
+            let pedida = list.find(d => d.id === initialSelectedId);
+            if (!pedida) {
+                // La lista trae las 50 más nuevas y el Inicio muestra primero las más antiguas: se busca una
+                // vez con el máximo del servidor, sin tocar la lista (el filtro la está pidiendo a la vez).
+                try {
+                    const res = await api.get<{ data: TransferenciaConDiscrepancias[] }>('/transferencias/discrepancias',
+                        { params: { estado: 'pendiente', limit: 200 } });
+                    pedida = res.data.data.find(d => d.id === initialSelectedId);
+                } catch { /* sin conexión: queda la lista */ }
+            }
+            if (pedida) trfHook.setSelectedDiscrepancia(pedida);
+            else toast.info('Esa solicitud ya no tiene diferencias pendientes.');
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

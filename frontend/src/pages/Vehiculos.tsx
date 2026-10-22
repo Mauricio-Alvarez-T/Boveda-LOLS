@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useIsPresent } from 'framer-motion';
 import {
     Truck, Plus, Building2,
     Trash2, Edit2, X, ChevronLeft, ChevronRight, Search, Filter, Save, User, Banknote
@@ -23,6 +25,7 @@ import { VehiculosVendidos } from '../components/vehiculos/VehiculosVendidos';
 import { VencimientosBadge } from '../components/vehiculos/VencimientosBadge';
 import { useVencimientosVehiculos } from '../hooks/useVencimientosVehiculos';
 import { textoVencimiento, etiquetaVencimiento } from '../utils/vencimientos';
+import { papelDesdeUrl, tipoDocumentoDePapel, type TipoDocumentoPapel } from '../components/dashboard/widgets/fichasVehiculosInicio';
 import api from '../services/api';
 import type { Vehiculo, EmpresaVehiculo, VehiculoVenta } from '../types/entities';
 import type { ApiResponse } from '../types';
@@ -42,6 +45,9 @@ const VehiculosPage: React.FC = () => {
     const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
     const [empresas, setEmpresas] = useState<EmpresaVehiculo[]>([]);
     const [loading, setLoading] = useState(false);
+    // Para abrir un vehículo por URL hay que saber que ya llegaron (`loading` parte en false, no sirve).
+    const [vehiculosCargados, setVehiculosCargados] = useState(false);
+    const [empresasCargadas, setEmpresasCargadas] = useState(false);
 
     // Vencimientos: el MISMO número del menú, desglosado por empresa y por
     // vehículo. Se calcula acá desde `items` (que trae vehiculo_id) en vez de
@@ -102,6 +108,15 @@ const VehiculosPage: React.FC = () => {
     // Modal de venta (dar de baja por venta)
     const [vehiculoVender, setVehiculoVender] = useState<Vehiculo | null>(null);
     const [leasingVer, setLeasingVer] = useState<Vehiculo | null>(null);
+    // Papel que se abre solo en el detalle (Inicio → «Subir el nuevo»); se olvida apenas se abre.
+    const [abrirPapel, setAbrirPapel] = useState<{ vehiculoId: number; tipo: TipoDocumentoPapel } | null>(null);
+    const olvidarPapel = useCallback(() => setAbrirPapel(null), []);
+    // La página que SALE (AnimatePresence de MainLayout) también se dibuja con la ruta nueva: solo la que
+    // se queda puede usar y limpiar ?vehiculo=&papel=, o la copia definitiva llegaría con la URL ya limpia.
+    const presente = useIsPresent();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const vehiculoUrl = searchParams.get('vehiculo');
+    const papelUrl = searchParams.get('papel');
 
     // ── Fetch ─────────────────────────────────────────────────────────────────
 
@@ -111,7 +126,7 @@ const VehiculosPage: React.FC = () => {
             const res = await api.get<{ data: Vehiculo[] }>('/vehiculos');
             setVehiculos(res.data.data || []);
         } catch { toast.error('Error al cargar vehículos'); }
-        finally { setLoading(false); }
+        finally { setLoading(false); setVehiculosCargados(true); }
     }, []);
 
     const fetchEmpresas = useCallback(async () => {
@@ -121,6 +136,7 @@ const VehiculosPage: React.FC = () => {
             const res = await api.get<ApiResponse<EmpresaVehiculo[]>>('/empresas-vehiculos?activo=true&limit=1000');
             setEmpresas(res.data.data || []);
         } catch { /* no bloquea: el grid puede armarse desde los vehículos */ }
+        finally { setEmpresasCargadas(true); }
     }, []);
 
     // Historial de ventas (compra vs. venta). Se fetchea acá (y no en el
@@ -344,6 +360,27 @@ const VehiculosPage: React.FC = () => {
         if (!vigente) setSelected(null);
         else if (vigente !== selected) setSelected(vigente);
     }, [vehiculosEmpresa, selected]);
+
+    // Abrir por URL (2026-10-22, «Subir el nuevo» del Inicio): /vehiculos?vehiculo=<id>&papel=<clave>. Espera a
+    // los vehículos Y a las empresas (sin empresas el vehículo caería en «Sin empresa» y la reconciliación lo
+    // cerraría al llegar), elige su empresa con la misma regla de `conteos` (inactiva o nula → 'sin'), lo abre,
+    // guarda el papel para VehiculoDocumentos y limpia la URL. Va DESPUÉS de la preselección del celular para
+    // ganarle si las dos corren en el mismo render.
+    useEffect(() => {
+        if (!presente || !vehiculoUrl || !vehiculosCargados || !empresasCargadas) return;
+        const v = vehiculos.find(x => x.id === Number(vehiculoUrl));
+        if (v) {
+            setSelectedEmpresa((v.empresa_id != null ? empresas.find(e => e.id === v.empresa_id) : undefined) ?? 'sin');
+            setSelected(v);
+            const papel = papelDesdeUrl(papelUrl);
+            setAbrirPapel(papel ? { vehiculoId: v.id, tipo: tipoDocumentoDePapel(papel) } : null);
+        }
+        setSearchParams(prev => {
+            const p = new URLSearchParams(prev);
+            p.delete('vehiculo'); p.delete('papel');
+            return p;
+        }, { replace: true });
+    }, [presente, vehiculoUrl, papelUrl, vehiculosCargados, empresasCargadas, vehiculos, empresas, setSearchParams]);
 
     // ── Acciones ────────────────────────────────────────────────────────────
     const handleDelete = async (v: Vehiculo) => {
@@ -612,7 +649,8 @@ const VehiculosPage: React.FC = () => {
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto space-y-5">
-                <VehiculoDocumentos vehiculoId={selected.id} onCambio={vencimientos.refetch} />
+                <VehiculoDocumentos vehiculoId={selected.id} onCambio={vencimientos.refetch}
+                    abrir={abrirPapel?.vehiculoId === selected.id ? abrirPapel.tipo : undefined} onAbierto={olvidarPapel} />
             </div>
         </div>
     ) : null;

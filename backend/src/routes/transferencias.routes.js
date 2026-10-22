@@ -5,6 +5,7 @@ const validateBody = require('../middleware/validateBody');
 const transferenciaService = require('../services/transferencia.service');
 const uploadTransferencias = require('../middleware/upload-transferencias');
 const { logManualActivity } = require('../middleware/logger');
+const { normalizePagination } = require('../utils/pagination');
 const {
     crearTransferencia, aprobar, recibir, resolverDiscrepancia,
     pushDirecto, intraBodega, devolucion, intraObra,
@@ -85,6 +86,17 @@ router.get('/pendientes', auth, checkPermission('inventario.transferencias.aprob
 router.get('/inicio', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const result = await transferenciaService.resumenInicio(req.user);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// GET /api/transferencias/inicio/fichas?limit= — fichas por solicitud de la tarjeta «Inventario» del Inicio: mismas
+// etapas y alcance que /inicio, con ítems y la acción de este usuario (transferenciaService.fichasInicio). `limit` es
+// por etapa (por defecto 50, máximo 100). También va ANTES de /:id.
+router.get('/inicio/fichas', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+    try {
+        const { limit } = normalizePagination(req.query, 50, 100);
+        const result = await transferenciaService.fichasInicio(req.user, { limite: limit });
         res.json({ data: result });
     } catch (err) { next(err); }
 });
@@ -181,14 +193,18 @@ router.delete('/discrepancias/:id', auth, checkPermission('inventario.transferen
 // sólo puede ver el detalle de transferencias que él mismo creó o que están
 // DESTINADAS a su bodega (usuarios.bodega_id, rol bodeguero). Evita que un
 // usuario adivine IDs y abra solicitudes de terceros.
+// Excepción (2026-10-22): quien APRUEBA ve el detalle de una solicitud PENDIENTE ajena — las pendientes ya le
+// llegan globales (GET /pendientes y las fichas del Inicio) y para aprobarlas tiene que poder abrirlas.
 router.get('/:id', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const result = await transferenciaService.getById(req.params.id);
         if (!result) return res.status(404).json({ error: 'Transferencia no encontrada' });
 
-        const verTodas = Array.isArray(req.user?.p) && req.user.p.includes('inventario.transferencias.ver_todas');
+        const permisos = Array.isArray(req.user?.p) ? req.user.p : [];
+        const verTodas = permisos.includes('inventario.transferencias.ver_todas');
         const esDestinoMiBodega = req.user.bodega_id != null && result.destino_bodega_id === req.user.bodega_id;
-        if (!verTodas && result.solicitante_id !== req.user.id && !esDestinoMiBodega) {
+        const aprobadorDePendiente = result.estado === 'pendiente' && permisos.includes('inventario.transferencias.aprobar');
+        if (!verTodas && !aprobadorDePendiente && result.solicitante_id !== req.user.id && !esDestinoMiBodega) {
             return res.status(403).json({ error: 'No tienes permiso para ver esta transferencia' });
         }
         res.json({ data: result });

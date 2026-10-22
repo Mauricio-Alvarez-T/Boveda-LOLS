@@ -100,7 +100,9 @@ Implementación: `backend/src/services/transferencia.service.js`.
   asignar/cambiar** (el PUT bumpea la versión del rol para forzarlo).
 - **Visibilidad**: sin `ver_todas`, un usuario con bodega ve sus propias solicitudes **+ las
   transferencias DESTINADAS a su bodega** (`getAll`: `solicitante_id = ? OR destino_bodega_id = ?`;
-  `GET /:id` también lo permite).
+  `GET /:id` también lo permite). Excepción (2026-10-22): con `inventario.transferencias.aprobar`, `GET /:id`
+  abre también una solicitud **pendiente** ajena — las pendientes ya le llegan globales (`/pendientes`, fichas
+  del Inicio) y para aprobarla tiene que poder abrirla. Ya aprobada, vuelve la regla normal.
 - **Enforcement**: usuario con bodega solo puede `recibir` / `rechazar-recepcion` transferencias
   destinadas a SU bodega (403 si ajena; backend + gating de botón en `useTransferenciaDetail`).
   Usuarios sin bodega: sin cambio. El SoD existente se mantiene.
@@ -134,8 +136,37 @@ el perfil no puede hacer viene `null` y la tarjeta no lo muestra. Cada grupo tra
   bodega (mig 097).
 - `mis_solicitudes`: las propias en curso (pendiente, aprobada, en tránsito).
 La ruta va ANTES de `/:id`. Cada fila abre Inventario → Solicitudes con su filtro:
-`/inventario?tab=transferencias&estado=pendiente|aprobada|discrepancias|todas` (Inventario lee `tab` y
-`estado` solo al entrar). Lógica del frontend en `resumenInventarioInicio.ts` (con test).
+`/inventario?tab=transferencias&estado=pendiente|aprobada|discrepancias|todas` (Inventario lee `tab`,
+`estado` e `id` solo al entrar). Lógica del frontend en `resumenInventarioInicio.ts` (con test).
+
+### Fichas del detalle (`GET /api/transferencias/inicio/fichas?limit=`, 2026-10-22)
+
+`transferenciaService.fichasInicio(user, { limite })` (`inventario.ver`, también antes de `/:id`): las
+solicitudes detrás de esas cifras, una ficha por solicitud, para el detalle «Fichas por solicitud» del Inicio
+(`DetalleInventario`; lógica en `fichasInventarioInicio.ts`, con test). Devuelve `{ conteos, limite, fichas }`;
+`conteos` es `resumenInicio(user)` sin cambios (los totales del filtro).
+- **Mismo alcance que la tarjeta**: `_etapasInicio` copia los permisos, condiciones y alcance de
+  `resumenInicio` (el test compara el SQL de los dos en 5 perfiles; si se cambia uno, se cambia el otro).
+  Única diferencia: diferencias va con `EXISTS` (el `JOIN` repetiría la ficha por ítem). `mis_solicitudes`
+  no genera fichas. Una solicitud en dos etapas da UNA ficha: diferencias > por recibir > por despachar >
+  por aprobar.
+- `limit` es **por etapa** (`normalizePagination`: 50 por defecto, máximo 100; las más antiguas). Consultas
+  fijas: una por etapa + ítems, ítems personalizados (`aprobado = 1`) y diferencias en lote (`IN (?)`).
+  **Nunca columnas de $**: de los ítems solo descripción y unidad.
+- Cada ficha: código, estado, `tipo_flujo`, etapa, origen y destino (obra o, si no, bodega), solicitante,
+  `dias` en la etapa (desde la solicitud, la aprobación, el despacho o la recepción), `estancada` (solo por
+  aprobar: 10 días o la prórroga, la regla del Resumen Ejecutivo), ítems (`recibida` solo si ya hubo
+  recepción) y, en diferencias, las pendientes ≠ 0 con `faltan` y `sobran`.
+- **Acción según quien mira** (`accion` + `bloqueo`, copia de `useTransferenciaDetail`): por aprobar →
+  Aprobar (SoD: no la propia, salvo `sod_bypass`); diferencias → Resolver (`aprobar`); por despachar y por
+  recibir → **Recibir** (`recibir`; SoD: no quien la aprobó / quien la despachó; con `bodega_id`, solo las de
+  su bodega). **La interfaz no tiene «Despachar»** (desde 2026-04-14; `recibir()` acepta `aprobada`). Solo
+  elige el enlace de la ficha: aprobar, recibir y resolver validan todo de nuevo al ejecutarse.
+- La ficha no aprueba ni recibe (piden formulario): abre Inventario con esa solicitud,
+  `/inventario?tab=transferencias&estado=…&id=N`. Con `estado=discrepancias`, `TransferenciasPanel` la elige
+  de la lista de diferencias pendientes que ya trae; si no está (la lista trae las 50 más nuevas y el Inicio
+  muestra primero las más antiguas), la busca una vez con `limit=200` y, si ya no está pendiente, avisa. Con otro
+  estado la abre por `GET /:id`.
 
 ## Discrepancias
 

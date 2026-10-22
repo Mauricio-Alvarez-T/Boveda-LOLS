@@ -115,4 +115,20 @@ describe('GET /api/transferencias/:id — defensa en profundidad', () => {
             .set('Authorization', `Bearer ${makeToken(['inventario.ver'], 5, 3)}`);
         expect(res.status).toBe(403);
     });
+
+    test('aprobador SIN ver_todas: PENDIENTE ajena → 200 (para poder aprobarla)', async () => {
+        service.getById.mockResolvedValue({ id: 9, solicitante_id: 7, estado: 'pendiente', items: [] });
+        const res = await request(app)
+            .get('/api/transferencias/9')
+            .set('Authorization', `Bearer ${makeToken(['inventario.ver', 'inventario.transferencias.aprobar'], 5)}`);
+        expect(res.status).toBe(200);
+    });
+
+    test('aprobador SIN ver_todas: ajena ya APROBADA → 403 (la excepción es solo para pendientes)', async () => {
+        service.getById.mockResolvedValue({ id: 9, solicitante_id: 7, estado: 'aprobada', items: [] });
+        const res = await request(app)
+            .get('/api/transferencias/9')
+            .set('Authorization', `Bearer ${makeToken(['inventario.ver', 'inventario.transferencias.aprobar'], 5)}`);
+        expect(res.status).toBe(403);
+    });
 });

@@ -247,6 +247,71 @@ async function _selectDiscrepancias(conn, extra, resto, params) {
 const _pendienteReglaAnterior = (fila) =>
     fila.estado === 'pendiente' && fila.diferencia_aplicada !== undefined && !_esReglaNueva(fila.diferencia_aplicada);
 
+// ── Fichas de la tarjeta «Inventario» del Inicio (fichasInicio, 2026-10-22) ──
+// Orden de prioridad de las etapas: si una solicitud cae en dos, queda UNA ficha con la primera de esta lista.
+const ETAPAS_INICIO = ['discrepancias', 'por_recibir', 'por_despachar', 'por_aprobar'];
+// Etapas que este usuario ve, con EXACTAMENTE los permisos, condiciones y alcance de los grupos de resumenInicio
+// (copia literal: los conteos y las fichas no pueden desfasarse; lo cuida tests/transferencias_fichas_inicio.test.js).
+// Única diferencia admitida: discrepancias va con EXISTS en vez de JOIN (el JOIN repetiría la ficha por cada ítem).
+// `desde` = fecha en que entró a la etapa (los «días esperando»). null = el perfil no ve esa etapa.
+function _etapasInicio(user = {}) {
+    const p = Array.isArray(user.p) ? user.p : [];
+    const tiene = (k) => p.includes(k);
+    let alcance = '';
+    const alcanceParams = [];
+    if (!tiene('inventario.transferencias.ver_todas')) {
+        alcance = user.bodega_id
+            ? ' AND (t.solicitante_id = ? OR t.destino_bodega_id = ?)'
+            : ' AND t.solicitante_id = ?';
+        alcanceParams.push(user.id);
+        if (user.bodega_id) alcanceParams.push(user.bodega_id);
+    }
+    const aprobar = tiene('inventario.transferencias.aprobar');
+    return {
+        discrepancias: aprobar ? {
+            where: " AND EXISTS (SELECT 1 FROM transferencia_discrepancias d WHERE d.transferencia_id = t.id AND d.estado = 'pendiente' AND d.diferencia <> 0)",
+            params: [],
+            desde: 'COALESCE(t.fecha_recepcion, t.fecha_despacho, t.fecha_solicitud)',
+        } : null,
+        por_recibir: tiene('inventario.transferencias.recibir') ? {
+            where: " AND t.estado IN ('en_transito', 'recepcion_parcial')" + alcance,
+            params: alcanceParams,
+            desde: 'COALESCE(t.fecha_despacho, t.fecha_aprobacion, t.fecha_solicitud)',
+        } : null,
+        por_despachar: tiene('inventario.transferencias.despachar') ? {
+            where: " AND t.estado = 'aprobada'" + alcance,
+            params: alcanceParams,
+            desde: 'COALESCE(t.fecha_aprobacion, t.fecha_solicitud)',
+        } : null,
+        por_aprobar: aprobar ? { where: " AND t.estado = 'pendiente'", params: [], desde: 't.fecha_solicitud' } : null,
+    };
+}
+// ¿Mismo usuario? (ids de la BD y del JWT; null nunca coincide).
+const _mismoId = (a, b) => a != null && b != null && Number(a) === Number(b);
+// Lo que ESTE usuario puede hacer ahora con la ficha y, si nada, por qué. Copia de canAprobar / canRecibir de
+// frontend/src/hooks/inventario/useTransferenciaDetail.ts: la interfaz no tiene «Despachar» desde 14-04-2026 y
+// recibir() acepta 'aprobada', así que en por_despachar la acción también es Recibir. Solo decide qué enlace muestra
+// la ficha: aprobar/recibir/resolver vuelven a validar todo (SoD, bodega) al ejecutarse.
+function _accionInicio(t, etapa, user = {}) {
+    const p = Array.isArray(user.p) ? user.p : [];
+    const bypass = _hasBypass(p);
+    const nada = (bloqueo) => ({ accion: null, bloqueo });
+    if (etapa === 'discrepancias') {
+        return _hasPerm(p, 'inventario.transferencias.aprobar') ? { accion: 'resolver', bloqueo: null } : nada('sin_permiso');
+    }
+    if (etapa === 'por_aprobar') {
+        if (!_hasPerm(p, 'inventario.transferencias.aprobar')) return nada('sin_permiso');
+        if (_mismoId(t.solicitante_id, user.id) && !bypass) return nada('sod_solicitante');
+        return { accion: 'aprobar', bloqueo: null };
+    }
+    // por_despachar (aprobada) y por_recibir (en tránsito / recepción parcial): Recibir.
+    if (!_hasPerm(p, 'inventario.transferencias.recibir')) return nada('sin_permiso');
+    if (etapa === 'por_despachar' && _mismoId(t.aprobador_id, user.id) && !bypass) return nada('sod_aprobador');
+    if (etapa === 'por_recibir' && _mismoId(t.transportista_id, user.id) && !bypass) return nada('sod_transportista');
+    if (user.bodega_id != null && !_mismoId(t.destino_bodega_id, user.bodega_id)) return nada('otra_bodega');
+    return { accion: 'recibir', bloqueo: null };
+}
+
 const transferenciaService = {
     /**
      * Helper: SELECT de transferencia con FOR UPDATE para transición de estado.
@@ -2069,6 +2134,141 @@ const transferenciaService = {
             out[k] = r ? grupo(r[0]?.[0]?.n, r[0]?.[0]?.dias) : null;
         });
         return out;
+    },
+
+    /**
+     * Fichas de la tarjeta «Inventario» del Inicio (opción A «Fichas por solicitud», 2026-10-22): las solicitudes
+     * detrás de las cifras de resumenInicio, con sus ítems y lo que ESTE usuario puede hacer con cada una.
+     *   - Etapas = los grupos de resumenInicio (_etapasInicio: mismos permisos, condiciones y alcance);
+     *     mis_solicitudes no genera fichas. Si una solicitud cae en dos etapas, una sola ficha (ETAPAS_INICIO).
+     *   - Consultas fijas, sin N+1: una por etapa permitida (hasta `limite` por etapa, las más antiguas) + ítems,
+     *     ítems personalizados y diferencias en lote (IN (?)), solo si hay ids.
+     *   - Nunca columnas de $ (items_inventario.valor_*): de los ítems solo descripción y unidad.
+     * Devuelve { conteos (resumenInicio sin cambios, para «Ver las N»), limite, fichas } con las fichas por días
+     * DESC, id ASC. `estancada` = la regla de inventario.service (10 días o la prórroga), solo en por_aprobar.
+     */
+    async fichasInicio(user = {}, { limite } = {}) {
+        // LIMIT numérico (un string rompe en MariaDB, RUNBOOK §6): se normaliza aunque la ruta ya lo haga.
+        const lim = normalizePagination({ limit: limite }, 50, 100).limit;
+        const etapas = _etapasInicio(user);
+        const activas = ETAPAS_INICIO.filter(k => etapas[k]);
+        const [conteos, ...porEtapa] = await Promise.all([
+            this.resumenInicio(user),
+            // `k` sale de ETAPAS_INICIO (lista fija), no del request.
+            ...activas.map(k => db.query(`
+                SELECT t.id, t.codigo, t.estado, t.tipo_flujo, t.solicitante_id, t.aprobador_id, t.transportista_id,
+                       t.destino_bodega_id, '${k}' AS etapa,
+                       COALESCE(oo.nombre, ob.nombre) AS origen_nombre,
+                       COALESCE(do2.nombre, db2.nombre) AS destino_nombre,
+                       us.nombre AS solicitante_nombre,
+                       DATEDIFF(CURDATE(), ${etapas[k].desde}) AS dias,
+                       DATEDIFF(COALESCE(t.prorroga_hasta, DATE_ADD(DATE(t.fecha_solicitud), INTERVAL 10 DAY)), CURDATE()) AS dias_hasta_limite
+                FROM transferencias t
+                LEFT JOIN obras oo ON t.origen_obra_id = oo.id
+                LEFT JOIN bodegas ob ON t.origen_bodega_id = ob.id
+                LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
+                LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
+                LEFT JOIN usuarios us ON t.solicitante_id = us.id
+                WHERE t.activo = 1${EXCLUIR_OBRAS_PRUEBA}${etapas[k].where}
+                ORDER BY dias DESC, t.id ASC
+                LIMIT ?
+            `, [...etapas[k].params, lim])),
+        ]);
+
+        // Una ficha por solicitud: `activas` va en orden de prioridad → la primera etapa que la trae, gana.
+        const porId = new Map();
+        activas.forEach((k, i) => {
+            (porEtapa[i]?.[0] || []).forEach(r => { if (!porId.has(r.id)) porId.set(r.id, { ...r, etapa: k }); });
+        });
+        const filas = [...porId.values()];
+        if (!filas.length) return { conteos, limite: lim, fichas: [] };
+
+        const ids = filas.map(r => r.id);
+        const idsDiferencias = filas.filter(r => r.etapa === 'discrepancias').map(r => r.id);
+        const [[items], [custom], [difs]] = await Promise.all([
+            db.query(`
+                SELECT ti.transferencia_id, ti.id, ti.cantidad_solicitada, ti.cantidad_recibida,
+                       i.descripcion AS nombre, i.unidad
+                FROM transferencia_items ti
+                JOIN items_inventario i ON i.id = ti.item_id
+                WHERE ti.transferencia_id IN (?)
+                ORDER BY ti.transferencia_id, ti.id
+            `, [ids]),
+            // Personalizados (fuera de catálogo): aprobado = FALSE es un ítem que el aprobador quitó (mig 070).
+            db.query(`
+                SELECT tic.transferencia_id, tic.id, tic.descripcion AS nombre, tic.unidad,
+                       tic.cantidad, tic.cantidad_aprobada, tic.cantidad_recibida
+                FROM transferencia_items_custom tic
+                WHERE tic.transferencia_id IN (?) AND tic.aprobado = 1
+                ORDER BY tic.transferencia_id, tic.id
+            `, [ids]),
+            idsDiferencias.length
+                ? db.query(`
+                    SELECT d.transferencia_id, d.id, d.cantidad_enviada, d.cantidad_recibida, d.diferencia,
+                           i.descripcion AS nombre, i.unidad
+                    FROM transferencia_discrepancias d
+                    JOIN items_inventario i ON i.id = d.item_id
+                    WHERE d.transferencia_id IN (?) AND d.estado = 'pendiente' AND d.diferencia <> 0
+                    ORDER BY d.transferencia_id, d.id
+                `, [idsDiferencias])
+                : [[]],
+        ]);
+
+        const agrupar = (rows) => {
+            const m = new Map();
+            (rows || []).forEach(r => {
+                if (!m.has(r.transferencia_id)) m.set(r.transferencia_id, []);
+                m.get(r.transferencia_id).push(r);
+            });
+            return m;
+        };
+        const itemsDe = agrupar(items);
+        const customDe = agrupar(custom);
+        const difsDe = agrupar(difs);
+
+        const fichas = filas.map(r => {
+            // «Recibida» solo tiene sentido si ya hubo una recepción: antes es null (en los personalizados la columna
+            // es NOT NULL DEFAULT 0 y un 0 no quiere decir «llegó 0»).
+            const huboRecepcion = r.estado === 'recepcion_parcial' || r.estado === 'recibida';
+            const recibida = (v) => (huboRecepcion ? _r4(v) : null);
+            const diferencias = (difsDe.get(r.id) || []).map(d => ({
+                id: d.id, nombre: d.nombre, unidad: d.unidad ?? null,
+                enviada: _r4(d.cantidad_enviada), recibida: _r4(d.cantidad_recibida), diferencia: _r4(d.diferencia),
+            }));
+            const { accion, bloqueo } = _accionInicio(r, r.etapa, user);
+            return {
+                id: r.id,
+                codigo: r.codigo,
+                estado: r.estado,
+                tipo_flujo: r.tipo_flujo ?? null,
+                etapa: r.etapa,
+                origen_nombre: r.origen_nombre ?? null,
+                destino_nombre: r.destino_nombre ?? null,
+                solicitante_id: r.solicitante_id ?? null,
+                solicitante_nombre: r.solicitante_nombre ?? null,
+                dias: Math.max(0, Math.trunc(Number(r.dias)) || 0),
+                estancada: r.etapa === 'por_aprobar' && r.dias_hasta_limite != null && Number(r.dias_hasta_limite) <= 0,
+                accion,
+                bloqueo,
+                items: [
+                    ...(itemsDe.get(r.id) || []).map(i => ({
+                        id: i.id, nombre: i.nombre, unidad: i.unidad ?? null,
+                        cantidad: _r4(i.cantidad_solicitada), recibida: recibida(i.cantidad_recibida),
+                    })),
+                    ...(customDe.get(r.id) || []).map(c => ({
+                        id: c.id, nombre: c.nombre, unidad: c.unidad ?? null,
+                        cantidad: _r4(c.cantidad_aprobada != null ? c.cantidad_aprobada : c.cantidad),
+                        recibida: recibida(c.cantidad_recibida),
+                    })),
+                ],
+                diferencias,
+                // diferencia = enviada − recibida: positiva = faltante, negativa = sobrante (mig 052).
+                faltan: _r4(diferencias.reduce((s, d) => s + (d.diferencia > 0 ? d.diferencia : 0), 0)),
+                sobran: _r4(diferencias.reduce((s, d) => s + (d.diferencia < 0 ? -d.diferencia : 0), 0)),
+            };
+        });
+        fichas.sort((a, b) => (b.dias - a.dias) || (a.id - b.id));
+        return { conteos, limite: lim, fichas };
     },
 
     async getMisSolicitudes(userId, query = {}) {

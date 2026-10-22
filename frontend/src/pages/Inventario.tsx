@@ -159,8 +159,9 @@ const InventarioPage: React.FC = () => {
     const [hideEmptyUbic, setHideEmptyUbic] = useState(false);
     // Intent de navegación desde el Resumen Ejecutivo hacia Transferencias.
     // Se consume como props iniciales del Panel; cambia de valor fuerza remount via `key`.
+    // `&id=N` en la URL (fichas del Inicio, 2026-10-22) abre esa solicitud al entrar.
     const [trfNavIntent, setTrfNavIntent] = useState<{ estado?: string; id?: number | null; nonce: number }>(
-        () => ({ estado: searchParams.get('estado') ?? undefined, nonce: 0 }));
+        () => ({ estado: searchParams.get('estado') ?? undefined, id: Number(searchParams.get('id')) || null, nonce: 0 }));
 
     // El subtítulo del header muestra el tab activo como breadcrumb (→ Tab)
     // para que el usuario sepa dónde está sin mirar las pestañas.
