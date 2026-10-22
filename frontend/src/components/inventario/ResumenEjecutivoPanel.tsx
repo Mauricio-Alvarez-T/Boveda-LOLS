@@ -591,7 +591,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         onClick={refetch}
                         disabled={loading}
                         aria-label="Actualizar datos"
-                        leftIcon={<RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />}
+                        leftIcon={<RefreshCw className={cn('h-3.5 w-3.5', loading && !!data && 'animate-spin')} />}
                     >
                         Actualizar
                     </Button>
