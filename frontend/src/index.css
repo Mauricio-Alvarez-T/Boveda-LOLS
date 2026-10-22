@@ -391,13 +391,17 @@
     0 2px 8px rgba(0, 0, 0, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
   color: #FFFFFF !important;
+  /* El color de cada tipo llega en --aviso-fondo (abajo) y se pinta como imagen, no con el atajo
+     `background`: así la mecha (§ Avisos, más abajo) puede ir como una capa encima. */
+  background-color: transparent !important;
+  background-image: var(--aviso-fondo) !important;
 }
 
 /* Default (sin tipo) y success: verde corporativo LOLS */
 [data-sonner-toast][data-styled="true"],
 [data-sonner-toast][data-styled="true"][data-type="default"],
 [data-sonner-toast][data-styled="true"][data-type="success"] {
-  background: linear-gradient(135deg, #029E4D 0%, #028a42 100%) !important;
+  --aviso-fondo: linear-gradient(135deg, #029E4D 0%, #028a42 100%);
   box-shadow:
     0 10px 32px rgba(2, 158, 77, 0.32),
     0 2px 8px rgba(2, 158, 77, 0.18),
@@ -405,7 +409,7 @@
 }
 
 [data-sonner-toast][data-styled="true"][data-type="error"] {
-  background: linear-gradient(135deg, #FF3B30 0%, #E0241B 100%) !important;
+  --aviso-fondo: linear-gradient(135deg, #FF3B30 0%, #E0241B 100%);
   box-shadow:
     0 10px 32px rgba(255, 59, 48, 0.32),
     0 2px 8px rgba(255, 59, 48, 0.18),
@@ -413,7 +417,7 @@
 }
 
 [data-sonner-toast][data-styled="true"][data-type="warning"] {
-  background: linear-gradient(135deg, #FF9F0A 0%, #E68900 100%) !important;
+  --aviso-fondo: linear-gradient(135deg, #FF9F0A 0%, #E68900 100%);
   box-shadow:
     0 10px 32px rgba(255, 159, 10, 0.32),
     0 2px 8px rgba(255, 159, 10, 0.18),
@@ -421,7 +425,7 @@
 }
 
 [data-sonner-toast][data-styled="true"][data-type="info"] {
-  background: linear-gradient(135deg, #147CE5 0%, #0F66BD 100%) !important;
+  --aviso-fondo: linear-gradient(135deg, #147CE5 0%, #0F66BD 100%);
   box-shadow:
     0 10px 32px rgba(20, 124, 229, 0.32),
     0 2px 8px rgba(20, 124, 229, 0.18),
@@ -521,4 +525,52 @@
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
+}
+
+/* Avisos (sonner, 2026-10-20): una línea de 2 px abajo muestra cuánto le queda al aviso antes de
+   cerrarse solo (idea: Swipe Toast de React Bits, reescrita). Dura lo mismo que el aviso
+   (--aviso-duracion, utils/avisos.ts) y se pausa con el puntero encima, como el tiempo de sonner.
+   Blanca semitransparente sobre el color del aviso. Es una capa de fondo que se achica (sonner ya usa
+   ::before y ::after); no en los de carga, los propios (unstyled) ni al deslizarlos para cerrar.
+   Con «reducir movimiento» no se dibuja. Deslizar hacia abajo para cerrar ya lo trae sonner. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-sonner-toast][data-styled="true"]:not([data-type="loading"]):not([data-swipe-out="true"]):not([data-removed="true"]) {
+    background-image: linear-gradient(var(--aviso-mecha, rgb(255 255 255 / 0.6)), var(--aviso-mecha, rgb(255 255 255 / 0.6))), var(--aviso-fondo) !important;
+    background-repeat: no-repeat !important;
+    background-position: left bottom, 0 0 !important;
+    background-size: 100% 2px, 100% 100%; /* sin !important: la animación tiene que poder achicar la mecha */
+    animation: aviso-mecha var(--aviso-duracion, 3000ms) linear forwards;
+  }
+  [data-sonner-toast][data-expanded="true"] { animation-play-state: paused; }
+}
+/* Los dos extremos explícitos: sonner pone `background` abreviado, que deja el tamaño en `auto`
+   (sin el `from`, la línea arrancaría del tamaño del aviso completo y lo teñiría entero). */
+@keyframes aviso-mecha {
+  from { background-size: 100% 2px, 100% 100%; }
+  to { background-size: 0% 2px, 100% 100%; }
+}
+
+/* Dictar (ui/BotonDictar): cuatro barras que se mueven mientras escucha. Loop en CSS (§9.1), solo
+   mientras graba; quietas a media altura con «reducir movimiento». */
+.ecualizador > span {
+  height: 100%;
+  transform: scaleY(0.6);
+  transform-origin: bottom;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ecualizador > span {
+    animation: ecualizador 0.6s ease-in-out infinite alternate;
+  }
+}
+@keyframes ecualizador {
+  from { transform: scaleY(0.3); }
+  to { transform: scaleY(1); }
+}
+
+/* Estanque del gastado (costos/EstanqueGastado): la superficie se inclina hacia donde se movió el
+   líquido y se asienta, en 250 ms. */
+@keyframes estanque-ola {
+  0% { transform: rotate(calc(var(--ola-dir, 1) * -8deg)); }
+  60% { transform: rotate(calc(var(--ola-dir, 1) * 3deg)); }
+  100% { transform: rotate(0deg); }
 }

@@ -121,7 +121,7 @@ export const VisorAdjunto: React.FC<Props> = ({ url, mime, nombre, size = 0, des
                 </span>
             }
             footer={
-                url && !error ? (
+                cargando ? <div className="h-10" aria-hidden /> : url && !error ? (
                     <div className="flex flex-wrap items-center justify-end gap-2">
                         <a href={url} target="_blank" rel="noopener noreferrer"
                             className={cn('inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-full',
@@ -143,8 +143,11 @@ export const VisorAdjunto: React.FC<Props> = ({ url, mime, nombre, size = 0, des
         >
             <div className="relative rounded-xl overflow-hidden bg-muted/40">
                 {cargando ? (
-                    <div className="h-[60dvh] flex items-center justify-center">
-                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    // Mismo alto que la foto ya cargada (idea: Refine Frame de React Bits): al llegar no
+                    // salta nada, ni el pie con los botones (que también se reserva, abajo).
+                    <div className="h-[70dvh] md:h-[72vh] flex flex-col items-center justify-center gap-2" role="status">
+                        <Loader2 className="h-6 w-6 motion-safe:animate-spin text-muted-foreground" />
+                        <span className="text-caption text-muted-foreground">Cargando…</span>
                     </div>
                 ) : error ? (
                     <div className="h-[40dvh] flex flex-col items-center justify-center gap-2 px-6 text-center">

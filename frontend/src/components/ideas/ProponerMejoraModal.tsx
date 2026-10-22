@@ -26,6 +26,7 @@ import {
     nombrePantalla, hace, primerNombre,
 } from './ideasConfig';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
+import { BotonDictar } from '../ui/BotonDictar';
 
 const PESTANAS = [{ key: 'nueva' as const }, { key: 'mias' as const }];
 
@@ -61,6 +62,13 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
     const [paso, setPaso] = useState<'tipo' | 'form' | 'enviada'>('tipo');
     const [tipo, setTipo] = useState<IdeaTipo | null>(null);
     const [texto, setTexto] = useState('');
+    // Dictado (ui/BotonDictar): lo que va entendiendo mientras se habla, en gris bajo el campo.
+    const [parcial, setParcial] = useState('');
+    const sumarDictado = (frase: string) => setTexto(t => {
+        const base = t.replace(/\s+$/, '');
+        const nueva = base ? frase : frase.charAt(0).toUpperCase() + frase.slice(1);
+        return base ? `${base} ${nueva}` : nueva;
+    });
     const [enviando, setEnviando] = useState(false);
     // Cada envío vuelve a cargar "Mis ideas" (en tres columnas está a la vista mientras se propone).
     const [enviadas, setEnviadas] = useState(0);
@@ -266,7 +274,10 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
             </div>
 
             <div>
-                <label htmlFor="idea-texto" className={ETIQUETA}>{textos.label}</label>
+                <div className="mb-2 flex items-end justify-between gap-3">
+                    <label htmlFor="idea-texto" className={`${ETIQUETA} mb-0`}>{textos.label}</label>
+                    <BotonDictar onTexto={sumarDictado} onParcial={setParcial} />
+                </div>
                 <textarea
                     id="idea-texto"
                     value={texto}
@@ -277,6 +288,7 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
                     placeholder={textos.placeholder}
                     className={CAMPO}
                 />
+                {parcial && <p className="mt-1.5 text-caption italic text-muted-foreground" aria-live="polite">…{parcial}</p>}
             </div>
 
             {/* Pantallazo, opcional: lo que se ve explica más rápido que lo que se escribe */}

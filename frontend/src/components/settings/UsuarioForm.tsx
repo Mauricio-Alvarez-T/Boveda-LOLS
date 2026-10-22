@@ -10,6 +10,7 @@ import { Input } from '../ui/Input';
 import { FieldError } from '../ui/FieldError';
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
+import { conDuracion } from '../../utils/avisos';
 
 interface Role {
     id: number;
@@ -121,7 +122,7 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
                 if (rolChanged || bodegaChanged) {
                     toast.success(
                         'Usuario actualizado. Si está conectado actualmente, será desconectado automáticamente para aplicar el cambio.',
-                        { duration: 6000 }
+                        { ...conDuracion(6000) }
                     );
                 } else {
                     toast.success('Usuario actualizado');

@@ -14,6 +14,7 @@ import type { TipoDocumento } from '../../types/entities';
 import type { ApiResponse } from '../../types';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import { compressImage } from '../../utils/compressImage';
+import { conDuracion } from '../../utils/avisos';
 
 const uploadSchema = z.object({
     tipo_documento_id: z.coerce.number().min(1, 'Selecciona un tipo de documento'),
@@ -101,7 +102,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
             const errorMsg = err.response?.data?.error || 'Error al subir documento';
             toast.error(errorMsg, {
                 description: 'Verifica el tipo de archivo y que no exceda 10MB.',
-                duration: 6000,
+                ...conDuracion(6000),
             });
         } finally {
             setLoading(false);
