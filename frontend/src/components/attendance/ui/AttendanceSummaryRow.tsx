@@ -201,8 +201,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                             return (
                                 <motion.div
                                     key={estado.id}
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
+                                    initial={false}
                                     onClick={() => onStatusFilter(isActive ? null : estado.id)}
                                     className={`flex items-center gap-1 px-2 py-1 rounded-lg lg:rounded-xl border transition-all shrink-0 shadow-sm cursor-pointer hover:brightness-90 hover:shadow-md ${isActive ? 'ring-2 ring-offset-1 ring-offset-background shadow-md' : ''}`}
                                     style={chipStyle(estado.color, isActive, isDark)}
