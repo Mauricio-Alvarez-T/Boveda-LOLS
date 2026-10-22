@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useAparecer } from '../../hooks/useAparecer';
 import { SkeletonFilas } from '../ui/Skeleton';
 import { Save, Undo2, Search, MapPin, AlertTriangle } from 'lucide-react';
 import { cn } from '../../utils/cn';
@@ -35,6 +36,8 @@ type DirtyMap = Record<number, DirtyValue>; // por item_id
  */
 const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }) => {
     const { rows, loading, saving, fetchByUbicacion, bulkAdjust } = useStockMaestro();
+    // Fundido de datos solo si antes se vio el contorno (hooks/useAparecer).
+    const aparece = useAparecer(loading);
     const [ubi, setUbi] = useState<UbicacionRef | null>(null);
     const [dirty, setDirty] = useState<DirtyMap>({});
     const [search, setSearch] = useState('');
@@ -197,7 +200,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
             </div>
 
             {/* Grid */}
-            <div className="flex-1 min-h-0 overflow-auto border border-border rounded-xl bg-card datos-aparecen-hijos">
+            <div className={cn('flex-1 min-h-0 overflow-auto border border-border rounded-xl bg-card', aparece)}>
                 {!ubi ? (
                     <div className="py-12 text-center text-xs text-muted-foreground">
                         Elige una bodega u obra en el selector superior para ajustar su stock.

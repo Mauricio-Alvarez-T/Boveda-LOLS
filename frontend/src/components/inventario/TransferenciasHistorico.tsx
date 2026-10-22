@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { cn } from '../../utils/cn';
+import { useAparecer } from '../../hooks/useAparecer';
 import { SkeletonFilas } from '../ui/Skeleton';
 import { RefreshCw, History, Search, ArrowRight } from 'lucide-react';
 import api from '../../services/api';
@@ -39,6 +41,8 @@ const TransferenciasHistorico: React.FC<Props> = ({ canVerTodas, solicitantes, o
     const [rows, setRows] = useState<Transferencia[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
+    // Fundido de datos solo si antes se vio el contorno (hooks/useAparecer).
+    const aparece = useAparecer(loading);
     const [error, setError] = useState<string | null>(null);
 
     const [estado, setEstado] = useState('');
@@ -164,7 +168,7 @@ const TransferenciasHistorico: React.FC<Props> = ({ canVerTodas, solicitantes, o
             </div>
 
             {/* Tabla */}
-            <div className="flex-1 min-h-0 overflow-auto custom-scrollbar bg-card border border-border rounded-2xl datos-aparecen-hijos">
+            <div className={cn('flex-1 min-h-0 overflow-auto custom-scrollbar bg-card border border-border rounded-2xl', aparece)}>
                 {loading ? (
                     <SkeletonFilas />
                 ) : error ? (

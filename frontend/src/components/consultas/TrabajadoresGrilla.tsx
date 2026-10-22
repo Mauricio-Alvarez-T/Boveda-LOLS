@@ -8,6 +8,7 @@
  * atajos y el conteo de resultados.
  */
 import React from 'react';
+import { useAparecer } from '../../hooks/useAparecer';
 import { Mail, FileDown, FileText, UserPen, UserMinus, UserCheck, Eraser, Search, X, Building2, CalendarPlus, AlertTriangle } from 'lucide-react';
 
 import type { TrabajadorAvanzado } from '../../hooks/consultas/useConsultasData';
@@ -96,6 +97,8 @@ const TrabajadoresGrillaImpl: React.FC<Props> = ({
     // Tabla O tarjetas, nunca las dos (regla §8.3): con `hidden md:table` / `md:hidden` los dos árboles
     // existen en el DOM y se reconcilian los dos en cada render — el doble de trabajo por tecla.
     const esDesktop = useMediaQuery('(min-width: 768px)');
+    // Fundido de datos solo si antes se vio el contorno (hooks/useAparecer).
+    const aparece = useAparecer(loading);
 
     // Render helpers (no componentes: crearlos dentro del render rompe la regla react-hooks y pierde estado).
     const casilla = (checked: boolean, onChange: () => void, label: string) => (
@@ -182,7 +185,7 @@ const TrabajadoresGrillaImpl: React.FC<Props> = ({
                 más. Siguen a la vista durante una selección para que la lista no salte. */}
             {atajos && <div className="shrink-0 border-b border-border px-3 py-2 sm:hidden">{atajos}</div>}
 
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar datos-aparecen-hijos">
+            <div className={cn('flex-1 min-h-0 overflow-y-auto custom-scrollbar', aparece)}>
                 {loading ? (
                     <div className="p-3 flex flex-col gap-2">
                         {[1, 2, 3, 4, 5, 6].map(i => (

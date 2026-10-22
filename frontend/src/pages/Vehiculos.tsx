@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useAparecer } from '../hooks/useAparecer';
 import { SkeletonFilas } from '../components/ui/Skeleton';
 import { useSearchParams } from 'react-router-dom';
 import { useIsPresent } from 'framer-motion';
@@ -48,6 +49,9 @@ const VehiculosPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     // Para abrir un vehículo por URL hay que saber que ya llegaron (`loading` parte en false, no sirve).
     const [vehiculosCargados, setVehiculosCargados] = useState(false);
+    // Fundido de datos solo si antes se vio el contorno (hooks/useAparecer); `loading` parte en false, por eso
+    // cuenta también «todavía no llegan».
+    const aparece = useAparecer(loading || !vehiculosCargados);
     const [empresasCargadas, setEmpresasCargadas] = useState(false);
 
     // Vencimientos: el MISMO número del menú, desglosado por empresa y por
@@ -480,7 +484,7 @@ const VehiculosPage: React.FC = () => {
     const chipActivo = esVendidos ? 'vendidos' : selectedEmpresa === 'sin' ? 'sin' : empresaActiva ? `e${empresaActiva.id}` : null;
 
     const EmpresasList = (
-        <div className="flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0 datos-aparecen-hijos">
+        <div className={cn('flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0', aparece)}>
             {loading ? (
                 <SkeletonFilas filas={4} className="px-3 md:px-4" />
             ) : empresas.length === 0 && conteos.sin === 0 && ventas.length === 0 ? (
@@ -540,7 +544,7 @@ const VehiculosPage: React.FC = () => {
 
     // ── Nivel 2: vista lista ──────────────────────────────────────────────────
     const ListView = (
-        <div className="flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0 datos-aparecen-hijos">
+        <div className={cn('flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0', aparece)}>
             {loading ? (
                 <SkeletonFilas filas={4} className="px-3 md:px-4" />
             ) : vehiculosEmpresa.length === 0 ? (

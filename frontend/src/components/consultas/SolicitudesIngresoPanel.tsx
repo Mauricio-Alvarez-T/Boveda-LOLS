@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAparecer } from '../../hooks/useAparecer';
 import { UserPlus, MapPin, ChevronRight, RefreshCw, Clock, CheckCircle2, XCircle } from 'lucide-react';
 
 import api from '../../services/api';
@@ -57,6 +58,8 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
     const [filtro, setFiltro] = useState<FiltroSolicitudes>('pendiente');
     const [todas, setTodas] = useState<SolicitudIngreso[]>([]);
     const [loading, setLoading] = useState(true);
+    // Fundido de datos solo si antes se vio el contorno (hooks/useAparecer).
+    const aparece = useAparecer(loading);
     const [seleccionada, setSeleccionada] = useState<SolicitudIngreso | null>(null);
     const seq = useRef(0); // descarta respuestas viejas si se recarga rápido
 
@@ -225,7 +228,7 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
             </div>
 
             {/* Lista */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar bg-muted/60 p-3 md:p-4 datos-aparecen-hijos">
+            <div className={cn('flex-1 overflow-y-auto custom-scrollbar bg-muted/60 p-3 md:p-4', aparece)}>
                 {loading ? (
                     <div className="flex flex-col gap-3">
                         {[1, 2, 3, 4].map(i => (
