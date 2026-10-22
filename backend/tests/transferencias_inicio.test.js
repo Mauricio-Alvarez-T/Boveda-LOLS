@@ -51,6 +51,18 @@ describe('transferenciaService.resumenInicio', () => {
         expect(recibir[1]).toEqual([9, 2]);
     });
 
+    // Mig 131: «Ver diferencias» cuenta las diferencias (misma consulta que quien aprueba), sin por aprobar.
+    test('solo diferencias_ver: cuenta las diferencias, global como la pestaña; nada por aprobar', async () => {
+        const r = await transferenciaService.resumenInicio({
+            id: 14, p: ['inventario.ver', 'inventario.transferencias.diferencias_ver'],
+        });
+        expect(r).toEqual({ por_aprobar: null, discrepancias: { total: 2, dias: 4 }, por_despachar: null, por_recibir: null, mis_solicitudes: { total: 5, dias: 9 } });
+        const sqlVer = db.query.mock.calls.find(([sql]) => sql.includes('transferencia_discrepancias'))[0];
+        db.query.mockClear();
+        await transferenciaService.resumenInicio({ id: 7, p: ['inventario.transferencias.aprobar'] });
+        expect(db.query.mock.calls.find(([sql]) => sql.includes('transferencia_discrepancias'))[0]).toBe(sqlVer);
+    });
+
     test('solo solicitante: únicamente sus solicitudes en curso', async () => {
         const r = await transferenciaService.resumenInicio({ id: 11, p: ['inventario.ver', 'inventario.transferencias.solicitar'] });
         expect(r).toEqual({ por_aprobar: null, discrepancias: null, por_despachar: null, por_recibir: null, mis_solicitudes: { total: 5, dias: 9 } });

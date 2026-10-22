@@ -36,14 +36,21 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
     const { user } = useAuth();
     const trfHook = useTransferencias();
 
+    const canVerTodas = hasPermission('inventario.transferencias.ver_todas');
+    // Diferencias (mig 131): VER = quien aprueba o quien solo las mira (diferencias_ver, mismo OR que
+    // GET /discrepancias); resolverlas (canEdit del detalle) sigue pidiendo aprobar.
+    const canResolverDiscrepancias = hasPermission('inventario.transferencias.aprobar');
+    const canVerDiscrepancias = canResolverDiscrepancias || hasPermission('inventario.transferencias.diferencias_ver');
     const [selectedId, setSelectedId] = useState<number | null>(initialSelectedId ?? null);
-    const [statusFilter, setStatusFilter] = useState(initialStatusFilter || 'todas');
+    // Las alertas del Resumen Ejecutivo llegan con 'discrepancias' para cualquiera: sin permiso de verlas
+    // se abre la lista normal (y la solicitud, por el efecto de auto-apertura).
+    const [statusFilter, setStatusFilter] = useState(
+        initialStatusFilter === 'discrepancias' && !canVerDiscrepancias ? 'todas' : (initialStatusFilter || 'todas'));
     const [searchQuery, setSearchQuery] = useState('');
     // Filtros del panel (server-side): rango por fecha de solicitud + solicitante.
     const [fechaDesde, setFechaDesde] = useState('');
     const [fechaHasta, setFechaHasta] = useState('');
     const [solicitanteId, setSolicitanteId] = useState<number | null>(null);
-    const canVerTodas = hasPermission('inventario.transferencias.ver_todas');
     const [solicitantes, setSolicitantes] = useState<{ id: number; nombre: string }[]>([]);
     const [wizardModo, setWizardModo] = useState<'pedir' | 'mover' | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
@@ -63,6 +70,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
     // Load pending count on mount so the badge shows immediately
     useEffect(() => {
         (async () => {
+            if (!canVerDiscrepancias) return;
             const list = await trfHook.fetchDiscrepancias('pendiente');
             setPendientesCount(list.length);
         })();
@@ -314,7 +322,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 statusFilter={statusFilter}
                 onStatusChange={handleStatusChange}
                 pendientesCount={pendientesCount}
-                canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
+                canVerDiscrepancias={canVerDiscrepancias}
                 searchQuery={isDiscrepanciasMode ? discSearchQuery : searchQuery}
                 onSearchChange={isDiscrepanciasMode ? setDiscSearchQuery : setSearchQuery}
                 canPedir={!isDiscrepanciasMode && !isHistoricoMode && (
@@ -386,7 +394,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             searchQuery={searchQuery}
                             onSearchChange={setSearchQuery}
                             discrepanciasCount={pendientesCount}
-                            canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
+                            canVerDiscrepancias={canVerDiscrepancias}
                             total={trfHook.total}
                             onVerHistorico={() => handleStatusChange('historico')}
                         />
@@ -407,7 +415,8 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             <DiscrepanciaDetail
                                 discrepancia={trfHook.selectedDiscrepancia}
                                 // Mismo permiso que exige el PUT de resolver (antes inventario.editar: se ofrecía y daba 403).
-                                canEdit={hasPermission('inventario.transferencias.aprobar')}
+                                // Con solo diferencias_ver el detalle queda en solo lectura.
+                                canEdit={canResolverDiscrepancias}
                                 canEliminar={hasPermission('inventario.transferencias.eliminar')}
                                 onBack={() => trfHook.setSelectedDiscrepancia(null)}
                                 onResolver={handleResolverDiscrepancia}

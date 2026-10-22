@@ -50,6 +50,10 @@
   a los roles que ya tenían el genérico.
 - Caso vigente: `inventario.bombas.crear` / `inventario.bombas.editar` (mig 098) para que "En
   Terreno" programe hormigón sin poder editar stock/ítems. Ver reglas/bombas.md.
+- Caso vigente: `inventario.transferencias.diferencias_ver` (mig 131, «Ver diferencias») abre solo lo de
+  **VER** diferencias con OR sobre `inventario.transferencias.aprobar`: `GET /transferencias/discrepancias`, el
+  filtro «Diferencias» y su detalle en solo lectura (`TransferenciasPanel`), y el grupo `discrepancias` de
+  `resumenInicio` (Inicio). Resolver, rehacer y subir foto siguen con `aprobar` solo (sin OR). Ver inventario-transferencias.md § Ver diferencias sin resolverlas.
 - ⚠️ **Excepción deliberada**: `documentos.laborales.emitir` / `.descargar` y `cargos.sueldo.*` usan gate
   **EXCLUSIVO** (un solo permiso, sin OR con el genérico del módulo). Son "solo oficina": heredarlos desde
   `documentos.descargar` o `cargos.ver` daría acceso a contratos y remuneraciones a todo terreno.
@@ -60,6 +64,8 @@
 
 - 9 permisos granulares: solicitar, aprobar, despachar, recibir, cancelar, push_directo,
   intra_bodega, orden_gerencia, **sod_bypass**. Detalle en inventario-transferencias.md.
+- Más `diferencias_ver` (mig 131): mirar las diferencias sin resolverlas (no es un paso del flujo, no entra en
+  la SoD).
 
 ## Overrides por usuario
 
@@ -73,10 +79,11 @@
   Matías Millanao, Luis Lazcano, Daphne Lazcano): **ven todo y toman decisiones de jefatura**, sin la
   operación diaria, sin configuración del sistema (usuarios, roles, permisos, correo, plantillas, catálogos
   de estados/tipos, avisos, historial, revisar ideas) y sin borrados ni flujos que saltan controles
-  (depurar, eliminar transferencias, SoD bypass, push directo, intra-bodega). 39 permisos: ver de
-  Asistencia (con horas extra y todas las obras), Trabajadores (con financiero), Documentos (descargar
-  incluido laborales), Gestiones (exportar/enviar), catálogos, Inventario completo con valores + aprobar y
-  orden de gerencia, Vehículos y Presupuestos (`costos.gestionar`, único permiso del módulo).
+  (depurar, eliminar transferencias, SoD bypass, push directo, intra-bodega). 38 permisos (39 hasta la mig 131):
+  ver de Asistencia (con horas extra y todas las obras), Trabajadores (con financiero), Documentos (descargar
+  incluido laborales), Gestiones (exportar/enviar), catálogos, Inventario completo con valores + orden de
+  gerencia, Vehículos y Presupuestos (`costos.gestionar`, único permiso del módulo). **Aprobar solicitudes de
+  inventario ya NO es del rol** (mig 131): solo Leonardo, como permiso propio (abajo).
 - Lo que una persona necesite de más se agrega de a poco como **permiso propio** (override `grant`), no al
   rol — preguntar a Marcos antes. Mig 127: Paula y Matías (RRHH) → emitir documentos laborales, registrar
   entregas físicas, crear y editar trabajadores (editar: el contrato pide completar la ficha); Leonardo →
@@ -85,6 +92,20 @@
   finalizar obras. Esos cinco reciben también `usuarios.ver` (solo mirar), porque el menú **Configuración**
   aparece solo con ese permiso (`Sidebar.tsx`) y ahí viven obras y feriados. Se busca a la persona por correo (si no existe en ese entorno, no se agrega). Las personas se asignan en Configuración →
   Usuarios y deben re-loguear (los permisos viajan en el JWT).
+- **Mig 131 (2026-10-22, «solo Leonardo aprueba»)**, decisión del dueño (Marcos avisa a Mauricio):
+  - `inventario.transferencias.aprobar` sale del rol Administrador y queda como permiso propio de **Leonardo
+    López**: es el único del rol que aprueba o rechaza solicitudes y resuelve diferencias. Paula, Rodrigo,
+    Matías, Luis y Daphne dejan de aprobar (si alguno tenía `aprobar` como permiso propio, también se quita).
+  - **Daphne Lazcano** recibe `inventario.transferencias.diferencias_ver` («Ver diferencias», permiso nuevo):
+    ve la lista y el detalle de las diferencias en solo lectura y el Inicio se las cuenta y muestra, sin poder
+    resolverlas. Por ahora es la única con ese permiso.
+  - **Leonardo y Daphne** reciben `inventario.transferencias.cancelar` (cancelar solicitudes pendientes o
+    aprobadas; las que van en tránsito siguen pidiendo «Cancelar en Tránsito», que no se dio).
+  - Los permisos propios se graban con `ON DUPLICATE KEY UPDATE tipo = 'grant'` (pisa un `deny` previo). Re-login:
+    `roles.version + 1` del rol Administrador y del rol de Leonardo/Daphne si en ese entorno es otro (nunca del
+    rol 1). Ojo: `versionService` guarda las versiones en memoria → el cierre de sesiones corre recién cuando el
+    backend se reinicia (el auto-migrate del deploy lo hace; corriendo migrate a mano, reiniciar).
+  - Super Administrador no cambia (tiene todo el catálogo; `diferencias_ver` queda también en su rol).
 
 ## Middleware y endurecimiento
 
