@@ -42,7 +42,7 @@ export const CompararObras: React.FC<{ onIrObra: (obraId: number) => void }> = (
     }, []);
 
     if (falla) return <EmptyState icon={Scale} title="No se pudo cargar la comparación" description="Vuelve a intentarlo en un momento." />;
-    if (!datos) return <div className="h-96 animate-pulse rounded-card border border-border bg-card" />;
+    if (!datos) return <div className="h-96 rounded-card border border-border bg-card" />;
     if (!datos.obras.length) return <EmptyState icon={Scale} title="Todavía no hay obras para comparar" description="Agrega obras a Presupuestos y carga su presupuesto." />;
 
     const p = datos.promedio_cerradas;

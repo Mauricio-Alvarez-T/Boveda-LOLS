@@ -490,9 +490,10 @@ const SettingsPage: React.FC = () => {
                 <div className="flex-1 overflow-y-auto custom-scrollbar md:bg-muted pt-3 md:p-6 lg:p-8">
                     <motion.div
                         key={activeTab}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2 }}
+                        // Solo fundido (dueño 2026-10-22): el desplazamiento de 10 px se veía como un salto.
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.16 }}
                     >
                     {activeTab === 'empresas' && (
                         <CrudTable

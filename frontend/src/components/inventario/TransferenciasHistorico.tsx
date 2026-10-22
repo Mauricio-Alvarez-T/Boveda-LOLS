@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Loader2, RefreshCw, History, Search, ArrowRight } from 'lucide-react';
+import { SkeletonFilas } from '../ui/Skeleton';
+import { RefreshCw, History, Search, ArrowRight } from 'lucide-react';
 import api from '../../services/api';
 import { Button } from '../ui/Button';
 import { StatusBadge } from '../ui/StatusBadge';
@@ -163,12 +164,9 @@ const TransferenciasHistorico: React.FC<Props> = ({ canVerTodas, solicitantes, o
             </div>
 
             {/* Tabla */}
-            <div className="flex-1 min-h-0 overflow-auto custom-scrollbar bg-card border border-border rounded-2xl">
+            <div className="flex-1 min-h-0 overflow-auto custom-scrollbar bg-card border border-border rounded-2xl datos-aparecen-hijos">
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-16">
-                        <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-                        <p className="mt-3 text-sm text-muted-foreground">Cargando histórico...</p>
-                    </div>
+                    <SkeletonFilas />
                 ) : error ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center px-4">
                         <History className="h-10 w-10 text-muted-foreground/40" />

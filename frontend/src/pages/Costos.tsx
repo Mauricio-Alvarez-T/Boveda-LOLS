@@ -89,7 +89,7 @@ const CostosPage: React.FC = () => {
 
     if (PropuestaCostos && params.get('vista') === 'propuesta') {
         return (
-            <Suspense fallback={<div className="h-96 animate-pulse rounded-card border border-border bg-card" />}>
+            <Suspense fallback={<div className="h-96 rounded-card border border-border bg-card" />}>
                 <PropuestaCostos onVolver={() => setParams({})} />
             </Suspense>
         );
@@ -138,7 +138,7 @@ const Portada: React.FC<{
             {vista === 'obras' && <ListaObras obras={obras} onAbrir={id => onAbrir(id)} onPropuesta={onPropuesta} />}
             {vista === 'flujo' && (obras
                 ? <FlujoCaja obras={obras} onIrObra={(id, tab) => onAbrir(id, tab, tab === 'gastos' ? { filtro: 'pagar' } : undefined)} />
-                : <div className="h-96 animate-pulse rounded-card border border-border bg-card" />)}
+                : <div className="h-96 rounded-card border border-border bg-card" />)}
             {vista === 'comparar' && <CompararObras onIrObra={id => onAbrir(id)} />}
         </div>
     );
@@ -157,7 +157,7 @@ const ListaObras: React.FC<{ obras: CostoObraLista[] | null; onAbrir: (id: numbe
     if (!obras) {
         return (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {[0, 1, 2].map(i => <div key={i} className="h-40 animate-pulse rounded-card border border-border bg-card" />)}
+                {[0, 1, 2].map(i => <div key={i} className="h-40 rounded-card border border-border bg-card" />)}
             </div>
         );
     }
@@ -297,7 +297,7 @@ const ObraCostos: React.FC<{
                 action={<Button variant="glass" onClick={() => setParams({})}>Volver a las obras</Button>} />
         );
     }
-    if (!detalle) return <div className="h-96 animate-pulse rounded-card border border-border bg-card" />;
+    if (!detalle) return <div className="h-96 rounded-card border border-border bg-card" />;
 
     const acciones: AccionesDetalle = {
         cargarFactura: ({ partidaId = null, categoria = null }) => setModal({ tipo: 'gasto', gasto: null, partidaInicial: partidaId, categoriaInicial: categoria }),

@@ -182,11 +182,11 @@ const TrabajadoresGrillaImpl: React.FC<Props> = ({
                 más. Siguen a la vista durante una selección para que la lista no salte. */}
             {atajos && <div className="shrink-0 border-b border-border px-3 py-2 sm:hidden">{atajos}</div>}
 
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar datos-aparecen-hijos">
                 {loading ? (
                     <div className="p-3 flex flex-col gap-2">
                         {[1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="h-16 w-full rounded-2xl border border-border bg-card flex items-center px-4 gap-4 animate-pulse">
+                            <div key={i} className="h-16 w-full rounded-2xl border border-border bg-card flex items-center px-4 gap-4">
                                 <div className="h-4 w-4 rounded bg-muted" /><div className="h-10 w-10 rounded-xl bg-muted" />
                                 <div className="flex-1 space-y-2"><div className="h-3.5 w-1/3 rounded bg-muted" /><div className="h-3 w-1/5 rounded bg-muted" /></div>
                                 <div className="hidden md:block h-3 w-1/6 rounded bg-muted" /><div className="hidden md:block h-1.5 w-32 rounded bg-muted" />

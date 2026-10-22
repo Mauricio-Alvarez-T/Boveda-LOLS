@@ -64,7 +64,7 @@ export const MovimientosItem: React.FC<{ itemId: number; unidad?: string | null 
                 <p className="px-3 py-6 text-center text-xs text-muted-foreground">No se pudieron cargar los movimientos.</p>
             ) : !movs ? (
                 <div className="space-y-2 p-3">
-                    {[0, 1, 2].map(i => <div key={i} className="h-8 animate-pulse rounded-lg bg-muted/40" />)}
+                    {[0, 1, 2].map(i => <div key={i} className="h-8 rounded-lg bg-muted/40" />)}
                 </div>
             ) : movs.length === 0 ? (
                 <div className="py-6 text-center">

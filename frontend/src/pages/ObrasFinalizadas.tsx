@@ -10,7 +10,7 @@ import api from '../services/api';
 import type { ObraFinalizada } from '../types/entities';
 
 const Skeleton: React.FC = () => (
-    <div className="animate-pulse rounded-2xl border border-border bg-card h-72" />
+    <div className="rounded-2xl border border-border bg-card h-72" />
 );
 
 /**
@@ -91,7 +91,7 @@ const ObrasFinalizadasPage: React.FC = () => {
             </div>
 
             {/* Contenido scrolleable: obras finalizadas */}
-            <div className="flex-1 min-h-0 overflow-y-auto space-y-6">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-6 datos-aparecen-hijos">
                 {loading ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {[1, 2, 3, 4].map(i => <Skeleton key={i} />)}

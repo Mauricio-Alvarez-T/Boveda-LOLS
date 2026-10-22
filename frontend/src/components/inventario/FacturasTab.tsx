@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Minus, FileText, Trash2, Receipt, PackagePlus, Eye, Loader2, Pencil, History } from 'lucide-react';
+import { SkeletonFilas } from '../ui/Skeleton';
+import { Plus, Minus, FileText, Trash2, Receipt, PackagePlus, Eye, Pencil, History } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import type { FacturaInventario, ItemInventario, CategoriaInventario } from '../../types/entities';
@@ -440,12 +441,9 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                 size="lg"
             >
                 {!detalle ? (
-                    <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
-                        <Loader2 className="h-6 w-6 animate-spin mb-2" />
-                        <p className="text-sm">Cargando factura…</p>
-                    </div>
+                    <SkeletonFilas filas={5} className="p-0" />
                 ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-4 datos-aparecen">
                         {/* Cabecera */}
                         <div className="bg-muted rounded-xl border border-border p-4">
                             <div className="flex items-center gap-2 flex-wrap">

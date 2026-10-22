@@ -38,7 +38,7 @@ export const FotoIdea: React.FC<{ ideaId: number; resumen: string; tamano?: numb
         );
     }
     // Misma caja cargando y cargada (idea: Refine Frame de React Bits): la foto no empuja lo de abajo.
-    if (!url) return <div className={`${compacta ? 'h-16 w-24' : 'h-56 w-full'} motion-safe:animate-pulse rounded-xl bg-muted`} />;
+    if (!url) return <div className={`${compacta ? 'h-16 w-24' : 'h-56 w-full'} rounded-xl bg-muted`} />;
 
     return (
         <>

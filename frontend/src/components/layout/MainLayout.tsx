@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useLocation, useOutlet } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { Suspense, useEffect, useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
 import { AlertaAtrasosAlEntrar } from '../documentos-fisicos/AlertaAtrasosAlEntrar';
@@ -10,6 +10,7 @@ import { EntornoBanner } from './EntornoBanner';
 import { Menu, Smartphone } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import { useAuth } from '../../context/AuthContext';
+import { precargarSecciones } from '../../paginas';
 
 /**
  * Secciones que no dependen de la obra elegida: en el celular no muestran el selector «Obra» del encabezado
@@ -18,23 +19,23 @@ import { useAuth } from '../../context/AuthContext';
  */
 const SIN_OBRA_EN_CELULAR = ['/configuracion', '/ideas', '/ayuda', '/costos', '/obras-finalizadas', '/vehiculos'];
 
-/**
- * La página con la que se montó este envoltorio, congelada (dueño 2026-10-22: «un salto extraño de todos los
- * componentes» al cambiar de sección). Con `<Outlet />` el envoltorio que sale por `AnimatePresence` pintaba ya la
- * página NUEVA: aparecía, se desvanecía en la salida y volvía a entrar 8 px más abajo, montada dos veces (con sus
- * esqueletos y animaciones de nuevo). Así la que sale es la vieja y la nueva entra una sola vez.
- */
-const PaginaCongelada: React.FC = () => {
-    const [pagina] = useState(useOutlet());
-    return pagina;
-};
-
 export const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const { title, actions, centroMovil, ocultarObraMovil } = usePageHeader();
     const { user } = useAuth();
     const location = useLocation();
+
+    // Con sesión, bajar en reposo el código de todas las secciones: así ningún clic del menú espera.
+    useEffect(() => {
+        const w = window as Window & { requestIdleCallback?: (cb: () => void) => number; cancelIdleCallback?: (id: number) => void };
+        if (w.requestIdleCallback) {
+            const id = w.requestIdleCallback(precargarSecciones);
+            return () => w.cancelIdleCallback?.(id);
+        }
+        const t = window.setTimeout(precargarSecciones, 1500);
+        return () => window.clearTimeout(t);
+    }, []);
 
     return (
         <div className="flex min-h-[100dvh] bg-background">
@@ -117,23 +118,25 @@ export const MainLayout: React.FC = () => {
 
                 {/* Page Content — actual scroll container */}
                 <div className="flex-1 min-h-0 p-2 md:px-5 md:pt-2 pb-12 overflow-y-auto overflow-x-hidden relative flex flex-col">
-                    {/* Cambio de ruta ≈0,37 s en total: salida 0,12 s solo opacidad + entrada
-                        0,25 s. Con «reducir movimiento», MotionConfig (main.tsx) anula el `y`
-                        y queda solo el fundido. */}
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={location.pathname}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, transition: { duration: 0.12 } }}
-                            transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-                            className="bg-transparent flex-1 flex flex-col min-h-0"
-                        >
-                            <ErrorBoundary resetKey={location.pathname}>
-                                <PaginaCongelada />
-                            </ErrorBoundary>
-                        </motion.div>
-                    </AnimatePresence>
+                    {/* Cambio de sección (dueño 2026-10-22: «no me gusta que salga una animación de carga entremedio de
+                        un click… da a entender que la web es lenta»): la nueva entra de inmediato con un fundido de
+                        0,16 s, sin esperar la salida de la vieja ni desplazarse. Su código ya está precargado
+                        (`precargarSecciones`); si aún no llegó, el Suspense de acá no muestra nada (la barra lateral
+                        y el encabezado siguen) en vez del círculo a pantalla completa de App. Cada sección pinta su
+                        contorno quieto y sus datos aparecen con `.datos-aparecen` (index.css). */}
+                    <motion.div
+                        key={location.pathname}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.16, ease: [0.25, 0.1, 0.25, 1] }}
+                        className="bg-transparent flex-1 flex flex-col min-h-0"
+                    >
+                        <ErrorBoundary resetKey={location.pathname}>
+                            <Suspense fallback={null}>
+                                <Outlet />
+                            </Suspense>
+                        </ErrorBoundary>
+                    </motion.div>
                 </div>
             </main>
         </div>

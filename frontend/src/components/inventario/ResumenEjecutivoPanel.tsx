@@ -457,7 +457,7 @@ const RechazoItem: React.FC<RechazoItemProps> = ({ rechazo, onClick }) => {
 // Skeleton (mantiene layout para no saltar)
 // ────────────────────────────────────────────────────────
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
-    <div className={cn('animate-pulse bg-muted rounded-xl', className)} />
+    <div className={cn('bg-muted rounded-xl', className)} />
 );
 
 // ────────────────────────────────────────────────────────

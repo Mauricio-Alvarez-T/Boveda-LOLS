@@ -59,7 +59,7 @@ export const AgregarObraModal: React.FC<{ onClose: () => void; onAgregada: (obra
         >
             <div className="flex flex-col gap-3">
                 {obras === null ? (
-                    <div className="h-11 animate-pulse rounded-xl bg-muted" />
+                    <div className="h-11 rounded-xl bg-muted" />
                 ) : obras.length ? (
                     <SearchableSelect
                         label="Obra"

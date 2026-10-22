@@ -50,7 +50,7 @@ export const HistorialObra: React.FC<{ obraId: number; version: number; partidas
     }, [obraId, version]);
 
     if (error) return <EmptyState icon={History} title="No se pudo cargar el historial" description="Vuelve a intentarlo en un momento." />;
-    if (!filas) return <div className="h-64 animate-pulse rounded-card border border-border bg-card" />;
+    if (!filas) return <div className="h-64 rounded-card border border-border bg-card" />;
     if (!filas.length) return <EmptyState icon={History} title="Sin movimientos todavía" description="Cada partida, gasto o cambio de porcentaje queda anotado aquí con quién lo hizo." />;
 
     return (

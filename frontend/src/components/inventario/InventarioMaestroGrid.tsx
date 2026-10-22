@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Save, Undo2, Search, Loader2, AlertTriangle, LayoutGrid, Table2, ChevronRight, Package } from 'lucide-react';
+import { SkeletonFilas } from '../ui/Skeleton';
+import { Save, Undo2, Search, AlertTriangle, LayoutGrid, Table2, ChevronRight, Package } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInventarioMaestro } from '../../hooks/inventario/useInventarioMaestro';
@@ -308,11 +309,9 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
             {/* ══════════════════════════════════════════════
                 ── CONTENT AREA ──
                ══════════════════════════════════════════════ */}
-            <div className="flex-1 min-h-0 overflow-auto">
+            <div className="flex-1 min-h-0 overflow-auto datos-aparecen-hijos">
                 {loading ? (
-                    <div className="flex items-center justify-center py-12 text-muted-foreground text-sm gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" /> Cargando ítems...
-                    </div>
+                    <SkeletonFilas />
                 ) : filteredItems.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                         <Package className="h-12 w-12 text-muted-foreground/15 mb-3" />

@@ -48,7 +48,7 @@ interface Props {
 }
 
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
-    <div className={cn("animate-pulse bg-muted/40 rounded-lg", className)} />
+    <div className={cn("bg-muted/40 rounded-lg", className)} />
 );
 
 const ItemDetailModal: React.FC<Props> = ({

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { SkeletonFilas } from './Skeleton';
 import {
     Search,
     Plus,
     Pencil,
     Trash2,
-    Loader2,
     ChevronLeft,
     ChevronRight,
     AlertCircle,
@@ -216,12 +216,9 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
             </div>
 
             {/* ─── MOBILE: Card list ─── */}
-            <div className="md:hidden space-y-3">
+            <div className="md:hidden space-y-3 datos-aparecen-hijos">
                 {loading ? (
-                    <div className="py-16 text-center">
-                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-brand-primary mb-2" />
-                        <p className="text-xs text-muted-foreground">Cargando...</p>
-                    </div>
+                    <SkeletonFilas filas={5} className="p-0" />
                 ) : rows.length === 0 ? (
                     <div className="py-16 text-center">
                         <AlertCircle className="h-5 w-5 mx-auto text-muted mb-2" />
@@ -302,12 +299,11 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                 <th className="px-6 py-4 text-right">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-border">
+                        <tbody className="divide-y divide-border datos-aparecen-hijos">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={columns.length + 1} className="px-5 py-16 text-center">
-                                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-brand-primary mb-2" />
-                                        <p className="text-xs text-muted-foreground">Cargando...</p>
+                                    <td colSpan={columns.length + 1} className="p-2">
+                                        <SkeletonFilas filas={5} />
                                     </td>
                                 </tr>
                             ) : rows.length === 0 ? (
