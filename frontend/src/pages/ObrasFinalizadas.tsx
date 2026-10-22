@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { cn } from '../utils/cn';
+import { useAparecer } from '../hooks/useAparecer';
 import { Archive, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
@@ -24,6 +26,8 @@ const ObrasFinalizadasPage: React.FC = () => {
 
     const [obras, setObras] = useState<ObraFinalizada[]>([]);
     const [loading, setLoading] = useState(true);
+    // Fundido de datos solo si antes se vio el contorno (hooks/useAparecer).
+    const aparece = useAparecer(loading);
     const [filtro, setFiltro] = useState('');
 
     const fetchObras = useCallback(async () => {
@@ -91,7 +95,7 @@ const ObrasFinalizadasPage: React.FC = () => {
             </div>
 
             {/* Contenido scrolleable: obras finalizadas */}
-            <div className="flex-1 min-h-0 overflow-y-auto space-y-6 datos-aparecen-hijos">
+            <div className={cn('flex-1 min-h-0 overflow-y-auto space-y-6', aparece)}>
                 {loading ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {[1, 2, 3, 4].map(i => <Skeleton key={i} />)}

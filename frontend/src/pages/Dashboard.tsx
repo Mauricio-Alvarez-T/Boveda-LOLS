@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useAparecer } from '../hooks/useAparecer';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -119,14 +120,16 @@ interface DashboardData {
  * Contenido que se pliega y despliega animando la altura (fila de grid de 0fr a 1fr, 250 ms; en seco con
  * «reducir movimiento»). Plegado queda `inert`: ni Tab ni lector de pantalla entran.
  */
-const Plegable: React.FC<{ abierto: boolean; llena?: boolean; children: React.ReactNode }> = ({ abierto, llena, children }) => (
+const Plegable: React.FC<{ abierto: boolean; llena?: boolean; children: React.ReactNode; className?: string }> = ({ abierto, llena, children, className }) => (
     <div inert={!abierto}
         className={cn('grid transition-[grid-template-rows,opacity] duration-[250ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none',
             abierto ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0', llena && abierto && 'flex-1')}>
-        {/* El contorno de la tarjeta está desde el inicio; su contenido entra con el fundido de datos (index.css). */}
-        <div className="min-h-0 overflow-hidden datos-aparecen-hijos">{children}</div>
+        <div className={cn('min-h-0 overflow-hidden', className)}>{children}</div>
     </div>
 );
+
+/** Clase de fundido de los datos de las tarjetas (useAparecer en Dashboard): el contorno de cada tarjeta queda fijo. */
+const DatosAparecen = createContext('');
 
 const Panel: React.FC<{
     children: React.ReactNode; className?: string; onClick?: () => void; activa?: boolean;
@@ -136,6 +139,7 @@ const Panel: React.FC<{
     cola?: string;
 }> = ({ children, className, onClick, activa = false, compacta = false, resumen, cola }) => {
     const plegada = compacta && resumen !== undefined;
+    const aparece = useContext(DatosAparecen);
     return (
         <div
             className={cn('relative flex flex-col rounded-3xl bg-card text-foreground shadow-[var(--shadow-md)]',
@@ -152,7 +156,7 @@ const Panel: React.FC<{
         >
             <TarjetaActiva.Provider value={activa}>
                 {resumen !== undefined && <Plegable abierto={plegada}>{resumen}</Plegable>}
-                <Plegable abierto={!plegada} llena>{children}</Plegable>
+                <Plegable abierto={!plegada} llena className={aparece}>{children}</Plegable>
             </TarjetaActiva.Provider>
             {activa && plegada && cola !== undefined && <ColaGota className={cola} />}
         </div>
@@ -369,6 +373,8 @@ const Dashboard: React.FC = () => {
 
     // Skeletons por-widget. `ready` narrowea `data` a no-null en cada zona.
     const ready = !loading && !!data;
+    // Fundido de datos solo si antes se vio el contorno (hooks/useAparecer).
+    const aparece = useAparecer(!ready);
     const showFaltas = shown.has('absence_alerts');
     const showVencVehiculos = shown.has('vehiculo_vencimientos');
     const showRanking = shown.has('obra_ranking') && selectedObra == null; // solo ámbito "Todas"
@@ -538,6 +544,7 @@ const Dashboard: React.FC = () => {
     const colaVisible = visibles.length <= 1 ? '' : visibles.length === 2 ? 'hidden sm:block' : 'hidden xl:block';
 
     return (
+        <DatosAparecen.Provider value={aparece}>
         <div className={cn('space-y-6', visibles.length > 0 && 'max-sm:pb-28')}>
             {/* El cartel de atrasos del portador se quitó (dueño 2026-10-21): avisa la ventana al iniciar sesión
                 (AlertaAtrasosAlEntrar) y su tarjeta «Tus documentos» va primero. */}
@@ -714,6 +721,7 @@ const Dashboard: React.FC = () => {
                     items={visibles.map(m => ({ key: m, ...resumenes[m] }))} />
             )}
         </div>
+        </DatosAparecen.Provider>
     );
 };
 

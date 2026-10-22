@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useAparecer } from '../../hooks/useAparecer';
 import { SkeletonFilas } from '../ui/Skeleton';
 import { ArrowUp, ArrowDown, RefreshCw, History } from 'lucide-react';
 import { cn } from '../../utils/cn';
@@ -45,6 +46,8 @@ interface Props {
 
 const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial = null }) => {
     const { movimientos, pagination, loading, error, fetchMovimientos } = useMovimientos();
+    // Fundido de datos solo si antes se vio el contorno (hooks/useAparecer).
+    const aparece = useAparecer(loading);
     // En el teléfono, tarjetas como las del detalle del ítem (saldo antes → diferencia → saldo actual): la tabla de
     // 9 columnas iba con scroll lateral y dejaba el ítem en una columna angosta. Tabla O tarjetas (diseno.md §8.3).
     const esDesktop = useMediaQuery('(min-width: 768px)');
@@ -122,7 +125,7 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
             </div>
 
             {/* Contenido */}
-            <div className="flex-1 min-h-0 overflow-auto custom-scrollbar bg-card border border-border rounded-2xl datos-aparecen-hijos">
+            <div className={cn('flex-1 min-h-0 overflow-auto custom-scrollbar bg-card border border-border rounded-2xl', aparece)}>
                 {loading ? (
                     <SkeletonFilas />
                 ) : error ? (

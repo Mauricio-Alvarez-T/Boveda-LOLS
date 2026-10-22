@@ -1,6 +1,5 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
 import { AlertaAtrasosAlEntrar } from '../documentos-fisicos/AlertaAtrasosAlEntrar';
@@ -118,25 +117,19 @@ export const MainLayout: React.FC = () => {
 
                 {/* Page Content — actual scroll container */}
                 <div className="flex-1 min-h-0 p-2 md:px-5 md:pt-2 pb-12 overflow-y-auto overflow-x-hidden relative flex flex-col">
-                    {/* Cambio de sección (dueño 2026-10-22: «no me gusta que salga una animación de carga entremedio de
-                        un click… da a entender que la web es lenta»): la nueva entra de inmediato con un fundido de
-                        0,16 s, sin esperar la salida de la vieja ni desplazarse. Su código ya está precargado
-                        (`precargarSecciones`); si aún no llegó, el Suspense de acá no muestra nada (la barra lateral
-                        y el encabezado siguen) en vez del círculo a pantalla completa de App. Cada sección pinta su
-                        contorno quieto y sus datos aparecen con `.datos-aparecen` (index.css). */}
-                    <motion.div
-                        key={location.pathname}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.16, ease: [0.25, 0.1, 0.25, 1] }}
-                        className="bg-transparent flex-1 flex flex-col min-h-0"
-                    >
+                    {/* Cambio de sección (dueño 2026-10-22): «no me gusta que salga una animación de carga entremedio de
+                        un click… da a entender que la web es lenta», y después, en Chrome, «un ligero parpadeo»: la
+                        página nueva entra EN SECO, sin fundido (el fundido de toda la página arrancaba en blanco). Su
+                        código ya está precargado (`precargarSecciones`); si aún no llegó, el Suspense de acá no muestra
+                        nada (menú y encabezado siguen) en vez del círculo a pantalla completa de App. Cada sección pinta
+                        su contorno quieto y, si los datos llegan después, aparecen con un fundido (hooks/useAparecer). */}
+                    <div key={location.pathname} className="bg-transparent flex-1 flex flex-col min-h-0">
                         <ErrorBoundary resetKey={location.pathname}>
                             <Suspense fallback={null}>
                                 <Outlet />
                             </Suspense>
                         </ErrorBoundary>
-                    </motion.div>
+                    </div>
                 </div>
             </main>
         </div>

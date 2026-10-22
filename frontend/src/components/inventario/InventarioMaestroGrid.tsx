@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useAparecer } from '../../hooks/useAparecer';
 import { SkeletonFilas } from '../ui/Skeleton';
 import { Save, Undo2, Search, AlertTriangle, LayoutGrid, Table2, ChevronRight, Package } from 'lucide-react';
 import { cn } from '../../utils/cn';
@@ -50,6 +51,8 @@ const fmtCLP = (v: number | null | undefined) => (v == null ? '—' : fmtMoney(v
  */
 const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
     const { items, categorias, stockMap, loading, saving, fetchAll, bulkUpdate } = useInventarioMaestro();
+    // Fundido de datos solo si antes se vio el contorno (hooks/useAparecer).
+    const aparece = useAparecer(loading);
     // Gate financiero: oculta columnas V.Compra/V.Arriendo en tabla cuando falta
     // `inventario.costos.ver`; las muestra disabled si tiene ver pero no editar.
     const { hasPermission } = useAuth();
@@ -309,7 +312,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
             {/* ══════════════════════════════════════════════
                 ── CONTENT AREA ──
                ══════════════════════════════════════════════ */}
-            <div className="flex-1 min-h-0 overflow-auto datos-aparecen-hijos">
+            <div className={cn('flex-1 min-h-0 overflow-auto', aparece)}>
                 {loading ? (
                     <SkeletonFilas />
                 ) : filteredItems.length === 0 ? (

@@ -367,11 +367,10 @@ const InventarioPage: React.FC = () => {
             {/* Tab Content */}
             <motion.div
                 key={activeTab}
-                // Solo fundido (dueño 2026-10-22): el desplazamiento de 10 px al cambiar de pestaña se veía como un salto.
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.16 }}
-                className="bg-card border border-border rounded-2xl md:rounded-3xl shadow-[var(--shadow-md)] p-2.5 md:p-4 flex-1 min-h-0 flex flex-col datos-aparecen-hijos"
+                // Sin animación al cambiar de pestaña (dueño 2026-10-22: el desplazamiento se veía como un salto y el
+                // fundido, en Chrome, como un parpadeo).
+                initial={false}
+                className="bg-card border border-border rounded-2xl md:rounded-3xl shadow-[var(--shadow-md)] p-2.5 md:p-4 flex-1 min-h-0 flex flex-col"
             >
                 {/* ── RESUMEN EJECUTIVO ── */}
                 {activeTab === 'resumen_ejecutivo' && (
@@ -412,7 +411,7 @@ const InventarioPage: React.FC = () => {
 
                 {/* ── POR OBRA/BODEGA ── */}
                 {activeTab === 'por_ubicacion' && (
-                    <div className="flex flex-col gap-4 flex-1 min-h-0 datos-aparecen-hijos">
+                    <div className="flex flex-col gap-4 flex-1 min-h-0">
                         {/* Ubicacion selector + Export */}
                         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 shrink-0">
                             <label className="text-xs font-bold text-brand-dark flex items-center gap-1.5">

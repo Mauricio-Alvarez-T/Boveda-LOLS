@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAparecer } from '../../hooks/useAparecer';
 import { SkeletonFilas } from './Skeleton';
 import {
     Search,
@@ -74,6 +75,8 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
 }: CrudTableProps<T>) {
     const [rows, setRows] = useState<T[]>([]);
     const [loading, setLoading] = useState(true);
+    // Fundido de datos solo si antes se vio el contorno (hooks/useAparecer).
+    const aparece = useAparecer(loading);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [pagination, setPagination] = useState({ total: 0, pages: 1 });
@@ -216,7 +219,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
             </div>
 
             {/* ─── MOBILE: Card list ─── */}
-            <div className="md:hidden space-y-3 datos-aparecen-hijos">
+            <div className={cn('md:hidden space-y-3', aparece)}>
                 {loading ? (
                     <SkeletonFilas filas={5} className="p-0" />
                 ) : rows.length === 0 ? (
@@ -299,7 +302,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                 <th className="px-6 py-4 text-right">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-border datos-aparecen-hijos">
+                        <tbody className={cn('divide-y divide-border', aparece)}>
                             {loading ? (
                                 <tr>
                                     <td colSpan={columns.length + 1} className="p-2">

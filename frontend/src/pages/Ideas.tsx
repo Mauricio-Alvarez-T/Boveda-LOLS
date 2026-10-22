@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAparecer } from '../hooks/useAparecer';
 import { toast } from 'sonner';
 import { Lightbulb, Inbox, Hourglass, CheckCheck, Archive, Clock, Gauge, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -66,6 +67,8 @@ const IdeasPage: React.FC = () => {
     const [ideas, setIdeas] = useState<Idea[]>([]);
     const [resumen, setResumen] = useState<IdeasResumenBandeja>(RESUMEN_VACIO);
     const [cargando, setCargando] = useState(true);
+    // Fundido de datos solo si antes se vio el contorno (hooks/useAparecer).
+    const aparece = useAparecer(cargando);
     const [filtro, setFiltro] = useState<Filtro>('pendiente');
     const [tipo, setTipo] = useState<IdeaTipo | 'todos'>('todos');
     const [busqueda, setBusqueda] = useState('');
@@ -146,7 +149,7 @@ const IdeasPage: React.FC = () => {
     const diasMasAntigua = resumen.pendiente_mas_antigua ? hace(resumen.pendiente_mas_antigua) : '';
 
     return (
-        <div className="flex flex-col gap-5 datos-aparecen-hijos">
+        <div className="flex flex-col gap-5">
             {/* Números (en el celular se ocultan mientras se lee una idea) */}
             <div className={cn('grid grid-cols-2 lg:grid-cols-4 gap-3', verDetalleMovil && 'hidden lg:grid')}>
                 <Kpi icon={Inbox} label="Pendientes" valor={resumen.pendiente} activo={filtro === 'pendiente'}
@@ -221,7 +224,7 @@ const IdeasPage: React.FC = () => {
             ) : (
                 // `grid-cols-1` (= minmax(0,1fr)) en el teléfono: con la columna implícita `auto`, un texto sin espacios
                 // (una URL, «DESPIHAJD…» de 46 letras) la estiraba a 900 px y el detalle se salía de la pantalla.
-                <div className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] gap-4 items-start">
+                <div className={cn('grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] gap-4 items-start', aparece)}>
                     {/* Lista */}
                     <ul className={cn('flex flex-col gap-2 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:pr-1', verDetalleMovil && 'hidden lg:flex')}>
                         {visibles.map(i => {
