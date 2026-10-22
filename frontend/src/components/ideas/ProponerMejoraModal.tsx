@@ -23,7 +23,7 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type { Idea, IdeaTipo } from '../../types/entities';
 import {
     TIPOS, ESTADOS, MOTIVOS, FORMULARIOS,
-    nombrePantalla, hace, primerNombre,
+    nombrePantalla, hace, primerNombre, ETIQUETA_BUZON_IDEAS,
 } from './ideasConfig';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
 import { BotonDictar } from '../ui/BotonDictar';
@@ -356,7 +356,7 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
             size={anchas ? '2xl' : 'lg'}
             noBodyPadding={anchas}
             icon={Lightbulb}
-            title="Ideas para Bóveda"
+            title={ETIQUETA_BUZON_IDEAS}
             description={<span>Se enviará con tu nombre: <strong className="text-brand-dark">{user?.nombre}</strong>{user?.rol ? ` · ${user.rol}` : ''}</span>}
             footer={!anchas && pestana === 'nueva' && paso === 'form' ? barraEnviar : undefined}
         >

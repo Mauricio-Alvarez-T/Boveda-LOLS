@@ -329,8 +329,11 @@ const InventarioPage: React.FC = () => {
                     />
                 )}</BarraPaginada>
                 </div>
-                {/* ── Desktop: horizontal compacto (mismo estilo que Configuración) ── */}
-                <div className="hidden md:flex items-center gap-1 p-2 bg-card/80 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
+                {/* ── Desktop: horizontal compacto (mismo estilo que Configuración) ──
+                    En pantallas medianas no caben todas (se cortaba cerca de 1300 px): de a páginas con flechas,
+                    igual que en el celular (Marcos 2026-10-22). Si caben, se ve igual que antes. */}
+                <div className="hidden md:flex items-center gap-1 p-2 bg-card/80 backdrop-blur-xl rounded-2xl border border-border shadow-sm">
+                <BarraPaginada className="flex-1 min-w-0">{p => (
                     <PestanasElasticas
                         opciones={visibleTabs}
                         activa={activeTab}
@@ -340,6 +343,8 @@ const InventarioPage: React.FC = () => {
                         claseOpcion="flex items-center gap-2 px-4 py-2 rounded-xl text-base font-black uppercase tracking-[0.12em] whitespace-nowrap shrink-0"
                         claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark"
                         titulo={(tab) => tab.label}
+                        estiloOpcion={p.estiloOpcion}
+                        revelar={p.revelar}
                         render={(tab, sobreIndicador) => {
                             const TabIcon = tab.icon;
                             return (
@@ -350,8 +355,9 @@ const InventarioPage: React.FC = () => {
                             );
                         }}
                     />
+                )}</BarraPaginada>
                     {showVirtualToggle && (
-                        <BodegaVirtualToggle modo={bodegaVirtualModo} onCycle={cycleBodegaVirtual} className="ml-auto" />
+                        <BodegaVirtualToggle modo={bodegaVirtualModo} onCycle={cycleBodegaVirtual} className="shrink-0" />
                     )}
                 </div>
             </div>

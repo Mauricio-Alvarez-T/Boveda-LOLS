@@ -424,6 +424,8 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    para que no se deslice con las opciones. Hoy: pestañas y estados de Inventario, Solicitudes de ingreso,
    atajos de Trabajadores, «Crear» de Gestiones, Ideas (estado y tipo), Presupuestos (vistas, pestañas de la
    obra, Gastos, meses), Centro de ayuda, empresas de Vehículos y categorías del catálogo de movimientos.
+   **También en el computador, la barra de secciones de Inventario** (2026-10-22: se cortaba cerca de 1300 px);
+   el selector de bodega virtual queda fijo a su derecha, fuera de las páginas.
    `BordeScroll` queda para chips cortos que no son opciones a elegir (resumen de Asistencia).
 7. **Wizards:** el conector se llena con `scale-x` desde `origin-left` en 200 ms (al volver se vacía
    hacia la izquierda; nunca `width`). El paso entra ±12 px desde el lado hacia el que se avanza, en
