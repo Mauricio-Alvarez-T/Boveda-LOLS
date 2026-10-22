@@ -12,6 +12,7 @@ import {
     interpretarSimulacion, mensajeResultadoResolver, normalizarAjustes, normalizarPlanRehacer, parseAjusteStock,
     resumenAjustes, type MomentoDecision,
 } from '../../components/inventario/mensajeDiferencia';
+import { conDuracion } from '../../utils/avisos';
 
 /** Error de una acción sobre una diferencia (status/code del servidor + mensaje legible). */
 export interface ErrorDiscrepancia { status?: number; code?: string; message: string }
@@ -375,7 +376,7 @@ export function useTransferencias() {
         try {
             const res = await api.put(`/transferencias/${id}/recibir`, { items, tipo, observacion, items_custom: itemsCustom });
             if (tipo === 'parcial') {
-                toast.success('Cargamento registrado. La entrega sigue en curso esperando próximos viajes.', { duration: 5000 });
+                toast.success('Cargamento registrado. La entrega sigue en curso esperando próximos viajes.', { ...conDuracion(5000) });
             } else {
                 toast.success('Transferencia cerrada ✓');
             }
@@ -502,7 +503,7 @@ export function useTransferencias() {
             // Backend sin simulación: ignoró ?simular=1 y RESOLVIÓ. Avisar y que el modal se cierre.
             if (r.tipo === 'aplicada') {
                 const message = 'El servidor aplicó la decisión al abrir la ventana (no sabía simular). Revisa el resultado en la lista.';
-                toast.warning(estado === 'resuelta' ? 'Diferencia aprobada' : 'Diferencia rechazada', { description: message, duration: 12000 });
+                toast.warning(estado === 'resuelta' ? 'Diferencia aprobada' : 'Diferencia rechazada', { description: message, ...conDuracion(12000) });
                 return { ok: false, error: { code: CODIGO_APLICADA_SIN_SIMULAR, message } };
             }
             // El 409 NO_PENDIENTE llega como `bloqueo`: es «ya la resolvió otra persona» (aviso sin
@@ -556,7 +557,7 @@ export function useTransferencias() {
             const t = mensajeResultadoResolver(data, unidad);
             const opciones = {
                 ...(t.descripcion ? { description: t.descripcion } : {}),
-                ...(t.duracion ? { duration: t.duracion } : {}),
+                ...(t.duracion ? conDuracion(t.duracion) : {}),
             };
             if (t.tipo === 'warning') toast.warning(t.titulo, opciones);
             else toast.success(t.titulo, opciones);
@@ -565,7 +566,7 @@ export function useTransferencias() {
             const error = leerErrorApi(err, 'Error al actualizar la diferencia');
             if (toastSiYaCerrada(error, 'resolver', 'confirmar')) return { ok: false, error };
             if (esReintentar(error)) {
-                toast.warning(error.message, { description: TEXTO_REINTENTAR, duration: 10000 });
+                toast.warning(error.message, { description: TEXTO_REINTENTAR, ...conDuracion(10000) });
                 return { ok: false, error };
             }
             if (error.status !== undefined && ESTADOS_ERROR_EN_MODAL.includes(error.status)) {
@@ -595,7 +596,7 @@ export function useTransferencias() {
                 const resumen = data.ajustes.length ? resumenAjustes(data.ajustes, respaldo.unidad) : 'Sin cambios de stock';
                 toast.success('Diferencia rehecha: volvió a Pendientes', {
                     description: data.aviso ? `${resumen}. ${data.aviso}` : resumen,
-                    duration: data.aviso ? 12000 : 6000,
+                    ...conDuracion(data.aviso ? 12000 : 6000),
                 });
             }
             return { ok: true, data };
@@ -603,7 +604,7 @@ export function useTransferencias() {
             const error = leerErrorApi(err, 'Error al rehacer la diferencia');
             if (toastSiYaCerrada(error, 'rehacer', simular ? 'simular' : 'confirmar')) return { ok: false, error };
             if (esReintentar(error)) {
-                toast.warning(error.message, { description: TEXTO_REINTENTAR, duration: 10000 });
+                toast.warning(error.message, { description: TEXTO_REINTENTAR, ...conDuracion(10000) });
                 return { ok: false, error };
             }
             if (error.status !== undefined && [400, 403, 409].includes(error.status)) {

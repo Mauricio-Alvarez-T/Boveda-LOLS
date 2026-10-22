@@ -8,6 +8,7 @@ import api from '../../services/api';
 import type { Trabajador, EstadoAsistencia, PeriodoAusencia } from '../../types/entities';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'sonner';
+import { conDuracion } from '../../utils/avisos';
 
 interface Props {
     isOpen: boolean;
@@ -91,7 +92,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
             });
 
             const data = res.data.data;
-            toast.success(`Período asignado: ${data.dias_afectados} días actualizados`, { duration: 4000 });
+            toast.success(`Período asignado: ${data.dias_afectados} días actualizados`, { ...conDuracion(4000) });
             
             // Reset form
             setEstadoId(null);

@@ -32,6 +32,7 @@ import { useAttendanceData, useAttendanceActions, useAttendanceExport } from '..
 import { AttendanceHeaderActions, AttendanceSummaryRow } from './ui';
 
 import type { Trabajador, Asistencia } from '../../types/entities';
+import { conDuracion } from '../../utils/avisos';
 
 /**
  * Tab "Asistencia Diaria" — contiene toda la funcionalidad original de la
@@ -103,7 +104,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                 // borrado luce IGUAL que antes y parece que la goma no hizo nada.
                 toast.success(
                     `Se borró la asistencia de ${trabajadores} trabajador(es) (${borrados} registro(s)). La vista vuelve a proponer "A" por defecto: el día queda SIN registros hasta que vuelvas a Guardar.`,
-                    { duration: 9000 }
+                    { ...conDuracion(9000) }
                 );
             } else {
                 toast.info('No había registros guardados que borrar');
@@ -111,13 +112,13 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
             if (con_periodo > 0) {
                 toast.warning(
                     `${con_periodo} trabajador(es) tienen un PERÍODO activo (vacaciones/licencia) que cubre este día: su estado va a reaparecer. Para quitarlo, elimina el período desde el calendario del trabajador.`,
-                    { duration: 12000 }
+                    { ...conDuracion(12000) }
                 );
             }
             if (traslados_restantes > 0) {
                 toast.warning(
                     `Ojo: ${traslados_restantes} traslado(s) de obra (TO) de ese día siguen vivos en otra obra y cuentan día trabajado. Bórralos desde la obra de origen o desde el Reporte Global.`,
-                    { duration: 12000 }
+                    { ...conDuracion(12000) }
                 );
             }
             setShowBorrar(false);

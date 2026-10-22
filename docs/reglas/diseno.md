@@ -448,7 +448,7 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     derivado lleva en el encabezado la línea de procedencia
     `// Idea: <Componente> de React Bits (reactbits.dev, MIT + Commons Clause). Reescrito; sin código copiado.`
     (hoy: `MarcaEstado`, `NumeroRodante`, `useBordesScroll`, `BordeScroll`, `PestanasElasticas`, `NovedadesModal`,
-    `AvisoPendiente`, y como comentario junto al
+    `AvisoPendiente`, `BotonDictar`, `EstanqueGastado`, y como comentario junto al
     conector de `WizardStepper` y al panel de `NuevoMovimientoWizardView`). Si alguna vez se copia
     código, el archivo lleva en el encabezado «Copyright (c) 2026 David Haz» con el texto de permiso, y
     se agrega una entrada en `frontend/THIRD_PARTY_NOTICES.md` (hoy no existe porque no se copió nada).
@@ -461,6 +461,21 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     Magnet, bordes eléctricos).
     RubberSegment salió de esta lista el 2026-10-16 porque el dueño lo pidió para las pestañas de
     Inventario (§9.12), sin el arrastre del indicador.
+    **Sumados el 2026-10-20** (revisión de lo nuevo de reactbits.dev con Marcos; en producción el 2026-10-22;
+    lo demás nuevo —Shredder, Sling Button, Tear Ticket, Paper Crumple, Comet Dial, Wake Slider, Dodge Field,
+    Flip Card, Peek Rating, Flying Button, Folder Float— se descartó por decorativo o por gestos escondidos):
+    - **Voice Pill → `ui/BotonDictar`**: «Dictar» en «Comparte tu idea» (Web Speech API, `es-CL`, una
+      frase por toque; sin soporte el botón no aparece). Mientras escucha: barras (`.ecualizador`, loop
+      CSS solo mientras graba), reloj y «Detener»; lo que va entendiendo, en gris bajo el campo.
+    - **Swipe Toast → mecha de los avisos** (`index.css` § Avisos + `utils/avisos.ts`): línea blanca de
+      2 px que se acorta en la duración del aviso y se pausa con el puntero encima. **Todo aviso con
+      duración propia usa `...conDuracion(ms)`** (no `duration: ms`) para que la línea no mienta: si no, la
+      línea dura los 3 s por defecto y el aviso sigue abierto. Deslizar abajo para cerrar ya lo trae sonner.
+    - **Refine Frame (idea) → fotos sin salto**: `VisorAdjunto` reserva el mismo alto (y el pie) mientras
+      carga; `FotoIdea` usa una caja fija. Sin fundido (§9.3).
+    - **Slosh Gauge → `costos/EstanqueGastado`**: estanque del % gastado en el KPI «Gastado (neto)» de
+      Presupuestos, en el color del semáforo; el nivel cambia en 250 ms y la superficie se inclina hacia
+      donde se movió (`estanque-ola`). Solo el %, nunca el monto (§9.4).
     **Sumados el 2026-10-20** (revisión del catálogo completo de reactbits.dev con Marcos):
     - **Carousel → `novedades/NovedadesModal`**: «Novedades de Bóveda», lo nuevo de cada entrega en
       tarjetas que se pasan con el dedo, las flechas o los puntos. Se abre sola UNA vez por persona y

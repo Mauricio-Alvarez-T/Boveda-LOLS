@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { conDuracion } from './avisos';
 
 /**
  * Helpers para compartir mensajes vía WhatsApp.
@@ -108,7 +109,7 @@ export async function prepareAndShareWithToast(opts: PrepareAndShareOptions): Pr
         duration = 15000,
     } = opts;
 
-    toast.info(preparingMessage, { id: toastId, duration: 2000 });
+    toast.info(preparingMessage, { id: toastId, ...conDuracion(2000) });
 
     try {
         await copyToClipboard(text);
@@ -116,7 +117,7 @@ export async function prepareAndShareWithToast(opts: PrepareAndShareOptions): Pr
         toast.success(successMessage, {
             id: toastId,
             description: successDescription,
-            duration,
+            ...conDuracion(duration),
             action: {
                 label: actionLabel,
                 onClick: async () => {
@@ -128,7 +129,7 @@ export async function prepareAndShareWithToast(opts: PrepareAndShareOptions): Pr
     } catch (error: any) {
         // eslint-disable-next-line no-console
         console.error('Error preparando mensaje WhatsApp', error);
-        toast.error('Error al preparar el mensaje', { id: toastId, duration: 8000 });
+        toast.error('Error al preparar el mensaje', { id: toastId, ...conDuracion(8000) });
         // Fallback: abrir WhatsApp tras un breve delay para que el user vea el error
         setTimeout(() => {
             shareViaWhatsApp(text, title);

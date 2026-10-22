@@ -37,14 +37,15 @@ export const FotoIdea: React.FC<{ ideaId: number; resumen: string; tamano?: numb
             </span>
         );
     }
-    if (!url) return <div className={`${compacta ? 'h-16 w-24' : 'h-40 w-full'} animate-pulse rounded-xl bg-muted`} />;
+    // Misma caja cargando y cargada (idea: Refine Frame de React Bits): la foto no empuja lo de abajo.
+    if (!url) return <div className={`${compacta ? 'h-16 w-24' : 'h-56 w-full'} motion-safe:animate-pulse rounded-xl bg-muted`} />;
 
     return (
         <>
             {/* eslint-disable-next-line no-restricted-syntax -- la miniatura entera abre el visor; Button no envuelve media */}
             <button type="button" onClick={() => setGrande(true)} title="Ver más grande"
-                className={`group relative block overflow-hidden rounded-xl border border-border bg-muted/40 cursor-zoom-in ${compacta ? 'h-16 w-24' : 'w-full'}`}>
-                <img src={url} alt={`Foto de la idea: ${resumen}`} className={compacta ? 'h-full w-full object-cover' : 'block w-full max-h-64 object-contain'} />
+                className={`group relative block overflow-hidden rounded-xl border border-border bg-muted/40 cursor-zoom-in ${compacta ? 'h-16 w-24' : 'h-56 w-full'}`}>
+                <img src={url} alt={`Foto de la idea: ${resumen}`} className="h-full w-full object-cover" style={compacta ? undefined : { objectFit: 'contain' }} />
                 {!compacta && (
                     <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-card/90 backdrop-blur border border-border px-2 py-1 text-micro font-semibold text-brand-dark shadow-sm">
                         <Maximize2 className="h-3 w-3" /> Ampliar

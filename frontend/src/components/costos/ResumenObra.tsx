@@ -4,8 +4,9 @@ import { Section } from '../ui/Section';
 import { EmptyState } from '../ui/EmptyState';
 import { Button } from '../ui/Button';
 import { fmtMoney, fmtNumber } from '../../utils/format';
-import { pct } from './costosConfig';
+import { pct, semaforo } from './costosConfig';
 import { Kpi, BarraAvance, PctGastado, Aviso } from './piezas';
+import { EstanqueGastado } from './EstanqueGastado';
 import type { VistaDetalle } from './DetalleCostos';
 import { GastosMesAMes } from './GastosMesAMes';
 import type { FiltroGastos } from './GastosObra';
@@ -45,7 +46,8 @@ export const ResumenObra: React.FC<Props> = ({ detalle, onImportar, onAgregarPar
                 <Kpi icon={Receipt} label="Gastado (neto)" valor={fmtMoney(r.gastado_neto) || '$0'}
                     tono={r.gastado_estimado ? 'aviso' : 'neutro'}
                     nota={r.pct_gastado !== null ? `${fmtNumber(r.pct_gastado, { decimals: 1 })} % del presupuesto${r.gastado_estimado ? ' · con netos estimados' : ''}` : `${fmtNumber(detalle.gastos.length)} documento${detalle.gastos.length === 1 ? '' : 's'}`}
-                    onClick={detalle.gastos.length ? () => onIr('gastos') : undefined} accion="Ver facturas" />
+                    onClick={detalle.gastos.length ? () => onIr('gastos') : undefined} accion="Ver facturas"
+                    visual={sinPartidas ? undefined : <EstanqueGastado pct={r.pct_gastado} semaforo={semaforo(r.costo_presupuestado, r.gastado_neto)} />} />
                 <Kpi icon={PiggyBank} label={pasado ? 'Pasado del presupuesto' : 'Queda'} tono={pasado ? 'peligro' : 'neutro'}
                     valor={sinPartidas ? '—' : fmtMoney(Math.abs(r.disponible)) || '$0'}
                     nota={sinPartidas ? undefined : pasado ? 'Se gastó más de lo presupuestado' : 'Presupuesto − gastado'} />

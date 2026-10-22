@@ -12,6 +12,7 @@ import type { Trabajador, EstadoAsistencia, PeriodoAusencia } from '../../types/
 import { empresaTag } from '../../utils/empresaTag';
 import { navegadorMuestraPdf, formatearTamano } from '../../utils/archivos';
 import { compressImage } from '../../utils/compressImage';
+import { conDuracion } from '../../utils/avisos';
 
 /**
  * Estados que llevan respaldo. Solo la Falta justificada: jefatura (13-10-2026)
@@ -152,7 +153,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                 observacion: observacion || null,
             });
             const data = res.data.data;
-            toast.success(`Período asignado: ${data.dias_afectados} días actualizados`, { duration: 4000 });
+            toast.success(`Período asignado: ${data.dias_afectados} días actualizados`, { ...conDuracion(4000) });
 
             // El adjunto va en una segunda llamada, con el id recién creado. Si falla,
             // el período ya existe y vale: se avisa, no se deshace.
@@ -169,7 +170,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                     const detalle = (e as { response?: { data?: { error?: string } } })?.response?.data?.error || 'error al subir';
                     toast.warning(
                         `El período quedó asignado, pero el justificativo no se pudo subir: ${detalle}. Puedes volver a intentarlo desde el período.`,
-                        { duration: 7000 }
+                        { ...conDuracion(7000) }
                     );
                 }
             }

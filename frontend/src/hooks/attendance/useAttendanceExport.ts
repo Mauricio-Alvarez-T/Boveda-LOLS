@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { copyToClipboard, shareViaWhatsApp } from '../../utils/whatsappShare';
 import type { Trabajador, Asistencia, EstadoAsistencia } from '../../types/entities';
+import { conDuracion } from '../../utils/avisos';
 
 interface UseAttendanceExportProps {
     date: string;
@@ -100,7 +101,7 @@ export function useAttendanceExport({
             return;
         }
 
-        toast.info('Preparando reporte...', { id: 'whatsapp-share', duration: 2000 });
+        toast.info('Preparando reporte...', { id: 'whatsapp-share', ...conDuracion(2000) });
 
         const dateStr = currentDate.split('-').reverse().join('-');
         let text = `Buenas tardes\n`;
@@ -308,7 +309,7 @@ export function useAttendanceExport({
             toast.success('¡Reporte y link listos!', {
                 id: 'whatsapp-share',
                 description: 'Pulsa el botón para enviar por WhatsApp.',
-                duration: 15000,
+                ...conDuracion(15000),
                 action: {
                     label: 'ENVIAR AHORA',
                     onClick: async () => {
@@ -322,7 +323,7 @@ export function useAttendanceExport({
             const serverMsg = error.response?.data?.error || error.response?.data?.message;
             const errorDetail = serverMsg ? `: ${serverMsg}` : ` (${error.message})`;
 
-            toast.error(`Error al generar link${errorDetail}`, { id: 'whatsapp-share', duration: 8000 });
+            toast.error(`Error al generar link${errorDetail}`, { id: 'whatsapp-share', ...conDuracion(8000) });
 
             setTimeout(() => {
                 shareViaWhatsApp(text, `Asistencia ${currentObra?.nombre || 'Bóveda'}`);
