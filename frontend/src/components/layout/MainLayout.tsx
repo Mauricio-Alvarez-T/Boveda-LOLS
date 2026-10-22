@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { useLocation, useOutlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
@@ -17,6 +17,17 @@ import { useAuth } from '../../context/AuthContext';
  * Las demás páginas pueden ocultarlo igual con `useSetCentroMovil(…, { ocultarObra: true })`.
  */
 const SIN_OBRA_EN_CELULAR = ['/configuracion', '/ideas', '/ayuda', '/costos', '/obras-finalizadas', '/vehiculos'];
+
+/**
+ * La página con la que se montó este envoltorio, congelada (dueño 2026-10-22: «un salto extraño de todos los
+ * componentes» al cambiar de sección). Con `<Outlet />` el envoltorio que sale por `AnimatePresence` pintaba ya la
+ * página NUEVA: aparecía, se desvanecía en la salida y volvía a entrar 8 px más abajo, montada dos veces (con sus
+ * esqueletos y animaciones de nuevo). Así la que sale es la vieja y la nueva entra una sola vez.
+ */
+const PaginaCongelada: React.FC = () => {
+    const [pagina] = useState(useOutlet());
+    return pagina;
+};
 
 export const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -119,7 +130,7 @@ export const MainLayout: React.FC = () => {
                             className="bg-transparent flex-1 flex flex-col min-h-0"
                         >
                             <ErrorBoundary resetKey={location.pathname}>
-                                <Outlet />
+                                <PaginaCongelada />
                             </ErrorBoundary>
                         </motion.div>
                     </AnimatePresence>
