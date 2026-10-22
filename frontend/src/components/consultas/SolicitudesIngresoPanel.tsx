@@ -217,7 +217,7 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                         title="Actualizar"
                         onClick={() => cargar()}
                         className="shrink-0"
-                        icon={<RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />}
+                        icon={<RefreshCw className={cn('h-4 w-4', loading && items.length > 0 && 'animate-spin')} />}
                     />
                     {/* Con la lista vacía el botón va al centro, en el estado vacío: arriba se repetía (Marcos 2026-10-21). */}
                     {!(!loading && items.length === 0) && botonNuevo}
