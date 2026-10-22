@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { repartirPaginas, SIN_PAGINAS, type Paginas } from '../../utils/paginasBarra';
+import { anchoNatural, repartirPaginas, SIN_PAGINAS, type Paginas } from '../../utils/paginasBarra';
 
 /** Lo que `BarraPaginada` le pasa a su `PestanasElasticas` hija. */
 export interface PaginadoPestanas {
@@ -45,6 +45,13 @@ export const BarraPaginada: React.FC<BarraPaginadaProps> = ({ children, fondo = 
     useLayoutEffect(() => { paginasRef.current = paginas; }, [paginas]);
     /** Página a la vista. La fija la flecha al tocarla (sin esperar al scroll) y el scroll del dedo. */
     const [pagina, setPagina] = useState(0);
+    /**
+     * Ancho de todas las opciones juntas (sin flechas ni relleno de página), fijado como `width` de la caja: es el ancho
+     * que la barra PIDE, pagine o no. Sin esto, al paginar su ancho preferido pasaba a «páginas × ancho visible +
+     * flechas», que depende del espacio que le tocó; con dos barras que se encogen en la misma fila (Ideas: estado y
+     * tipo) cada reparto de una le movía el espacio a la otra y las dos temblaban sin parar (video del dueño 22-oct).
+     */
+    const [natural, setNatural] = useState(0);
     const totalPaginas = paginas.desborda ? paginas.inicios.filter(Boolean).length : 1;
 
     const pestanas = useCallback(() => Array.from(scrollRef.current?.querySelectorAll<HTMLElement>(selector) ?? []), [selector]);
@@ -71,6 +78,8 @@ export const BarraPaginada: React.FC<BarraPaginadaProps> = ({ children, fondo = 
             // ¿Cabe todo sin flechas? Se compara con el ancho de la caja entera, no con el que dejan las flechas.
             const nuevo = repartirPaginas(anchos, gap, sc.clientWidth, caja.clientWidth, base);
             if (!igual(nuevo, previo)) setPaginas(nuevo);
+            const nat = Math.ceil(anchoNatural(anchos, gap));
+            setNatural(prev => (Math.abs(prev - nat) < 1 ? prev : nat));
         };
         const ro = new ResizeObserver(medir);
         ro.observe(sc);
@@ -169,7 +178,7 @@ export const BarraPaginada: React.FC<BarraPaginadaProps> = ({ children, fondo = 
     };
 
     return (
-        <div ref={cajaRef} className={cn('flex min-w-0 items-stretch gap-1', className)}>
+        <div ref={cajaRef} className={cn('flex min-w-0 items-stretch gap-1', className)} style={natural ? { width: natural } : undefined}>
             {paginas.desborda && flecha('inicio')}
             {/* `flex`: la fila de pestañas (shrink-0) toma su ancho real; en un bloque quedaría del ancho visible y
                 el indicador verde (copia con inset-0) se recortaría fuera de la vista. */}
