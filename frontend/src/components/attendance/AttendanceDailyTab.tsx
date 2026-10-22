@@ -384,7 +384,8 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                     />
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar bg-muted/80 p-2 md:p-4 flex flex-col gap-2 relative">
-                        <AnimatePresence>
+                        {/* initial={false}: el aviso de día no laboral está al entrar, sin animarse (solo al cambiar de fecha). */}
+                        <AnimatePresence initial={false}>
                             {(isSaturday || isSunday || !!feriadoActual) && (
                                 <motion.div initial={{ opacity: 0, scale: 0.95, y: -10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: -10 }} className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 p-4 rounded-2xl flex items-center gap-4 mb-2 shadow-sm shrink-0">
                                     <div className="h-10 w-10 flex-shrink-0 bg-amber-100 dark:bg-amber-950/40 rounded-xl flex items-center justify-center text-amber-600 dark:text-amber-300 border border-amber-200/50 dark:border-amber-900/50"><CalendarRange className="h-5 w-5" /></div>

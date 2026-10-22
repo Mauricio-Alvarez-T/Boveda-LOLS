@@ -10,7 +10,7 @@ import type { ObraFinalizada } from '../../types/entities';
 
 interface Props {
     obra: ObraFinalizada;
-    index: number;          // para el stagger de entrada
+    index?: number;         // ya sin uso: la entrada escalonada se quitó (2026-10-22)
     canReactivar: boolean;  // hasPermission('obras.finalizar')
     onReactivada: () => void;
 }
@@ -21,7 +21,7 @@ const MAX_CARGOS_VISIBLES = 5;
  * Tarjeta de obra concluida: fechas, duración, total de trabajadores
  * (histórico, derivado de asistencias) y desglose por cargo en barras CSS.
  */
-export const ObraFinalizadaCard: React.FC<Props> = ({ obra, index, canReactivar, onReactivada }) => {
+export const ObraFinalizadaCard: React.FC<Props> = ({ obra, canReactivar, onReactivada }) => {
     const [confirming, setConfirming] = useState(false);
     const [reactivating, setReactivating] = useState(false);
 
@@ -45,9 +45,8 @@ export const ObraFinalizadaCard: React.FC<Props> = ({ obra, index, canReactivar,
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, delay: Math.min(index * 0.04, 0.4) }}
+            // Sin entrada escalonada (dueño 2026-10-22): la grilla aparece con useAparecer en ObrasFinalizadas.
+            initial={false}
             className="flex flex-col rounded-2xl border border-border bg-card shadow-sm overflow-hidden"
         >
             {/* Header: badge + nombre + empresa */}

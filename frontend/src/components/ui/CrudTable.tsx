@@ -238,8 +238,8 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                         return (
                             <motion.div
                                 key={row.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                // Sin entrada propia: la lista entera aparece con useAparecer (antes cada fila subía 10 px).
+                                initial={false}
                                 className="bg-card rounded-2xl border border-border/60 p-5 shadow-sm hover:shadow-md transition-shadow"
                             >
                                 {/* Card title */}
@@ -320,8 +320,8 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                 rows.map((row) => (
                                     <motion.tr
                                         key={row.id}
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
+                                        // Sin entrada propia: el tbody aparece con useAparecer (se sumaban dos fundidos).
+                                        initial={false}
                                         className="hover:bg-background/50 transition-colors"
                                     >
                                         {columns.map(col => (

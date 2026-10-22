@@ -1,6 +1,5 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { CheckSquare, ClipboardList } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
@@ -92,14 +91,10 @@ const AttendancePage: React.FC = () => {
                 </div>
             )}
 
-            {/* Tab content con remount al cambiar tab */}
-            <AnimatePresence mode="wait">
-                <motion.div
+            {/* Tab content con remount al cambiar tab. Sin fundido ni salida (dueño 2026-10-22): arrancaba en blanco
+                al entrar a Asistencia y, con `mode="wait"`, dejaba un hueco al cambiar de pestaña — en Chrome, parpadeo. */}
+                <div
                     key={effectiveTab}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
-                    transition={{ duration: 0.15 }}
                     className="flex-1 min-h-0 flex flex-col"
                 >
                     {effectiveTab === 'diaria' && (
@@ -116,8 +111,7 @@ const AttendancePage: React.FC = () => {
                             <ActividadesSugeridasTab />
                         </ActividadesErrorBoundary>
                     )}
-                </motion.div>
-            </AnimatePresence>
+                </div>
         </div>
     );
 };
