@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { SkeletonFilas } from '../components/ui/Skeleton';
 import { useSearchParams } from 'react-router-dom';
 import { useIsPresent } from 'framer-motion';
 import {
@@ -479,9 +480,9 @@ const VehiculosPage: React.FC = () => {
     const chipActivo = esVendidos ? 'vendidos' : selectedEmpresa === 'sin' ? 'sin' : empresaActiva ? `e${empresaActiva.id}` : null;
 
     const EmpresasList = (
-        <div className="flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0">
+        <div className="flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0 datos-aparecen-hijos">
             {loading ? (
-                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm px-4 md:px-6">Cargando...</div>
+                <SkeletonFilas filas={4} className="px-3 md:px-4" />
             ) : empresas.length === 0 && conteos.sin === 0 && ventas.length === 0 ? (
                 <EmptyState icon={Building2} title="Sin empresas registradas"
                     description={'Haz clic en "Nueva empresa" para comenzar'}
@@ -539,9 +540,9 @@ const VehiculosPage: React.FC = () => {
 
     // ── Nivel 2: vista lista ──────────────────────────────────────────────────
     const ListView = (
-        <div className="flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0">
+        <div className="flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0 datos-aparecen-hijos">
             {loading ? (
-                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm px-4 md:px-6">Cargando...</div>
+                <SkeletonFilas filas={4} className="px-3 md:px-4" />
             ) : vehiculosEmpresa.length === 0 ? (
                 <EmptyState icon={Truck} title="Sin vehículos en esta empresa"
                     description={'Haz clic en "Nuevo vehículo" para agregar el primero'}

@@ -146,7 +146,7 @@ const IdeasPage: React.FC = () => {
     const diasMasAntigua = resumen.pendiente_mas_antigua ? hace(resumen.pendiente_mas_antigua) : '';
 
     return (
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-5 datos-aparecen-hijos">
             {/* Números (en el celular se ocultan mientras se lee una idea) */}
             <div className={cn('grid grid-cols-2 lg:grid-cols-4 gap-3', verDetalleMovil && 'hidden lg:grid')}>
                 <Kpi icon={Inbox} label="Pendientes" valor={resumen.pendiente} activo={filtro === 'pendiente'}
@@ -209,8 +209,8 @@ const IdeasPage: React.FC = () => {
 
             {cargando ? (
                 <div className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] gap-4">
-                    <div className="animate-pulse rounded-card border border-border bg-card h-96" />
-                    <div className="hidden lg:block animate-pulse rounded-card border border-border bg-card h-96" />
+                    <div className="rounded-card border border-border bg-card h-96" />
+                    <div className="hidden lg:block rounded-card border border-border bg-card h-96" />
                 </div>
             ) : !visibles.length ? (
                 <EmptyState

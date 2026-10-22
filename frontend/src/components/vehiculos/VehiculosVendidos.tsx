@@ -9,7 +9,7 @@ const fmtDate = (d: string) =>
     new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 
 const Skeleton: React.FC = () => (
-    <div className="animate-pulse rounded-2xl border border-border bg-card h-44" />
+    <div className="rounded-2xl border border-border bg-card h-44" />
 );
 
 /**

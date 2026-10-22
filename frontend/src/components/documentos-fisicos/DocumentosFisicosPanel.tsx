@@ -279,7 +279,7 @@ export const DocumentosFisicosPanel: React.FC = () => {
                 {puedeRegistrar && <div className="shrink-0 [&>div]:mb-0"><AlertasDocumentosStrip onAbrirLote={setAbierto} /></div>}
                 {loading && lotes.length === 0 ? (
                     <div className="grid flex-1 grid-cols-1 lg:grid-cols-3 gap-3">
-                        {LOTE_ESTADOS.map(e => <div key={e} className="rounded-2xl bg-muted/60 border border-border/60 animate-pulse min-h-40" />)}
+                        {LOTE_ESTADOS.map(e => <div key={e} className="rounded-2xl bg-muted/60 border border-border/60 min-h-40" />)}
                     </div>
                 ) : lotes.length === 0 ? (
                     <EmptyState icon={Truck} className="flex-1 justify-center"

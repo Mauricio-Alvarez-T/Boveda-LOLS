@@ -370,9 +370,18 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    `whileHover={{ scale: 1.05 }}` de `ui/IconButton` y `hover:scale-110` de `VencimientosBadge`; el
    `whileTap` sí se queda, porque confirma el toque.
 3. **Nunca retrasar la lectura.** Cada animación de feedback dura 250 ms o menos y ninguna tapa un dato
-   mientras corre. El cambio de ruta (`MainLayout`) dura ≈0,37 s en total: salida 0,12 s solo opacidad +
-   entrada 0,25 s con 8 px de `y` (antes ≈0,6 s, con `scale` en la salida). No hay reveals por scroll en
-   pantallas de datos, ni fundido de skeleton a contenido, ni stagger sobre filas de datos.
+   mientras corre. **Cambio de sección (dueño 2026-10-22: «no me gusta que salga una animación de carga
+   entremedio de un click… da a entender que la web es lenta»):** la nueva entra de inmediato con un fundido
+   de 0,16 s, sin esperar la salida de la vieja ni desplazarse (`MainLayout`; antes 0,12 s de salida + 0,25 s
+   con 8 px de `y`, y el `<Outlet />` dentro de `AnimatePresence` montaba la página nueva dos veces). El código
+   de todas las secciones se precarga en reposo (`paginas.ts` → `precargarSecciones`) y el `Suspense` del
+   layout no muestra nada mientras tanto: nunca el círculo a pantalla completa. Las pestañas internas
+   (Inventario, Configuración) cambian igual, solo fundido. **Carga = contorno quieto, datos con fundido:**
+   `Skeleton`/`SkeletonFilas` sin pulso; los datos que los reemplazan entran con `.datos-aparecen` (160 ms) o,
+   sin tocar el componente, con `.datos-aparecen-hijos` en el contenedor (cada hijo nuevo aparece; los
+   re-renders no lo repiten). Nada de círculos girando ni «Cargando…» como estado de una sección; el giro
+   queda para botones que el usuario apretó (guardar, actualizar a mano). No hay reveals por scroll en
+   pantallas de datos ni stagger sobre filas de datos.
    Única excepción: el indicador de `ui/PestanasElasticas` (§9.12), ≈0,6 s, pedido del dueño; no
    tapa nada porque el contenido de la pestaña cambia de inmediato.
 4. **Cifras: `ui/NumeroRodante`** (CSS puro, `React.memo`). La cifra nueva entra desde abajo si subió y

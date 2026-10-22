@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { MainLayout } from './components/layout/MainLayout';
 import { lazyWithRetry } from './utils/lazyWithRetry';
+import { cargarPagina } from './paginas';
 
 // Code-splitting: las páginas pesadas (recharts, dnd-kit, xlsx, etc.) se cargan
 // al entrar a su ruta, no en el bundle inicial. Login y el layout quedan eager
@@ -10,17 +11,17 @@ import { lazyWithRetry } from './utils/lazyWithRetry';
 // tras deploy" (reintento + recarga única) en vez de mostrar "Algo salió mal".
 // Login también va aparte (2026-10-21, celular lento): trae zod + react-hook-form (~70 KB) que quien ya
 // tiene sesión —casi todas las aperturas— no necesita.
-const LoginPage = lazyWithRetry(() => import('./pages/Login'));
-const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'));
-const AttendancePage = lazyWithRetry(() => import('./pages/Attendance'));
-const ConsultasPage = lazyWithRetry(() => import('./pages/Consultas'));
-const InventarioPage = lazyWithRetry(() => import('./pages/Inventario'));
-const VehiculosPage = lazyWithRetry(() => import('./pages/Vehiculos'));
-const ObrasFinalizadasPage = lazyWithRetry(() => import('./pages/ObrasFinalizadas'));
-const CentroAyudaPage = lazyWithRetry(() => import('./pages/CentroAyuda'));
-const SettingsPage = lazyWithRetry(() => import('./pages/Settings'));
-const IdeasPage = lazyWithRetry(() => import('./pages/Ideas'));
-const CostosPage = lazyWithRetry(() => import('./pages/Costos'));
+const LoginPage = lazyWithRetry(cargarPagina.login);
+const Dashboard = lazyWithRetry(cargarPagina.dashboard);
+const AttendancePage = lazyWithRetry(cargarPagina.asistencia);
+const ConsultasPage = lazyWithRetry(cargarPagina.consultas);
+const InventarioPage = lazyWithRetry(cargarPagina.inventario);
+const VehiculosPage = lazyWithRetry(cargarPagina.vehiculos);
+const ObrasFinalizadasPage = lazyWithRetry(cargarPagina.obrasFinalizadas);
+const CentroAyudaPage = lazyWithRetry(cargarPagina.ayuda);
+const SettingsPage = lazyWithRetry(cargarPagina.configuracion);
+const IdeasPage = lazyWithRetry(cargarPagina.ideas);
+const CostosPage = lazyWithRetry(cargarPagina.costos);
 
 const FullScreenSpinner: React.FC = () => (
   <div className="min-h-[100dvh] bg-background flex items-center justify-center">

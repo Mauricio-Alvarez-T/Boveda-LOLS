@@ -67,7 +67,7 @@ export const FlujoCaja: React.FC<{ obras: CostoObraLista[]; onIrObra: (obraId: n
     }, [flujo, saldoInicial]);
 
     if (falla && !flujo) return <EmptyState icon={Wallet} title="No se pudo cargar el flujo de caja" description="Vuelve a intentarlo en un momento." />;
-    if (!flujo) return <div className="h-96 animate-pulse rounded-card border border-border bg-card" />;
+    if (!flujo) return <div className="h-96 rounded-card border border-border bg-card" />;
 
     const vacio = !filas.some(f => f.balde.items.length) && !flujo.sin_fecha.items.length && !flujo.mas_adelante.items.length;
     const peor = filas.reduce<Fila | null>((m, f) => (!m || f.saldo < m.saldo ? f : m), null);

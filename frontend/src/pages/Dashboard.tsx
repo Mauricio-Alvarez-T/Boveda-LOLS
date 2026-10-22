@@ -123,7 +123,8 @@ const Plegable: React.FC<{ abierto: boolean; llena?: boolean; children: React.Re
     <div inert={!abierto}
         className={cn('grid transition-[grid-template-rows,opacity] duration-[250ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none',
             abierto ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0', llena && abierto && 'flex-1')}>
-        <div className="min-h-0 overflow-hidden">{children}</div>
+        {/* El contorno de la tarjeta está desde el inicio; su contenido entra con el fundido de datos (index.css). */}
+        <div className="min-h-0 overflow-hidden datos-aparecen-hijos">{children}</div>
     </div>
 );
 
@@ -358,7 +359,7 @@ const Dashboard: React.FC = () => {
         <div className="flex min-w-0 items-center gap-3">
             <h1 className="text-base font-semibold text-foreground">Inicio</h1>
             <span className="hidden truncate text-sm text-muted-foreground md:inline">{fechaDelDia(new Date())}</span>
-            <Button variant="ghost" size="sm" onClick={refreshAll} isLoading={loading} aria-label="Actualizar"
+            <Button variant="ghost" size="sm" onClick={refreshAll} isLoading={loading && !!data} aria-label="Actualizar"
                 title={hora ? `Actualizado ${hora}` : undefined} leftIcon={<RefreshCw className="h-4 w-4" aria-hidden />}>
                 <span className="hidden sm:inline">Actualizar</span>
             </Button>

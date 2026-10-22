@@ -19,7 +19,7 @@ export const ObraSelector: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="h-9 w-[200px] rounded-full bg-background animate-pulse" />
+            <div className="h-9 w-[200px] rounded-full bg-background" />
         );
     }
 

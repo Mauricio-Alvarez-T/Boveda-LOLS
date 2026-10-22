@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Save, Undo2, Search, Loader2, MapPin, AlertTriangle } from 'lucide-react';
+import { SkeletonFilas } from '../ui/Skeleton';
+import { Save, Undo2, Search, MapPin, AlertTriangle } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useStockMaestro, type StockRow, type UbicacionRef } from '../../hooks/inventario/useStockMaestro';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
@@ -196,15 +197,13 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
             </div>
 
             {/* Grid */}
-            <div className="flex-1 min-h-0 overflow-auto border border-border rounded-xl bg-card">
+            <div className="flex-1 min-h-0 overflow-auto border border-border rounded-xl bg-card datos-aparecen-hijos">
                 {!ubi ? (
                     <div className="py-12 text-center text-xs text-muted-foreground">
                         Elige una bodega u obra en el selector superior para ajustar su stock.
                     </div>
                 ) : loading ? (
-                    <div className="flex items-center justify-center py-12 text-muted-foreground text-sm gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" /> Cargando stock...
-                    </div>
+                    <SkeletonFilas />
                 ) : filteredRows.length === 0 ? (
                     <div className="py-12 text-center text-xs text-muted-foreground">Sin ítems que coincidan.</div>
                 ) : !esDesktop ? (

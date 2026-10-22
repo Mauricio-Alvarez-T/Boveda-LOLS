@@ -55,6 +55,22 @@
     .numero-baja { animation: numero-baja 160ms var(--ease-apple, cubic-bezier(0.25, 0.1, 0.25, 1)) both; }
 }
 
+/* Datos que reemplazan al contorno de carga (dueño 2026-10-22: «solo cargar el contorno de cada apartado
+   primero y con un efecto rápido y de fade que aparezcan los datos»). El contorno (Skeleton y afines) va
+   QUIETO, sin pulso; los datos llegan con este fundido de 160 ms, sin movimiento. Con «reducir movimiento»
+   aparecen en seco. */
+@keyframes datos-aparecen {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+/* `.datos-aparecen-hijos` en el contenedor donde el contorno se cambia por los datos: cada hijo que ENTRA (una
+   animación CSS corre al insertarse el elemento, no en cada render) aparece con el mismo fundido. Sirve sin
+   tocar el componente de datos. */
+@media (prefers-reduced-motion: no-preference) {
+    .datos-aparecen,
+    .datos-aparecen-hijos > * { animation: datos-aparecen 160ms var(--ease-apple, cubic-bezier(0.25, 0.1, 0.25, 1)) both; }
+}
+
 /* Teléfono del aviso «Gira tu dispositivo» (MainLayout). En CSS y no en framer: el overlay está
    `display:none` salvo en un teléfono apaisado, y una animación CSS no corre dentro de un
    display:none (y va en el compositor). Con framer, `rotate` es un loop JS en el hilo principal

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, ArrowRight, LayoutGrid, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt, Eye, EyeOff } from 'lucide-react';
+import { SkeletonFilas } from '../components/ui/Skeleton';
+import { Package, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, ArrowRight, LayoutGrid, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt, Eye, EyeOff } from 'lucide-react';
 import { MixerTruck } from '../components/icons/MixerTruck';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
@@ -366,10 +367,11 @@ const InventarioPage: React.FC = () => {
             {/* Tab Content */}
             <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                className="bg-card border border-border rounded-2xl md:rounded-3xl shadow-[var(--shadow-md)] p-2.5 md:p-4 flex-1 min-h-0 flex flex-col"
+                // Solo fundido (dueño 2026-10-22): el desplazamiento de 10 px al cambiar de pestaña se veía como un salto.
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.16 }}
+                className="bg-card border border-border rounded-2xl md:rounded-3xl shadow-[var(--shadow-md)] p-2.5 md:p-4 flex-1 min-h-0 flex flex-col datos-aparecen-hijos"
             >
                 {/* ── RESUMEN EJECUTIVO ── */}
                 {activeTab === 'resumen_ejecutivo' && (
@@ -389,10 +391,7 @@ const InventarioPage: React.FC = () => {
                 {/* ── RESUMEN ── */}
                 {activeTab === 'resumen' && (
                     loading ? (
-                        <div className="flex flex-col items-center justify-center py-16">
-                            <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-                            <p className="mt-3 text-sm text-muted-foreground">Cargando resumen...</p>
-                        </div>
+                        <SkeletonFilas filas={8} className="p-0" />
                     ) : resumen && resumen.categorias.length > 0 ? (
                         <ResumenMensualTable
                             data={resumen}
@@ -413,7 +412,7 @@ const InventarioPage: React.FC = () => {
 
                 {/* ── POR OBRA/BODEGA ── */}
                 {activeTab === 'por_ubicacion' && (
-                    <div className="flex flex-col gap-4 flex-1 min-h-0">
+                    <div className="flex flex-col gap-4 flex-1 min-h-0 datos-aparecen-hijos">
                         {/* Ubicacion selector + Export */}
                         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 shrink-0">
                             <label className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
@@ -465,10 +464,7 @@ const InventarioPage: React.FC = () => {
                         </div>
 
                         {loading ? (
-                            <div className="flex flex-col items-center justify-center py-16">
-                                <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-                                <p className="mt-3 text-sm text-muted-foreground">Cargando stock...</p>
-                            </div>
+                            <SkeletonFilas filas={8} className="p-0" />
                         ) : currentStockData ? (
                             <StockUbicacionTable
                                 data={currentStockData}

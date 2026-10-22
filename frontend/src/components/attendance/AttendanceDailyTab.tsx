@@ -329,7 +329,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
     }
 
     return (
-        <div className="h-[calc(100dvh-116px)] md:h-[calc(100dvh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full">
+        <div className="h-[calc(100dvh-116px)] md:h-[calc(100dvh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full datos-aparecen-hijos">
             <AnimatePresence>
                 {showSearchBox && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="md:hidden space-y-2 overflow-hidden pb-2">
@@ -357,7 +357,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
             {loading ? (
                 <div className="flex flex-col gap-3 p-4">
                     {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <div key={i} className="h-20 w-full bg-card rounded-2xl border border-border flex items-center p-4 gap-4 motion-safe:animate-pulse shadow-sm">
+                        <div key={i} className="h-20 w-full bg-card rounded-2xl border border-border flex items-center p-4 gap-4 shadow-sm">
                             <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-muted shrink-0" />
                             <div className="flex-1 space-y-2"><div className="h-4 w-1/3 bg-slate-100 dark:bg-muted rounded" /><div className="h-3 w-1/4 bg-slate-50 dark:bg-muted rounded" /></div>
                         </div>
