@@ -60,8 +60,10 @@
    QUIETO, sin pulso; los datos llegan con este fundido de 160 ms, sin movimiento. Lo pone `hooks/useAparecer`
    SOLO si antes se vio el contorno: con datos en caché aparecen en seco (en Chrome todo desvaneciéndose al
    entrar se veía como parpadeo). Con «reducir movimiento» aparecen en seco. */
+/* Parte en 0,4 y no en 0: el contorno se va al llegar los datos y, desde 0, el área pasaba un instante por vacía
+   (en Chrome, otro parpadeo). Así el cambio contorno → datos se suaviza sin quedar en blanco. */
 @keyframes datos-aparecen {
-    from { opacity: 0; }
+    from { opacity: 0.4; }
     to   { opacity: 1; }
 }
 @media (prefers-reduced-motion: no-preference) {
