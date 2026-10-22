@@ -1,5 +1,5 @@
 import {
-    abreFormulario, ariaSemaforo, bajadaVehiculo, fichasVehiculos, fraseVehiculo, mensajeWhatsApp, ordenSemaforo, PAPELES_META, papelDesdeUrl,
+    abreFormulario, ariaSemaforo, diasCalendario, eventosFlota, fechaConDia, fechaCorta, hoyIso, textoPlazo, urgenteDeEvento, bajadaVehiculo, fichasVehiculos, fraseVehiculo, mensajeWhatsApp, ordenSemaforo, PAPELES_META, papelDesdeUrl,
     pildora, primerNombre, rutaSubir, textoAvisar, tipoDocumentoDePapel, tituloVehiculo, tonoCelda, tonoFicha, urgentes,
     type PapelApi, type PapelClave, type PapelOtroApi, type VehiculoPapelesApi,
 } from './fichasVehiculosInicio';
@@ -163,5 +163,49 @@ describe('fichasVehiculosInicio', () => {
         const leasing = veh({ otros: [otro('Fin de leasing', -5, { categoria: 'leasing', subtipo: 'fin_leasing' })] });
         expect(abreFormulario(leasing, urgentes(leasing), todo)).toBe(false);
         expect(abreFormulario(v, [], todo)).toBe(false);
+    });
+
+    test('eventos del calendario: vencidos y por vencer que avisan, papel por papel, del más vencido al más holgado', () => {
+        const juan = veh({ vehiculo_id: 1, patente: 'PRLG-45', marca: 'HINO', modelo: 'FC 1118', conductor_nombre: 'Juan Pérez',
+            papeles: con(vencido('gases', -124, { fecha_vencimiento: '2026-06-20' }), porVencer('tecnica', 8, { fecha_vencimiento: '2026-10-30T03:00:00.000Z' }),
+                porVencer('poliza', 3, { fecha_vencimiento: '2026-10-25', avisa: false })) });
+        const sin = veh({ vehiculo_id: 2, patente: 'TWCB-97', marca: 'Maxus', modelo: 'G 90', conductor_nombre: null,
+            otros: [otro('Fin de leasing', 29, { categoria: 'leasing', subtipo: 'fin_leasing', registro_id: null, fecha_vencimiento: '2026-11-20' })] });
+        const ev = eventosFlota({ dias: 30, total_vehiculos: 2, vehiculos: [juan, sin] });
+        expect(ev.map(e => [e.patente, e.papel, e.fecha, e.dias, e.estado, e.clave])).toEqual([
+            ['PRLG-45', 'Revisión de gases', '2026-06-20', -124, 'vencido', 'gases'],
+            ['PRLG-45', 'Revisión técnica', '2026-10-30', 8, 'por_vencer', 'tecnica'],
+            ['TWCB-97', 'Fin de leasing', '2026-11-20', 29, 'por_vencer', null],
+        ]);
+        expect(new Set(ev.map(e => e.key)).size).toBe(3);
+        expect(eventosFlota(null)).toEqual([]);
+        // El WhatsApp de una fila habla solo de ESE papel.
+        expect(mensajeWhatsApp(juan, urgenteDeEvento(juan, ev[1])))
+            .toBe('Hola Juan, al PRLG-45 le vence la revisión técnica en 8 días. Coordinemos para dejarlo al día.');
+        expect(urgenteDeEvento(sin, ev[2]).map(u => u.nombre)).toEqual(['Fin de leasing']);
+    });
+
+    test('plazos y fechas en palabras', () => {
+        expect([textoPlazo(-1), textoPlazo(-124), textoPlazo(0), textoPlazo(1), textoPlazo(8)])
+            .toEqual(['venció hace 1 día', 'venció hace 124 días', 'vence hoy', 'vence en 1 día', 'vence en 8 días']);
+        expect(fechaCorta('2026-10-24')).toBe('24 oct');
+        expect(fechaConDia('2026-11-06')).toBe('vie 6 nov');
+        expect(hoyIso(new Date(2026, 9, 2, 23, 30))).toBe('2026-10-02');
+    });
+
+    test('calendario: 5 semanas desde el lunes, hoy marcado, lo pasado apagado y lo que vence en su día', () => {
+        const e = (fecha: string, estado: 'vencido' | 'por_vencer' = 'por_vencer') =>
+            ({ key: fecha + estado, vehiculo_id: 1, patente: 'X', vehiculo: 'X', fecha, dias: 0, papel: 'P', clave: null, estado });
+        const cal = diasCalendario('2026-10-22', [e('2026-10-24'), e('2026-10-24'), e('2026-11-06'), e('2026-10-20', 'vencido')]);
+        expect(cal).toHaveLength(35);
+        expect(cal[0]).toMatchObject({ iso: '2026-10-19', num: 19, pasado: true, hoy: false });
+        expect(cal.find(d => d.hoy)?.iso).toBe('2026-10-22');
+        expect(cal.find(d => d.iso === '2026-10-24')?.eventos).toHaveLength(2);
+        expect(cal.find(d => d.iso === '2026-11-06')?.eventos).toHaveLength(1);
+        expect(cal.find(d => d.iso === '2026-10-20')?.eventos).toHaveLength(0); // lo vencido no va en el calendario
+        expect(cal[34].iso).toBe('2026-11-22');
+        // Un domingo: la semana empieza el lunes anterior; cruza de año sin problema.
+        expect(diasCalendario('2026-12-27', [])[0].iso).toBe('2026-12-21');
+        expect(diasCalendario('2026-12-27', [])[34].iso).toBe('2027-01-24');
     });
 });

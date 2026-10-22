@@ -264,3 +264,86 @@ export const abreFormulario = (v: VehiculoPapelesApi, urg: Urgente[], puede: { e
     const renueva = !!reg && reg.registro_id != null && RENOVABLES.includes(reg.categoria);
     return renueva ? puede.editar : puede.crear;
 };
+
+// ── Calendario (Marcos 2026-10-22: la opción B «Calendario» + la ficha de la opción A al tocar) ─────────
+
+/** Un papel vencido o por vencer que avisa, con su fecha: lo que va en el calendario y en sus listas. */
+export interface EventoPapel {
+    key: string;
+    vehiculo_id: number;
+    patente: string;
+    /** «HINO FC 1118 AT». */
+    vehiculo: string;
+    /** 'YYYY-MM-DD'. */
+    fecha: string;
+    /** Negativo = vencido hace N días; 0 = hoy. */
+    dias: number;
+    /** «Revisión técnica», «Fin de leasing»… */
+    papel: string;
+    /** null = no es de los cinco (viene de `otros`). */
+    clave: PapelClave | null;
+    estado: 'vencido' | 'por_vencer';
+}
+
+/** Lo mismo que las fichas (vencido o por vencer, y avisa), papel por papel y con fecha. */
+export function eventosFlota(data: PapelesFlotaApi | null): EventoPapel[] {
+    if (!data) return [];
+    const out: EventoPapel[] = [];
+    for (const v of data.vehiculos) {
+        const base = { vehiculo_id: v.vehiculo_id, patente: v.patente, vehiculo: tituloVehiculo(v) };
+        for (const p of v.papeles) {
+            if ((p.estado !== 'vencido' && p.estado !== 'por_vencer') || !p.avisa || !p.fecha_vencimiento || p.dias_restantes == null) continue;
+            out.push({ ...base, key: `${v.vehiculo_id}-${p.clave}`, fecha: p.fecha_vencimiento.slice(0, 10), dias: p.dias_restantes,
+                papel: META[p.clave].nombre, clave: p.clave, estado: p.estado });
+        }
+        v.otros.forEach((o, i) => out.push({ ...base, key: `${v.vehiculo_id}-otro-${o.categoria}-${o.subtipo ?? ''}-${o.registro_id ?? i}`,
+            fecha: o.fecha_vencimiento.slice(0, 10), dias: o.dias_restantes, papel: o.nombre, clave: null, estado: o.estado }));
+    }
+    return out.sort((a, b) => a.dias - b.dias || a.patente.localeCompare(b.patente, 'es') || a.papel.localeCompare(b.papel, 'es'));
+}
+
+/** «venció hace 124 días» · «vence hoy» · «vence en 8 días». */
+export const textoPlazo = (d: number) =>
+    (d < 0 ? `venció hace ${dias(-d)}` : d === 0 ? 'vence hoy' : `vence en ${dias(d)}`);
+
+/** La urgencia de ESE papel, para el WhatsApp de una fila («Hola Juan, al PRLG-45 le vence…»). */
+export const urgenteDeEvento = (v: VehiculoPapelesApi, e: EventoPapel): Urgente[] =>
+    urgentes(v).filter(u => (e.clave ? u.clave === e.clave : u.clave == null && u.nombre === e.papel)).slice(0, 1);
+
+/** Hoy en la hora local, 'YYYY-MM-DD'. */
+export const hoyIso = (d: Date = new Date()) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const DIAS_CORTOS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const aUtc = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+const deUtc = (t: number) => new Date(t).toISOString().slice(0, 10);
+
+/** «24 oct». */
+export const fechaCorta = (iso: string) => `${Number(iso.slice(8, 10))} ${MESES_CORTOS[Number(iso.slice(5, 7)) - 1]}`;
+/** «vie 6 nov». */
+export const fechaConDia = (iso: string) => `${DIAS_CORTOS[new Date(aUtc(iso)).getUTCDay()]} ${fechaCorta(iso)}`;
+
+export interface DiaCalendario {
+    iso: string;
+    /** Número del día del mes. */
+    num: number;
+    /** Ya pasó (antes de hoy). */
+    pasado: boolean;
+    hoy: boolean;
+    /** Lo que vence ese día (por vencer; lo ya vencido va en la lista de la izquierda). */
+    eventos: EventoPapel[];
+}
+
+/** Cinco semanas desde el lunes de esta semana (como el lienzo): ~30 días hacia adelante. */
+export function diasCalendario(hoy: string, eventos: EventoPapel[], semanas = 5): DiaCalendario[] {
+    const t0 = aUtc(hoy);
+    const lunes = t0 - ((new Date(t0).getUTCDay() + 6) % 7) * 86_400_000;
+    const porDia = new Map<string, EventoPapel[]>();
+    for (const e of eventos) if (e.estado === 'por_vencer') porDia.set(e.fecha, [...(porDia.get(e.fecha) ?? []), e]);
+    return Array.from({ length: semanas * 7 }, (_, i) => {
+        const iso = deUtc(lunes + i * 86_400_000);
+        return { iso, num: Number(iso.slice(8, 10)), pasado: iso < hoy, hoy: iso === hoy, eventos: porDia.get(iso) ?? [] };
+    });
+}
+

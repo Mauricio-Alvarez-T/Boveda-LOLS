@@ -643,20 +643,26 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       tienes 3 solicitudes tuyas en curso · Ver tus solicitudes») o en el vacío. Reemplazó a las filas por
       grupo + «Alertas de inventario».
     - **Vehículos** (`VehicleExpiries`, 3 filas en la tarjeta; tarjeta y franja siguen con el número del
-      menú, que cuenta papeles). Detalle «Fichas por vehículo» (`DetalleVehiculos`, opción A del lienzo,
-      Marcos 2026-10-22; `GET /api/vehiculos/papeles?dias=30`, se pide al abrirlo y con «Actualizar»): una
-      ficha por vehículo con algo vencido o por vencer que avisa, lo más vencido primero —camión en círculo
-      (rojo si algo venció, si no ámbar), marca y modelo, «PATENTE · conduce Óscar Núñez», cuántos papeles
-      requieren acción, la frase «Venció la revisión de gases hace 124 días. Vence la póliza de seguro en
-      6 días.», una píldora por papel («Gases · vencido», «Póliza · 6 d») y el **semáforo de sus cinco
-      papeles** (Permiso · Póliza · Técnica · Gases · Mant.: rojo vencido, ámbar por vencer, gris al día o
-      sin fecha, punteado sin registro; sin verde, como el día hábil de Asistencia)—. Pie: «Avisar a
-      {conductor}» (WhatsApp con el texto listo: no hay teléfono del conductor, la persona elige el
-      contacto; ícono en verde de la escala, sin hex) y «Subir el nuevo» solo si el enlace abre un formulario
-      (renovar pide editar; agregar, o un papel de las tablas antiguas, pide crear; lo de `otros` no se abre
-      por enlace) —si no, «Ver vehículo»—, que abre `/vehiculos?vehiculo=&papel=`. 9 a la vista + «Ver los N».
-      Vacío: «Ningún aviso de papeles vencidos ni por vencer…» (no «todo al día»: el número del menú puede
-      contar registros viejos o con el aviso apagado). Reemplazó a la lista de vencimientos.
+      menú, que cuenta papeles). Detalle **«Calendario + ficha»** (`DetalleVehiculos`, Marcos 2026-10-22:
+      la opción B «Calendario» del lienzo combinada con la ficha de la opción A;
+      `GET /api/vehiculos/papeles?dias=30`, se pide al abrirlo y con «Actualizar»). Fila 1fr/2fr desde
+      1024 px (apilada en el celular): a la izquierda **«N papeles ya vencidos»** (cifra roja + lista
+      «PATENTE · papel / vehículo · venció hace N días»); a la derecha el **calendario de cinco semanas desde
+      el lunes** (`diasCalendario`): lo pasado apagado, hoy con anillo, el día con vencimientos en ámbar con
+      las patentes (puntos en el celular), y debajo **«Próximos 30 días»** («24 oct · PATENTE · papel · vence
+      en N días» + «Avisar» por WhatsApp de ESE papel). **Al tocar un día, un vencido o una fila**, la
+      columna izquierda cambia a la **ficha del vehículo** (la de la opción A, misma familia que las fichas
+      de Asistencia: camión en círculo, «PATENTE · conduce Óscar Núñez», cuántos papeles requieren acción,
+      la frase «Venció la revisión de gases hace 124 días…», una píldora por papel y el **semáforo de sus
+      cinco papeles** Permiso · Póliza · Técnica · Gases · Mant.), con «← Ver vencidos» para volver; en el
+      celular la ficha se trae a la vista. Pie de la ficha: «Avisar a {conductor}» (WhatsApp sin número: la
+      persona elige el contacto; en test los nombres son «Conductor Demo N» por el saneo) y «Subir el nuevo»
+      solo si el enlace abre un formulario (renovar pide editar; agregar o un papel de las tablas antiguas,
+      crear; lo de `otros` no se abre por enlace) —si no, «Ver vehículo»—, que abre
+      `/vehiculos?vehiculo=&papel=`. **Leyenda en pequeño** bajo la ficha (rojo vencido · ámbar vence en 30
+      días · gris al día o sin fecha · punteado sin registro) y bajo el calendario (ámbar vence ese día ·
+      anillo hoy). Todo con `eventosFlota` (vencido o por vencer que avisa, papel por papel). Reemplazó a la
+      lista de vencimientos y, el mismo día, a la grilla de fichas.
     Los detalles de Inventario y Vehículos van **sin `Panel`** (las fichas son la superficie, como
     Asistencia) y usan las piezas de `FichaInicio.tsx` + `fichasInicio.ts` (`PILDORA`, `CIFRA`, `CUADRO`):
     copian las clases de `FichasReiterados` (ficha `rounded-[20px]`, sombra `--shadow-sm`, grilla 1/2/3

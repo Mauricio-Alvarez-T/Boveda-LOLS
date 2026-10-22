@@ -142,7 +142,7 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
 ## Papeles por vehículo (`GET /vehiculos/papeles`, detalle del Inicio, 2026-10-22)
 
 - `vehiculos.service.getPapeles(dias, { todos })`, con `vehiculos.ver`, ruta antes de `/:id`. Alimenta el
-  detalle «Fichas por vehículo» del Inicio (`DetalleVehiculos`; lógica en `fichasVehiculosInicio.ts`, con
+  detalle «Calendario + ficha» del Inicio (`DetalleVehiculos`; lógica en `fichasVehiculosInicio.ts`, con
   test). **Va aparte de `getVencimientos` a propósito**: el número del menú (y la tarjeta y la franja del
   Inicio) no cambia. `?dias=` es la ventana de «por vencer» (entero ≥ 0; otra cosa → 30); sin `?todos=1`
   solo vienen los vehículos que requieren acción, del más vencido al menos. Devuelve
