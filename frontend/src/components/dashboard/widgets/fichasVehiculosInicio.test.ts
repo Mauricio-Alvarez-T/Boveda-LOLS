@@ -193,19 +193,29 @@ describe('fichasVehiculosInicio', () => {
         expect(hoyIso(new Date(2026, 9, 2, 23, 30))).toBe('2026-10-02');
     });
 
-    test('calendario: 5 semanas desde el lunes, hoy marcado, lo pasado apagado y lo que vence en su día', () => {
+    test('calendario: semanas desde el lunes hasta hoy + 30, hoy marcado, pasado y fuera de ventana apagados', () => {
         const e = (fecha: string, estado: 'vencido' | 'por_vencer' = 'por_vencer') =>
             ({ key: fecha + estado, vehiculo_id: 1, patente: 'X', vehiculo: 'X', fecha, dias: 0, papel: 'P', clave: null, estado });
         const cal = diasCalendario('2026-10-22', [e('2026-10-24'), e('2026-10-24'), e('2026-11-06'), e('2026-10-20', 'vencido')]);
-        expect(cal).toHaveLength(35);
-        expect(cal[0]).toMatchObject({ iso: '2026-10-19', num: 19, pasado: true, hoy: false });
+        expect(cal).toHaveLength(35); // jueves: cinco semanas
+        expect(cal[0]).toMatchObject({ iso: '2026-10-19', num: 19, pasado: true, hoy: false, fuera: false });
         expect(cal.find(d => d.hoy)?.iso).toBe('2026-10-22');
         expect(cal.find(d => d.iso === '2026-10-24')?.eventos).toHaveLength(2);
         expect(cal.find(d => d.iso === '2026-11-06')?.eventos).toHaveLength(1);
         expect(cal.find(d => d.iso === '2026-10-20')?.eventos).toHaveLength(0); // lo vencido no va en el calendario
-        expect(cal[34].iso).toBe('2026-11-22');
-        // Un domingo: la semana empieza el lunes anterior; cruza de año sin problema.
+        expect(cal.find(d => d.iso === '2026-11-21')?.fuera).toBe(false); // hoy + 30
+        expect(cal.find(d => d.iso === '2026-11-22')?.fuera).toBe(true);  // hoy + 31: sin datos
+        // Lunes: cinco semanas, y los últimos días (más allá de hoy + 30) apagados.
+        const lunes = diasCalendario('2026-10-26', []);
+        expect(lunes).toHaveLength(35);
+        expect(lunes.filter(d => d.fuera).map(d => d.iso)).toEqual(['2026-11-26', '2026-11-27', '2026-11-28', '2026-11-29']);
+        // Domingo: seis semanas, para que hoy + 30 (24-nov) tenga su celda; cruza de año sin problema.
+        const domingo = diasCalendario('2026-10-25', [e('2026-11-24')]);
+        expect(domingo).toHaveLength(42);
+        expect(domingo.find(d => d.iso === '2026-11-24')).toMatchObject({ fuera: false, eventos: [expect.anything()] });
         expect(diasCalendario('2026-12-27', [])[0].iso).toBe('2026-12-21');
-        expect(diasCalendario('2026-12-27', [])[34].iso).toBe('2027-01-24');
+        const fin = diasCalendario('2026-12-27', []);
+        expect(fin[fin.length - 1].iso).toBe('2027-01-31');
+        expect(diasCalendario('2026-10-22', [], 10)).toHaveLength(14);
     });
 });

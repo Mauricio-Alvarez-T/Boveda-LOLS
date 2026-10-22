@@ -646,9 +646,11 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       menú, que cuenta papeles). Detalle **«Calendario + ficha»** (`DetalleVehiculos`, Marcos 2026-10-22:
       la opción B «Calendario» del lienzo combinada con la ficha de la opción A;
       `GET /api/vehiculos/papeles?dias=30`, se pide al abrirlo y con «Actualizar»). Fila 1fr/2fr desde
-      1024 px (apilada en el celular): a la izquierda **«N papeles ya vencidos»** (cifra roja + lista
-      «PATENTE · papel / vehículo · venció hace N días»); a la derecha el **calendario de cinco semanas desde
-      el lunes** (`diasCalendario`): lo pasado apagado, hoy con anillo, el día con vencimientos en ámbar con
+      1280 px (apilada antes: a 1024 la ficha no cabe en un tercio): a la izquierda **«N papeles ya
+      vencidos»** (cifra roja + lista «PATENTE · papel / vehículo · venció hace N días», toma el alto del
+      calendario); a la derecha el **calendario desde el lunes de esta semana hasta hoy + 30** (cinco
+      semanas, seis si hoy es sábado o domingo; `diasCalendario`): lo pasado y lo que queda fuera de la
+      ventana de datos apagados, hoy con anillo, el día con vencimientos en ámbar con
       las patentes (puntos en el celular), y debajo **«Próximos 30 días»** («24 oct · PATENTE · papel · vence
       en N días» + «Avisar» por WhatsApp de ESE papel). **Al tocar un día, un vencido o una fila**, la
       columna izquierda cambia a la **ficha del vehículo** (la de la opción A, misma familia que las fichas
@@ -659,14 +661,18 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       persona elige el contacto; en test los nombres son «Conductor Demo N» por el saneo) y «Subir el nuevo»
       solo si el enlace abre un formulario (renovar pide editar; agregar o un papel de las tablas antiguas,
       crear; lo de `otros` no se abre por enlace) —si no, «Ver vehículo»—, que abre
-      `/vehiculos?vehiculo=&papel=`. **Leyenda en pequeño** bajo la ficha (rojo vencido · ámbar vence en 30
-      días · gris al día o sin fecha · punteado sin registro) y bajo el calendario (ámbar vence ese día ·
-      anillo hoy). Todo con `eventosFlota` (vencido o por vencer que avisa, papel por papel). Reemplazó a la
-      lista de vencimientos y, el mismo día, a la grilla de fichas.
-    Los detalles de Inventario y Vehículos van **sin `Panel`** (las fichas son la superficie, como
-    Asistencia) y usan las piezas de `FichaInicio.tsx` + `fichasInicio.ts` (`PILDORA`, `CIFRA`, `CUADRO`):
-    copian las clases de `FichasReiterados` (ficha `rounded-[20px]`, sombra `--shadow-sm`, grilla 1/2/3
-    columnas) sin tocar los archivos de Asistencia.
+      `/vehiculos?vehiculo=&papel=`. **Leyenda en pequeño** bajo la ficha, en una franja blanca (rojo
+      vencido · ámbar vence en 30 días o menos · gris al día o sin fecha · punteado sin registro) y bajo el
+      calendario (ámbar vence ese día · anillo hoy). Al elegir un vencido el foco pasa al título de la
+      ficha y «Ver vencidos» lo devuelve a la lista; un aviso solo para lectores de pantalla dice qué se
+      abrió; si tras «Actualizar» lo elegido ya no tiene nada, vuelve a los vencidos. Todo con `eventosFlota`
+      (vencido o por vencer que avisa, papel por papel). Reemplazó a la lista de vencimientos y, el mismo
+      día, a la grilla de fichas.
+    Inventario va **sin `Panel`** (las fichas son la superficie, grilla 1/2/3 columnas, como Asistencia);
+    Vehículos va en dos tarjetas `rounded-3xl` (vencidos y calendario, como «Hoy» y «Próximos 14 días» de
+    Asistencia) más la ficha `rounded-[20px]` al tocar. Los dos usan las piezas de `FichaInicio.tsx` +
+    `fichasInicio.ts` (`PILDORA`, `CIFRA`, `CUADRO`), que copian las clases de `FichasReiterados` (sombra
+    `--shadow-sm`) sin tocar los archivos de Asistencia.
     Piel común: **tarjetas blancas sin borde** (`rounded-3xl`, sombra `--shadow-md`) con
     `EncabezadoTarjeta` (**círculo de color sólido** + título `text-base`) y `CifraTarjeta` (número grande
     en el mismo color, rampa 700/300). Tonos: rojo = vencido o grave, ámbar = pendiente, azul =

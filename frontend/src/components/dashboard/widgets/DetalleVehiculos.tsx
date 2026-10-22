@@ -57,9 +57,9 @@ const Leyenda: React.FC<{ items: { clase: string; texto: string }[] }> = ({ item
         ))}
     </p>
 );
-const LEYENDA_SEMAFORO = [
+const leyendaSemaforo = (dias: number) => [
     { clase: CELDA.rojo, texto: 'Vencido' },
-    { clase: CELDA.ambar, texto: 'Vence en 30 días' },
+    { clase: CELDA.ambar, texto: `Vence en ${dias} días o menos` },
     { clase: CELDA.neutro, texto: 'Al día o sin fecha' },
     { clase: CELDA.punteado, texto: 'Sin registro' },
 ];
@@ -105,6 +105,11 @@ const FichaVehiculo: React.FC<{ v: VehiculoPapelesApi; urg: Urgente[]; puede: { 
 /** Lo elegido en el calendario o en las listas: un día (sus vehículos) o un vehículo. */
 type Seleccion = { tipo: 'dia'; iso: string } | { tipo: 'vehiculo'; id: number } | null;
 
+/** Tras «Actualizar»: el día aún tiene algo por vencer, o el vehículo aún tiene algo urgente. */
+const sigueVigente = (s: NonNullable<Seleccion>, data: PapelesFlotaApi) => (s.tipo === 'dia'
+    ? eventosFlota(data).some(e => e.fecha === s.iso && e.estado === 'por_vencer')
+    : fichasVehiculos(data).some(f => f.v.vehiculo_id === s.id));
+
 type Resultado = { version: unknown; intento: number } & ({ ok: true; data: PapelesFlotaApi } | { ok: false });
 
 /**
@@ -121,11 +126,18 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
     const [res, setRes] = useState<Resultado | null>(null);
     const [sel, setSel] = useState<Seleccion>(null);
     const panelRef = useRef<HTMLDivElement>(null);
+    const tituloRef = useRef<HTMLParagraphElement>(null);
+    const listaRef = useRef<HTMLDivElement>(null);
+    const verVencidos = () => { setSel(null); requestAnimationFrame(() => listaRef.current?.focus({ preventScroll: true })); };
 
     useEffect(() => {
         let vigente = true;
         api.get<{ data: PapelesFlotaApi }>('/vehiculos/papeles?dias=30')
-            .then(r => { if (vigente) setRes({ version, intento, ok: true, data: r.data.data }); })
+            .then(r => {
+                if (!vigente) return;
+                setRes({ version, intento, ok: true, data: r.data.data });
+                setSel(s => (s && !sigueVigente(s, r.data.data) ? null : s));
+            })
             .catch(() => { if (vigente) setRes({ version, intento, ok: false }); });
         return () => { vigente = false; };
     }, [version, intento]);
@@ -139,7 +151,7 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
     const eventos = useMemo(() => eventosFlota(data), [data]);
     const vencidos = useMemo(() => eventos.filter(e => e.estado === 'vencido'), [eventos]);
     const proximos = useMemo(() => eventos.filter(e => e.estado === 'por_vencer'), [eventos]);
-    const calendario = useMemo(() => diasCalendario(hoy, eventos), [hoy, eventos]);
+    const calendario = useMemo(() => diasCalendario(hoy, eventos, dias), [hoy, eventos, dias]);
     const porId = useMemo(() => new Map(fichas.map(f => [f.v.vehiculo_id, f])), [fichas]);
 
     // Fichas de lo elegido: los vehículos de ese día (en el orden del día) o el vehículo tocado.
@@ -148,16 +160,23 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
         const ids = sel.tipo === 'vehiculo' ? [sel.id] : [...new Set(eventos.filter(e => e.fecha === sel.iso && e.estado === 'por_vencer').map(e => e.vehiculo_id))];
         return ids.map(id => porId.get(id)).filter((f): f is NonNullable<typeof f> => !!f);
     }, [sel, eventos, porId]);
-    const titulo = sel?.tipo === 'dia' ? `Vence el ${fechaConDia(sel.iso)}` : elegidas[0]?.v.patente ?? '';
+    // Si lo elegido ya no tiene nada (se renovó y se actualizó), se ve como si no hubiera selección.
+    const selV = elegidas.length > 0 ? sel : null;
+    const titulo = selV?.tipo === 'dia' ? `Vence el ${fechaConDia(selV.iso)}` : elegidas[0]?.v.patente ?? '';
+    const anuncio = !selV ? '' : selV.tipo === 'dia'
+        ? `${titulo}: ${plural(elegidas.length, '1 vehículo', `${elegidas.length} vehículos`)}` : `Ficha de ${titulo}`;
 
     /** Elegir y, si el panel quedó fuera de la vista (celular: va arriba del calendario), llevarlo a la vista. */
-    const elegir = (s: Seleccion) => {
+    const elegir = (s: Seleccion, foco = false) => {
         setSel(s);
         requestAnimationFrame(() => {
             const el = panelRef.current;
             if (!el) return;
+            // El botón tocado desaparece (la lista se cambia por la ficha): el foco va al título de la ficha.
+            if (foco) tituloRef.current?.focus({ preventScroll: true });
             const r = el.getBoundingClientRect();
-            if (r.top < 0 || r.top > window.innerHeight - 120) {
+            const tope = el.closest('.overflow-y-auto')?.getBoundingClientRect().top ?? 0;
+            if (r.top < tope || r.top > window.innerHeight - 120) {
                 const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
                 el.scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
             }
@@ -175,7 +194,7 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
             <section className="space-y-3" aria-busy={pendiente}>
                 {rotulo}
                 {pendiente ? (
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
                         <div className={CARD}><SkeletonText lines={5} /></div>
                         <div className={CARD}><SkeletonText lines={8} /></div>
                     </div>
@@ -195,22 +214,26 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
     return (
         <section className="space-y-3" aria-busy={pendiente}>
             {rotulo}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
                 {/* Izquierda: lo ya vencido, o la ficha de lo elegido. */}
                 <div ref={panelRef} className="min-w-0 scroll-mt-20">
-                    {sel && elegidas.length > 0 ? (
-                        <div className="space-y-3" aria-live="polite">
+                    <p className="sr-only" aria-live="polite">{anuncio}</p>
+                    {selV ? (
+                        <div className="space-y-3">
                             <div className="flex items-center justify-between gap-3">
-                                <p className={ROTULO_FICHAS}>{titulo}</p>
-                                <EnlaceFicha apagado onClick={() => setSel(null)} icono={<ArrowLeft className="h-4 w-4" aria-hidden />}>
+                                <p ref={tituloRef} tabIndex={-1} className={cn(ROTULO_FICHAS, 'focus:outline-none')}>{titulo}</p>
+                                <EnlaceFicha apagado onClick={verVencidos} icono={<ArrowLeft className="h-4 w-4" aria-hidden />}>
                                     Ver vencidos
                                 </EnlaceFicha>
                             </div>
                             {elegidas.map(({ v, urg }) => <FichaVehiculo key={v.vehiculo_id} v={v} urg={urg} puede={puede} />)}
-                            <Leyenda items={LEYENDA_SEMAFORO} />
+                            {/* Sobre blanco, como en la ficha: el gris «al día» no se ve sobre el fondo de la página. */}
+                            <div className="rounded-2xl bg-card px-4 py-2.5 shadow-[var(--shadow-sm)]">
+                                <Leyenda items={leyendaSemaforo(dias)} />
+                            </div>
                         </div>
                     ) : (
-                        <div className={cn(CARD, 'space-y-3')}>
+                        <div ref={listaRef} tabIndex={-1} className={cn(CARD, 'space-y-3 focus:outline-none xl:h-full')}>
                             <div className="flex items-baseline gap-2">
                                 <span className={cn('text-4xl font-bold leading-none tracking-tight tabular-nums',
                                     vencidos.length ? 'text-red-700 dark:text-red-300' : 'text-foreground')}>{vencidos.length}</span>
@@ -226,12 +249,12 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
                                     {vencidos.map(e => (
                                         <li key={e.key} className="border-t border-border first:border-t-0">
                                             {/* eslint-disable-next-line no-restricted-syntax -- fila de la lista: abre la ficha del vehículo */}
-                                            <button type="button" onClick={() => elegir({ tipo: 'vehiculo', id: e.vehiculo_id })}
+                                            <button type="button" onClick={() => elegir({ tipo: 'vehiculo', id: e.vehiculo_id }, true)}
                                                 className="flex w-full items-center gap-3 rounded-lg py-2.5 text-left hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40">
                                                 <span className="h-2.5 w-2.5 shrink-0 rounded-[3px] bg-red-600 dark:bg-red-500" aria-hidden />
                                                 <span className="min-w-0 flex-1">
-                                                    <span className="block truncate text-sm font-semibold">{e.patente} · {e.papel}</span>
-                                                    <span className="block truncate text-xs text-muted-foreground">{e.vehiculo} · {textoPlazo(e.dias)}</span>
+                                                    <span className="block text-sm font-semibold">{e.patente} · {e.papel}</span>
+                                                    <span className="block text-xs text-muted-foreground">{e.vehiculo} · {textoPlazo(e.dias)}</span>
                                                 </span>
                                             </button>
                                         </li>
@@ -248,15 +271,16 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
                         {LETRAS.map((l, i) => <span key={i} className="text-center text-micro font-bold text-muted-foreground" aria-hidden>{l}</span>)}
                         {calendario.map(d => {
                             const n = d.eventos.length;
-                            const activo = !d.pasado && n > 0;
-                            const elegido = sel?.tipo === 'dia' && sel.iso === d.iso;
+                            const apagado = d.pasado || d.fuera;
+                            const activo = !apagado && n > 0;
+                            const elegido = selV?.tipo === 'dia' && selV.iso === d.iso;
                             return (
                                 // eslint-disable-next-line no-restricted-syntax -- día del calendario (abre la ficha de sus vehículos)
                                 <button key={d.iso} type="button" disabled={!activo}
                                     onClick={() => (elegido ? setSel(null) : elegir({ tipo: 'dia', iso: d.iso }))} aria-pressed={elegido}
                                     aria-label={`${fechaConDia(d.iso)}${d.hoy ? ', hoy' : ''}${n ? `: ${plural(n, 'vence 1 papel', `vencen ${n} papeles`)}` : ''}`}
                                     className={cn('flex min-h-11 min-w-0 flex-col items-start gap-1 rounded-xl p-1.5 text-left sm:min-h-[4.5rem] sm:p-2',
-                                        d.pasado ? 'bg-transparent text-muted-foreground/60' : n ? 'bg-amber-50 dark:bg-amber-500/10' : 'bg-muted/60',
+                                        apagado ? 'bg-transparent text-muted-foreground/60' : n ? 'bg-amber-50 dark:bg-amber-500/10' : 'bg-muted/60',
                                         d.hoy && 'ring-[1.5px] ring-foreground', elegido && 'ring-2 ring-brand-primary',
                                         activo && 'cursor-pointer hover:ring-1 hover:ring-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/60')}>
                                     <span className={cn('text-xs tabular-nums', d.hoy ? 'font-bold text-foreground' : 'font-medium')}>{d.num}</span>
@@ -292,7 +316,7 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
                                             <span className="w-14 shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">{fechaCorta(e.fecha)}</span>
                                             <span className="min-w-0 flex-1 truncate text-sm">
                                                 <span className="font-semibold">{e.patente}</span> · {e.papel}
-                                                <span className="text-muted-foreground"> · {textoPlazo(e.dias)}</span>
+                                                <span className="text-muted-foreground max-sm:hidden"> · {textoPlazo(e.dias)}</span>
                                             </span>
                                         </button>
                                         <EnlaceFicha apagado onClick={() => avisar(e)}

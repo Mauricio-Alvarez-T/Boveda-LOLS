@@ -129,7 +129,7 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
   el primer grupo de la "Bandeja del día"): cifra grande de vencidos (o por vencer), círculo rojo si
   algo venció, ámbar si solo hay por vencer, verde si no hay nada en 30 días, y 3 filas
   "PATENTE · Revisión de gases" + "venció hace 16d" que llevan a /vehiculos (2026-10-20: el Inicio pasó a
-  una tarjeta por módulo; desde el 2026-10-22 su «Ver más» abre las fichas por vehículo de
+  una tarjeta por módulo; desde el 2026-10-22 su «Ver más» abre el calendario + ficha de
   `GET /vehiculos/papeles`, § siguiente, y «Actualizar» del Inicio también refresca este número). La
   bandeja ya no los lista (sería mostrar lo mismo dos veces).
 - `useVencimientosVehiculos` es un **store de módulo** (`useSyncExternalStore`), no estado por

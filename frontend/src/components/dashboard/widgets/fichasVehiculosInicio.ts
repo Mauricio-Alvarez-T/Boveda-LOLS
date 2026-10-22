@@ -331,19 +331,28 @@ export interface DiaCalendario {
     /** Ya pasó (antes de hoy). */
     pasado: boolean;
     hoy: boolean;
+    /** Más allá de la ventana de datos (hoy + `dias`): se dibuja apagado, sin datos. */
+    fuera: boolean;
     /** Lo que vence ese día (por vencer; lo ya vencido va en la lista de la izquierda). */
     eventos: EventoPapel[];
 }
 
-/** Cinco semanas desde el lunes de esta semana (como el lienzo): ~30 días hacia adelante. */
-export function diasCalendario(hoy: string, eventos: EventoPapel[], semanas = 5): DiaCalendario[] {
+/**
+ * Semanas completas desde el lunes de esta semana hasta cubrir hoy + `dias` (la misma ventana de los datos):
+ * cinco de lunes a viernes, seis el fin de semana. Lo de antes de hoy y lo de después de la ventana va apagado,
+ * así ningún día «vacío» miente y todo lo de «Próximos N días» tiene su celda.
+ */
+export function diasCalendario(hoy: string, eventos: EventoPapel[], dias = 30): DiaCalendario[] {
     const t0 = aUtc(hoy);
-    const lunes = t0 - ((new Date(t0).getUTCDay() + 6) % 7) * 86_400_000;
+    const desdeLunes = (new Date(t0).getUTCDay() + 6) % 7;
+    const lunes = t0 - desdeLunes * 86_400_000;
+    const largo = Math.ceil((desdeLunes + dias + 1) / 7) * 7;
+    const limite = deUtc(t0 + dias * 86_400_000);
     const porDia = new Map<string, EventoPapel[]>();
     for (const e of eventos) if (e.estado === 'por_vencer') porDia.set(e.fecha, [...(porDia.get(e.fecha) ?? []), e]);
-    return Array.from({ length: semanas * 7 }, (_, i) => {
+    return Array.from({ length: largo }, (_, i) => {
         const iso = deUtc(lunes + i * 86_400_000);
-        return { iso, num: Number(iso.slice(8, 10)), pasado: iso < hoy, hoy: iso === hoy, eventos: porDia.get(iso) ?? [] };
+        return { iso, num: Number(iso.slice(8, 10)), pasado: iso < hoy, hoy: iso === hoy, fuera: iso > limite, eventos: porDia.get(iso) ?? [] };
     });
 }
 
