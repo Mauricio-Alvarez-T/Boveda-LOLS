@@ -17,6 +17,21 @@ const FECHA_MINIMA = '2000-01-01';
 
 // Introspección de columnas con cache: compartida en utils/schema.js (plan Gestiones B1).
 const { existingCols } = require('../utils/schema');
+const { celularOError } = require('../utils/telefono');
+
+// Teléfono del conductor (mig 132). Las consultas que lo traen marcan el lugar con /*TEL*/
+// (después de `c.nombre AS conductor_nombre`, con `conductores c` en el JOIN). Si la columna aún
+// no existe (migración pendiente) se repite sin ella: el vehículo se ve igual, sin teléfono.
+const TEL_CONDUCTOR = ', c.telefono AS conductor_telefono';
+async function consultaConTelefono(sql, params) {
+    const correr = (s) => (params === undefined ? db.query(s) : db.query(s, params));
+    try {
+        return await correr(sql.replace('/*TEL*/', TEL_CONDUCTOR));
+    } catch (e) {
+        if (!e || e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+        return correr(sql.replace('/*TEL*/', ''));
+    }
+}
 
 // Construye {fields, params} para un UPDATE filtrando solo columnas que existen.
 async function buildUpdate(table, data, allowed) {
@@ -153,9 +168,9 @@ const vehiculosService = {
 
         const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-        const [rows] = await db.query(`
+        const [rows] = await consultaConTelefono(`
             SELECT v.*,
-                c.nombre AS conductor_nombre,
+                c.nombre AS conductor_nombre/*TEL*/,
                 ev.nombre AS empresa_nombre,
                 ev.color  AS empresa_color,
                 -- Último seguro activo y su vencimiento
@@ -182,8 +197,8 @@ const vehiculosService = {
     },
 
     async getById(id) {
-        const [rows] = await db.query(
-            `SELECT v.*, c.nombre AS conductor_nombre,
+        const [rows] = await consultaConTelefono(
+            `SELECT v.*, c.nombre AS conductor_nombre/*TEL*/,
                     ev.nombre AS empresa_nombre, ev.color AS empresa_color
              FROM vehiculos v
              LEFT JOIN conductores c ON c.id = v.conductor_id
@@ -247,20 +262,54 @@ const vehiculosService = {
         return r.insertId;
     },
 
+    /**
+     * «Teléfono del conductor» del formulario del vehículo (mig 132). `undefined` = no vino: no se
+     * toca. Vacío → null (lo borra). Inválido → 400 ANTES de escribir nada (por eso se llama antes
+     * de resolver el conductor). Lo llena quien edita vehículos aunque no tenga conductores.editar
+     * (Leonardo): el teléfono es de la persona, así que vale para todos los vehículos que conduce.
+     */
+    _telefonoConductorDe(data) {
+        if (data.conductor_telefono === undefined) return undefined;
+        return celularOError(data.conductor_telefono, 'El teléfono del conductor');
+    },
+
+    /** Un teléfono sin conductor no tiene dónde guardarse: 400 (vacío/null se ignora). */
+    _exigirConductorParaTelefono(conductorId, telefono) {
+        if (telefono && !conductorId) {
+            throw Object.assign(new Error('Escribe el nombre del conductor para guardar su teléfono.'), {
+                statusCode: 400, code: 'TELEFONO_SIN_CONDUCTOR',
+            });
+        }
+    },
+
+    /** Guarda el teléfono en el catálogo. Sin la mig 132 no hay columna: se omite sin romper el guardado. */
+    async _guardarTelefonoConductor(conductorId, telefono) {
+        if (telefono === undefined || !conductorId) return;
+        try {
+            await db.query('UPDATE conductores SET telefono = ? WHERE id = ?', [telefono, conductorId]);
+        } catch (e) {
+            if (!e || e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+        }
+    },
+
     async create(data) {
         const { patente, marca, modelo, anio, tipo = 'camioneta', kilometraje_actual = 0, color, observaciones, empresa_id, conductor_id, valor = 0, precio_compra = 0, es_leasing = false } = data;
         if (!patente || !marca || !modelo || !anio) {
             throw Object.assign(new Error('patente, marca, modelo y anio son obligatorios'), { statusCode: 400 });
         }
+        const telefono = this._telefonoConductorDe(data);
         // El form manda conductor_nombre (texto): se resuelve/crea en el catálogo.
+        // (Sin nombre no se escribe nada: el 400 de abajo sale antes de cualquier INSERT.)
         const resolvedConductorId = data.conductor_nombre !== undefined
             ? await this.resolveConductorId(data.conductor_nombre)
             : (conductor_id || null);
+        this._exigirConductorParaTelefono(resolvedConductorId, telefono);
         const [result] = await db.query(
             `INSERT INTO vehiculos (patente, marca, modelo, anio, tipo, kilometraje_actual, color, observaciones, empresa_id, conductor_id, valor, precio_compra, es_leasing)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [patente.toUpperCase().trim(), marca, modelo, anio, tipo, kilometraje_actual, color || null, observaciones || null, empresa_id || null, resolvedConductorId, valor || 0, precio_compra || 0, es_leasing ? 1 : 0]
         );
+        await this._guardarTelefonoConductor(resolvedConductorId, telefono);
         if (data.cuotas !== undefined) await this._replaceCuotas(result.insertId, data.cuotas);
         // Campos de mig 103 (fechas de leasing, avisar seguro): van por update(),
         // que filtra columnas existentes — así crear no rompe si falta la migración.
@@ -276,10 +325,22 @@ const vehiculosService = {
     },
 
     async update(id, data) {
+        // Teléfono del conductor (mig 132): se valida antes de escribir nada.
+        const telefono = this._telefonoConductorDe(data);
         // El form manda conductor_nombre (texto): se resuelve/crea en el catálogo
         // y se vuelca a conductor_id para que el whitelist de abajo lo persista.
         if (data.conductor_nombre !== undefined) {
             data.conductor_id = await this.resolveConductorId(data.conductor_nombre);
+        }
+        // El teléfono es del conductor que queda en el vehículo: el que viene o, si no viene, el actual.
+        let conductorDelTelefono = null;
+        if (telefono !== undefined) {
+            if (data.conductor_id !== undefined) conductorDelTelefono = data.conductor_id || null;
+            else {
+                const [[actual] = []] = await db.query('SELECT conductor_id FROM vehiculos WHERE id = ?', [id]);
+                conductorDelTelefono = actual?.conductor_id ?? null;
+            }
+            this._exigirConductorParaTelefono(conductorDelTelefono, telefono);
         }
         // Los últimos son de migs 103/104/106: si la columna aún no existe en
         // este entorno, se omiten en silencio (mismo criterio que buildUpdate) en
@@ -298,11 +359,12 @@ const vehiculosService = {
                 params.push(f === 'patente' ? data[f].toUpperCase().trim() : data[f]);
             }
         });
-        if (!fields.length && data.cuotas === undefined) throw Object.assign(new Error('Sin campos para actualizar'), { statusCode: 400 });
+        if (!fields.length && data.cuotas === undefined && telefono === undefined) throw Object.assign(new Error('Sin campos para actualizar'), { statusCode: 400 });
         if (fields.length) {
             params.push(id);
             await db.query(`UPDATE vehiculos SET ${fields.join(', ')} WHERE id = ?`, params);
         }
+        await this._guardarTelefonoConductor(conductorDelTelefono, telefono);
         if (data.cuotas !== undefined) await this._replaceCuotas(id, data.cuotas);
         return this.getById(id);
     },
@@ -876,8 +938,8 @@ const vehiculosService = {
         const incluirTodos = todos === true || todos === 1 || todos === '1' || todos === 'true';
 
         // v.* trae avisar_alerta_seguro (mig 103) solo si la columna existe: sin acoplar la consulta.
-        const [vehiculos] = await db.query(`
-            SELECT v.*, c.nombre AS conductor_nombre, ev.nombre AS empresa_nombre
+        const [vehiculos] = await consultaConTelefono(`
+            SELECT v.*, c.nombre AS conductor_nombre/*TEL*/, ev.nombre AS empresa_nombre
             FROM vehiculos v
             LEFT JOIN conductores c ON c.id = v.conductor_id
             LEFT JOIN empresas_vehiculos ev ON ev.id = v.empresa_id
@@ -1034,6 +1096,8 @@ const vehiculosService = {
                 empresa_nombre: v.empresa_nombre ?? null,
                 conductor_id: v.conductor_id ?? null,
                 conductor_nombre: v.conductor_nombre ?? null,
+                // mig 132: «Avisar a {conductor}» abre el chat de ese número (null → WhatsApp sin número).
+                conductor_telefono: v.conductor_telefono ?? null,
                 papeles: lista,
                 otros: pendientes,
                 requiere_accion: requiere,

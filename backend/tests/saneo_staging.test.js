@@ -183,6 +183,24 @@ describe('saneoStaging — correo saliente y rastros', () => {
         expect(sql).toMatch(/empresas SET representante_nombre/);
         expect(sql).toMatch(/conductores SET nombre/);
     });
+
+    test('deja en NULL el teléfono de los conductores (mig 132) y tolera que la columna falte', async () => {
+        const db = dbOk();
+        const out = await saneo.limpiarRastros(db);
+        const sql = db.query.mock.calls.map(c => c[0]).join(' | ');
+        expect(sql).toMatch(/UPDATE conductores SET telefono = NULL WHERE telefono IS NOT NULL/);
+        expect(out['conductores.telefono']).toBe(1);
+
+        // Migración pendiente: la columna no existe (1054) → no aborta el saneo.
+        const sinColumna = {
+            query: jest.fn(async (sql) => {
+                if (/conductores SET telefono/.test(sql)) { const e = new Error('Unknown column'); e.errno = 1054; throw e; }
+                return [{ affectedRows: 0 }];
+            }),
+        };
+        const r = await saneo.limpiarRastros(sinColumna);
+        expect(r['conductores.telefono']).toBeNull();
+    });
 });
 
 describe('saneoSiembra', () => {

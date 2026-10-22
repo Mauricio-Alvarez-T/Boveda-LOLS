@@ -16,7 +16,9 @@ const EXCLUDED_KEYS = new Set([
     // Montos de remuneración (plan Gestiones B3/B5): nunca al detalle del log (lo ve sistema.logs.ver).
     'sueldo_base', 'bono_colacion', 'bono_movilizacion',
     // Snapshot de emisión de documentos (mig 110): puede traer remuneración.
-    'metadata'
+    'metadata',
+    // Celular del conductor (mig 132): solo lo ve quien tiene vehiculos.ver; el log lo ve sistema.logs.ver.
+    'conductor_telefono'
 ]);
 
 // Etiquetas humanas para keys técnicas (usadas en `buildResumen`).

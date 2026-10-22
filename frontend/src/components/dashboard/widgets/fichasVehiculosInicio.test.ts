@@ -1,6 +1,6 @@
 import {
     abreFormulario, ariaSemaforo, diasCalendario, porMes, eventosFlota, fechaConDia, fechaCorta, hoyIso, textoPlazo, urgenteDeEvento, bajadaVehiculo, fichasVehiculos, fraseVehiculo, mensajeWhatsApp, ordenSemaforo, PAPELES_META, papelDesdeUrl,
-    pildora, primerNombre, rutaSubir, textoAvisar, tipoDocumentoDePapel, tituloVehiculo, tonoCelda, tonoFicha, urgentes,
+    pildora, primerNombre, rutaSubir, telefonoAvisar, textoAvisar, tipoDocumentoDePapel, tituloVehiculo, tonoCelda, tonoFicha, urgentes,
     type PapelApi, type PapelClave, type PapelOtroApi, type VehiculoPapelesApi,
 } from './fichasVehiculosInicio';
 
@@ -140,6 +140,15 @@ describe('fichasVehiculosInicio', () => {
         expect(mensajeWhatsApp(sin, urgentes(sin))).toBe('Hola, al KDPW-31 se le venció el permiso de circulación hace 1 día, '
             + 'le vence la revisión técnica hoy y le vence la mantención en 1 día. Coordinemos para dejarlo al día.');
         expect(mensajeWhatsApp(veh(), [])).toBe('Hola Óscar, revisemos los papeles del KDPW-31.');
+    });
+
+    test('a qué número va «Avisar a …»: el celular del conductor asignado, si es válido (mig 132)', () => {
+        expect(telefonoAvisar(veh({ conductor_telefono: '+56912345678' }))).toBe('+56912345678');
+        // Sin teléfono, con uno inválido o sin conductor → null: WhatsApp sin número, como antes.
+        expect(telefonoAvisar(veh())).toBeNull();
+        expect(telefonoAvisar(veh({ conductor_telefono: null }))).toBeNull();
+        expect(telefonoAvisar(veh({ conductor_telefono: '22345678' }))).toBeNull();
+        expect(telefonoAvisar(veh({ conductor_id: null, conductor_nombre: null, conductor_telefono: '+56912345678' }))).toBeNull();
     });
 
     test('ruta de «Subir el nuevo»: el papel más urgente si es de los cinco; si no, solo el vehículo', () => {

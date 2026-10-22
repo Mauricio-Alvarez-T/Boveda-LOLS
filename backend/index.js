@@ -265,11 +265,24 @@ try {
     orderBy: 'nombre ASC',
     allowedFields: ['nombre', 'activo']
   }));
-  app.use('/api/conductores', createCrudRoutes('conductores', 'conductores', {
+  // telefono (mig 132): celular del conductor para avisarle por WhatsApp de los papeles del
+  // vehículo. Se guarda normalizado '+569XXXXXXXX' (inválido → 400); si la columna aún no existe
+  // (migración pendiente) se descarta en vez de dar 500 "Unknown column". Es un dato personal:
+  // solo sale en la respuesta a quien tiene vehiculos.ver (ver docs/reglas/vehiculos.md).
+  const { celularOError } = require('./src/utils/telefono');
+  const { ocultarCamposSinPermiso } = require('./src/middleware/ocultarCampos');
+  const prepararTelefonoConductor = async (safeData) => {
+    if (safeData.telefono === undefined) return;
+    safeData.telefono = celularOError(safeData.telefono, 'El teléfono');
+    if (!(await hasCols('conductores', 'telefono'))) delete safeData.telefono;
+  };
+  app.use('/api/conductores', ocultarCamposSinPermiso('vehiculos.ver', ['telefono']), createCrudRoutes('conductores', 'conductores', {
     searchFields: ['nombre'],
     useSoftDelete: true,
     orderBy: 'nombre ASC',
-    allowedFields: ['nombre', 'activo']
+    allowedFields: ['nombre', 'telefono', 'activo'],
+    beforeCreate: (safeData) => prepararTelefonoConductor(safeData),
+    beforeUpdate: (_id, safeData) => prepararTelefonoConductor(safeData),
   }));
 
   // ── Empresas de flota (catálogo paramétrico del módulo Vehículos) ──

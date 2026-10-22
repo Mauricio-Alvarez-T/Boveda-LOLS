@@ -163,8 +163,10 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
 - **`otros`**: lo que requiere acción y no es de los cinco —documento `seguro_terceros`, revisión
   `mecanica`, fin de leasing (`es_leasing = 1`, `leasing_terminado = 0`) y otras categorías de documento con
   fecha—, con nombre legible («Seguro a terceros», «Fin de leasing») y también el más reciente por tipo.
-- Conductor: `vehiculos.conductor_id` → `conductores.nombre`. **No hay teléfono en ninguna tabla**:
-  «Avisar a {conductor}» abre WhatsApp con el texto listo y la persona elige el contacto.
+- Conductor: `vehiculos.conductor_id` → `conductores.nombre` y `conductores.telefono` (`conductor_telefono`,
+  mig 132; § siguiente). «Avisar a {conductor}» de la ficha y el ícono de WhatsApp de cada fila de «Próximos
+  60 días» abren **el chat de ese número** con el texto listo; sin teléfono (o sin conductor), WhatsApp se abre
+  con el texto y la persona elige el contacto, como antes.
 - Consultas en secuencia (no `Promise.all`: el hosting tiene 10 conexiones) que toleran columnas ausentes
   (`ER_BAD_FIELD_ERROR`) igual que `getVencimientos`.
 - **Enlace `/vehiculos?vehiculo=<id>&papel=<clave>`** («Subir el nuevo» de la ficha): la página espera los
@@ -173,6 +175,51 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
   `VehiculoDocumentos` hace UNA vez, en el panel que se ve: «Renovar» sobre el más reciente de ese tipo si
   está vencido o por vencer y se puede editar, o «Agregar» con ese tipo si no hay ninguno y se puede crear.
   Sin permiso no abre nada.
+
+## Teléfono del conductor (mig 132, 2026-10-22)
+
+Pedido del dueño: «cuando esté en producción, que el WhatsApp le llegue a la persona que está a cargo de ese
+vehículo» (= el «Conductor asignado»). Antes `conductores` solo tenía el nombre.
+
+- **Columna** `conductores.telefono VARCHAR(20) NULL`. Es **de la persona, no del vehículo**: cambiarlo desde un
+  vehículo cambia el número en todos los que maneja ese conductor.
+- **Formato**: celular chileno, se guarda `+569XXXXXXXX`. Se acepta lo que la gente escribe (espacios, guiones,
+  puntos, paréntesis, `+56` / `56` / `0056`, y al pegar desde Contactos o WhatsApp también las marcas invisibles
+  que trae el número y los guiones tipográficos); lo que queda tiene que ser 9 dígitos que empiezan con 9. Fijos, otros
+  países, letras o dígitos de más/de menos → **400** «El teléfono … debe ser un celular chileno de 9 dígitos que
+  empiece con 9 (ej.: 9 1234 5678).» (`code: TELEFONO_INVALIDO`). Vacío → `NULL` (sin teléfono). Regla en
+  `backend/src/utils/telefono.js` (la que manda) y la misma en `frontend/src/utils/celular.ts` (aviso en el
+  formulario); con test en los dos lados.
+- **Historial de actividad**: el número no se guarda en `logs_actividad` (`conductor_telefono` en `EXCLUDED_KEYS`
+  y `telefono` del módulo conductores; el de trabajadores y empresas sí va).
+- **Dónde se llena**:
+  - **Formulario del vehículo** — «Teléfono del conductor», opcional, justo debajo de «Conductor asignado»
+    (deshabilitado sin nombre). Lo usa quien tiene `vehiculos.crear` / `vehiculos.editar` **aunque no tenga
+    `conductores.editar` ni Configuración** (Leonardo). Se precarga con el número que ya tiene el conductor (del
+    detalle del vehículo o del catálogo); al cambiar el nombre se muestra el del nuevo conductor (o vacío).
+    **El form manda `conductor_telefono` SOLO si la persona tocó el campo**: lo precargado no se reenvía, para no
+    pisar el número de otro conductor ni borrar uno que el form no alcanzó a leer. Backend
+    (`vehiculos.service` create/update): `conductor_telefono` ausente → no se toca; vacío → lo borra; se valida
+    **antes de escribir nada** (inválido = 400 sin crear conductor ni vehículo) y va al conductor resuelto
+    (`conductor_nombre` → `resolveConductorId`; si no viene el nombre, el conductor actual del vehículo). Teléfono
+    con texto y sin conductor → 400 `TELEFONO_SIN_CONDUCTOR`. Un PUT con solo el teléfono es válido.
+  - **Configuración → Conductores** — columna «Teléfono» y campo «Teléfono (WhatsApp)» en `ConductorForm`; CRUD
+    genérico con `telefono` en `allowedFields` y `beforeCreate`/`beforeUpdate` que normalizan.
+- **Quién lo ve** (dato personal): solo quien tiene **`vehiculos.ver`**. `getAll`/`getById`/`getPapeles` lo
+  traen como `conductor_telefono` (rutas con `vehiculos.ver`); `ocultarCamposSinPermiso`
+  (`middleware/ocultarCampos.js`) lo quita de `/api/conductores` (`telefono`) y de POST/PUT de `/api/vehiculos`
+  (`conductor_telefono`) a quien no tiene ese permiso. Sin `vehiculos.ver`, Configuración → Conductores no
+  muestra la columna ni el campo **y no envía `telefono`** (mandarlo vacío borraría un número que no ve).
+- **Cómo se usa al avisar**: `utils/whatsappShare.ts` → `avisarPorWhatsApp(telefono, texto)`: con celular válido
+  abre `https://api.whatsapp.com/send?phone=569XXXXXXXX&text=…` (en el celular abre la app, directo en el chat;
+  sin `await` antes del `window.open` para no perder el toque en Safari); sin número hace lo de siempre
+  (`shareViaWhatsApp`: hoja de compartir en el teléfono, WhatsApp sin número en el computador).
+  `telefonoAvisar(v)` (`fichasVehiculosInicio.ts`) elige el número: el del conductor asignado si es válido.
+- **Pre-migración**: las consultas se repiten sin la columna si da `ER_BAD_FIELD_ERROR` (el teléfono llega null);
+  el CRUD de conductores descarta `telefono` si la columna no existe (`hasCols`) y el UPDATE desde el vehículo se
+  omite: el guardado nunca da 500 por la mig 132 pendiente.
+- **Staging**: el saneo (`saneoStaging.limpiarRastros`) deja `conductores.telefono` en NULL, para que «Avisar» de
+  test no le escriba a una persona real. El que se cargue a mano para probar dura hasta el próximo saneo.
 
 ## Alertas por email
 

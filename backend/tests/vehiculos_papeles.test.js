@@ -330,9 +330,34 @@ describe('getPapeles — quiénes vienen y en qué orden', () => {
             empresa_id: 2, empresa_nombre: 'LOLS', conductor_id: 4, conductor_nombre: 'Juan Pérez',
         });
         expect(porId[8]).toMatchObject({ conductor_id: null, conductor_nombre: null, empresa_id: null, empresa_nombre: null, modelo: null });
-        // La consulta del vehículo une con conductores y empresas (no hay teléfono en ninguna).
+        // La consulta del vehículo une con conductores (nombre y teléfono, mig 132) y empresas.
         expect(db.query.mock.calls[0][0]).toMatch(/LEFT JOIN conductores c ON c\.id = v\.conductor_id/);
+        expect(db.query.mock.calls[0][0]).toMatch(/c\.telefono AS conductor_telefono/);
         expect(db.query.mock.calls[0][0]).toMatch(/LEFT JOIN empresas_vehiculos ev ON ev\.id = v\.empresa_id/);
+    });
+
+    test('trae el teléfono del conductor (mig 132), o null si no tiene', async () => {
+        mockFuentes({
+            vehiculos: [
+                vehiculo({ conductor_telefono: '+56912345678' }),
+                vehiculo({ id: 8, patente: 'LRCV-17', conductor_telefono: null }),
+                vehiculo({ id: 9, patente: 'MMXT-22', conductor_id: null, conductor_nombre: null }),
+            ],
+        });
+        const r = await svc.getPapeles(30, { todos: '1' });
+        const porId = Object.fromEntries(r.vehiculos.map(v => [v.vehiculo_id, v]));
+        expect(porId[7].conductor_telefono).toBe('+56912345678');
+        expect(porId[8].conductor_telefono).toBeNull();
+        expect(porId[9].conductor_telefono).toBeNull();
+    });
+
+    test('pre-migración 132: sin conductores.telefono se relee sin la columna y el teléfono llega null', async () => {
+        db.query.mockRejectedValueOnce(errBadField());
+        mockFuentes({ vehiculos: [vehiculo()] });
+        const r = await svc.getPapeles(30, { todos: '1' });
+        expect(db.query.mock.calls[0][0]).toMatch(/c\.telefono AS conductor_telefono/);
+        expect(db.query.mock.calls[1][0]).not.toMatch(/telefono/);
+        expect(r.vehiculos[0]).toMatchObject({ conductor_nombre: 'Juan Pérez', conductor_telefono: null });
     });
 
     test('ordena por el papel más urgente y luego patente; los que están al día solo con ?todos=1', async () => {

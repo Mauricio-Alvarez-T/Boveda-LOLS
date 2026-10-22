@@ -1,5 +1,6 @@
 import type { TonoTarjeta } from './tarjetaActiva';
 import { nombreCorto, plural } from './fichasInicio';
+import { numeroWhatsApp } from '../../../utils/celular';
 
 /**
  * Lógica sin dibujo de «Vehículos · fichas por vehículo» del detalle del Inicio (2026-10-22, Marcos eligió la
@@ -49,6 +50,8 @@ export interface VehiculoPapelesApi {
     empresa_nombre: string | null;
     conductor_id: number | null;
     conductor_nombre: string | null;
+    /** Celular del conductor '+569XXXXXXXX' (mig 132): «Avisar a …» abre su chat. null/ausente = WhatsApp sin número. */
+    conductor_telefono?: string | null;
     papeles: PapelApi[];
     otros: PapelOtroApi[];
     /** Cuántos de papeles + otros están vencidos o por vencer Y avisan. */
@@ -214,11 +217,21 @@ export const tituloVehiculo = (v: VehiculoPapelesApi) => [v.marca, v.modelo].fil
 export const bajadaVehiculo = (v: VehiculoPapelesApi) =>
     `${v.patente} · ${v.conductor_nombre?.trim() ? `conduce ${v.conductor_nombre.trim()}` : 'sin conductor asignado'}`;
 
-/** No hay teléfono del conductor en ninguna tabla: WhatsApp se abre con el texto y la persona elige a quién. */
+/**
+ * Texto del enlace de WhatsApp de la ficha. Con el celular del conductor (mig 132) el chat se abre directo con
+ * él; sin celular, WhatsApp se abre con el texto y la persona elige a quién (ver `telefonoAvisar`).
+ */
 export const textoAvisar = (v: VehiculoPapelesApi) => {
     const n = primerNombre(v.conductor_nombre);
     return n ? `Avisar a ${n}` : 'Avisar por WhatsApp';
 };
+
+/**
+ * A qué número va «Avisar a …» (Marcos 2026-10-22: «que el WhatsApp le llegue a la persona que está a cargo de
+ * ese vehículo»): el celular del conductor asignado si es válido; si no, null (WhatsApp sin número, como antes).
+ */
+export const telefonoAvisar = (v: VehiculoPapelesApi): string | null =>
+    (v.conductor_id != null && numeroWhatsApp(v.conductor_telefono) ? v.conductor_telefono ?? null : null);
 
 /** «a», «a y b», «a, b y c». */
 const enumerar = (partes: string[]) =>

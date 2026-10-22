@@ -277,6 +277,8 @@ const activityLogger = async (req, res, next) => {
                     const bodyClone = { ...req.body };
                     // Limpiar campos sensibles
                     for (const k of EXCLUDED_KEYS) delete bodyClone[k];
+                    // El celular del conductor (mig 132) tampoco; 'telefono' de trabajadores/empresas sí va.
+                    if (modulo === 'conductores') delete bodyClone.telefono;
 
                     if (accion === 'UPDATE' && originalData) {
                         let cambios = computeDiff(originalData, bodyClone);

@@ -1,5 +1,6 @@
 import { toast } from 'sonner';
 import { conDuracion } from './avisos';
+import { numeroWhatsApp } from './celular';
 
 /**
  * Helpers para compartir mensajes vía WhatsApp.
@@ -55,9 +56,33 @@ export async function shareViaWhatsApp(text: string, title?: string): Promise<bo
             // Cualquier otro error → fallback al URL
         }
     }
-    const encoded = encodeURIComponent(text);
-    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+    window.open(enlaceWhatsApp(text), '_blank');
     return true;
+}
+
+/**
+ * Enlace de WhatsApp con el texto listo. Con un celular chileno válido abre el chat de ESE número
+ * (`phone=569XXXXXXXX`); sin número (o con uno que no sirve), el de siempre: la persona elige el contacto.
+ * api.whatsapp.com y no wa.me: preserva mejor los emojis, y en el celular abre la app igual.
+ */
+export function enlaceWhatsApp(text: string, telefono?: string | null): string {
+    const numero = numeroWhatsApp(telefono);
+    const encoded = encodeURIComponent(text);
+    return numero
+        ? `https://api.whatsapp.com/send?phone=${numero}&text=${encoded}`
+        : `https://api.whatsapp.com/send?text=${encoded}`;
+}
+
+/**
+ * Avisar a una persona (mig 132, «Avisar a {conductor}» del Inicio): con su celular abre directo su chat
+ * con el texto escrito; sin celular hace lo de siempre (`shareViaWhatsApp`: la persona elige a quién).
+ * Con número se abre de inmediato, sin `await` antes del `window.open`, para no perder el toque del
+ * usuario (Safari del celular bloquea la ventana si se abre después de algo asíncrono).
+ */
+export function avisarPorWhatsApp(telefono: string | null | undefined, text: string, title?: string): Promise<boolean> {
+    if (!numeroWhatsApp(telefono)) return shareViaWhatsApp(text, title);
+    window.open(enlaceWhatsApp(text, telefono), '_blank');
+    return Promise.resolve(true);
 }
 
 /**
