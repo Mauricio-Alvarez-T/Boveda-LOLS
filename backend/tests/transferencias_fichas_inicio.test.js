@@ -76,6 +76,9 @@ describe('fichasInicio: alcance idéntico a resumenInicio', () => {
         ['receptor sin bodega ni ver_todas', { id: 12, p: P('inventario.ver', 'recibir') }],
         ['aprobador sin ver_todas', { id: 13, p: P('inventario.ver', 'aprobar', 'recibir') }],
         ['solo solicitante', { id: 11, p: P('inventario.ver', 'solicitar') }],
+        // Mig 131 (Daphne): ve las diferencias sin aprobar; ni por aprobar ni por recibir.
+        ['jefatura con diferencias_ver', { id: 14, p: P('inventario.ver', 'diferencias_ver', 'cancelar', 'ver_todas') }],
+        ['diferencias_ver sin ver_todas', { id: 15, p: P('inventario.ver', 'diferencias_ver', 'recibir') }],
     ];
 
     test.each(perfiles)('%s: mismas etapas, condiciones y parámetros', async (_nombre, user) => {
@@ -235,6 +238,18 @@ describe('fichasInicio: acción y bloqueo de este usuario', () => {
         filas.discrepancias = [trf(1, { estado: 'recibida' })];
         const r = await transferenciaService.fichasInicio({ id: 7, p: P('aprobar') });
         expect(fichaDe(r, 1)).toMatchObject({ etapa: 'discrepancias', accion: 'resolver', bloqueo: null });
+    });
+
+    // Mig 131: con solo «Ver diferencias» la ficha aparece, sin acción y sin bloqueo (la ficha dice «Ver diferencia»).
+    test('diferencias con solo diferencias_ver: la ficha aparece sin acción ni bloqueo; con los dos, resolver', async () => {
+        filas.discrepancias = [trf(1, { estado: 'recibida' })];
+        filas.por_aprobar = [trf(2)];
+        const ver = await transferenciaService.fichasInicio({ id: 14, p: P('diferencias_ver', 'ver_todas') });
+        expect(ver.fichas).toHaveLength(1);
+        expect(fichaDe(ver, 1)).toMatchObject({ etapa: 'discrepancias', accion: null, bloqueo: null });
+        expect(deEtapa().map(c => etapaDe(c.sql))).toEqual(['discrepancias']);
+        const ambos = await transferenciaService.fichasInicio({ id: 7, p: P('diferencias_ver', 'aprobar') });
+        expect(fichaDe(ambos, 1)).toMatchObject({ accion: 'resolver', bloqueo: null });
     });
 });
 

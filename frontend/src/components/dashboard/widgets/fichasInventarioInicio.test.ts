@@ -91,6 +91,16 @@ describe('textoAccion y píldoras', () => {
         expect(textoAccion(ficha(1, { accion: null, bloqueo: 'sod_solicitante' }))).toBe('Ver solicitud');
     });
 
+    // Mig 131: con solo «Ver diferencias» el servidor manda la ficha de diferencias sin acción y sin bloqueo.
+    test('diferencias que solo se miran: «Ver diferencia» y sin píldora de bloqueo', () => {
+        const soloVer = ficha(1, { etapa: 'discrepancias', estado: 'recibida', accion: null, bloqueo: null, faltan: 2 });
+        expect(textoAccion(soloVer)).toBe('Ver diferencia');
+        expect(pildorasFicha(soloVer)).toEqual([
+            { texto: 'Diferencias por resolver', tono: 'rojo' }, { texto: 'Faltan 2 u.', tono: 'rojo' },
+        ]);
+        expect(rutaFicha(soloVer)).toBe('/inventario?tab=transferencias&estado=discrepancias&id=1');
+    });
+
     test('etapa, estancada, faltan, sobran y por qué no puede actuar', () => {
         expect(pildorasFicha(ficha(1))).toEqual([{ texto: 'Por aprobar', tono: 'ambar' }]);
         expect(pildorasFicha(ficha(1, { estancada: true, accion: null, bloqueo: 'sod_solicitante' }))).toEqual([

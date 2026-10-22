@@ -145,8 +145,12 @@ export function fraseFicha(f: FichaInventarioApi): string {
 
 const ACCION: Record<AccionFicha, string> = { aprobar: 'Aprobar', recibir: 'Recibir', resolver: 'Resolver' };
 
-/** Enlace verde de la ficha: lo que le toca a quien mira, o «Ver solicitud» si no puede actuar. */
-export const textoAccion = (f: FichaInventarioApi) => (f.accion ? ACCION[f.accion] : 'Ver solicitud');
+/**
+ * Enlace verde de la ficha: lo que le toca a quien mira o, si no puede actuar, «Ver solicitud». En diferencias,
+ * quien solo las mira (permiso «Ver diferencias», mig 131: sin acción ni bloqueo) lee «Ver diferencia».
+ */
+export const textoAccion = (f: FichaInventarioApi) =>
+    (f.accion ? ACCION[f.accion] : f.etapa === 'discrepancias' ? 'Ver diferencia' : 'Ver solicitud');
 
 /** Por qué no puede actuar (píldora neutra junto a «Ver solicitud»): la segregación de funciones o la bodega. */
 const BLOQUEO: Record<BloqueoFicha, string> = {

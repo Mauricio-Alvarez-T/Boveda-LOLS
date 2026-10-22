@@ -135,6 +135,10 @@ const MAESTRO_PERMISOS = [
     ['inventario.transferencias.solicitar',    'Inventario', 'Solicitar Transferencia',     'Crear solicitudes de transferencia normal (bodega central → obra). La devolución, el traslado intra-obra y los flujos especiales (push directo, intra-bodega, orden gerencia) tienen cada uno su propio permiso.', 13],
     ['inventario.transferencias.solicitud_materiales', 'Inventario', 'Solicitud de Materiales', 'Crear solicitudes de materiales de construcción (cemento, fierro, áridos, etc.). Flujo con aprobación: pendiente → aprobada → en tránsito → recibida.', 14],
     ['inventario.transferencias.aprobar',      'Inventario', 'Aprobar Transferencia',       'Aprobar o rechazar solicitudes pendientes. SoD: no puede aprobar transferencias que él mismo solicitó (excepto con sod_bypass).', 15],
+    // Ver las diferencias SIN resolverlas (mig 131, dueño 2026-10-22): los gates de VER diferencias son OR con
+    // `aprobar` (lista, filtro «Diferencias», detalle en solo lectura y el Inicio); resolver, rehacer y la foto
+    // siguen pidiendo `aprobar`.
+    ['inventario.transferencias.diferencias_ver', 'Inventario', 'Ver diferencias',         'Inventario → Solicitudes → «Diferencias»: ver la lista y el detalle de las diferencias entre lo enviado y lo que llegó, y verlas contadas en el Inicio, sin poder resolverlas. Para aprobarlas o rechazarlas hace falta "Aprobar Transferencia".', 28],
     ['inventario.transferencias.despachar',    'Inventario', 'Despachar Transferencia',     'Marcar una transferencia aprobada como en tránsito. SoD: no puede despachar transferencias que él mismo aprobó.', 16],
     ['inventario.transferencias.recibir',      'Inventario', 'Recibir Transferencia',       'Confirmar recepción física de una transferencia en tránsito. SoD: no puede recibir transferencias que él mismo despachó.', 17],
     ['inventario.transferencias.cancelar',     'Inventario', 'Cancelar Transferencia',      'Cancelar una transferencia en estado pendiente o aprobada. NO permite cancelar despachadas (en tránsito) — eso requiere el permiso especial "Cancelar en Tránsito".', 18],

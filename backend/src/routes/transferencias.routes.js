@@ -120,7 +120,9 @@ router.get('/solicitantes', auth, checkPermission('inventario.ver'), async (req,
 
 // GET /api/transferencias/discrepancias?estado=pendiente|resuelta|descartada
 // (debe ir ANTES de /:id para que Express no interprete 'discrepancias' como un ID)
-router.get('/discrepancias', auth, checkPermission('inventario.transferencias.aprobar'), async (req, res, next) => {
+// VER es OR (mig 131): quien aprueba o quien solo mira las diferencias (`diferencias_ver`). Resolver, rehacer y la
+// foto de abajo siguen pidiendo `aprobar`.
+router.get('/discrepancias', auth, checkPermission('inventario.transferencias.aprobar', 'inventario.transferencias.diferencias_ver'), async (req, res, next) => {
     try {
         const result = await transferenciaService.getDiscrepancias(req.query);
         res.json(result);

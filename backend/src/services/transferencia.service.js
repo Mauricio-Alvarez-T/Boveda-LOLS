@@ -267,8 +267,10 @@ function _etapasInicio(user = {}) {
         if (user.bodega_id) alcanceParams.push(user.bodega_id);
     }
     const aprobar = tiene('inventario.transferencias.aprobar');
+    // Ver diferencias (mig 131): quien aprueba o quien solo las mira (diferencias_ver), igual que resumenInicio.
+    const verDiferencias = aprobar || tiene('inventario.transferencias.diferencias_ver');
     return {
-        discrepancias: aprobar ? {
+        discrepancias: verDiferencias ? {
             where: " AND EXISTS (SELECT 1 FROM transferencia_discrepancias d WHERE d.transferencia_id = t.id AND d.estado = 'pendiente' AND d.diferencia <> 0)",
             params: [],
             desde: 'COALESCE(t.fecha_recepcion, t.fecha_despacho, t.fecha_solicitud)',
@@ -297,7 +299,10 @@ function _accionInicio(t, etapa, user = {}) {
     const bypass = _hasBypass(p);
     const nada = (bloqueo) => ({ accion: null, bloqueo });
     if (etapa === 'discrepancias') {
-        return _hasPerm(p, 'inventario.transferencias.aprobar') ? { accion: 'resolver', bloqueo: null } : nada('sin_permiso');
+        if (_hasPerm(p, 'inventario.transferencias.aprobar')) return { accion: 'resolver', bloqueo: null };
+        // Solo diferencias_ver (mig 131): la ve, sin acción y sin bloqueo (la ficha dice «Ver diferencia»).
+        if (_hasPerm(p, 'inventario.transferencias.diferencias_ver')) return { accion: null, bloqueo: null };
+        return nada('sin_permiso');
     }
     if (etapa === 'por_aprobar') {
         if (!_hasPerm(p, 'inventario.transferencias.aprobar')) return nada('sin_permiso');
@@ -2084,8 +2089,8 @@ const transferenciaService = {
      * Tarjeta «Inventario» del Inicio (dueño 2026-10-20): lo que le toca a ESTE usuario según su perfil.
      * Cada cifra es null cuando el perfil no puede actuar sobre ella (la tarjeta no la muestra):
      *   - por_aprobar   (transferencias.aprobar): pendientes de aprobación, todas — igual que GET /pendientes.
-     *   - discrepancias (transferencias.aprobar): transferencias con diferencias pendientes de resolver,
-     *                   igual que la pestaña «Diferencias» (que gatea con el mismo permiso).
+     *   - discrepancias (transferencias.aprobar o .diferencias_ver, mig 131): transferencias con diferencias
+     *                   pendientes de resolver, igual que la pestaña «Diferencias» (que gatea con los mismos dos).
      *   - por_despachar (transferencias.despachar) y por_recibir (transferencias.recibir): con el mismo
      *                   alcance que el listado (sin ver_todas: las propias + las destinadas a su bodega).
      *   - mis_solicitudes: las propias que siguen en curso (pendiente, aprobada o en tránsito).
@@ -2111,7 +2116,7 @@ const transferenciaService = {
             por_aprobar: tiene('inventario.transferencias.aprobar')
                 ? db.query(`SELECT COUNT(*) AS n, MAX(DATEDIFF(CURDATE(), t.fecha_solicitud)) AS dias ${base} AND t.estado = 'pendiente'`)
                 : null,
-            discrepancias: tiene('inventario.transferencias.aprobar')
+            discrepancias: (tiene('inventario.transferencias.aprobar') || tiene('inventario.transferencias.diferencias_ver'))
                 ? db.query(`SELECT COUNT(DISTINCT t.id) AS n, MAX(DATEDIFF(CURDATE(), t.fecha_recepcion)) AS dias
                             FROM transferencias t JOIN transferencia_discrepancias d ON d.transferencia_id = t.id
                             WHERE t.activo = 1${EXCLUIR_OBRAS_PRUEBA} AND d.estado = 'pendiente' AND d.diferencia <> 0`)

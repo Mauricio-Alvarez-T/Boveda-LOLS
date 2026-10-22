@@ -130,7 +130,9 @@ Implementación: `backend/src/services/transferencia.service.js`.
 el perfil no puede hacer viene `null` y la tarjeta no lo muestra. Cada grupo trae `{ total, dias }`
 (antigüedad de la más vieja). Excluye obras de prueba y finalizadas, como el resto del módulo.
 - `por_aprobar` y `discrepancias` (`transferencias.aprobar`): globales, igual que `GET /pendientes` y la
-  pestaña «Diferencias» (transferencias con diferencias `pendiente` y `diferencia <> 0`).
+  pestaña «Diferencias» (transferencias con diferencias `pendiente` y `diferencia <> 0`). `discrepancias`
+  también viene con **`transferencias.diferencias_ver`** (mig 131, § Ver diferencias sin resolverlas): la misma
+  consulta, sin `por_aprobar`.
 - `por_despachar` (`despachar`, estado `aprobada`) y `por_recibir` (`recibir`, `en_transito` o
   `recepcion_parcial`): con el alcance del listado — sin `ver_todas`, las propias + las destinadas a su
   bodega (mig 097).
@@ -158,7 +160,9 @@ solicitudes detrás de esas cifras, una ficha por solicitud, para el detalle «F
   aprobar: 10 días o la prórroga, la regla del Resumen Ejecutivo), ítems (`recibida` solo si ya hubo
   recepción) y, en diferencias, las pendientes ≠ 0 con `faltan` y `sobran`.
 - **Acción según quien mira** (`accion` + `bloqueo`, copia de `useTransferenciaDetail`): por aprobar →
-  Aprobar (SoD: no la propia, salvo `sod_bypass`); diferencias → Resolver (`aprobar`); por despachar y por
+  Aprobar (SoD: no la propia, salvo `sod_bypass`); diferencias → Resolver (`aprobar`) o, con solo
+  `diferencias_ver`, `accion: null` y `bloqueo: null` (el enlace dice «Ver diferencia», sin píldora de bloqueo);
+  por despachar y por
   recibir → **Recibir** (`recibir`; SoD: no quien la aprobó / quien la despachó; con `bodega_id`, solo las de
   su bodega). **La interfaz no tiene «Despachar»** (desde 2026-04-14; `recibir()` acepta `aprobada`). Solo
   elige el enlace de la ficha: aprobar, recibir y resolver validan todo de nuevo al ejecutarse.
@@ -208,8 +212,9 @@ Respuesta: `{ id, estado, resolucion, ajustes: [{ ubicacion_nombre, obra_id, bod
 aviso, transferencia_id, transferencia_codigo, item: { id, descripcion, nro_item, unidad }, simulado }`, más
 **`cerrada_regla_anterior: true`** (solo viene cuando es true) al aprobar una de la regla anterior: se cerró sin mover
 stock y la UI lo muestra como información, no como «se aplicó la diferencia».
-Implementación: `transferenciaService.resolverDiscrepancia`. Permiso: `inventario.transferencias.aprobar`.
-Lo usa quien lleva el inventario: el receptor no puede corregir su recepción después.
+Implementación: `transferenciaService.resolverDiscrepancia`. Permiso: `inventario.transferencias.aprobar`
+(`diferencias_ver` NO lo abre: 403). Lo usa quien lleva el inventario: el receptor no puede corregir su recepción
+después. Desde la mig 131, en el rol Administrador solo Leonardo López tiene `aprobar` (seguridad-rbac.md).
 
 | Botón | Diferencia | Stock |
 |---|---|---|
@@ -346,9 +351,26 @@ pendiente»), `discrepancia_id`, la TRF, el ítem, los `ajustes` y el `aviso` (r
 `estado_anterior`). Aprobar una de la regla anterior agrega al resumen «: regla anterior, se cierra sin mover stock»
 y `cerrada_regla_anterior: true` al detalle. Un error del service no se loguea.
 
+### Ver diferencias sin resolverlas (`inventario.transferencias.diferencias_ver`, mig 131)
+
+Decisión del dueño 2026-10-22: alguien de jefatura puede **mirar e investigar** las diferencias sin poder
+resolverlas. Por ahora solo Daphne Lazcano, como permiso propio. Patrón OR **solo en lo de VER**:
+
+| Qué | Permiso |
+|---|---|
+| `GET /discrepancias` (lista, con stock actual de origen y destino) | `aprobar` **o** `diferencias_ver` |
+| Filtro «Diferencias» de Inventario → Solicitudes y su contador | `aprobar` **o** `diferencias_ver` (`canVerDiscrepancias` de `TransferenciasPanel`) |
+| Detalle `DiscrepanciaDetail` | con `diferencias_ver` en **solo lectura** (`canEdit` = `aprobar`): sin Resolver ni Descartar, dice «Sin permiso para resolver» |
+| Inicio: grupo `discrepancias` de `resumenInicio` y fichas de `fichasInicio` | `aprobar` **o** `diferencias_ver`; la ficha sin acción dice «Ver diferencia» y abre el detalle |
+| Resolver (también `?simular=1`), rehacer, foto | solo `aprobar` (rehacer además rol 1) |
+| Borrar una diferencia | solo `eliminar` |
+
+No cambia la visibilidad de las solicitudes (`GET /:id` sigue con `ver_todas` / propias / su bodega): el detalle
+de la diferencia trae todo lo que muestra desde `GET /discrepancias`.
+
 ### Lectura y borrado
 
-- `GET /discrepancias` devuelve, por fila:
+- `GET /discrepancias` (permiso `aprobar` o `diferencias_ver`) devuelve, por fila:
   - `diferencia_aplicada`: `true` = regla antigua (la columna en 1 **o en NULL**, igual que el service), `false` =
     regla nueva, `null` **solo si falta la columna** (mig 130 sin aplicar);
   - `ajuste_stock` parseado;
