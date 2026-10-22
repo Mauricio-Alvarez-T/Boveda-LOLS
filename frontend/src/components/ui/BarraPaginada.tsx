@@ -85,10 +85,24 @@ export const BarraPaginada: React.FC<BarraPaginadaProps> = ({ children, fondo = 
         const ro = new ResizeObserver(medir);
         ro.observe(sc);
         ro.observe(caja);
+        // La fila de opciones: con el ancho de la caja fijo, una opción que llega tarde (las empresas de Vehículos)
+        // ya no agranda la caja ni el scroll; solo la fila crece, y es lo que avisa que hay que medir de nuevo.
+        let fila = sc.firstElementChild;
+        if (fila) ro.observe(fila);
+        // Opciones que entran o salen (o una fila nueva): se observa la fila vigente y se mide.
+        const mo = new MutationObserver(() => {
+            if (sc.firstElementChild !== fila) {
+                if (fila) ro.unobserve(fila);
+                fila = sc.firstElementChild;
+                if (fila) ro.observe(fila);
+            }
+            medir();
+        });
+        mo.observe(sc, { childList: true, subtree: true });
         pestanas().forEach(t => ro.observe(t));
         document.fonts?.ready.then(medir);
         medir();
-        return () => { vivo = false; ro.disconnect(); };
+        return () => { vivo = false; ro.disconnect(); mo.disconnect(); };
     }, [pestanas]);
 
     /** Comienzo (scrollLeft) de cada página. */
