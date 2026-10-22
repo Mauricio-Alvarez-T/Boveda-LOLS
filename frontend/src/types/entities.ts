@@ -85,6 +85,8 @@ export interface CargoSueldoHistorial {
 export interface Conductor {
     id: number;
     nombre: string;
+    /** Celular '+569XXXXXXXX' (mig 132) para avisarle por WhatsApp. Solo llega con vehiculos.ver. */
+    telefono?: string | null;
     activo: boolean;
 }
 
@@ -253,6 +255,8 @@ export interface Vehiculo {
     activo: boolean;
     // Campos enriquecidos por el backend (subconsultas)
     conductor_nombre?: string | null;
+    /** Celular del conductor (mig 132, '+569XXXXXXXX'); null o ausente = sin teléfono. */
+    conductor_telefono?: string | null;
     seguro_tipo?: string | null;
     seguro_vencimiento?: string | null;
     revision_tecnica_vencimiento?: string | null;

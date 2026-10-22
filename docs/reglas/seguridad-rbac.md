@@ -125,6 +125,13 @@
   `asistencia.ver`; sin `trabajadores.ver` la respuesta se recorta a la allow-list
   `CAMPOS_TRABAJADOR_OPERATIVOS` (`utils/sanitizeFinancialFields.js`): nada de dirección, AFP, salud,
   teléfono ni datos bancarios. Deny-by-default: una columna nueva de `trabajadores` no se filtra sola.
+- **Teléfono del conductor** (mig 132, `conductores.telefono`): dato personal que solo ve quien tiene
+  **`vehiculos.ver`** (sirve para avisarle por WhatsApp de los papeles del vehículo). Las rutas de vehículos que lo
+  leen ya piden ese permiso; `ocultarCamposSinPermiso(permiso, campos)` (`middleware/ocultarCampos.js`, envuelve
+  `res.json` como `sanitizeItemsMaestroMiddleware`) lo quita de `/api/conductores` (que se abre con
+  `conductores.*`) y de las respuestas de POST/PUT de `/api/vehiculos` (`vehiculos.crear/editar`). Se puede
+  escribir desde el form del vehículo con `vehiculos.crear/editar` aunque no se tenga `conductores.editar`
+  (decisión del dueño 2026-10-22). Staging lo deja en NULL (saneo). Detalle: vehiculos.md § Teléfono del conductor.
 - **Pre-registro de permisos (B1)**: las 6 claves de los bloques B2-B7 del plan Gestiones
   (`documentos.laborales.emitir/.descargar`, `documentos.entrega.registrar`, `cargos.sueldo.ver/.editar`,
   `sistema.alertas_documentos.gestionar`) ya están en `permisos.config.js` + `permisosHierarchy.ts` con

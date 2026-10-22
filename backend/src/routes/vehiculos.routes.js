@@ -3,6 +3,11 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const svc = require('../services/vehiculos.service');
 const uploadVehiculos = require('../middleware/upload-vehiculos');
+const { ocultarCamposSinPermiso } = require('../middleware/ocultarCampos');
+
+// Teléfono del conductor (mig 132): dato personal, solo para quien tiene vehiculos.ver. Los GET ya
+// lo exigen; esto cubre POST/PUT (vehiculos.crear/editar), que responden con el vehículo completo.
+router.use(ocultarCamposSinPermiso('vehiculos.ver', ['conductor_telefono']));
 
 // ── Alertas (antes de /:id para que no sea capturado) ──────────────────
 router.get('/alertas', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {

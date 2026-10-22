@@ -185,6 +185,10 @@ async function limpiarRastros(db) {
         "UPDATE bodegas SET responsable_nombre = CONCAT('Responsable Demo ', id) WHERE responsable_nombre IS NOT NULL AND responsable_nombre <> ''", []);
     await ejecutar(db, out, 'conductores.nombre',
         "UPDATE conductores SET nombre = CONCAT('Conductor Demo ', id) WHERE nombre IS NOT NULL AND nombre <> ''", []);
+    // Celular del conductor (mig 132): con un número real, «Avisar a …» de staging le escribiría a
+    // una persona real. Sin la columna (migración pendiente) el 1054 se tolera.
+    await ejecutar(db, out, 'conductores.telefono',
+        'UPDATE conductores SET telefono = NULL WHERE telefono IS NOT NULL', []);
     return out;
 }
 

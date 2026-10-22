@@ -4,7 +4,7 @@ import { ArrowLeft, Check, ChevronDown, RotateCcw, Truck } from 'lucide-react';
 import api from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { cn } from '../../../utils/cn';
-import { shareViaWhatsApp } from '../../../utils/whatsappShare';
+import { avisarPorWhatsApp } from '../../../utils/whatsappShare';
 import { Button } from '../../ui/Button';
 import { SkeletonText } from '../../ui/Skeleton';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
@@ -12,7 +12,7 @@ import { CabezaFicha, EnlaceFicha, Pildora, PieFicha, RotuloFichas } from './Fic
 import { CUADRO, plural, ROTULO_FICHAS } from './fichasInicio';
 import {
     abreFormulario, ariaSemaforo, bajadaVehiculo, diasCalendario, eventosFlota, fechaConDia, fechaCorta, fichasVehiculos, fraseVehiculo,
-    hoyIso, mensajeWhatsApp, ordenSemaforo, porMes, PAPELES_META, pildora, rutaSubir, textoAvisar, textoPlazo, tituloVehiculo, tonoCelda, tonoFicha,
+    hoyIso, mensajeWhatsApp, ordenSemaforo, porMes, PAPELES_META, pildora, rutaSubir, telefonoAvisar, textoAvisar, textoPlazo, tituloVehiculo, tonoCelda, tonoFicha,
     urgenteDeEvento, type EventoPapel, type PapelApi, type PapelesFlotaApi, type TonoCelda, type Urgente, type VehiculoPapelesApi,
 } from './fichasVehiculosInicio';
 
@@ -90,7 +90,7 @@ const FichaVehiculo: React.FC<{ v: VehiculoPapelesApi; urg: Urgente[]; puede: { 
                 <SemaforoPapeles papeles={v.papeles} />
             </div>
             <PieFicha>
-                <EnlaceFicha apagado onClick={() => { void shareViaWhatsApp(mensajeWhatsApp(v, urg)); }}
+                <EnlaceFicha apagado onClick={() => { void avisarPorWhatsApp(telefonoAvisar(v), mensajeWhatsApp(v, urg)); }}
                     icono={<WhatsAppIcon className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" />}>
                     {textoAvisar(v)}
                 </EnlaceFicha>
@@ -215,7 +215,7 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
     };
     const avisar = (e: EventoPapel) => {
         const f = porId60.get(e.vehiculo_id) ?? porId.get(e.vehiculo_id);
-        if (f) void shareViaWhatsApp(mensajeWhatsApp(f.v, urgenteDeEvento(f.v, e)));
+        if (f) void avisarPorWhatsApp(telefonoAvisar(f.v), mensajeWhatsApp(f.v, urgenteDeEvento(f.v, e)));
     };
 
     const rotulo = <RotuloFichas titulo="Calendario · qué vence y cuándo" />;

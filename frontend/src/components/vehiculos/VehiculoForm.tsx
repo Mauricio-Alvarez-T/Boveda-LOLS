@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
 import { CalendarCheck, AlertTriangle } from 'lucide-react';
 import { Input } from '../ui/Input';
+import { FieldError } from '../ui/FieldError';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import api from '../../services/api';
 import type { Vehiculo, Conductor, EmpresaVehiculo } from '../../types/entities';
@@ -12,6 +13,10 @@ import type { ApiResponse } from '../../types';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import { mesRevisionPorPatente } from '../../utils/revisionTecnica';
 import { advertenciaPatente } from '../../utils/patente';
+import { celularValido, formatoCelular, MENSAJE_CELULAR, normalizarCelular } from '../../utils/celular';
+
+/** Mismo nombre de conductor aunque cambien mayúsculas o espacios (el backend compara igual: LOWER + trim). */
+const mismoNombre = (a?: string | null, b?: string | null) => (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
 
 const schema = z.object({
     // Patente: sólo obligatoria. El formato NO bloquea — hay varios formatos
@@ -31,6 +36,8 @@ const schema = z.object({
     tipo:    z.enum(['camioneta','camion','auto','furgon','bus','moto','maquinaria','remolque','otro']),
     empresa_id: z.string().optional(),      // id de empresa de flota (select) o '' (sin asignar)
     conductor_nombre: z.string().optional(),// nombre escrito/elegido; el backend lo resuelve o crea en el catálogo
+    // Celular del conductor (mig 132): opcional; se guarda en el conductor, no en el vehículo.
+    conductor_telefono: z.string().optional().refine(v => celularValido(v), MENSAJE_CELULAR),
     kilometraje_actual: z.coerce.number()
         .min(0, 'Los kilómetros no pueden ser negativos')
         .optional(),
@@ -61,7 +68,7 @@ interface Props {
 }
 
 export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, onSuccess, onCancel }) => {
-    const { register, handleSubmit, watch, control, setValue, formState: { errors, isDirty } } = useForm<FormData>({
+    const { register, handleSubmit, watch, control, setValue, getValues, clearErrors, formState: { errors, isDirty } } = useForm<FormData>({
         resolver: zodResolver(schema) as any,
         defaultValues: initialData ? {
             patente: initialData.patente,
@@ -71,6 +78,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             tipo:    initialData.tipo,
             empresa_id: initialData.empresa_id != null ? String(initialData.empresa_id) : '',
             conductor_nombre: initialData.conductor_nombre || '',
+            conductor_telefono: formatoCelular(initialData.conductor_telefono),
             kilometraje_actual: initialData.kilometraje_actual,
             color:   initialData.color || '',
             valor:   initialData.valor != null ? Number(initialData.valor) : 0,
@@ -87,6 +95,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             tipo: 'camioneta',
             empresa_id: defaultEmpresaId != null ? String(defaultEmpresaId) : '',
             conductor_nombre: '',
+            conductor_telefono: '',
             kilometraje_actual: 0,
             valor: 0,
             precio_compra: 0,
@@ -105,6 +114,26 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             .then(res => setConductores(res.data.data))
             .catch(() => { /* si falla la carga, el select queda vacío; no bloquea el alta */ });
     }, []);
+
+    // Teléfono del conductor (mig 132, Marcos 2026-10-22: «que el WhatsApp le llegue a la persona que está a cargo
+    // de ese vehículo»). Se manda SOLO si la persona tocó el campo: lo precargado o completado desde el catálogo no
+    // se reenvía, para no pisar el número de otro conductor ni borrar uno que este formulario no alcanzó a leer.
+    const telefonoTocado = useRef(false);
+    // El conductor que ya tenía el vehículo y su teléfono: sirve aunque el catálogo no cargue.
+    const conductorInicial = useRef({ nombre: initialData?.conductor_nombre ?? '', telefono: initialData?.conductor_telefono ?? null });
+    const telefonoDe = (nombre: string) => {
+        const delCatalogo = conductores.find(c => mismoNombre(c.nombre, nombre));
+        if (delCatalogo?.telefono !== undefined) return delCatalogo.telefono;
+        return mismoNombre(conductorInicial.current.nombre, nombre) ? conductorInicial.current.telefono : null;
+    };
+    // Al cambiar el conductor se muestra el teléfono que ya tiene (o vacío); si la persona ya escribió uno, se respeta.
+    const alCambiarConductor = (nombre: string) => {
+        if (!nombre.trim()) telefonoTocado.current = false;
+        if (telefonoTocado.current) return;
+        setValue('conductor_telefono', nombre.trim() ? formatoCelular(telefonoDe(nombre)) : '');
+        clearErrors('conductor_telefono');
+    };
+    const sinConductor = !watch('conductor_nombre')?.trim();
 
     // Catálogo de empresas de flota (paramétrico; se administra desde la página Vehículos)
     const [empresas, setEmpresas] = useState<EmpresaVehiculo[]>([]);
@@ -145,6 +174,10 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                 setValue('avisar_leasing_30d', v.avisar_leasing_30d == null ? true : !!v.avisar_leasing_30d);
                 setValue('avisar_alerta_seguro', v.avisar_alerta_seguro == null ? true : !!v.avisar_alerta_seguro);
                 setValue('es_leasing', !!v.es_leasing);
+                conductorInicial.current = { nombre: v.conductor_nombre ?? '', telefono: v.conductor_telefono ?? null };
+                if (!telefonoTocado.current && mismoNombre(getValues('conductor_nombre'), v.conductor_nombre)) {
+                    setValue('conductor_telefono', formatoCelular(v.conductor_telefono));
+                }
             })
             .catch(() => { /* sin detalle: se queda con lo que trajo la fila */ });
         return () => { vivo = false; };
@@ -152,10 +185,15 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
     }, [initialData?.id]);
 
     const onSubmit = async (data: FormData) => {
+        const { conductor_telefono, ...resto } = data;
+        const conductor = data.conductor_nombre?.trim() || null;
+        const telefono = normalizarCelular(conductor_telefono);
         const payload = {
-            ...data,
+            ...resto,
             empresa_id: data.empresa_id ? Number(data.empresa_id) : null,
-            conductor_nombre: data.conductor_nombre?.trim() || null, // backend resuelve/crea en el catálogo
+            conductor_nombre: conductor, // backend resuelve/crea en el catálogo
+            // Solo si se tocó y hay conductor: vacío lo borra del conductor; sin tocar, el backend no lo cambia.
+            ...(telefonoTocado.current && conductor && telefono.ok ? { conductor_telefono: telefono.valor } : {}),
             // OJO: cuotas ya NO se envía — la sección se retiró del form y no
             // mandarla deja intacto lo guardado (el backend solo las toca si vienen).
             leasing_fecha_inicio: data.es_leasing ? (data.leasing_fecha_inicio || null) : null,
@@ -256,7 +294,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Conductor asignado</label>
-                    <input {...register('conductor_nombre')} list="conductores-list"
+                    <input {...register('conductor_nombre', { onChange: (e: React.ChangeEvent<HTMLInputElement>) => alCambiarConductor(e.target.value) })} list="conductores-list"
                         placeholder="Escribe o elige un nombre"
                         autoComplete="off"
                         className="w-full px-3 h-11 rounded-xl border border-border bg-card text-base text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
@@ -266,6 +304,24 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                         ))}
                     </datalist>
                     <p className="text-micro text-muted-foreground/70 mt-1">Si el nombre es nuevo, se guarda solo en el catálogo de conductores.</p>
+                </div>
+                {/* Justo debajo del conductor (en el computador, en su misma columna). Es el teléfono de la persona:
+                    vale para todos los vehículos que maneja. */}
+                <div className="sm:col-start-2">
+                    <label htmlFor="vehiculo-conductor-telefono" className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Teléfono del conductor</label>
+                    <input id="vehiculo-conductor-telefono" type="tel" inputMode="tel" autoComplete="off"
+                        {...register('conductor_telefono', { onChange: () => { telefonoTocado.current = true; } })}
+                        disabled={sinConductor}
+                        placeholder="9 1234 5678"
+                        aria-invalid={!!errors.conductor_telefono}
+                        aria-describedby="vehiculo-conductor-telefono-ayuda"
+                        className={`w-full px-3 h-11 rounded-xl border bg-card text-base text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-60 ${errors.conductor_telefono ? 'border-destructive' : 'border-border'}`} />
+                    <FieldError message={errors.conductor_telefono?.message} />
+                    <p id="vehiculo-conductor-telefono-ayuda" className="text-micro text-muted-foreground/70 mt-1">
+                        {sinConductor
+                            ? 'Escribe primero el nombre del conductor.'
+                            : 'Opcional. Con este número, «Avisar» del Inicio le escribe directo por WhatsApp.'}
+                    </p>
                 </div>
             </div>
 

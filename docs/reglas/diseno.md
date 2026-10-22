@@ -642,8 +642,9 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       de Asistencia: camión en círculo, «PATENTE · conduce Óscar Núñez», cuántos papeles requieren acción,
       la frase «Venció la revisión de gases hace 124 días…», una píldora por papel y el **semáforo de sus
       cinco papeles** Permiso · Póliza · Técnica · Gases · Mant.), con «← Ver vencidos» para volver; en el
-      celular la ficha se trae a la vista. Pie de la ficha: «Avisar a {conductor}» (WhatsApp sin número: la
-      persona elige el contacto; en test los nombres son «Conductor Demo N» por el saneo) y «Subir el nuevo»
+      celular la ficha se trae a la vista. Pie de la ficha: «Avisar a {conductor}» (con el celular del conductor, mig 132,
+      abre su chat directo; sin él, WhatsApp sin número y la persona elige el contacto; en test los nombres son
+      «Conductor Demo N» y los teléfonos quedan vacíos por el saneo) y «Subir el nuevo»
       solo si el enlace abre un formulario (renovar pide editar; agregar o un papel de las tablas antiguas,
       crear; lo de `otros` no se abre por enlace) —si no, «Ver vehículo»—, que abre
       `/vehiculos?vehiculo=&papel=`. **Leyenda en pequeño** bajo la ficha, en una franja blanca (rojo

@@ -1245,7 +1245,8 @@ QA sin datos que mirar. Lo sembrado va con `es_prueba = 0`.
    nombres de archivo **llevan el RUT** (`pdf.service.js`), así que borrar solo las filas no basta.
 3. **Limpia rastros**: `logs_actividad` entero (`entidad_label` lleva nombres y `detalle` el body
    completo del request, con IP), y los nombres de persona de `obras.encargado_nombre`,
-   `empresas.representante_*`, `bodegas.responsable_nombre` y `conductores.nombre`.
+   `empresas.representante_*`, `bodegas.responsable_nombre` y `conductores.nombre`; deja en NULL
+   `conductores.telefono` (mig 132: con un celular real, «Avisar» de test le escribiría a esa persona).
 4. **Apaga el correo saliente**: vacía `reportes_suscriptores` y `avisos_suscriptores`, anula
    `vehiculo_*.email_alerta` y `usuarios.email_password_enc` (la clave AES del correo corporativo).
    Sin esto, los cron de staging (§ 4.1) le escriben a personas reales. **No toca `usuarios.email`

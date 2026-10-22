@@ -50,6 +50,7 @@ import { EmpresaForm } from '../components/settings/EmpresaForm';
 import { ObraForm } from '../components/settings/ObraForm';
 import { CargoForm } from '../components/settings/CargoForm';
 import { ConductorForm } from '../components/settings/ConductorForm';
+import { formatoCelular } from '../utils/celular';
 import { TipoDocumentoForm } from '../components/settings/TipoDocumentoForm';
 import { UsuarioForm } from '../components/settings/UsuarioForm';
 import { RolForm } from '../components/settings/RolForm';
@@ -204,6 +205,12 @@ const conductorCols: ColumnDef<Conductor>[] = [
             <Chip tone={v ? 'success' : 'danger'} label={v ? 'Activo' : 'Inactivo'} className="text-caption" />
         ),
     },
+];
+// Con vehiculos.ver se ve también el celular (mig 132; el backend no lo manda a quien no tiene ese permiso).
+const conductorColsConTelefono: ColumnDef<Conductor>[] = [
+    conductorCols[0],
+    { key: 'telefono', label: 'Teléfono', render: (v) => (v ? formatoCelular(v) : '—') },
+    ...conductorCols.slice(1),
 ];
 
 const tipoDocCols: ColumnDef<TipoDocumento>[] = [
@@ -565,7 +572,7 @@ const SettingsPage: React.FC = () => {
                     {activeTab === 'conductores' && (
                         <CrudTable
                             endpoint="/conductores"
-                            columns={conductorCols}
+                            columns={hasPermission('vehiculos.ver') ? conductorColsConTelefono : conductorCols}
                             entityName="Conductor"
                             entityNamePlural="Conductores"
                             FormComponent={ConductorForm}
