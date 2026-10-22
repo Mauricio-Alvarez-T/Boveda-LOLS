@@ -39,6 +39,91 @@ async function buildInsert(table, obj) {
     return { keys, vals };
 }
 
+// ── Papeles por vehículo (fichas «Vehículos» del Inicio) ───────────────
+// Helpers de getPapeles. Son funciones puras: reciben filas ya leídas y no tocan la BD.
+
+// Los 5 papeles del semáforo de cada ficha, en este orden. Lo demás que vence
+// (seguro a terceros, revisión mecánica, fin de leasing, inscripciones) va a `otros`.
+const PAPELES = ['permiso', 'poliza', 'tecnica', 'gases', 'mantencion'];
+
+// A qué papel del semáforo va cada fuente. null = no es uno de los 5 (lista `otros`).
+// Las tablas antiguas (vehiculo_permisos, vehiculo_seguros) caen en el mismo papel que
+// su documento nuevo: así el registro más reciente de cualquiera de las dos manda.
+const papelDe = (categoria, subtipo) => {
+    if (categoria === 'permiso') return 'permiso';
+    if (categoria === 'seguro') return 'poliza';
+    if (categoria === 'mantencion') return 'mantencion';
+    if (categoria === 'documento') return subtipo === 'permiso_circulacion' ? 'permiso' : subtipo === 'poliza' ? 'poliza' : null;
+    if (categoria === 'revision') return subtipo === 'tecnica' ? 'tecnica' : subtipo === 'gases' ? 'gases' : null;
+    return null;
+};
+
+// Nombre legible de lo que va en `otros` (la ficha lo muestra tal cual).
+const NOMBRES_OTROS = {
+    seguro_terceros: 'Seguro a terceros',
+    mecanica: 'Revisión mecánica',
+    fin_leasing: 'Fin de leasing',
+    primera_inscripcion: 'Primera inscripción',
+    certificado_primera_inscripcion: 'Certificado de primera inscripción',
+};
+const nombreOtro = (categoria, subtipo) => {
+    if (NOMBRES_OTROS[subtipo]) return NOMBRES_OTROS[subtipo];
+    const texto = String(subtipo || '').replace(/_/g, ' ').trim();
+    if (categoria === 'revision') return texto ? `Revisión ${texto}` : 'Revisión';
+    return texto ? texto.charAt(0).toUpperCase() + texto.slice(1) : 'Documento';
+};
+
+// Ventana de «por vencer»: entero ≥ 0. Cualquier otra cosa (texto, negativo, vacío) → 30.
+const diasVentana = (dias) => {
+    if (typeof dias === 'number') return Number.isInteger(dias) && dias >= 0 ? dias : 30;
+    const texto = String(dias ?? '').trim();
+    return /^\d+$/.test(texto) ? Number(texto) : 30;
+};
+
+// Checkbox «Avisar 30 días antes» y compañía: avisa salvo que esté apagado (0).
+// Columna ausente (migración pendiente) llega undefined y cuenta como encendida.
+const avisaSegun = (valor) => valor == null || Number(valor) !== 0;
+
+/**
+ * Fila de cualquier fuente → registro con una sola forma. Las consultas ya formatean la
+ * fecha y aplican el piso, pero se vuelve a mirar acá: una fecha anterior a FECHA_MINIMA
+ * o sin días calculables cuenta como «sin fecha», nunca como vencida.
+ * OJO con el null: Number(null) es 0 y se vería como «vence hoy», por eso va aparte.
+ */
+const aRegistro = (fila, categoria, subtipo, avisa) => {
+    const fecha = fila.fecha_vencimiento == null ? null : String(fila.fecha_vencimiento).slice(0, 10);
+    const dias = fila.dias_restantes == null ? null : Number(fila.dias_restantes);
+    const conFecha = fecha != null && /^\d{4}-\d{2}-\d{2}$/.test(fecha) && fecha >= FECHA_MINIMA && Number.isFinite(dias);
+    return {
+        vehiculo_id: Number(fila.vehiculo_id),
+        categoria, subtipo: subtipo ?? null,
+        registro_id: fila.id ?? null,
+        fecha_vencimiento: conFecha ? fecha : null,
+        dias_restantes: conFecha ? dias : null,
+        avisa,
+    };
+};
+
+// Entre dos registros del mismo papel gana el de fecha más reciente (Marcos no quiere limpiar
+// los duplicados viejos: el permiso vencido del año pasado no debe pintar rojo si ya está el
+// nuevo). Con fechas iguales o sin fecha se queda el primero: las consultas van por id DESC.
+const masReciente = (actual, nuevo) => {
+    if (!actual) return nuevo;
+    if (nuevo.fecha_vencimiento && (!actual.fecha_vencimiento || nuevo.fecha_vencimiento > actual.fecha_vencimiento)) return nuevo;
+    return actual;
+};
+
+// Mismo corte que la ficha del vehículo: < 0 vencido, 0..dias por vencer, > dias vigente.
+const estadoPapel = (reg, dias) => {
+    if (!reg) return 'sin_registro';
+    if (reg.dias_restantes == null) return 'sin_fecha';
+    if (reg.dias_restantes < 0) return 'vencido';
+    return reg.dias_restantes <= dias ? 'por_vencer' : 'vigente';
+};
+
+// Lo que suma en «requiere acción»: vencido o por vencer, y con el aviso encendido.
+const requiereAccion = (p) => p.avisa && (p.estado === 'vencido' || p.estado === 'por_vencer');
+
 const vehiculosService = {
 
     // ── Vehículos ──────────────────────────────────────────────────────
@@ -762,6 +847,212 @@ const vehiculosService = {
 
         const vencidos = items.filter(i => Number(i.dias_restantes) < 0).length;
         return { items, total: items.length, vencidos, por_vencer: items.length - vencidos, dias: limite };
+    },
+
+    // ── Papeles por vehículo (fichas «Vehículos» del Inicio) ──────────
+
+    /**
+     * Una ficha por vehículo con sus 5 papeles (permiso, póliza, técnica, gases y mantención)
+     * y lo demás que requiere acción (`otros`: seguro a terceros, revisión mecánica, fin de
+     * leasing, inscripciones). Es aparte de getVencimientos a propósito: ese alimenta el
+     * número del menú y sus consultas no se tocan.
+     *
+     * Diferencias con el contador del menú:
+     *   · por vehículo y papel manda el registro con la fecha MÁS RECIENTE, así un duplicado
+     *     viejo vencido (o un permiso/seguro de las tablas antiguas) no pinta rojo si ya está
+     *     el nuevo. Por eso la ficha puede contar menos que el menú, que suma todas las filas;
+     *   · trae también lo que está al día, lo que no tiene fecha y lo que no tiene registro;
+     *   · el semáforo pinta según la fecha real aunque el aviso esté apagado, pero
+     *     requiere_accion, vencidos, peor_dias y `otros` solo cuentan lo que avisa.
+     *
+     * `dias`: ventana de «por vencer» (default 30). `todos`: sin él solo vienen los vehículos
+     * que requieren acción, del más urgente al menos; con él, toda la flota activa.
+     * `total_vehiculos` es siempre la flota activa completa («2 de 12 requieren acción»).
+     *
+     * Consultas en secuencia y no con Promise.all: el hosting tiene 10 conexiones.
+     */
+    async getPapeles(dias = 30, { todos = false } = {}) {
+        const limite = diasVentana(dias);
+        const incluirTodos = todos === true || todos === 1 || todos === '1' || todos === 'true';
+
+        // v.* trae avisar_alerta_seguro (mig 103) solo si la columna existe: sin acoplar la consulta.
+        const [vehiculos] = await db.query(`
+            SELECT v.*, c.nombre AS conductor_nombre, ev.nombre AS empresa_nombre
+            FROM vehiculos v
+            LEFT JOIN conductores c ON c.id = v.conductor_id
+            LEFT JOIN empresas_vehiculos ev ON ev.id = v.empresa_id
+            WHERE v.activo = 1
+            ORDER BY v.patente ASC
+        `);
+
+        // Sin ventana de fechas: hacen falta también los papeles al día. El piso FECHA_MINIMA
+        // deja en NULL las fechas basura de importaciones viejas (cuentan como «sin fecha»).
+        const fechaCon = (col) => `
+                   IF(${col} >= ?, DATE_FORMAT(${col}, '%Y-%m-%d'), NULL) AS fecha_vencimiento,
+                   IF(${col} >= ?, DATEDIFF(${col}, CURDATE()), NULL) AS dias_restantes`;
+        const PISO = [FECHA_MINIMA, FECHA_MINIMA];
+
+        // avisar_30d (mig 105) se LEE en vez de filtrar: el semáforo necesita también lo que
+        // no avisa. Pre-migración la consulta cae a la versión sin la columna (todo avisa).
+        const conAvisar = async (sqlBase) => {
+            try {
+                const [rows] = await db.query(sqlBase.replace('/*AVISAR*/', ', x.avisar_30d'), PISO);
+                return rows;
+            } catch (e) {
+                if (e && e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+                const [rows] = await db.query(sqlBase.replace('/*AVISAR*/', ''), PISO);
+                return rows;
+            }
+        };
+
+        const documentos = await conAvisar(`
+            SELECT x.id, x.vehiculo_id, x.categoria AS subtipo,${fechaCon('x.fecha_vencimiento')}
+                   /*AVISAR*/
+            FROM vehiculo_documentos x
+            JOIN vehiculos v ON v.id = x.vehiculo_id
+            WHERE x.activo = 1 AND v.activo = 1
+            ORDER BY x.id DESC
+        `);
+
+        const revisiones = await conAvisar(`
+            SELECT x.id, x.vehiculo_id, x.tipo AS subtipo,${fechaCon('x.fecha_vencimiento')}
+                   /*AVISAR*/
+            FROM vehiculo_revisiones x
+            JOIN vehiculos v ON v.id = x.vehiculo_id
+            WHERE x.activo = 1 AND v.activo = 1
+            ORDER BY x.id DESC
+        `);
+
+        const mantenciones = await conAvisar(`
+            SELECT x.id, x.vehiculo_id, x.tipo AS subtipo,${fechaCon('x.fecha_proxima')}
+                   /*AVISAR*/
+            FROM vehiculo_mantenciones x
+            JOIN vehiculos v ON v.id = x.vehiculo_id
+            WHERE x.activo = 1 AND v.activo = 1
+            ORDER BY x.id DESC
+        `);
+
+        // Tablas antiguas: ninguna pantalla las escribe ya, pero pueden tener filas vivas.
+        // El aviso del seguro es el del vehículo (avisar_alerta_seguro); el permiso avisa siempre.
+        const [seguros] = await db.query(`
+            SELECT s.id, s.vehiculo_id, s.tipo AS subtipo,${fechaCon('s.fecha_vencimiento')}
+            FROM vehiculo_seguros s
+            JOIN vehiculos v ON v.id = s.vehiculo_id
+            WHERE s.activo = 1 AND v.activo = 1
+            ORDER BY s.id DESC
+        `, PISO);
+
+        const [permisos] = await db.query(`
+            SELECT p.id, p.vehiculo_id, 'permiso_circulacion' AS subtipo,${fechaCon('p.fecha_vencimiento')}
+            FROM vehiculo_permisos p
+            JOIN vehiculos v ON v.id = p.vehiculo_id
+            WHERE p.activo = 1 AND v.activo = 1
+            ORDER BY p.id DESC
+        `, PISO);
+
+        // Fin de leasing: mismas condiciones que el contador (contrato vigente, no terminado).
+        // Sin la 106 se lee sin avisar_leasing_30d (avisa); sin la 103 no hay leasing que mirar.
+        const LEASING_SQL = `
+            SELECT v.id AS vehiculo_id,${fechaCon('v.leasing_fecha_termino')}
+                   /*AVISAR_LEASING*/
+            FROM vehiculos v
+            WHERE v.activo = 1 AND v.es_leasing = 1 AND v.leasing_terminado = 0
+              AND v.leasing_fecha_termino IS NOT NULL
+        `;
+        let leasing = [];
+        try {
+            [leasing] = await db.query(LEASING_SQL.replace('/*AVISAR_LEASING*/', ', v.avisar_leasing_30d'), PISO);
+        } catch (e) {
+            if (e && e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+            try {
+                [leasing] = await db.query(LEASING_SQL.replace('/*AVISAR_LEASING*/', ''), PISO);
+            } catch (e2) {
+                if (e2 && e2.code !== 'ER_BAD_FIELD_ERROR') throw e2;
+            }
+        }
+
+        // Agrupar por vehículo: un registro por papel y uno por cada tipo de `otros`.
+        const fichas = new Map(vehiculos.map(v => [Number(v.id), { v, papeles: {}, otros: {} }]));
+        const sumar = (reg) => {
+            const ficha = fichas.get(reg.vehiculo_id);
+            if (!ficha) return;
+            const papel = papelDe(reg.categoria, reg.subtipo);
+            if (papel) ficha.papeles[papel] = masReciente(ficha.papeles[papel], reg);
+            else {
+                const clave = `${reg.categoria}:${reg.subtipo}`;
+                ficha.otros[clave] = masReciente(ficha.otros[clave], reg);
+            }
+        };
+        documentos.forEach(f => sumar(aRegistro(f, 'documento', f.subtipo, avisaSegun(f.avisar_30d))));
+        revisiones.forEach(f => sumar(aRegistro(f, 'revision', f.subtipo, avisaSegun(f.avisar_30d))));
+        mantenciones.forEach(f => sumar(aRegistro(f, 'mantencion', f.subtipo, avisaSegun(f.avisar_30d))));
+        seguros.forEach(f => sumar(aRegistro(f, 'seguro', f.subtipo,
+            avisaSegun(fichas.get(Number(f.vehiculo_id))?.v.avisar_alerta_seguro))));
+        permisos.forEach(f => sumar(aRegistro(f, 'permiso', 'permiso_circulacion', true)));
+        // El leasing no tiene registro propio: es la fila del vehículo (registro_id null).
+        leasing.forEach(f => sumar(aRegistro({ ...f, id: null }, 'leasing', 'fin_leasing', avisaSegun(f.avisar_leasing_30d))));
+
+        const salida = [];
+        for (const { v, papeles, otros } of fichas.values()) {
+            const lista = PAPELES.map(clave => {
+                const reg = papeles[clave];
+                return {
+                    clave,
+                    estado: estadoPapel(reg, limite),
+                    categoria: reg ? reg.categoria : null,
+                    subtipo: reg ? reg.subtipo : null,
+                    registro_id: reg ? reg.registro_id : null,
+                    fecha_vencimiento: reg ? reg.fecha_vencimiento : null,
+                    dias_restantes: reg ? reg.dias_restantes : null,
+                    // Sin registro no hay checkbox que mirar: vale el default de uno nuevo (avisa).
+                    avisa: reg ? reg.avisa : true,
+                };
+            });
+            const pendientes = Object.values(otros)
+                .map(reg => ({ ...reg, estado: estadoPapel(reg, limite) }))
+                .filter(requiereAccion)
+                .sort((a, b) => a.dias_restantes - b.dias_restantes)
+                .map(reg => ({
+                    categoria: reg.categoria,
+                    subtipo: reg.subtipo,
+                    nombre: nombreOtro(reg.categoria, reg.subtipo),
+                    registro_id: reg.registro_id,
+                    fecha_vencimiento: reg.fecha_vencimiento,
+                    dias_restantes: reg.dias_restantes,
+                    estado: reg.estado,
+                }));
+            const urgentes = [...lista.filter(requiereAccion), ...pendientes];
+            const requiere = urgentes.length;
+            if (!requiere && !incluirTodos) continue;
+            salida.push({
+                vehiculo_id: Number(v.id),
+                patente: v.patente,
+                marca: v.marca,
+                modelo: v.modelo ?? null,
+                tipo: v.tipo ?? null,
+                empresa_id: v.empresa_id ?? null,
+                empresa_nombre: v.empresa_nombre ?? null,
+                conductor_id: v.conductor_id ?? null,
+                conductor_nombre: v.conductor_nombre ?? null,
+                papeles: lista,
+                otros: pendientes,
+                requiere_accion: requiere,
+                vencidos: urgentes.filter(p => p.estado === 'vencido').length,
+                peor_dias: requiere ? Math.min(...urgentes.map(p => p.dias_restantes)) : null,
+            });
+        }
+
+        // Lo más urgente primero (lo más vencido); los que están al día (peor_dias null) al final.
+        salida.sort((a, b) => {
+            if (a.peor_dias !== b.peor_dias) {
+                if (a.peor_dias == null) return 1;
+                if (b.peor_dias == null) return -1;
+                return a.peor_dias - b.peor_dias;
+            }
+            return String(a.patente).localeCompare(String(b.patente), 'es');
+        });
+
+        return { dias: limite, total_vehiculos: vehiculos.length, vehiculos: salida };
     },
 
     // ── Alertas de vencimiento ────────────────────────────────────────

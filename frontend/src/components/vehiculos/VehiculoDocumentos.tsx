@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useEffectEvent, useState, useCallback, useRef } from 'react';
 import { ScrollText, Plus, Eye, Trash2, Loader2, X, Upload, FileText, Save, Bell, Pencil, ExternalLink, Download, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/Button';
@@ -43,6 +43,10 @@ const TIPOS: Tipo[] = [
 
 const labelFile = (c: string) => TIPOS.find(t => t.value === c)?.label || c;
 
+/** El de vencimiento más lejano (el vigente si hay duplicados viejos); los sin fecha, al final. */
+const masReciente = <T,>(lista: T[], fecha: (x: T) => string | null | undefined): T | undefined =>
+    [...lista].sort((a, b) => String(fecha(b) ?? '').localeCompare(String(fecha(a) ?? '')))[0];
+
 /** Mensaje de error de la API con fallback — evita un `err: any` en cada catch. */
 const apiError = (err: unknown, fallback: string) =>
     (err as { response?: { data?: { error?: string } } })?.response?.data?.error || fallback;
@@ -67,9 +71,17 @@ interface Props {
      * 10 días y el número del menú sigue igual hasta el refresco automático.
      */
     onCambio?: () => void;
+    /**
+     * Abierto desde un enlace (Inicio → «Subir el nuevo», 2026-10-22): tras la primera carga, una sola vez,
+     * «Renovar» sobre el más reciente de ese tipo si ya hay uno (y se puede editar), o «Agregar» con ese tipo
+     * si no hay (y se puede crear). Sin permiso no hace nada.
+     */
+    abrir?: Tipo['value'];
+    /** Ya se usó `abrir`: la página lo olvida, para que volver a este vehículo no lo reabra. */
+    onAbierto?: () => void;
 }
 
-export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) => {
+export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio, abrir, onAbierto }) => {
     const { hasPermission } = useAuth();
     const canCreate = hasPermission('vehiculos.crear');
     const canEdit = hasPermission('vehiculos.editar');
@@ -95,6 +107,10 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
     const [viewingId, setViewingId] = useState<string | null>(null);
     const [viewer, setViewer] = useState<{ url: string; mime: string; name: string; size: number } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // Para `abrir`: de qué vehículo ya están cargados los registros, el panel (¿se ve?) y lo que ya se abrió.
+    const [cargadoDe, setCargadoDe] = useState<number | null>(null);
+    const seccionRef = useRef<HTMLElement>(null);
+    const abiertoRef = useRef<string | null>(null);
 
     const tipo = TIPOS.find(t => t.value === tipoValue)!;
     const isData = tipo.kind === 'data';
@@ -121,6 +137,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
             setDocs(d.data.data || []);
             setRevisiones(r.data.data || []);
             setMantenciones(m.data.data || []);
+            setCargadoDe(vehiculoId);
             onCambio?.();
         } catch { /* silencioso */ }
     }, [vehiculoId, onCambio]);
@@ -208,6 +225,34 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
         handleFileChange(null);
         setShowAdd(true);
     };
+
+    // `abrir`: con lo recién cargado, «Renovar» el más reciente de ese tipo o, si no hay, «Agregar» con ese tipo.
+    // Igual que el botón, «Renovar» solo si está vencido o por vencer (si ya se renovó entretanto, no lo toca).
+    const abrirPorEnlace = useEffectEvent((valor: Tipo['value']) => {
+        const t = TIPOS.find(x => x.value === valor);
+        if (!t) return;
+        if (t.kind === 'file') {
+            const doc = masReciente(docs.filter(d => d.categoria === t.value), d => d.fecha_vencimiento);
+            if (doc) { if (canEdit && puedeRenovar(doc.fecha_vencimiento)) renovar(() => handleEditDocumento(doc)); return; }
+        } else if (t.endpoint === 'revisiones') {
+            const rev = masReciente(revisiones.filter(r => r.tipo === t.revTipo), r => r.fecha_vencimiento);
+            if (rev) { if (canEdit && puedeRenovar(rev.fecha_vencimiento)) renovar(() => handleEditRevision(rev)); return; }
+        } else {
+            const man = masReciente(mantenciones, x => x.fecha_proxima);
+            if (man) { if (canEdit && puedeRenovar(man.fecha_proxima)) renovar(() => handleEditMantencion(man)); return; }
+        }
+        if (canCreate) { setTipoValue(t.value); setShowAdd(true); }
+    });
+    useEffect(() => {
+        if (!abrir || cargadoDe !== vehiculoId) return;
+        // La página monta este panel dos veces (vista de escritorio y de celular, una oculta): abre el que se ve.
+        if (!seccionRef.current?.getClientRects().length) return;
+        const clave = `${vehiculoId}|${abrir}`;
+        if (abiertoRef.current === clave) return;
+        abiertoRef.current = clave;
+        abrirPorEnlace(abrir);
+        onAbierto?.();
+    }, [abrir, cargadoDe, vehiculoId, onAbierto]);
 
     // Subir archivo (tipos "file"). Si estamos editando: los datos van por PUT y, si se eligió otro archivo,
     // ese reemplaza al actual en una segunda llamada (multipart).
@@ -378,7 +423,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
 
     return (
         <>
-        <section>
+        <section ref={seccionRef}>
             <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
                     <ScrollText className="h-3.5 w-3.5" /> Documentos

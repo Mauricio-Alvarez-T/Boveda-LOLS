@@ -129,14 +129,50 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
   el primer grupo de la "Bandeja del día"): cifra grande de vencidos (o por vencer), círculo rojo si
   algo venció, ámbar si solo hay por vencer, verde si no hay nada en 30 días, y 3 filas
   "PATENTE · Revisión de gases" + "venció hace 16d" que llevan a /vehiculos (2026-10-20: el Inicio pasó a
-  una tarjeta por módulo; su «Ver más» abre debajo todos los vencimientos de 30 días). La bandeja ya no
-  los lista (sería mostrar lo mismo dos veces).
+  una tarjeta por módulo; desde el 2026-10-22 su «Ver más» abre el calendario + ficha de
+  `GET /vehiculos/papeles`, § siguiente, y «Actualizar» del Inicio también refresca este número). La
+  bandeja ya no los lista (sería mostrar lo mismo dos veces).
 - `useVencimientosVehiculos` es un **store de módulo** (`useSyncExternalStore`), no estado por
   componente: hay 3 consumidores montados a la vez (menú, página, bandeja). Con un `useState` por hook
   eran 3 requests y 3 verdades distintas — al guardar un documento se actualizaba el contador de la
   página y el del menú quedaba viejo. Un solo intervalo de refresco para todos (refcount).
 - `VehiculoDocumentos` recibe `onCambio` y la página le pasa `refetch`: al guardar o borrar un
   documento los contadores se actualizan solos, sin esperar el refresco de 10 minutos.
+
+## Papeles por vehículo (`GET /vehiculos/papeles`, detalle del Inicio, 2026-10-22)
+
+- `vehiculos.service.getPapeles(dias, { todos })`, con `vehiculos.ver`, ruta antes de `/:id`. Alimenta el
+  detalle «Calendario + ficha» del Inicio (`DetalleVehiculos`; lógica en `fichasVehiculosInicio.ts`, con
+  test). **Va aparte de `getVencimientos` a propósito**: el número del menú (y la tarjeta y la franja del
+  Inicio) no cambia. `?dias=` es la ventana de «por vencer» (entero ≥ 0; otra cosa → 30); sin `?todos=1`
+  solo vienen los vehículos que requieren acción, del más vencido al menos. Devuelve
+  `{ dias, total_vehiculos (la flota activa entera), vehiculos }`.
+- **Cinco papeles por vehículo, siempre en este orden**: permiso ← documento `permiso_circulacion` + tabla
+  antigua `vehiculo_permisos`; póliza ← documento `poliza` + tabla antigua `vehiculo_seguros` (cualquier
+  tipo); técnica y gases ← revisión `tecnica` / `gases`; mantención ← `fecha_proxima` de
+  `vehiculo_mantenciones` (todas las del vehículo, de cualquier tipo). Estado: `vencido` (< 0),
+  `por_vencer` (0 … dias, hoy incluido), `vigente`, `sin_fecha` (tiene registros, ninguno con fecha válida;
+  mismo piso `FECHA_MINIMA`) o `sin_registro`. Solo registros activos de vehículos activos.
+- **Manda el registro más reciente** (el vencimiento más lejano; a igual fecha el id más nuevo, y los
+  documentos antes que las tablas antiguas): un duplicado viejo vencido no pinta rojo si ya está el nuevo.
+  Por eso una ficha puede contar MENOS que el menú, que suma todas las filas.
+- **`avisa`**: documentos, revisiones y mantenciones → `avisar_30d`; seguros antiguos →
+  `avisar_alerta_seguro` del vehículo; permisos antiguos → siempre; leasing → `avisar_leasing_30d`
+  (columna ausente → avisa). El semáforo pinta según la fecha real aunque no avise; `requiere_accion`,
+  `vencidos`, `peor_dias` y `otros` solo cuentan lo que avisa.
+- **`otros`**: lo que requiere acción y no es de los cinco —documento `seguro_terceros`, revisión
+  `mecanica`, fin de leasing (`es_leasing = 1`, `leasing_terminado = 0`) y otras categorías de documento con
+  fecha—, con nombre legible («Seguro a terceros», «Fin de leasing») y también el más reciente por tipo.
+- Conductor: `vehiculos.conductor_id` → `conductores.nombre`. **No hay teléfono en ninguna tabla**:
+  «Avisar a {conductor}» abre WhatsApp con el texto listo y la persona elige el contacto.
+- Consultas en secuencia (no `Promise.all`: el hosting tiene 10 conexiones) que toleran columnas ausentes
+  (`ER_BAD_FIELD_ERROR`) igual que `getVencimientos`.
+- **Enlace `/vehiculos?vehiculo=<id>&papel=<clave>`** («Subir el nuevo» de la ficha): la página espera los
+  vehículos y las empresas, elige la empresa del vehículo (inactiva o sin empresa → «Sin empresa»), lo abre
+  y limpia la URL (`replace`). Con `papel` (`permiso`, `poliza`, `tecnica`, `gases`, `mantencion`),
+  `VehiculoDocumentos` hace UNA vez, en el panel que se ve: «Renovar» sobre el más reciente de ese tipo si
+  está vencido o por vencer y se puede editar, o «Agregar» con ese tipo si no hay ninguno y se puede crear.
+  Sin permiso no abre nada.
 
 ## Alertas por email
 

@@ -32,6 +32,7 @@ import DetalleAsistencia from '../components/dashboard/widgets/DetalleAsistencia
 import type { AusentesHoy } from '../components/dashboard/widgets/resumenAsistenciaHoy';
 import type { DetalleAsistenciaApi } from '../components/dashboard/widgets/resumenAsistenciaDetalle';
 import InventarioInicio, { FilaInventarioInicio } from '../components/dashboard/widgets/InventarioInicio';
+import DetalleVehiculos from '../components/dashboard/widgets/DetalleVehiculos';
 import { resumenInventarioInicio, type FilaInventario, type ResumenInventarioApi } from '../components/dashboard/widgets/resumenInventarioInicio';
 import TarjetaPendientes from '../components/dashboard/widgets/TarjetaPendientes';
 import FlujoDocumentos from '../components/dashboard/widgets/FlujoDocumentos';
@@ -345,9 +346,10 @@ const Dashboard: React.FC = () => {
 
     const { refetch: refetchAlertasDocs } = alertasDocs;
     const { refetch: refetchLotes } = lotes;
+    const { refetch: refetchVencimientos } = vencimientos;
     const refreshAll = useCallback(() => {
-        fetchSummary(); fetchInventory(); fetchImpresos(); fetchResumenInv(); refetchAlertasDocs(); refetchLotes(); fetchMisLotes(); fetchMisSolicitudes();
-    }, [fetchSummary, fetchInventory, fetchImpresos, fetchResumenInv, refetchAlertasDocs, refetchLotes, fetchMisLotes, fetchMisSolicitudes]);
+        fetchSummary(); fetchInventory(); fetchImpresos(); fetchResumenInv(); refetchAlertasDocs(); refetchLotes(); fetchMisLotes(); fetchMisSolicitudes(); refetchVencimientos();
+    }, [fetchSummary, fetchInventory, fetchImpresos, fetchResumenInv, refetchAlertasDocs, refetchLotes, fetchMisLotes, fetchMisSolicitudes, refetchVencimientos]);
 
     // ─── Encabezado: rótulo, fecha y «Actualizar» (antes vivían en la tarjeta verde, que se fue el 2026-10-20) ───
     const hora = lastUpdated ? lastUpdated.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : null;
@@ -714,11 +716,10 @@ const Dashboard: React.FC = () => {
 
             {activo === 'vehiculos' && (
                 <DetalleModulo icon={Truck} titulo="Vehículos"
-                    descripcion="Todos los vencimientos de los próximos 30 días"
+                    descripcion="Papeles de la flota: qué venció, qué viene y a quién avisarle"
                     accion={{ texto: 'Ir a Vehículos', onClick: () => navigate('/vehiculos') }}>
-                    <Panel>
-                        <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')} maxFilas={Number.POSITIVE_INFINITY} />
-                    </Panel>
+                    {/* Calendario + ficha (Marcos 2026-10-22): sin Panel, dos tarjetas como «Hoy» y «Próximos 14 días» de Asistencia. */}
+                    <DetalleVehiculos version={lastUpdated} />
                 </DetalleModulo>
             )}
             {/* Celular: en vez de tarjetas, barra de accesos fija abajo (oculta desde 640 px). */}

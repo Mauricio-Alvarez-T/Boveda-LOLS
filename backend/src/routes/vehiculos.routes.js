@@ -24,6 +24,15 @@ router.get('/vencimientos', auth, checkPermission('vehiculos.ver'), async (req, 
     catch (err) { next(err); }
 });
 
+// ── Papeles por vehículo (fichas «Vehículos» del Inicio) ───────────────
+// Los 5 papeles del semáforo de cada vehículo + lo demás que requiere acción.
+// ?dias= ventana de «por vencer» (default 30); ?todos=1 trae también los que
+// están al día. Va antes de /:id para que no lo capture.
+router.get('/papeles', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
+    try { res.json({ data: await svc.getPapeles(req.query.dias, { todos: req.query.todos }) }); }
+    catch (err) { next(err); }
+});
+
 // ── Ventas / historial de vendidos (antes de /:id para que no sea capturado) ──
 router.get('/ventas', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
     try { res.json({ data: await svc.getVentas() }); }
