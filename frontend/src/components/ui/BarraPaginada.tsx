@@ -78,8 +78,9 @@ export const BarraPaginada: React.FC<BarraPaginadaProps> = ({ children, fondo = 
             // ¿Cabe todo sin flechas? Se compara con el ancho de la caja entera, no con el que dejan las flechas.
             const nuevo = repartirPaginas(anchos, gap, sc.clientWidth, caja.clientWidth, base);
             if (!igual(nuevo, previo)) setPaginas(nuevo);
-            const nat = Math.ceil(anchoNatural(anchos, gap));
-            setNatural(prev => (Math.abs(prev - nat) < 1 ? prev : nat));
+            // Sin redondear: si todo cabe, la caja mide al subpíxel lo mismo que antes (con Math.ceil crecía 1–2 px).
+            const nat = anchoNatural(anchos, gap);
+            setNatural(prev => (Math.abs(prev - nat) < 0.5 ? prev : nat));
         };
         const ro = new ResizeObserver(medir);
         ro.observe(sc);
