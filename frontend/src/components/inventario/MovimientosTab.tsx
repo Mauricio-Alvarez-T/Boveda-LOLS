@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Loader2, ArrowUp, ArrowDown, RefreshCw, History } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Button } from '../ui/Button';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useMovimientos, type TipoMovimiento } from '../../hooks/inventario/useMovimientos';
 
 // Etiquetas + estilos por tipo de movimiento (kardex).
@@ -43,6 +44,9 @@ interface Props {
 
 const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial = null }) => {
     const { movimientos, pagination, loading, error, fetchMovimientos } = useMovimientos();
+    // En el teléfono, tarjetas como las del detalle del ítem (saldo antes → diferencia → saldo actual): la tabla de
+    // 9 columnas iba con scroll lateral y dejaba el ítem en una columna angosta. Tabla O tarjetas (diseno.md §8.3).
+    const esDesktop = useMediaQuery('(min-width: 768px)');
 
     const [tipo, setTipo] = useState<TipoMovimiento | ''>('');
     const [desde, setDesde] = useState('');
@@ -75,14 +79,15 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
 
     return (
         <div className="flex flex-col flex-1 min-h-0 gap-3">
-            {/* Barra de filtros */}
-            <div className="flex flex-wrap items-end gap-3 shrink-0 bg-card border border-border rounded-2xl p-3">
-                <div className="flex flex-col gap-1">
+            {/* Barra de filtros. En el teléfono, grilla de 2: Tipo + Actualizar arriba, Desde + Hasta abajo (antes eran
+                4 filas y le quitaban alto a la lista). Desde md: la fila de siempre (la grilla no aplica a un flex). */}
+            <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-end md:gap-3 shrink-0 bg-card border border-border rounded-2xl p-3">
+                <div className="flex flex-col gap-1 min-w-0">
                     <label className="text-caption font-semibold text-muted-foreground uppercase">Tipo</label>
                     <select
                         value={tipo}
                         onChange={(e) => setTipo(e.target.value as TipoMovimiento | '')}
-                        className="h-9 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
+                        className="h-9 w-full md:w-auto bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
                     >
                         <option value="">Todos</option>
                         {TIPOS.map(t => (
@@ -90,18 +95,18 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                         ))}
                     </select>
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 min-w-0">
                     <label className="text-caption font-semibold text-muted-foreground uppercase">Desde</label>
                     <input
                         type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-                        className="h-9 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
+                        className="h-9 w-full md:w-auto min-w-0 bg-card border border-border rounded-xl px-2 md:px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
                     />
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 min-w-0">
                     <label className="text-caption font-semibold text-muted-foreground uppercase">Hasta</label>
                     <input
                         type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-                        className="h-9 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
+                        className="h-9 w-full md:w-auto min-w-0 bg-card border border-border rounded-xl px-2 md:px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
                     />
                 </div>
                 <Button
@@ -109,7 +114,7 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                     size="sm"
                     onClick={() => cargar(page)}
                     leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
-                    className="text-xs font-bold"
+                    className="text-xs font-bold col-start-2 row-start-1 self-end justify-self-end"
                 >
                     Actualizar
                 </Button>
@@ -133,6 +138,45 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                         <p className="mt-3 text-sm font-semibold text-brand-dark">Sin movimientos</p>
                         <p className="text-xs text-muted-foreground">No hay registros para los filtros seleccionados.</p>
                     </div>
+                ) : !esDesktop ? (
+                    <ul className="divide-y divide-border">
+                        {movimientos.map((m) => {
+                            const meta = TIPO_META[m.tipo] || { label: m.tipo, badge: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/15 dark:text-slate-300 dark:border-slate-800/60' };
+                            const delta = Number(m.delta);
+                            const u = m.unidad ? ` ${m.unidad}` : '';
+                            return (
+                                <li key={m.id} className="px-3 py-3">
+                                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                                        <span className={cn('inline-block px-2 py-0.5 rounded-md text-caption font-bold border', meta.badge)}>
+                                            {meta.label}
+                                        </span>
+                                        <span className="text-xs font-medium text-foreground break-words">{m.obra_nombre || m.bodega_nombre || '—'}</span>
+                                        <span className="ml-auto text-micro text-muted-foreground tabular-nums whitespace-nowrap">{fmtFecha(m.created_at)}</span>
+                                    </div>
+                                    <p className="mt-1.5 text-sm break-words">
+                                        <span className="font-semibold text-brand-dark">#{m.nro_item}</span>
+                                        <span className="text-label text-muted-foreground ml-1.5">{m.item_descripcion}</span>
+                                    </p>
+                                    <div className="mt-2 grid grid-cols-3 items-center rounded-lg bg-muted/60 px-2 py-1.5 text-center tabular-nums">
+                                        <span>
+                                            <span className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground">Saldo antes</span>
+                                            <span className="block text-base font-semibold text-foreground">{fmtNum(m.cantidad_anterior)}{u}</span>
+                                        </span>
+                                        <span className={cn('text-2xl font-black leading-none',
+                                            delta > 0 ? 'text-green-700 dark:text-green-400' : delta < 0 ? 'text-red-700 dark:text-red-400' : 'text-muted-foreground')}>
+                                            {delta > 0 ? '+' : delta < 0 ? '−' : ''}{fmtNum(Math.abs(delta))}
+                                        </span>
+                                        <span>
+                                            <span className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground">Saldo actual</span>
+                                            <span className="block text-base font-bold text-foreground">{fmtNum(m.cantidad_nueva)}{u}</span>
+                                        </span>
+                                    </div>
+                                    {m.usuario_nombre && <p className="mt-1.5 text-micro text-muted-foreground break-words">{m.usuario_nombre}</p>}
+                                    {m.motivo && <p className="text-micro italic text-muted-foreground break-words">{m.motivo}</p>}
+                                </li>
+                            );
+                        })}
+                    </ul>
                 ) : (
                     <table className="w-full text-sm">
                         <thead className="sticky top-0 bg-brand-primary border-b border-border z-10">

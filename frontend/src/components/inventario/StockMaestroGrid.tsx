@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Save, Undo2, Search, Loader2, MapPin, AlertTriangle } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useStockMaestro, type StockRow, type UbicacionRef } from '../../hooks/inventario/useStockMaestro';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { formatBodegaConResponsable } from '../../utils/formatBodega';
 import { Button } from '../ui/Button';
 
@@ -36,6 +37,9 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
     const [ubi, setUbi] = useState<UbicacionRef | null>(null);
     const [dirty, setDirty] = useState<DirtyMap>({});
     const [search, setSearch] = useState('');
+    // En el teléfono, tarjetas: la tabla de 7 columnas dejaba «Nueva cant.» (lo que se edita) fuera de la vista.
+    // Tabla O tarjetas, nunca las dos (diseno.md §8.3).
+    const esDesktop = useMediaQuery('(min-width: 768px)');
 
     useEffect(() => {
         fetchByUbicacion(ubi);
@@ -139,26 +143,26 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
         <div className="flex flex-col flex-1 min-h-0 gap-3">
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-2 shrink-0">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 w-full md:w-auto">
                     <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                     <select
                         value={ubiKey}
                         onChange={e => handleChangeUbi(e.target.value)}
-                        className="px-2 py-1.5 text-xs border border-border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                        className="flex-1 md:flex-none min-w-0 px-2 py-1.5 text-xs border border-border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
                     >
                         <option value="">— Elige ubicación —</option>
                         {ubiOptions.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
                     </select>
                 </div>
                 {ubi && (
-                    <div className="relative">
+                    <div className="relative w-full md:w-auto">
                         <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <input
                             type="text"
                             placeholder="Buscar ítem..."
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            className="pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg w-64 focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            className="pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg w-full md:w-64 focus:ring-2 focus:ring-brand-primary/20 outline-none"
                         />
                     </div>
                 )}
@@ -203,6 +207,54 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                     </div>
                 ) : filteredRows.length === 0 ? (
                     <div className="py-12 text-center text-xs text-muted-foreground">Sin ítems que coincidan.</div>
+                ) : !esDesktop ? (
+                    <ul className="divide-y divide-border">
+                        {filteredRows.map(r => {
+                            const rowDirty = isDirty(r);
+                            const nueva = getCantidad(r);
+                            const delta = nueva - r.cantidad;
+                            return (
+                                <li key={r.id} className={cn('px-3 py-3', rowDirty && 'bg-amber-50/50 dark:bg-amber-950/30')}>
+                                    <p className="text-sm font-medium text-brand-dark break-words">
+                                        <span className="font-mono text-muted-foreground mr-1.5">{r.nro_item}</span>
+                                        {r.descripcion}
+                                    </p>
+                                    <p className="text-caption text-muted-foreground break-words">{r.categoria_nombre} · {r.unidad}</p>
+                                    <div className="mt-2 flex items-end gap-3">
+                                        <div className="w-14 shrink-0">
+                                            <span className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground">Actual</span>
+                                            <span className="block py-2 font-mono text-base text-muted-foreground">{r.cantidad}</span>
+                                        </div>
+                                        <label className="flex-1 min-w-0">
+                                            <span className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground">Nueva cant.</span>
+                                            {/* text-base (16 px): con menos, iOS hace zoom al enfocar el campo. */}
+                                            <input
+                                                type="number"
+                                                inputMode="numeric"
+                                                min={0}
+                                                value={nueva}
+                                                onChange={e => setCantidad(r, Number(e.target.value))}
+                                                aria-label={`Nueva cantidad de ${r.descripcion}`}
+                                                className={cn(
+                                                    'mt-0.5 h-10 w-full px-3 text-base text-right font-bold bg-card border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary/40',
+                                                    rowDirty ? 'border-amber-300 dark:border-amber-500/40' : 'border-border'
+                                                )}
+                                            />
+                                        </label>
+                                        <div className="w-14 shrink-0 text-right">
+                                            <span className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground">Δ</span>
+                                            <span className={cn(
+                                                'block py-2 font-mono text-base font-bold',
+                                                delta > 0 ? 'text-green-700 dark:text-green-300' : delta < 0 ? 'text-red-700 dark:text-red-300' : 'text-muted-foreground/50'
+                                            )}>
+                                                {rowDirty ? (delta > 0 ? `+${delta}` : delta) : '—'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
                 ) : (
                     <table className="w-full text-label border-collapse">
                         <thead className="bg-brand-primary sticky top-0 z-10">
