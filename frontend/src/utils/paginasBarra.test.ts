@@ -1,4 +1,4 @@
-import { repartirPaginas } from './paginasBarra';
+import { anchoNatural, repartirPaginas } from './paginasBarra';
 
 const sumaPagina = (anchos: number[], extras: number[], inicios: boolean[], gap: number) => {
     const paginas: number[] = [];
@@ -36,5 +36,23 @@ describe('repartirPaginas (barra de pestañas sin nombres cortados)', () => {
         expect(r.inicios).toEqual([true, true]);
         expect(r.extras[0]).toBe(0);
         expect(r.extras[1]).toBe(250);
+    });
+});
+
+describe('anchoNatural (ancho que pide la barra, pagine o no)', () => {
+    test('suma las opciones y los espacios entre ellas', () => {
+        expect(anchoNatural([80, 90, 70], 4)).toBe(248);
+    });
+
+    test('sin opciones o con una sola no hay espacios', () => {
+        expect(anchoNatural([], 4)).toBe(0);
+        expect(anchoNatural([120], 4)).toBe(120);
+    });
+
+    test('no depende de cómo se reparta: es el mismo con o sin páginas', () => {
+        const anchos = [120, 110, 150, 90, 100, 130, 80, 70];
+        const r = repartirPaginas(anchos, 2, 296, 368);
+        expect(r.desborda).toBe(true);
+        expect(anchoNatural(anchos, 2)).toBe(864);
     });
 });

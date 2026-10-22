@@ -16,6 +16,10 @@ export interface Paginas {
 
 export const SIN_PAGINAS: Paginas = { extras: [], inicios: [], desborda: false, base: 0 };
 
+/** Ancho que necesita la fila para mostrar todas las opciones juntas, sin flechas ni relleno de página. */
+export const anchoNatural = (anchos: number[], gap: number) =>
+    anchos.reduce((a, b) => a + b, 0) + gap * Math.max(0, anchos.length - 1);
+
 /**
  * Reparte las opciones en páginas que llenan `ancho` exacto.
  * Cada página toma las opciones que caben enteras; lo que sobra se reparte entre ellas, así nunca queda una a
@@ -23,7 +27,7 @@ export const SIN_PAGINAS: Paginas = { extras: [], inicios: [], desborda: false, 
  */
 export function repartirPaginas(anchos: number[], gap: number, ancho: number, anchoTotal: number, base = 0): Paginas {
     const n = anchos.length;
-    const natural = anchos.reduce((a, b) => a + b, 0) + gap * Math.max(0, n - 1);
+    const natural = anchoNatural(anchos, gap);
     if (n === 0 || ancho <= 0 || natural <= anchoTotal + 0.5) return { extras: new Array(n).fill(0), inicios: anchos.map((_, i) => i === 0), desborda: false, base };
     const extras = new Array<number>(n).fill(0);
     const inicios = new Array<boolean>(n).fill(false);
