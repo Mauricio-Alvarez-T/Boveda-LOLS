@@ -859,6 +859,20 @@ export function responsablesDe(
     const recibidasObra = Math.max(0, recibida.total - fuera(s => s.estado === 'recibida' && s.del_mes));
     const porRecibir = aprobadasObra + enCaminoObra;
 
+    // «Bodega»: solo lo aprobado que SALE de una bodega (Marcos 2026-10-23). Lo que sale de una obra (devoluciones y
+    // traslados) lo manda esa obra: va a «Obras» como «por enviar». La app no registra la salida (no hay «Despachar»),
+    // así que «aprobada» = aún no recibida; lo de la lista con origen en obra se resta de la cifra exacta del circuito.
+    const aprobadasLista = (datos.solicitudes ?? []).filter(s => s.estado === 'aprobada');
+    const desdeObra = aprobadasLista.filter(s => s.origen?.tipo === 'obra');
+    const deBodega = Math.max(0, aprobada.total - desdeObra.length);
+    const diasDeBodega = datos.solicitudes
+        ? aprobadasLista.filter(s => s.origen?.tipo !== 'obra').reduce<number | null>((m, s) => (m == null || s.dias > m ? s.dias : m), null)
+        : aprobada.dias;
+    // Por enviar desde una obra. Un traslado obra → obra ya cuenta en «por recibir» (lo recibe la otra obra): aquí solo
+    // las que no van a una obra (devoluciones a bodega), para no contar dos veces la misma solicitud.
+    const porEnviar = desdeObra.length;
+    const porEnviarSolo = desdeObra.filter(s => !vaAUnaObra(s)).length;
+
     const notaAprueba = aprueba.cuantos === 1
         ? `${enMes} aprobó ${conteos.aprobo} y no aprobó ${conteos.rechazo}.`
         : aprueba.cuantos > 1
@@ -873,12 +887,15 @@ export function responsablesDe(
             ? `${enMes} ${enLista(nombrados.map((d, i) => `${cortos[i]}${i === 0 ? ' despachó' : ''} ${d.n}`))}.`
             : `${enMes} se ${plural(conteos.totalDespachos, 'registró', 'registraron')} ${conteos.totalDespachos} ${plural(conteos.totalDespachos, 'despacho', 'despachos')}.`;
 
-    const lineaObras = porRecibir === 0
-        ? 'nada por recibir'
-        : `por recibir · ${enLista([
-            enCaminoObra ? `${enCaminoObra} en camino` : '',
-            aprobadasObra ? `${aprobadasObra} ${plural(aprobadasObra, 'aprobada que ya puede', 'aprobadas que ya pueden')} recibir` : '',
-        ].filter(Boolean))}`;
+    const lineaObras = conLinea(
+        porRecibir === 0
+            ? 'nada por recibir'
+            : `por recibir · ${enLista([
+                enCaminoObra ? `${enCaminoObra} en camino` : '',
+                aprobadasObra ? `${aprobadasObra} ${plural(aprobadasObra, 'aprobada que ya puede', 'aprobadas que ya pueden')} recibir` : '',
+            ].filter(Boolean))}`,
+        porEnviar ? `${porEnviar} por enviar desde una obra` : '',
+    );
 
     const detalleDifs = [
         faltan ? `${faltan} con ${plural(faltan, 'faltante', 'faltantes')}` : '',
@@ -894,15 +911,15 @@ export function responsablesDe(
             ademas: difs ? { texto: `Además, ${difs} ${plural(difs, 'diferencia', 'diferencias')} por resolver`, ir: { filtro: 'recibidas' } } : undefined,
         },
         {
-            key: 'bodega', nombre: 'Bodega', iniciales: null, cifra: aprobada.total, tono: 'ambar',
-            linea: aprobada.total
-                ? conLinea('aún sin salir', aprobada.dias != null && aprobada.dias <= 0 ? 'la más antigua, aprobada hoy' : laMasAntigua(aprobada.dias, { hace: true, prefijo: 'aprobada ' }))
-                : 'todo lo aprobado ya salió',
+            key: 'bodega', nombre: 'Bodega', iniciales: null, cifra: deBodega, tono: 'ambar',
+            linea: deBodega
+                ? conLinea('por recibir', diasDeBodega != null && diasDeBodega <= 0 ? 'la más antigua, aprobada hoy' : laMasAntigua(diasDeBodega, { hace: true, prefijo: 'aprobada ' }))
+                : 'nada aprobado sale de bodega',
             nota: notaBodega,
             ir: { filtro: 'aprobada' },
         },
         {
-            key: 'obras', nombre: 'Obras', iniciales: null, cifra: porRecibir, tono: 'azul',
+            key: 'obras', nombre: 'Obras', iniciales: null, cifra: porRecibir + porEnviarSolo, tono: 'azul',
             linea: lineaObras,
             nota: `${enMes} pidieron ${conteos.pidio} y recibieron ${recibidasObra}.`,
             ir: { filtro: 'todas', grupo: aprobadasObra ? 'aprobada' : 'camino' },

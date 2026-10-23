@@ -498,7 +498,7 @@ describe('quién tiene qué', () => {
             ademas: { texto: 'Además, 2 diferencias por resolver', ir: { filtro: 'recibidas' } },
         });
         expect(bodega).toMatchObject({
-            nombre: 'Bodega', iniciales: null, cifra: 1, linea: 'aún sin salir · la más antigua, aprobada hace 2 días',
+            nombre: 'Bodega', iniciales: null, cifra: 1, linea: 'por recibir · la más antigua, aprobada hace 2 días',
             nota: 'En octubre Jhoan despachó 2 y Héctor 1.', ir: { filtro: 'aprobada' },
         });
         expect(obras).toMatchObject({
@@ -521,7 +521,7 @@ describe('quién tiene qué', () => {
         const [aprueba, bodega, obras, jefatura] = responsablesDe({ circuito: vacio, diferencias: [] }, conteos, quienApruebaDe([]));
         expect(aprueba).toMatchObject({ nombre: QUIEN_APRUEBA, iniciales: null, linea: 'nada por aprobar', nota: 'En octubre: 0 aprobadas y 0 no aprobadas.' });
         expect(aprueba.ademas).toBeUndefined();
-        expect(bodega).toMatchObject({ linea: 'todo lo aprobado ya salió', nota: 'En octubre no se registró ningún despacho.' });
+        expect(bodega).toMatchObject({ linea: 'nada aprobado sale de bodega', nota: 'En octubre no se registró ningún despacho.' });
         expect(obras.linea).toBe('nada por recibir');
         expect(jefatura).toMatchObject({ linea: 'nada por investigar', nota: 'Sus WhatsApp no quedan guardados.' });
     });
@@ -539,9 +539,26 @@ describe('quién tiene qué', () => {
         const c: CircuitoPerfil = { ...CIRCUITO, aprobada: { total: 2, dias: 2 }, recibida: { total: 3, ultima: null } };
         const [, bodega, obras] = responsablesDe({ circuito: c, diferencias: [], solicitudes: [...SOLICITUDES, dev, devRecibida] },
             conteosMes([], HOY, []), quienApruebaDe([LEO]));
-        expect(bodega.cifra).toBe(2);
-        expect(obras).toMatchObject({ cifra: 2, linea: 'por recibir · 1 en camino y 1 aprobada que ya puede recibir' });
+        // La devolución aprobada sale de Domeyko: no es de la bodega (Marcos 2026-10-23); la obra la tiene «por enviar».
+        expect(bodega.cifra).toBe(1);
+        expect(obras).toMatchObject({
+            cifra: 3, linea: 'por recibir · 1 en camino y 1 aprobada que ya puede recibir · 1 por enviar desde una obra',
+        });
         expect(obras.nota).toBe('En octubre pidieron 0 y recibieron 2.');
+    });
+
+    it('«Bodega» cuenta solo lo que sale de una bodega; un traslado obra → obra no se cuenta dos veces en «Obras»', () => {
+        const traslado = sol({ id: 92, tipo_flujo: 'intra_obra', estado: 'aprobada', etapa: 'aprobada', dias: 7, origen: DOMEYKO,
+            destino: { tipo: 'obra', id: 3, nombre: 'Gorbea 3082', responsable: null } });
+        const c: CircuitoPerfil = { ...CIRCUITO, aprobada: { total: 2, dias: 7 } };
+        const [, bodega, obras] = responsablesDe({ circuito: c, diferencias: [], solicitudes: [...SOLICITUDES, traslado] },
+            conteosMes([], HOY, []), quienApruebaDe([LEO]));
+        // La más antigua de la bodega es la suya (2 días), no el traslado (7).
+        expect(bodega).toMatchObject({ cifra: 1, linea: 'por recibir · la más antigua, aprobada hace 2 días' });
+        // El traslado lo recibe Gorbea (ya en «por recibir») y lo manda Domeyko: una sola vez en la cifra.
+        expect(obras).toMatchObject({
+            cifra: 3, linea: 'por recibir · 1 en camino y 2 aprobadas que ya pueden recibir · 1 por enviar desde una obra',
+        });
     });
 
     it('las diferencias cuentan solicitudes (como la tarjeta y las otras vistas), no ítems', () => {
