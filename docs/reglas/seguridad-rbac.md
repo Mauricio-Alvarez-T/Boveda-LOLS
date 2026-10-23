@@ -132,6 +132,20 @@
   - Idempotente (la segunda pasada no sube versiones ni borra nada) y sin subconsultas sobre `roles` en el UPDATE
     (MySQL 1093). Probada dos veces sobre MySQL 5.7 con sql_mode estricto y de MariaDB 10.6. Test:
     `backend/tests/transferencias_aprobar_solo_leonardo.test.js`.
+- **Mig 134 (2026-10-23, «Inicio de gerencia»)**, decisión del dueño (lienzo de gerencia, opción B): permiso NUEVO
+  `inicio.gerencia` (módulo «Inicio», sección Dashboard del modal de permisos) que abre el tablero «N temas esperan una
+  decisión» arriba del Inicio y su `GET /api/dashboard/gerencia` (diseno.md §9.15). Por ahora solo **Luis Lazcano**,
+  como permiso propio (`grant`, por correo; si no existe en ese entorno, nada); el rol 1 también lo tiene en su rol.
+  Re-login: `roles.version + 1` del rol de Luis (nunca del rol 1). Idempotente (catálogo e insert del rol con
+  `INSERT IGNORE`, el propio con `ON DUPLICATE KEY UPDATE tipo = 'grant'`; repetirla solo vuelve a subir la versión).
+  El permiso **no amplía nada por sí solo**: cada tema del tablero pide además el permiso de su módulo
+  (`asistencia.ver`, `vehiculos.ver`, `documentos.ver`, `inventario.ver` + `inventario.transferencias.ver_todas`) y los
+  pesos de las pérdidas en Inventario, `inventario.costos.ver` o `inventario.resumen.ver_valores` (sin ellos el backend
+  no manda ningún campo de $: doble defensa). Ojo, decisión a conocer: el tema «Pérdidas» muestra las diferencias
+  pendientes con faltante a quien tenga `inicio.gerencia` + Inventario con `ver_todas`, **aunque no tenga**
+  `diferencias_ver` (Luis no lo tiene); al tocar una, Inventario abre «Diferencias» si puede verlas y, si no, la
+  solicitud misma (`TransferenciasPanel`). Probada dos veces sobre MySQL 5.7 (sql_mode estricto y de MariaDB 10.6).
+  Test: `backend/tests/inicio_gerencia.test.js`.
 
 ## Middleware y endurecimiento
 

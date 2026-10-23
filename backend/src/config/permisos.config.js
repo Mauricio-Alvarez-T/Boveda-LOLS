@@ -171,8 +171,11 @@ const MAESTRO_PERMISOS = [
     // Costos de obra (mig 122): un solo permiso para ver, agregar, modificar y borrar. Se asigna por usuario.
     ['costos.gestionar',             'Sistema', '$ Costos de obra',                'Presupuestos y costos: ver, agregar, modificar y borrar el presupuesto por partidas, los gastos con foto de factura y el resumen de cada obra', 11],
 
+    // INICIO (mig 134): el tablero de gerencia arriba del Inicio. Cada tema pide además el permiso de su módulo.
+    ['inicio.gerencia',  'Inicio', 'Inicio de gerencia', 'Inicio → tablero «N temas esperan una decisión» arriba de las tarjetas: faltas reiteradas, papeles de vehículos, pérdidas en Inventario, documentos de trabajadores, papeles laborales atrasados y solicitudes trabadas. Cada tema se ve solo con el permiso de su módulo. Los montos de Inventario, solo con "Ver Costos de Inventario" o "Ver Valores en Resumen Ejecutivo".', 1],
+
     // VEHÍCULOS
-    ['vehiculos.ver',      'Vehículos', 'Ver Vehículos',       'Acceso al módulo de vehículos: listado, detalle, seguros, revisiones y mantenciones', 1],
+    ['vehiculos.ver',     'Vehículos', 'Ver Vehículos',       'Acceso al módulo de vehículos: listado, detalle, seguros, revisiones y mantenciones', 1],
     ['vehiculos.crear',    'Vehículos', 'Crear Vehículo',      'Registrar nuevos vehículos, seguros, revisiones técnicas y mantenciones', 2],
     ['vehiculos.editar',   'Vehículos', 'Editar Vehículo',     'Modificar datos de vehículos, actualizar kilómetros, editar seguros y revisiones', 3],
     ['vehiculos.eliminar', 'Vehículos', 'Eliminar Vehículo',   'Dar de baja vehículos y sus registros asociados', 4],

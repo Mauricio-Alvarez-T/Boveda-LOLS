@@ -55,6 +55,7 @@ import { nombreMes, type FaltasMesData, type TrabajadorFaltas } from '../compone
 import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
 import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
 import { NovedadesModal } from '../components/novedades/NovedadesModal';
+import InicioGerencia from '../components/dashboard/widgets/gerencia/InicioGerencia';
 
 // ─── Types ───
 interface DocExpiryItem {
@@ -551,6 +552,9 @@ const Dashboard: React.FC = () => {
                 (AlertaAtrasosAlEntrar) y su tarjeta «Tus documentos» va primero. */}
             {/* Lo nuevo de la última entrega, una vez por persona (config/novedades.ts). */}
             <NovedadesModal />
+
+            {/* Inicio de gerencia (don Luis, opción B «Tablero por tema», 2026-10-23): arriba de las tarjetas, solo con su permiso. */}
+            {permisos.includes('inicio.gerencia') && <InicioGerencia version={lastUpdated} />}
 
             {/* Una tarjeta por apartado, todas en una línea desde 1280 px (2×2 en tablet, una bajo otra en celular). */}
             {visibles.length > 0 && (

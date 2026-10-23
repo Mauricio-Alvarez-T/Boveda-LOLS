@@ -126,6 +126,9 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'asistencia.actividades_sugeridas.informe':        { seccion: 'asistencia', subseccion: 'Actividades sugeridas', verbo: 'exportar' },
     'asistencia.horas_extra.ver':              { seccion: 'asistencia', subseccion: 'Datos Sensibles',  verbo: 'ver', sensible: 'financiero' },
 
+    // ─── INICIO (dashboard) ────────────────────────────────────────────────
+    'inicio.gerencia':                         { seccion: 'dashboard', subseccion: 'General', verbo: 'ver' },
+
     // ─── CONSULTAS ─────────────────────────────────────────────────────────
     'documentos.ver':                          { seccion: 'consultas', subseccion: 'Documentos', verbo: 'ver' },
     'documentos.subir':                        { seccion: 'consultas', subseccion: 'Documentos', verbo: 'crear' },

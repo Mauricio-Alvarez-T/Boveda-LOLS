@@ -702,3 +702,40 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     `resumenDocumentosInicio.ts`, `resumenInventarioInicio.ts`, `inventarioPerfil/perfil.ts`,
     `inventarioPerfil/formato.ts`, `inventarioPerfil/verComo.modelo.ts`, `inventarioPerfil/comoObra.ts`,
     `fichasVehiculosInicio.ts`.
+15. **Inicio de gerencia (don Luis Lazcano, dueño 2026-10-23: opción B «Tablero por tema» del lienzo).** Arriba de
+    las tarjetas de siempre, solo con `inicio.gerencia` (mig 134, seguridad-rbac.md; el Super Admin también lo ve).
+    `InicioGerencia.tsx` + lógica pura `gerencia.modelo.ts` y textos de WhatsApp en `mensajes.ts` (los dos con test
+    jest), en `components/dashboard/widgets/gerencia/`; datos de `GET /api/dashboard/gerencia`
+    (`inicioGerencia.service.js`, una respuesta, consultas fijas y en secuencia, sin obras de prueba ni finalizadas;
+    cada bloque `null` sin el permiso de su módulo o si falla). En `Dashboard.tsx` solo hay un import y el bloque.
+    - **Franja** «N temas esperan una decisión» con la cifra de cada tema que tiene algo (en su color). Sin nada
+      pendiente: «Nada espera una decisión» y no van tarjetas. Error sin datos: aviso con «Reintentar». Se recarga
+      con «Actualizar» (`version={lastUpdated}`), dejando ver lo de antes mientras llega lo nuevo.
+    - **Seis tarjetas** (3 por fila desde 1280 px, 2 desde 768, 1 en el teléfono) con `EncabezadoTarjeta`, número
+      grande (un monto va en `text-headline`), bajada, «Qué se decide: …», «LO MÁS URGENTE» (3 filas) y pie.
+      **Tocar la tarjeta** (o «Ver los N» / «Ver el detalle», que es el camino con teclado) la despliega dentro:
+      todos los pendientes, cada uno con una frase de qué falta, de quién y desde cuándo. Cada fila abre donde se
+      resuelve. El pie lleva el enlace al módulo («Ver en Asistencia →») y **UN solo botón de WhatsApp** (pastilla
+      verde de 44 px, `shareViaWhatsApp` **sin número**: don Luis elige el grupo o la persona) con TODO lo pendiente
+      del tema: encabezado, una línea «•» por pendiente y el cierre, con tope de 20 líneas y «y N más». Las filas no
+      tienen WhatsApp propio. Ningún botón «decide»: la app no registra qué resuelve gerencia.
+    - **Los temas y de dónde sale cada dato** (nada inventado):
+      1. *Faltas reiteradas* (`asistencia.ver`): `asistenciaService.getAlertasFaltas` (lo mismo de la tarjeta
+         Asistencia: 2 días seguidos, 2 lunes o 3+ F en el mes). Fila → `/asistencia?q=RUT`.
+      2. *Papeles de vehículos* (`vehiculos.ver`): `vehiculosService.getPapeles(30)` (lo de `DetalleVehiculos`), una
+         fila por papel que avisa, del más vencido. Fila → `/vehiculos?vehiculo=&papel=`.
+      3. *Pérdidas en Inventario* (`inventario.ver` + `ver_todas`): diferencias PENDIENTES con faltante
+         (`diferencia > 0`) × `items_inventario.valor_compra`; total, total del mes y por fila **solo** con
+         `inventario.costos.ver` o `inventario.resumen.ver_valores` (si no, cantidades y ni un $ en el JSON ni en el
+         WhatsApp). Un ítem sin valor de compra no suma y se cuenta aparte. Fila →
+         `/inventario?tab=transferencias&estado=discrepancias&id=N`. Botón «Pedir a {quien aprueba}».
+      4. *Documentos de trabajadores* (`documentos.ver`): `documentos.fecha_vencimiento` vencidos o que vencen en 7
+         días (el «por vencer» del Inicio), de trabajadores activos, sin los ya renovados (otro activo del mismo tipo
+         que vence después o sin fecha). Fila → `/consultas?q=RUT`.
+      5. *Papeles laborales atrasados* (`documentos.ver`): `documentosAlertasService.pendientes()` tal cual (umbrales
+         por tipo; en terreno, la tenencia de 4 días hábiles). Fila → Documentos físicos si registra entregas; si no,
+         la ficha del trabajador (`/consultas?q=RUT`), porque Documentos físicos pide `documentos.entrega.*`.
+      6. *Solicitudes trabadas* (`inventario.ver` + `ver_todas`): pendientes «estancadas» del Resumen Ejecutivo (10
+         días desde la solicitud o su prórroga). Fila → la solicitud. Botón «Apurar a {quien aprueba}».
+      «Quien aprueba» = permiso efectivo de `inventario.transferencias.aprobar` sin el rol 1 (hoy, Leonardo).
+    - Teléfono (bajo 768 px): una columna, todo objetivo de 44 px; el botón de WhatsApp ocupa el ancho de la tarjeta.
