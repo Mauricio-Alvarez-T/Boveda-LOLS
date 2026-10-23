@@ -1,5 +1,5 @@
 import {
-    abreFormulario, ariaSemaforo, diasCalendario, porMes, eventosFlota, fechaConDia, fechaCorta, hoyIso, textoPlazo, urgenteDeEvento, bajadaVehiculo, fichasVehiculos, fraseVehiculo, mensajeWhatsApp, ordenSemaforo, PAPELES_META, papelDesdeUrl,
+    abreFormulario, tipoSubir, ariaSemaforo, diasCalendario, porMes, eventosFlota, fechaConDia, fechaCorta, hoyIso, textoPlazo, urgenteDeEvento, bajadaVehiculo, fichasVehiculos, fraseVehiculo, mensajeWhatsApp, ordenSemaforo, PAPELES_META, papelDesdeUrl,
     pildora, primerNombre, rutaSubir, telefonoAvisar, textoAvisar, tipoDocumentoDePapel, tituloVehiculo, tonoCelda, tonoFicha, urgentes,
     type PapelApi, type PapelClave, type PapelOtroApi, type VehiculoPapelesApi,
 } from './fichasVehiculosInicio';
@@ -172,6 +172,14 @@ describe('fichasVehiculosInicio', () => {
         const leasing = veh({ otros: [otro('Fin de leasing', -5, { categoria: 'leasing', subtipo: 'fin_leasing' })] });
         expect(abreFormulario(leasing, urgentes(leasing), todo)).toBe(false);
         expect(abreFormulario(v, [], todo)).toBe(false);
+    });
+
+    test('«Subir el nuevo» en el Inicio abre el formulario del papel más urgente (solo los cinco)', () => {
+        const v = veh({ papeles: con(porVencer('poliza', 6), vencido('tecnica', -127, { categoria: 'revision' })) });
+        expect(tipoSubir(urgentes(v))).toBe('revision_tecnica');
+        const leasing = veh({ otros: [otro('Fin de leasing', -5, { categoria: 'leasing', subtipo: 'fin_leasing' })] });
+        expect(tipoSubir(urgentes(leasing))).toBeNull();
+        expect(tipoSubir([])).toBeNull();
     });
 
     test('eventos del calendario: vencidos y por vencer que avisan, papel por papel, del más vencido al más holgado', () => {
