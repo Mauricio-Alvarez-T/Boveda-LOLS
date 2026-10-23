@@ -1,4 +1,4 @@
-import { DESCRIPCION_SUPER_ADMIN } from './perfil';
+import { DESCRIPCION_RESPALDO, DESCRIPCION_SUPER_ADMIN } from './perfil';
 import type { InventarioPerfilApi, SolicitudPerfil } from './tipos';
 import {
     OPCIONES_VER_COMO, PUEDE_JEFATURA, VER_COMO_INICIAL, claveVerComo, comoAprobador, comoJefatura, datosVerComo,
@@ -47,12 +47,12 @@ const ROTO = {
 describe('opciones de «Ver como»', () => {
     test('en orden, por rol (nunca un nombre fijo); quien aprueba, con el nombre de la respuesta; parte en «Super Admin»', () => {
         expect(opcionesVerComo(DATOS.aprobadores).map(o => [o.key, o.texto])).toEqual([
-            ['superadmin', 'Super Admin'], ['leonardo', 'Leonardo'], ['jefatura', 'Jefatura'], ['obra', 'Jefe de obra'],
+            ['superadmin', 'Super Admin'], ['gerencia', 'Gerencia'], ['leonardo', 'Leonardo'], ['jefatura', 'Jefatura'], ['obra', 'Jefe de obra'],
         ]);
-        expect(opcionesVerComo([{ id: 10, nombre: 'Leonardo López' }, { id: 12, nombre: 'Ana Pérez' }])[1].texto).toBe('Leonardo o Ana');
+        expect(opcionesVerComo([{ id: 10, nombre: 'Leonardo López' }, { id: 12, nombre: 'Ana Pérez' }])[2].texto).toBe('Leonardo o Ana');
         // Sin nadie (o sin datos aún): el rol.
-        expect(opcionesVerComo([])[1].texto).toBe('Quien aprueba');
-        expect(OPCIONES_VER_COMO[1].texto).toBe('Quien aprueba');
+        expect(opcionesVerComo([])[2].texto).toBe('Quien aprueba');
+        expect(OPCIONES_VER_COMO[2].texto).toBe('Quien aprueba');
         expect(VER_COMO_INICIAL).toBe('superadmin');
     });
 
@@ -96,6 +96,11 @@ describe('descripción y nota', () => {
         expect(descripcionVerComo('jefatura', { aprobadores: DATOS.aprobadores }))
             .toBe('El camino completo de todas las obras: lo que espera a Leonardo y las diferencias por aclarar.');
         expect(descripcionVerComo('obra', { obra: 'Domeyko' })).toBe('Pide materiales, recibe lo que llega a Domeyko y revisa tus aprobados.');
+        // «Gerencia» (Marcos 2026-10-23): en Inventario, lo general, como el resto de los Administradores.
+        expect(descripcionVerComo('gerencia')).toBe(DESCRIPCION_RESPALDO);
+        expect(notaVerComo('gerencia')).toMatch(/^Así lo ve gerencia: /);
+        expect(datosVerComo('gerencia', DATOS)).toBeNull();
+        expect(leerVerComo('gerencia')).toBe('gerencia');
     });
 
     test('nota chica en todas las que no son la propia (dice qué se ve), sin nombres fijos', () => {

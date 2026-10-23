@@ -56,6 +56,9 @@ import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
 import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
 import { NovedadesModal } from '../components/novedades/NovedadesModal';
 import InicioGerencia from '../components/dashboard/widgets/gerencia/InicioGerencia';
+import VerComoInicio from '../components/dashboard/widgets/inventarioPerfil/VerComoInicio';
+import { useVerComo } from '../components/dashboard/widgets/inventarioPerfil/useVerComo';
+import { esSuperAdmin } from '../components/dashboard/widgets/inventarioPerfil/perfil';
 
 // ─── Types ───
 interface DocExpiryItem {
@@ -192,6 +195,8 @@ const Dashboard: React.FC = () => {
     );
 
     const permisos = user?.permisos ?? [];
+    const superAdmin = esSuperAdmin(user);
+    const [verComo] = useVerComo(superAdmin ? user?.id : null);
     const canInventario = permisos.includes('inventario.ver');
     // El WidgetRegistry solo expresa permisos de 2 niveles (modulo.accion), así que este
     // widget se gatea directo con la clave granular (mismo criterio que canInventario).
@@ -553,8 +558,12 @@ const Dashboard: React.FC = () => {
             {/* Lo nuevo de la última entrega, una vez por persona (config/novedades.ts). */}
             <NovedadesModal />
 
-            {/* Inicio de gerencia (don Luis, opción B «Tablero por tema», 2026-10-23): arriba de las tarjetas, solo con su permiso. */}
-            {permisos.includes('inicio.gerencia') && <InicioGerencia version={lastUpdated} />}
+            {/* Super Admin (Marcos 2026-10-23): «Ver como» arriba de todo, para mirar el Inicio de gerencia y las vistas de
+                Inventario de los demás; su Inicio propio no lleva el tablero de gerencia. */}
+            <VerComoInicio version={lastUpdated} onInventario={() => setElegido('inventario')} />
+            {/* Inicio de gerencia (don Luis, opción B «Tablero por tema», 2026-10-23): arriba de las tarjetas, con su permiso
+                (el Super Admin, solo con «Ver como → Gerencia»). */}
+            {(superAdmin ? verComo === 'gerencia' : permisos.includes('inicio.gerencia')) && <InicioGerencia version={lastUpdated} />}
 
             {/* Una tarjeta por apartado, todas en una línea desde 1280 px (2×2 en tablet, una bajo otra en celular). */}
             {visibles.length > 0 && (

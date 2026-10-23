@@ -9,6 +9,11 @@ import type { PersonaPerfil } from './tipos';
 import { OPCIONES_VER_COMO, notaVerComo, type OpcionVerComo, type VistaVerComo } from './verComo.modelo';
 
 interface Props {
+    /**
+     * «barra» (arriba del Inicio, VerComoInicio): rótulo, opciones y la nota, sin selector de obra. «obra» (dentro de la
+     * tarjeta Inventario, con «Jefe de obra» elegido): solo el selector de obra y su nota. Sin modo: todo junto.
+     */
+    modo?: 'barra' | 'obra';
     /** La vista que se está mostrando. */
     como: VistaVerComo;
     onComo: (vista: VistaVerComo) => void;
@@ -36,18 +41,21 @@ const cuantas = (n: number) => (n === 0 ? 'sin solicitudes' : `${n} ${plural(n, 
  *   - Una nota chica en cada opción que no es la propia: qué se está viendo (lo recordado no vence: al otro día puede
  *     abrir directo en otra, y así no se confunde con su vista).
  */
-const VerComo: React.FC<Props> = ({ como, onComo, opciones = OPCIONES_VER_COMO, aprobadores, obras, obra, onObra }) => {
+const VerComo: React.FC<Props> = ({ modo, como, onComo, opciones = OPCIONES_VER_COMO, aprobadores, obras, obra, onObra }) => {
     const id = useId();
     const nombreObra = obras.find(o => o.id === obra)?.nombre ?? null;
-    const nota = notaVerComo(como, { obra: nombreObra, aprobadores });
+    // En la barra, la nota de «Jefe de obra» va dentro de Inventario (junto a su obra).
+    const nota = modo === 'barra' && como === 'obra' ? 'La obra se elige en la tarjeta Inventario.' : notaVerComo(como, { obra: nombreObra, aprobadores });
+    const conPestanas = modo !== 'obra';
+    const conObra = modo !== 'barra';
     return (
         <div data-ver-como={como} className="space-y-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <span className={ROTULO_FICHAS} aria-hidden>Ver como</span>
-                <div className="flex w-fit min-w-0 max-w-full items-center rounded-2xl bg-card p-1 shadow-[var(--shadow-sm)]">
+                {conPestanas && <span className={ROTULO_FICHAS} aria-hidden>Ver como</span>}
+                {conPestanas && <div className="flex w-fit min-w-0 max-w-full items-center rounded-2xl bg-card p-1 shadow-[var(--shadow-sm)]">
                     <BarraPaginada>{p => (
                         <PestanasElasticas opciones={opciones} activa={como} onCambiar={onComo}
-                            aria-label="Ver el detalle de Inventario como"
+                            aria-label="Ver el Inicio como"
                             claseFila="gap-1" radio={12}
                             claseOpcion="flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-xl px-3 text-sm font-semibold sm:min-h-9"
                             claseInactiva="text-zinc-600 hover:text-foreground dark:text-zinc-300"
@@ -55,8 +63,8 @@ const VerComo: React.FC<Props> = ({ como, onComo, opciones = OPCIONES_VER_COMO, 
                             revelar={p.revelar}
                             render={o => o.texto} />
                     )}</BarraPaginada>
-                </div>
-                {como === 'obra' && obras.length > 0 && obra != null && (
+                </div>}
+                {conObra && como === 'obra' && obras.length > 0 && obra != null && (
                     <div className="flex min-w-0 max-w-full items-center gap-2">
                         <label htmlFor={`${id}-obra`} className="shrink-0 text-sm font-medium text-muted-foreground">Obra</label>
                         <div className="relative min-w-0">
