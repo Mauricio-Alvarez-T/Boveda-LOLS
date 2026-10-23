@@ -293,7 +293,8 @@ Lógica pura en `inventarioPerfil/superadmin.modelo.ts` (con test). Solo usa la 
   selector de arriba, una nota chica dice que este detalle no se filtra (como VistaJefatura).
 - **Quién tiene qué** (2×2): quien aprueba (nombre de `aprobadores`; sin nombre, «Quien aprueba»), con «En octubre aprobó
   N y no aprobó M» (solo lo suyo, por id: lo que aprobó el Super Administrador no se le cuenta) y «Además, N diferencias
-  por resolver» (solicitudes); Bodega (aprobadas aún sin salir; «En octubre Jhoan despachó 3 y Héctor 4» con los
+  por resolver» (solicitudes); Bodega (solo lo aprobado que **sale de una bodega**, Marcos 2026-10-23: lo que sale de una obra —devoluciones,
+  traslados— va a **Obras** como «N por enviar desde una obra», sin contar dos veces un traslado obra → obra; «En octubre Jhoan despachó 3 y Héctor 4» con los
   despachos registrados, o «no se registró ningún despacho»); **Obras** (solo lo que va a una obra: por recibir = en
   camino + aprobadas, que la obra ya puede recibir; cuántas pidieron y recibieron este mes. A las cifras exactas se les
   resta lo de la lista que va a una bodega: una devolución la recibe la bodega); **Jefatura** (solicitudes con
