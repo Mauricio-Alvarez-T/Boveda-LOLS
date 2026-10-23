@@ -24,7 +24,7 @@ export type EstadoSolicitudPerfil = 'pendiente' | 'aprobada' | 'en_transito' | '
 
 /**
  * Etapa del circuito Pedida → Aprobada → Despachada → Recibida:
- * pendiente → pedida · aprobada → aprobada (aún sin salir) · en_transito y recepcion_parcial → despachada ·
+ * pendiente → pedida · aprobada → aprobada (por recibir) · en_transito y recepcion_parcial → despachada ·
  * recibida → recibida · rechazada → rechazada (fuera del circuito).
  */
 export type EtapaPerfil = 'pedida' | 'aprobada' | 'despachada' | 'recibida' | 'rechazada';

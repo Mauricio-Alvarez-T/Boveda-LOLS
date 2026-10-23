@@ -80,7 +80,7 @@ export interface GrupoSec {
 /** Los pasos en el orden del circuito (lienzo: GRUPOS). */
 export const GRUPOS: readonly GrupoSec[] = [
     { key: 'aprobar', texto: ['Por aprobar', 'Por aprobar'], filtro: 'aprobar', tono: 'ambar', lista: 'pendiente' },
-    { key: 'aprobada', texto: ['Aprobada · aún sin salir', 'Aprobadas · aún sin salir'], filtro: 'aprobada', tono: 'ambar', lista: 'aprobada' },
+    { key: 'aprobada', texto: ['Aprobada · por recibir', 'Aprobadas · por recibir'], filtro: 'aprobada', tono: 'ambar', lista: 'aprobada' },
     { key: 'camino', texto: ['En camino', 'En camino'], filtro: 'camino', tono: 'azul', lista: 'todas' },
     { key: 'dif', texto: ['Recibida con diferencia', 'Recibidas con diferencia'], filtro: 'recibidas', tono: 'rojo', lista: 'discrepancias' },
     { key: 'completa', texto: ['Recibida · llegó completa', 'Recibidas · llegaron completas'], filtro: 'recibidas', tono: 'verde', lista: 'recibida' },
@@ -776,7 +776,7 @@ export function circuitoSuperAdmin(c: CircuitoPerfil, hoy: string, aprueba: Pick
         },
         {
             key: 'aprobada', texto: 'Aprobada', total: a, hasta: enCurso(a, c.aprobada.dias), tono: a ? 'ambar' : 'neutro', resaltar: a > 0,
-            bajada: a ? `aún sin salir${FLECHA}` : 'todo salió', bajadaCorta: a ? `sin salir${FLECHA}` : 'todo salió',
+            bajada: a ? `por recibir${FLECHA}` : 'nada por recibir', bajadaCorta: a ? `por recibir${FLECHA}` : 'nada por recibir',
             ir: { filtro: 'aprobada' },
         },
         {

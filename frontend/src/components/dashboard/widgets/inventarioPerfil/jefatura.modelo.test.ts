@@ -60,7 +60,7 @@ describe('etapasJefatura: las cinco etapas del lienzo B con las cifras exactas d
             clave: 'pedida', numero: 1, cifra: 6, que: 'esperan aprobación', dato: 'la más antigua: 9 días',
             tonoDato: 'ambar', tono: 'ambar', marca: { texto: 'Apurar', tono: 'ambar' },
         });
-        expect(a).toMatchObject({ numero: 2, cifra: 2, que: 'esperan despacho', dato: 'la más antigua: 4 días', tono: 'neutro' });
+        expect(a).toMatchObject({ numero: 2, cifra: 2, que: 'por recibir', dato: 'la más antigua: 4 días', tono: 'neutro' });
         expect(a.marca).toBeUndefined();
         expect(c).toMatchObject({ numero: 3, cifra: 2, que: 'van en camino', dato: 'la más antigua: 2 días', tono: 'azul' });
         expect(r).toMatchObject({ numero: 4, cifra: 5, que: 'llegaron este mes', dato: 'la última: 20 oct', tono: 'neutro' });
@@ -85,7 +85,7 @@ describe('etapasJefatura: las cinco etapas del lienzo B con las cifras exactas d
         };
         const [p, a, c, r, d] = etapasJefatura(uno);
         expect([p.que, a.que, c.que, r.que, d.que]).toEqual([
-            'espera aprobación', 'espera despacho', 'va en camino', 'llegó este mes', 'llegó distinto a lo enviado',
+            'espera aprobación', 'por recibir', 'va en camino', 'llegó este mes', 'llegó distinto a lo enviado',
         ]);
         expect(p.dato).toBe('la más antigua: de hoy');
         expect(a.dato).toBe('la más antigua: 1 día');
@@ -237,8 +237,8 @@ describe('textos de los paneles', () => {
     });
 
     test('Aprobada: nombra a quien aprobó solo si es uno', () => {
-        expect(tituloAprobadas(2)).toBe('2 aprobadas esperan despacho');
-        expect(tituloAprobadas(1)).toBe('1 aprobada espera despacho');
+        expect(tituloAprobadas(2)).toBe('2 aprobadas por recibir');
+        expect(tituloAprobadas(1)).toBe('1 aprobada por recibir');
         const de = (id: number, nombre: string | null) => sol({ id, estado: 'aprobada', etapa: 'aprobada',
             aprobacion: { por: nombre ? yo(10, nombre) : null, fecha: '2026-10-18' } });
         expect(bajadaAprobadas([de(1, 'Leonardo López'), de(2, 'Leonardo López')])).toBe('Leonardo ya las aprobó; falta que salgan de bodega.');
@@ -266,7 +266,7 @@ describe('textos de los paneles', () => {
         expect(bajadaDespachadas(0)).toMatch(/^Lo que sale de bodega/);
         // Vacíos: una frase, no «0 …».
         expect([tituloAprobadas(0), tituloDespachadas(0), tituloRecibidas(0), tituloDiferencias(0)])
-            .toEqual(['Nada espera despacho', 'Nada va en camino', 'Nada llegó este mes', 'Ninguna diferencia por aclarar']);
+            .toEqual(['Nada por recibir', 'Nada va en camino', 'Nada llegó este mes', 'Ninguna diferencia por aclarar']);
         expect(mesDe('2026-01-05')).toBe('enero');
         expect(mesDe('')).toBe('este mes');
     });

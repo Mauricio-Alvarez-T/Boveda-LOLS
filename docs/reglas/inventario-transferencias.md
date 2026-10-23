@@ -149,7 +149,7 @@ necesitan las tres vistas. Solo usa columnas y reglas que ya están en producci�
 - **`perfil`**: `aprueba` (tiene `aprobar`; también el Super Administrador), `jefatura` (`diferencias_ver` sin `aprobar`),
   `obra` (el resto). Además `super_admin` (rol 1), `alcance`, `puede` (aprobar, ver/resolver diferencias, solicitar, recibir,
   sod_bypass) y `hoy` (`CURDATE()` de la BD, la misma fecha con que se cuentan los días).
-- **`circuito`** (una consulta, cifras exactas): Pedida (`pendiente`), Aprobada (`aprobada`, aún sin salir), Despachada
+- **`circuito`** (una consulta, cifras exactas): Pedida (`pendiente`), Aprobada (`aprobada`, por recibir), Despachada
   (`en_transito` o `recepcion_parcial`), cada una con `{ total, dias }` (días de la más antigua en esa etapa); Recibida =
   recibidas **este mes** + `ultima` (fecha de la última recibida); Diferencias aparte = solicitudes con diferencias
   `pendiente` ≠ 0 (`total`, como la tarjeta), `items` (cuántos ítems), `dias` (desde la recepción) y `mas_antigua_id`
@@ -221,7 +221,8 @@ caía en la bandeja de todas las obras sin tener `ver_todas` (el servidor no le 
      tarjeta y la pestaña) que abre Inventario → Diferencias: él las resuelve (mig 131) y la tarjeta de arriba suma por
      aprobar + diferencias; sin ella, «Inventario 10» abría «6 esperan tu aprobación». Con diferencias el vacío dice
      «Nada por aprobar.» (sin «Todo al día»). Agregado al lienzo: confirmar con Marcos.
-   - «Aprobada · **por recibir**» (no «aún sin salir»: la app no registra la salida). El pie dice «Ver todas en
+   - «Aprobada · **por recibir**» (no «aún sin salir»: la app no registra la salida). Marcos 2026-10-23: el mismo texto
+    en las cuatro vistas (Leonardo, jefatura, obra y Super Admin). El pie dice «Ver todas en
      Inventario», sin cifra (Pendientes pagina de a 20). Cada etapa dice en su `aria-label` / `title` qué lista abre
      (Despachada → «Todas»; Recibidas = todos los meses).
    - Cada fila abre `estado=pendiente&id=N`: **necesita que `Inventario.tsx` lea `id`** (`trfNavIntent`), que llegó a
@@ -286,7 +287,7 @@ no hay, vuelve a «Super Admin»); como no vence, la nota evita confundir otra v
 Diseño «Super Administrador» de la opción A del lienzo: a Marcos y Mauricio no les toca nada, ven lo que hace cada uno.
 Lógica pura en `inventarioPerfil/superadmin.modelo.ts` (con test). Solo usa la respuesta de `/inicio/perfil`:
 - **Circuito de todas las obras** con las cifras exactas de `circuito`: Pedida («esperan a Leonardo», con el nombre de
-  `aprobadores`; sin uno o dos, «por aprobar»), Aprobada («aún sin salir»), **Despachada** (se mantiene aunque la
+  `aprobadores`; sin uno o dos, «por aprobar»), Aprobada («por recibir»), **Despachada** (se mantiene aunque la
   interfaz no tenga «Despachar»; con 0, en gris «sin despacho») y Recibida (este mes; «y N de antes» = las de meses
   anteriores que trae la lista y salen en la pestaña «Recibidas»). Las diferencias van aparte y **cuentan solicitudes**
   (`circuito.diferencias.total`), como la tarjeta, la pestaña Diferencias, VistaLeonardo y VistaJefatura; si son más
@@ -307,7 +308,7 @@ Lógica pura en `inventarioPerfil/superadmin.modelo.ts` (con test). Solo usa la 
   devolver a Bodega Cerrillos desde Domeyko», «aprobó el traslado de Domeyko a Gorbea 3082»). Se dibujan 30 cerrada (el
   alto las corta) y hasta 150 abierta («Ver los N», con N a lo más 150: en el computador se desliza por dentro); lo
   anterior, en Inventario.
-- **Secuencia completa · cada solicitud**, en seis pasos que no se pisan: Por aprobar, Aprobadas · aún sin salir, En
+- **Secuencia completa · cada solicitud**, en seis pasos que no se pisan: Por aprobar, Aprobadas · por recibir, En
   camino (con la recepción parcial), Recibidas con diferencia, Recibidas · llegaron completas y No aprobadas. Pestañas
   Todas · Por aprobar · Aprobadas · En camino · Recibidas · No aprobada. Cada fila: Pidió → Aprobó → Despachó → Recibió →
   (con diferencia pendiente) resolverla, con quién y cuándo, y «Ahora: … · a quién le toca». Aprobar le toca a quien

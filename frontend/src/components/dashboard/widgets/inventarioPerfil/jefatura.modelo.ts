@@ -69,7 +69,7 @@ export function etapasJefatura(circuito: InventarioPerfilApi['circuito']): Etapa
             marca: p.total ? { texto: 'Apurar', tono: 'ambar' } : undefined,
         },
         {
-            clave: 'aprobada', numero: 2, cifra: a.total, que: plural(a.total, 'espera despacho', 'esperan despacho'),
+            clave: 'aprobada', numero: 2, cifra: a.total, que: 'por recibir',
             dato: laMasAntigua(a.total ? a.dias ?? 0 : null, 'nada aquí'), tonoDato: 'neutro', tono: 'neutro',
         },
         {
@@ -252,7 +252,7 @@ export function bajadaPedidas(
 /** «Apurar a Leonardo» (o «Apurar por WhatsApp» si no se sabe a quién). */
 export const textoApurar = (quien: string | null): string => (quien ? `Apurar a ${quien}` : 'Apurar por WhatsApp');
 
-export const tituloAprobadas = (n: number): string => (n === 0 ? 'Nada espera despacho' : `${plural(n, '1 aprobada espera', `${n} aprobadas esperan`)} despacho`);
+export const tituloAprobadas = (n: number): string => (n === 0 ? 'Nada por recibir' : `${plural(n, '1 aprobada', `${n} aprobadas`)} por recibir`);
 
 /** «Leonardo ya las aprobó; falta que salgan de bodega.» Con varios aprobadores (o sin nombre), sin nombre. */
 export function bajadaAprobadas(lista: readonly SolicitudPerfil[]): string {

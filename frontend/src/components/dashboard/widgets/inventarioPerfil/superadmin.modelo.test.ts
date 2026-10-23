@@ -179,7 +179,7 @@ describe('grupos de la secuencia', () => {
     it('rótulo con la cifra pegada', () => {
         const [aprobar, aprobada] = gruposDe('todas');
         expect(rotuloGrupo(aprobar, 6)).toBe(`Por aprobar ·${NB}6`);
-        expect(rotuloGrupo(aprobada, 1)).toBe(`Aprobada · aún sin salir ·${NB}1`);
+        expect(rotuloGrupo(aprobada, 1)).toBe(`Aprobada · por recibir ·${NB}1`);
     });
 
     it('cuántas filas se dibujan: 2 en «Todas» cerrada; desplegada o en pestaña, hasta 50 y el resto en Inventario', () => {
@@ -594,7 +594,7 @@ describe('circuito de todas las obras', () => {
         expect(pedida).toMatchObject({
             total: 1, hasta: 9, tono: 'ambar', resaltar: true, bajada: `espera a Leonardo${NB}↓`, bajadaCorta: `a Leonardo${NB}↓`, ir: { filtro: 'aprobar' },
         });
-        expect(aprobada).toMatchObject({ total: 1, bajada: `aún sin salir${NB}↓`, bajadaCorta: `sin salir${NB}↓` });
+        expect(aprobada).toMatchObject({ total: 1, bajada: `por recibir${NB}↓`, bajadaCorta: `por recibir${NB}↓` });
         expect(despachada).toMatchObject({ key: 'despachada', texto: 'Despachada', total: 0, hasta: null, resaltar: false, tono: 'neutro', bajada: 'sin despacho' });
         expect(recibida).toMatchObject({ total: 2, resaltar: false, bajada: `en octubre${NB}↓`, bajadaCorta: `en oct.${NB}↓`, nota: 'y 1 de antes', ir: { filtro: 'recibidas' } });
         // La etiqueta lleva todo lo que se ve (también «hasta 9 días»).
@@ -607,7 +607,7 @@ describe('circuito de todas las obras', () => {
         const c: CircuitoPerfil = { ...CIRCUITO, pedida: { total: 2, dias: 0 }, aprobada: { total: 0, dias: null } };
         const [pedida, aprobada] = circuitoSuperAdmin(c, HOY, { corto: null });
         expect(pedida).toMatchObject({ bajada: `por aprobar${NB}↓`, hasta: 0 });
-        expect(aprobada).toMatchObject({ resaltar: false, bajada: 'todo salió' });
+        expect(aprobada).toMatchObject({ resaltar: false, bajada: 'nada por recibir' });
         expect(textoHasta(0)).toBe('de hoy');
         expect(textoHasta(9)).toBe('hasta 9 días');
     });
