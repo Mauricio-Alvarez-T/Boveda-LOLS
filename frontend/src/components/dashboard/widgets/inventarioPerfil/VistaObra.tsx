@@ -129,15 +129,15 @@ const ANILLO: Record<TonoTarjeta, string> = {
 };
 
 /**
- * El circuito en UNA línea (≈ 80 px): cuatro círculos unidos con su conteo; las etapas marcadas, más grandes, en su
- * color y con anillo. Desde 640 px, bajo cada etapa en curso, «hasta N días». Ancho tope de 672 px para que en el
+ * El circuito en UNA línea (≈ 80 px): tres círculos unidos con su conteo (Pedida → Aprobada → Recibida, sin «Despachada»:
+ * don Luis 2026-10-23); las etapas marcadas, más grandes, en su color y con anillo. Desde 640 px, bajo cada etapa en curso, «hasta N días». Ancho tope de 672 px para que en el
  * computador se lea como un camino. Cada etapa abre Inventario → Solicitudes con su filtro.
  */
 const Circuito: React.FC<{
     datos: DatosCircuito; hoy: string; marcas: Partial<Record<Paso, MarcaCircuito>>; etiqueta: string; onAbrir: (ruta: string) => void;
 }> = ({ datos, hoy, marcas, etiqueta, onAbrir }) => (
-    <ol aria-label={etiqueta} className="grid w-full max-w-2xl grid-cols-4">
-        {pasosCircuito(hoy).map((p, i) => {
+    <ol aria-label={etiqueta} className="grid w-full max-w-2xl grid-cols-3">
+        {pasosCircuito(hoy, datos.enTransito).map((p, i) => {
             const m = marcas[p.key];
             const n = datos.conteos[p.key];
             const hasta = datos.hasta[p.key];

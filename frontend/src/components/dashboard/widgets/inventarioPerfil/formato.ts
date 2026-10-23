@@ -1,7 +1,10 @@
 import type { TonoTarjeta } from '../tarjetaActiva';
 import { iniciales, nombreCorto, plural } from '../fichasInicio';
 import { formatBodegaNombreResponsable } from '../../../../utils/formatBodega';
-import type { EstadoSolicitudPerfil, ItemPerfil, LugarPerfil, PersonaPerfil, SolicitudPerfil, TipoSolicitudPerfil } from './tipos';
+import type {
+    CircuitoPerfil, EstadoSolicitudPerfil, EtapaCircuitoPerfil, EtapaPerfil, ItemPerfil, LugarPerfil, PersonaPerfil, SolicitudPerfil,
+    TipoSolicitudPerfil,
+} from './tipos';
 
 /**
  * Formato COMÚN de las tres vistas del detalle «Inventario» del Inicio (VistaLeonardo, VistaJefatura, VistaObra;
@@ -12,6 +15,29 @@ import type { EstadoSolicitudPerfil, ItemPerfil, LugarPerfil, PersonaPerfil, Sol
  */
 
 export { iniciales, nombreCorto, plural };
+
+// ─────────────────────────────── El circuito de tres pasos ───────────────────────────────
+// Don Luis (2026-10-23): bodegueros y conductores fuera del ciclo de solicitud. El circuito de las cuatro vistas es
+// Pedida → Aprobada → Recibida (y Diferencias aparte): sin «Despachada». El servidor sigue mandando `despachada` (en
+// tránsito o con recepción parcial: nacen así por envío directo u orden de gerencia); aquí se cuentan DENTRO de
+// «Aprobada · por recibir».
+
+/** Una etapa del circuito de tres pasos (la `etapa` de la respuesta sin «despachada»). */
+export type EtapaTresPasos = Exclude<EtapaPerfil, 'despachada'>;
+
+/** La etapa en el circuito de tres pasos: lo «despachado» (en tránsito o con una parte recibida) va en «aprobada». */
+export const etapaTresPasos = (etapa: EtapaPerfil): EtapaTresPasos => (etapa === 'despachada' ? 'aprobada' : etapa);
+
+/**
+ * «Aprobada · por recibir» con las cifras exactas del servidor: aprobadas + despachadas (`total`), y los días de la más
+ * antigua de las dos (`dias`; null si no hay ninguna).
+ */
+export function porRecibirCircuito(c: Pick<CircuitoPerfil, 'aprobada'> & { despachada?: EtapaCircuitoPerfil | null }): EtapaCircuitoPerfil {
+    const d = c.despachada ?? { total: 0, dias: null };
+    const total = (c.aprobada.total || 0) + (d.total || 0);
+    const dias = [c.aprobada.total ? c.aprobada.dias : null, d.total ? d.dias : null].filter((n): n is number => n != null);
+    return { total, dias: total > 0 ? (dias.length ? Math.max(...dias) : null) : null };
+}
 
 // ─────────────────────────────── Superficie ───────────────────────────────
 

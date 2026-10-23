@@ -228,45 +228,49 @@ describe('topes de las listas (la burbuja y las cifras cuentan todas)', () => {
 });
 
 describe('circuito', () => {
-    test('las cifras son las del servidor; «hasta N días» solo en las etapas en curso con días', () => {
+    test('las cifras son las del servidor; «Aprobada» suma las en tránsito; «hasta N días» solo en las etapas en curso', () => {
         const c = datosCircuito(DATOS().circuito);
-        expect(c.conteos).toEqual({ pedida: 2, aprobada: 1, despachada: 1, recibida: 2 });
-        expect(c.hasta).toEqual({ pedida: 6, aprobada: 4, despachada: 1 });
+        // Sin «Despachada» (don Luis 2026-10-23): 1 aprobada + 1 en tránsito; días, el máximo de las dos.
+        expect(c.conteos).toEqual({ pedida: 2, aprobada: 2, recibida: 2 });
+        expect(c.hasta).toEqual({ pedida: 6, aprobada: 4 });
+        expect(c.enTransito).toBe(1);
         const vacio = datosCircuito({ ...DATOS().circuito, pedida: { total: 0, dias: null } });
         expect(vacio.hasta.pedida).toBeUndefined();
     });
 
-    test('las etapas: «Aprobada · por recibir» (no «aún sin salir»: sin «Despachar», la app no sabe si salió)', () => {
+    test('las etapas: Pedida → Aprobada · por recibir → Recibida (sin «Despachada»); con alguna en tránsito, «Todas»', () => {
         expect(pasosCircuito('2026-10-22').map(p => [p.texto, p.bajada, p.filtro])).toEqual([
             ['Pedida', 'por aprobar', 'pendiente'],
             ['Aprobada', 'por recibir', 'aprobada'],
-            ['Despachada', 'en camino', 'todas'],
             ['Recibida', 'en octubre', 'recibida'],
         ]);
-        expect(pasosCircuito('2027-01-03')[3].bajada).toBe('en enero');
-        expect(pasosCircuito('')[3].bajada).toBe('este mes');
+        expect(pasosCircuito('2026-10-22', 1)[1].filtro).toBe('todas');
+        expect(pasosCircuito('2027-01-03')[2].bajada).toBe('en enero');
+        expect(pasosCircuito('')[2].bajada).toBe('este mes');
         expect(mesDe('2026-09-30')).toBe('septiembre');
         expect(mesDe('2026-13-01')).toBe('');
     });
 
-    test('rótulos: «· Domeyko», «en camino a ti» y «lo que va a tu obra» solo si todo va a su obra', () => {
+    test('rótulos: «· Domeyko» y «lo que va a tu obra» solo si todo va a su obra', () => {
         const c = datosCircuito(DATOS().circuito);
         expect(rotulosCircuito(c, 'Domeyko', true)).toEqual({
-            marcas: { aprobada: { tono: 'azul' }, despachada: { tono: 'azul', bajada: 'en camino a ti' } },
+            marcas: { aprobada: { tono: 'azul' } },
             titulo: 'Tus solicitudes en el circuito · Domeyko',
             nota: 'Marcado: lo que va a tu obra',
         });
         expect(rotulosCircuito(c, 'Domeyko', false)).toEqual({
-            marcas: { aprobada: { tono: 'azul' }, despachada: { tono: 'azul', bajada: 'en camino' } },
+            marcas: { aprobada: { tono: 'azul' } },
             titulo: 'Tus solicitudes en el circuito',
             nota: 'Marcado: lo aprobado que falta recibir',
         });
         expect(rotulosCircuito(c, null, false).titulo).toBe('Tus solicitudes en el circuito');
     });
 
-    test('marcas: solo las etapas con alguna (Despachada casi siempre en 0); sin marcas, sin nota', () => {
+    test('marcas: solo «Aprobada» con alguna (también si solo hay en tránsito); sin marcas, sin nota', () => {
         const sinDespacho = datosCircuito({ ...DATOS().circuito, despachada: { total: 0, dias: null } });
         expect(rotulosCircuito(sinDespacho, 'Domeyko', true).marcas).toEqual({ aprobada: { tono: 'azul' } });
+        const soloTransito = datosCircuito({ ...DATOS().circuito, aprobada: { total: 0, dias: null } });
+        expect(rotulosCircuito(soloTransito, 'Domeyko', true).marcas).toEqual({ aprobada: { tono: 'azul' } });
         const nada = datosCircuito({ ...DATOS().circuito, aprobada: { total: 0, dias: null }, despachada: { total: 0, dias: null } });
         expect(rotulosCircuito(nada, 'Domeyko', true)).toMatchObject({ marcas: {}, nota: null });
     });
@@ -406,9 +410,13 @@ describe('textos de las filas', () => {
         expect(estadoPorRecibir({ estado: 'aprobada', etapa: 'aprobada' })).toEqual({ texto: 'Aprobada', tono: 'verde', enCamino: false });
     });
 
-    test('línea de una en camino: «Salió de Paraguay el 21 oct · despachó Jhoan Vásquez»', () => {
+    test('línea de una en camino: «Salió de Paraguay el 21 oct», sin nombrar a quien despachó (don Luis 2026-10-23)', () => {
         const s = sol({ id: 33, estado: 'en_transito', origen: bodega('Paraguay'), despacho: { por: JHOAN, fecha: '2026-10-21' } });
-        expect(lineaPorRecibir(s)).toBe('Salió de Paraguay el 21 oct · despachó Jhoan Vásquez');
+        expect(lineaPorRecibir(s)).toBe('Salió de Paraguay el 21 oct');
+        expect(lineaPorRecibir(s)).not.toMatch(/despach|Jhoan/i);
+        // Con quién despachó pero sin fecha: lo que sí quedó, la aprobación.
+        const sinFecha = { ...s, despacho: { por: JHOAN, fecha: null }, aprobacion: { por: LEO, fecha: '2026-10-17' } };
+        expect(lineaPorRecibir(sinFecha)).toBe('Salió de Paraguay · aprobó Leonardo el 17 oct');
     });
 
     test('en camino sin despacho registrado: no inventa quién despachó; dice lo que sí quedó (la aprobación)', () => {
@@ -423,7 +431,7 @@ describe('textos de las filas', () => {
             id: 36, estado: 'recepcion_parcial', origen: bodega('Bodega Cerrillos'), despacho: { por: JHOAN, fecha: '2026-10-19' },
             ultima_recepcion: { por: { id: 20, nombre: 'Tomás Vera' }, fecha: '2026-10-20' },
         });
-        expect(lineaPorRecibir(s)).toBe('Salió de Bodega Cerrillos el 19 oct · despachó Jhoan Vásquez · llegó una parte el 20 oct');
+        expect(lineaPorRecibir(s)).toBe('Salió de Bodega Cerrillos el 19 oct · llegó una parte el 20 oct');
     });
 
     test('línea de una aprobada: «Aprobó Leonardo el 18 oct · sale de Bodega Cerrillos»', () => {
@@ -439,7 +447,7 @@ describe('textos de las filas', () => {
         expect(textoOrigen({ ...s, origen: null })).toBeNull();
         expect(lineaPorRecibir(s)).toBe('Aprobó Leonardo el 18 oct · sale de Bodega Cerrillos y 1 lugar más');
         const enCamino = sol({ id: 33, estado: 'en_transito', origen: bodega('Paraguay'), despacho: { por: JHOAN, fecha: '2026-10-21' }, origenes_extra: 1 });
-        expect(lineaPorRecibir(enCamino)).toBe('Salió de Paraguay y 1 lugar más, el 21 oct · despachó Jhoan Vásquez');
+        expect(lineaPorRecibir(enCamino)).toBe('Salió de Paraguay y 1 lugar más, el 21 oct');
         expect(lineaHistorial({ ...s, estado: 'recibida', etapa: 'recibida' })).toBe('desde Bodega Cerrillos y 1 lugar más · aprobó Leonardo el 18 oct');
     });
 

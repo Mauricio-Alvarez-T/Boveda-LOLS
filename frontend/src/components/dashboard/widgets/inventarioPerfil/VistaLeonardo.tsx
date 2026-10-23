@@ -105,15 +105,15 @@ const ANILLO: Record<TonoTarjeta, string> = {
 };
 
 /**
- * El circuito en UNA línea (≈ 80 px): cuatro círculos unidos con su conteo; la etapa del perfil, más grande, en su
- * color y con anillo. Desde 640 px, bajo cada etapa en curso, «hasta N días». Ancho tope de 672 px para que en el
- * computador se lea como un camino. Cada etapa abre Inventario → Solicitudes con su lista (qué lista, en su `title`).
+ * El circuito en UNA línea (≈ 80 px): tres círculos unidos con su conteo (Pedida → Aprobada → Recibida, sin «Despachada»:
+ * don Luis 2026-10-23); la etapa del perfil, más grande, en su color y con anillo. Desde 640 px, bajo cada etapa en
+ * curso, «hasta N días». Ancho tope de 672 px para que en el computador se lea como un camino. Cada etapa abre Inventario → Solicitudes con su lista (qué lista, en su `title`).
  */
 const Circuito: React.FC<{
     pasos: PasoCircuito[]; marcas: Partial<Record<PasoCircuito['key'], MarcaPaso>>; etiqueta: string; onIr: (ruta: string) => void;
     className?: string;
 }> = ({ pasos, marcas, etiqueta, onIr, className }) => (
-    <ol aria-label={etiqueta} className={cn('grid w-full max-w-2xl grid-cols-4', className)}>
+    <ol aria-label={etiqueta} className={cn('grid w-full max-w-2xl grid-cols-3', className)}>
         {pasos.map((p, i) => {
             const r = marcas[p.key];
             const bajada = r?.bajada ?? p.bajada;

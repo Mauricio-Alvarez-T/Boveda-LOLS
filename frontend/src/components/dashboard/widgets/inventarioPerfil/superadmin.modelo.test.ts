@@ -155,8 +155,10 @@ describe('grupos de la secuencia', () => {
     it('cada solicitud cae en un solo paso; la que solo vino en «diferencias» también aparece', () => {
         const ids = (g: keyof typeof m.porGrupo) => m.porGrupo[g].map(f => f.id);
         expect(ids('aprobar')).toEqual([41]);
-        expect(ids('aprobada')).toEqual([32]);
-        expect(ids('camino')).toEqual([33, 34]);
+        // Sin «En camino» (don Luis 2026-10-23): las en tránsito y con una parte recibida van en «Aprobadas · por recibir»
+        // (lo que se movió último arriba).
+        expect(ids('aprobada')).toEqual([32, 34, 33]);
+        expect(Object.keys(m.porGrupo)).toEqual(['aprobar', 'aprobada', 'dif', 'completa', 'rechazada']);
         // Primero las que tienen una diferencia por resolver (la 21 y la 9); después la ya revisada (23).
         expect(ids('dif')).toEqual([21, 9, 23]);
         expect(ids('completa')).toEqual([22]);
@@ -167,13 +169,12 @@ describe('grupos de la secuencia', () => {
         expect(m.filtros).toEqual([
             { key: 'todas', texto: 'Todas', n: 9 },
             { key: 'aprobar', texto: 'Por aprobar', n: 1 },
-            { key: 'aprobada', texto: 'Aprobada', n: 1 },
-            { key: 'camino', texto: 'En camino', n: 2 },
+            { key: 'aprobada', texto: 'Aprobadas', n: 3 },
             { key: 'recibidas', texto: 'Recibidas', n: 4 },
             { key: 'rechazada', texto: 'No aprobada', n: 1 },
         ]);
         expect(gruposDe('recibidas').map(g => g.key)).toEqual(['dif', 'completa']);
-        expect(gruposDe('todas')).toHaveLength(6);
+        expect(gruposDe('todas')).toHaveLength(5);
     });
 
     it('rótulo con la cifra pegada', () => {
@@ -204,65 +205,59 @@ describe('casillas de cada solicitud', () => {
 
     it('por aprobar: pidió, ahora le toca a quien aprueba (nombre de `aprobadores`), lo que falta punteado', () => {
         const f = fila(m, 41);
-        expect(tipos(f.casillas)).toEqual(['hecho', 'ahora', 'falta', 'falta', 'nada']);
+        expect(tipos(f.casillas)).toEqual(['hecho', 'ahora', 'falta', 'nada']);
         expect(f.casillas[0]).toMatchObject({ verbo: 'Pidió', quien: 'Carla Soto', fecha: '13 oct', extra: 'Prevencionista' });
         expect(f.casillas[1]).toMatchObject({ verbo: 'aprobar', quien: 'Leonardo López', tono: 'ambar', detalle: '9 días esperando' });
         expect(f.ahora).toBe('aprobar · Leonardo López');
-        expect(f.despues).toBe('Después: despachar y recibir.');
+        expect(f.despues).toBe('Después: recibir.');
         expect(f.items).toBe('Cemento ×40 sacos');
         expect(f.tipo).toBe('Materiales');
     });
 
-    it('aprobada: «sale de bodega» con quienes despacharon antes desde ahí y hace cuánto; la obra ya puede recibir', () => {
+    it('aprobada: de dónde sale va bajo «Aprobó» y ahora recibe quien pidió (sin «sale de bodega» ni despachadores)', () => {
         const f = fila(m, 32);
-        expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'ahora', 'falta', 'nada']);
-        expect(f.casillas[1]).toMatchObject({ verbo: 'Aprobó', quien: 'Leonardo López', fecha: '20 oct' });
-        // Desde Cerrillos despacharon Jhoan y Héctor (Jhoan despachó último en cualquier bodega: va primero). No está
-        // registrado para ESTA solicitud: dice «antes».
-        expect(f.casillas[2]).toMatchObject({ verbo: 'sale de bodega', quien: 'Bodega Cerrillos', detalle: `antes despacharon Jhoan y Héctor · hace${NB}2${NB}días` });
-        expect(f.casillas[3]).toMatchObject({ tipo: 'falta', verbo: 'Recibir', nota: 'la obra ya puede hacerlo' });
-        expect(f.despues).toBe('Después: recibir (la obra ya puede hacerlo).');
-    });
-
-    it('aprobada con responsable de bodega: va el responsable; desde una obra: «sale de la obra»', () => {
-        const conResp = modeloSuperAdmin(datos({
-            solicitudes: [sol({ id: 50, estado: 'aprobada', etapa: 'aprobada', dias: 0, origen: { ...CERRILLOS, responsable: 'Juan Pérez' } })],
-            diferencias: [],
-        }));
-        expect(fila(conResp, 50).casillas[2]).toMatchObject({ quien: 'Bodega Cerrillos', detalle: 'Juan Pérez · de hoy' });
+        expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'ahora', 'nada']);
+        expect(f.casillas[1]).toMatchObject({ verbo: 'Aprobó', quien: 'Leonardo López', fecha: '20 oct', extra: 'sale de Bodega Cerrillos' });
+        expect(f.casillas[2]).toEqual({ tipo: 'ahora', verbo: 'recibir', quien: 'Tomás Vera', tono: 'azul', detalle: `hace${NB}2${NB}días`, nota: undefined });
+        expect(f.ahora).toBe('recibir · Tomás Vera');
+        expect(f.despues).toBeNull();
+        // Desde una obra, igual: la recibe quien pidió.
         const desdeObra = modeloSuperAdmin(datos({
-            solicitudes: [sol({ id: 51, estado: 'aprobada', etapa: 'aprobada', dias: 3, origen: GORBEA })], diferencias: [],
+            solicitudes: [sol({ id: 51, estado: 'aprobada', etapa: 'aprobada', dias: 3, origen: GORBEA, aprobacion: { por: LEO, fecha: '2026-10-19' } })], diferencias: [],
         }));
-        expect(fila(desdeObra, 51).casillas[2]).toMatchObject({ verbo: 'sale de la obra', quien: 'Gorbea 3082', detalle: `hace${NB}3${NB}días` });
+        expect(fila(desdeObra, 51).casillas[1]).toMatchObject({ extra: 'sale de Gorbea 3082' });
+        expect(fila(desdeObra, 51).casillas[2]).toMatchObject({ verbo: 'recibir', quien: 'Tomás Vera', detalle: `hace${NB}3${NB}días` });
     });
 
-    it('en camino: despachó (con la bodega) y ahora recibe quien pidió; recepción parcial: «recibir lo que falta»', () => {
+    it('en tránsito: igual que una aprobada, sin «Despachó» aunque esté registrado; recepción parcial: «recibir lo que falta»', () => {
         const f = fila(m, 33);
-        expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'hecho', 'ahora', 'nada']);
-        expect(f.casillas[2]).toMatchObject({ verbo: 'Despachó', quien: 'Jhoan Vásquez', fecha: '21 oct', extra: 'desde Paraguay' });
-        expect(f.casillas[3]).toMatchObject({ verbo: 'recibir', quien: 'Tomás Vera', tono: 'azul', detalle: 'salió hace 1 día' });
+        expect(f.grupo).toBe('aprobada');
+        expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'ahora', 'nada']);
+        expect(f.casillas[1]).toMatchObject({ verbo: 'Aprobó', extra: 'sale de Paraguay' });
+        expect(f.casillas[2]).toMatchObject({ verbo: 'recibir', quien: 'Tomás Vera', tono: 'azul', detalle: `hace${NB}1${NB}día` });
+        expect(f.casillas.some(c => /despach/i.test(c.verbo) || c.quien === 'Jhoan Vásquez')).toBe(false);
         expect(f.tipo).toBe('Herramientas');
-        expect(fila(m, 34).casillas[3]).toMatchObject({ verbo: 'recibir lo que falta', detalle: 'llegó una parte el 19 oct' });
+        expect(fila(m, 34).casillas[2]).toMatchObject({ verbo: 'recibir lo que falta', detalle: 'llegó una parte el 19 oct' });
     });
 
-    it('recibida sin despacho: el paso «Despachada» se mantiene en gris («Sin despacho»)', () => {
+    it('recibida: Pidió → Aprobó → Recibió → cerrada (cuatro casillas, sin paso de despacho)', () => {
         const f = fila(m, 22);
-        expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'sin', 'hecho', 'fin']);
-        expect(f.casillas[2]).toEqual({ tipo: 'sin', verbo: 'Sin despacho', nota: 'la obra recibió directo' });
-        expect(f.casillas[3]).toMatchObject({ verbo: 'Recibió', quien: 'Tomás Vera', fecha: '3 oct' });
-        expect(f.casillas[4]).toMatchObject({ tipo: 'fin', quien: 'Llegó completa', completa: true });
+        expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'hecho', 'fin']);
+        expect(f.casillas[1]).toMatchObject({ verbo: 'Aprobó', extra: 'salió de Paraguay' });
+        expect(f.casillas[2]).toMatchObject({ verbo: 'Recibió', quien: 'Tomás Vera', fecha: '3 oct' });
+        expect(f.casillas[3]).toMatchObject({ tipo: 'fin', quien: 'Llegó completa', completa: true });
         expect(f.ahora).toBeNull();
         expect(f.despues).toBeNull();
     });
 
     it('con diferencia pendiente: «Recibió» con lo que faltó y ahora la resuelve quien aprueba; jefatura la investiga', () => {
         const f = fila(m, 21);
-        expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'hecho', 'hecho', 'ahora']);
-        expect(f.casillas[3]).toMatchObject({
+        expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'hecho', 'ahora']);
+        expect(f.casillas[2]).toMatchObject({
             punto: 'rojo',
             difs: [{ clave: 'd2', pildora: 'Faltan 2 sacos', tono: 'rojo', texto: 'Cemento: salieron 50, llegaron 48. La anotó al recibir.' }],
         });
-        expect(f.casillas[4]).toMatchObject({
+        expect(f.casillas[3]).toMatchObject({
             verbo: 'resolver la diferencia', quien: 'Leonardo López', tono: 'rojo', detalle: '14 días sin resolver', nota: `${JEFATURA} la investiga`,
         });
         expect(f.porResolver).toBe(true);
@@ -270,14 +265,14 @@ describe('casillas de cada solicitud', () => {
 
     it('diferencia ya revisada: cerrada, con lo que llegó distinto en gris', () => {
         const f = fila(m, 23);
-        expect(f.casillas[3].difs).toEqual([{ clave: 'c23', pildora: 'Faltó 1 m³', tono: 'neutro', texto: 'Salieron 4, llegaron 3.' }]);
-        expect(f.casillas[3].punto).toBeUndefined();
-        expect(f.casillas[4]).toMatchObject({ tipo: 'fin', quien: FIN_REVISADA });
+        expect(f.casillas[2].difs).toEqual([{ clave: 'c23', pildora: 'Faltó 1 m³', tono: 'neutro', texto: 'Salieron 4, llegaron 3.' }]);
+        expect(f.casillas[2].punto).toBeUndefined();
+        expect(f.casillas[3]).toMatchObject({ tipo: 'fin', quien: FIN_REVISADA });
         // Sin la lista de diferencias, o si vino cortada, no se sabe si sigue pendiente.
         const sinLista = modeloSuperAdmin(datos({ diferencias: null }));
-        expect(fila(sinLista, 23).casillas[4]).toMatchObject({ tipo: 'fin', quien: FIN_CON_DIFERENCIA });
+        expect(fila(sinLista, 23).casillas[3]).toMatchObject({ tipo: 'fin', quien: FIN_CON_DIFERENCIA });
         const cortada = modeloSuperAdmin(datos({ circuito: { ...CIRCUITO, diferencias: { total: 3, items: 3, dias: 40 } } }));
-        expect(fila(cortada, 23).casillas[4]).toMatchObject({ tipo: 'fin', quien: FIN_CON_DIFERENCIA });
+        expect(fila(cortada, 23).casillas[3]).toMatchObject({ tipo: 'fin', quien: FIN_CON_DIFERENCIA });
         expect(cortada.eventos.find(e => e.solicitudId === 23 && e.accion === 'recibio')?.pie).toBe('TRF-202609-0118 · Arena fina: faltó 1 m³');
     });
 
@@ -289,8 +284,8 @@ describe('casillas de cada solicitud', () => {
         const m2 = modeloSuperAdmin(datos({ solicitudes: [...SOLICITUDES, p], circuito: { ...CIRCUITO, recibida: { total: 3, ultima: '2026-10-21' } } }));
         const f = fila(m2, 70);
         expect(f.grupo).toBe('dif');
-        expect(f.casillas[3].difs).toEqual([{ clave: 'p70', pildora: 'Faltaron 2 sacos', tono: 'neutro', texto: 'Salieron 50, llegaron 48. Sin diferencia registrada.' }]);
-        expect(f.casillas[4]).toMatchObject({ tipo: 'fin', quien: FIN_DISTINTO });
+        expect(f.casillas[2].difs).toEqual([{ clave: 'p70', pildora: 'Faltaron 2 sacos', tono: 'neutro', texto: 'Salieron 50, llegaron 48. Sin diferencia registrada.' }]);
+        expect(f.casillas[3]).toMatchObject({ tipo: 'fin', quien: FIN_DISTINTO });
         expect(f.casillas.some(c => c.quien === FIN_REVISADA)).toBe(false);
         expect(m2.eventos.find(e => e.solicitudId === 70 && e.accion === 'recibio')).toMatchObject({
             frase: 'recibió en Domeyko', pie: 'TRF-202610-0070 · Cemento: faltaron 2 sacos · sin diferencia registrada', tono: 'neutro', icono: 'recibio',
@@ -312,25 +307,25 @@ describe('casillas de cada solicitud', () => {
         for (const id of [71, 72]) {
             const f = fila(m2, id);
             expect(f.grupo).toBe('completa');
-            expect(f.casillas[3].difs).toBeUndefined();
-            expect(f.casillas[4]).toMatchObject({ tipo: 'fin', quien: FIN_RECIBIDA });
+            expect(f.casillas[2].difs).toBeUndefined();
+            expect(f.casillas[3]).toMatchObject({ tipo: 'fin', quien: FIN_RECIBIDA });
         }
         expect(m2.grupos.find(g => g.key === 'completa')?.texto).toEqual(TEXTO_SIN_DIFERENCIA);
         expect(m2.eventos.find(e => e.solicitudId === 71 && e.accion === 'recibio')?.pie).toBe('TRF-202610-0071');
         // Con todas verificadas, el rótulo del lienzo.
         expect(modeloSuperAdmin(datos()).grupos.find(g => g.key === 'completa')?.texto).toEqual(['Recibida · llegó completa', 'Recibidas · llegaron completas']);
-        expect(fila(modeloSuperAdmin(datos()), 22).casillas[4].quien).toBe(FIN_COMPLETA);
+        expect(fila(modeloSuperAdmin(datos()), 22).casillas[3].quien).toBe(FIN_COMPLETA);
         expect(gruposDe('recibidas', m2.grupos).map(g => g.texto[1])).toEqual(['Recibidas con diferencia', TEXTO_SIN_DIFERENCIA[1]]);
         expect(gruposDe('todas')).toEqual([...GRUPOS]);
     });
 
     it('no aprobada: quién y cuándo (del rechazo), su motivo y cerrada', () => {
         const f = fila(m, 24);
-        expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'fin', 'nada', 'nada']);
+        expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'fin', 'nada']);
         expect(f.casillas[1]).toMatchObject({
             verbo: 'No aprobó', quien: 'Leonardo López', fecha: '10 oct', punto: 'rojo', motivo: 'Ya hay stock en la obra (bodega de faena).',
         });
-        expect(f.casillas[2]).toMatchObject({ quien: 'No pasó a bodega', completa: false });
+        expect(f.casillas[2]).toMatchObject({ verbo: 'Cerrada', quien: 'Sin aprobar', completa: false });
     });
 
     it('no aprobada que había sido aprobada antes: el paso «Aprobó» registrado, sin fecha (el rechazo la pisa)', () => {
@@ -339,7 +334,7 @@ describe('casillas de cada solicitud', () => {
             rechazo: { por: { id: 11, nombre: 'Ana Pérez' }, fecha: '2026-10-15', motivo: null },
         });
         const f = fila(modeloSuperAdmin(datos({ solicitudes: [r2], diferencias: [] })), 73);
-        expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'hecho', 'fin', 'nada']);
+        expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'hecho', 'fin']);
         expect(f.casillas[1]).toEqual({ tipo: 'hecho', verbo: 'Aprobó', quien: 'Leonardo López', fecha: undefined, extra: 'sin fecha' });
         expect(f.casillas[2]).toMatchObject({ verbo: 'No aprobó', quien: 'Ana Pérez', fecha: '15 oct' });
     });
@@ -361,10 +356,10 @@ describe('casillas de cada solicitud', () => {
         const dev = fila(m2, 80);
         expect(dev.lugar).toBe('Domeyko → Bodega Cerrillos');
         expect(dev.tipo).toBe('Devolución');
-        expect(dev.casillas[2]).toMatchObject({ tipo: 'ahora', verbo: 'sale de la obra', quien: 'Domeyko' });
-        expect(dev.casillas[3]).toMatchObject({ tipo: 'falta', verbo: 'Recibir', nota: NOTA_DESTINO });
-        expect(fila(m2, 81).casillas[3]).toMatchObject({ tipo: 'ahora', verbo: 'recibir', quien: 'Bodega Cerrillos (Juan Pérez)' });
-        expect(fila(m2, 82).casillas[3]).toMatchObject({ tipo: 'ahora', verbo: 'recibir', quien: 'Gorbea 3082' });
+        expect(dev.casillas[1]).toMatchObject({ verbo: 'Aprobó', extra: 'sale de Domeyko' });
+        expect(dev.casillas[2]).toMatchObject({ tipo: 'ahora', verbo: 'recibir', quien: 'Bodega Cerrillos', nota: NOTA_DESTINO });
+        expect(fila(m2, 81).casillas[2]).toMatchObject({ tipo: 'ahora', verbo: 'recibir', quien: 'Bodega Cerrillos (Juan Pérez)', nota: NOTA_DESTINO });
+        expect(fila(m2, 82).casillas[2]).toMatchObject({ tipo: 'ahora', verbo: 'recibir', quien: 'Gorbea 3082', nota: NOTA_DESTINO });
         expect(fila(m2, 82).tipo).toBe('Traslado');
         const ev = (id: number, a: string) => m2.eventos.find(e => e.solicitudId === id && e.accion === a);
         expect(ev(80, 'pidio')?.frase).toBe('pidió devolver a Bodega Cerrillos desde Domeyko');
@@ -384,11 +379,11 @@ describe('casillas de cada solicitud', () => {
         expect(f.tipo).toBeNull();
         expect(f.items).toBe('Puntal metálico 3 m');
         expect(f.lugar).toBe('Gorbea 3082');
-        expect(tipos(f.casillas)).toEqual(['sin', 'hecho', 'sin', 'hecho', 'ahora']);
+        expect(tipos(f.casillas)).toEqual(['sin', 'hecho', 'hecho', 'ahora']);
         expect(f.casillas[0]).toEqual({ tipo: 'sin', verbo: 'Pidió', nota: 'sin datos aquí' });
-        expect(f.casillas[3]).toMatchObject({ verbo: 'Recibió', fecha: '12 ago', punto: 'ambar' });
-        expect(f.casillas[3].quien).toBeUndefined();
-        expect(f.casillas[4]).toMatchObject({ tono: 'ambar', detalle: '71 días sin resolver' });
+        expect(f.casillas[2]).toMatchObject({ verbo: 'Recibió', fecha: '12 ago', punto: 'ambar' });
+        expect(f.casillas[2].quien).toBeUndefined();
+        expect(f.casillas[3]).toMatchObject({ tono: 'ambar', detalle: '71 días sin resolver' });
         expect(solicitudDesdeDiferencias([DIFERENCIAS[1]])).toMatchObject({ id: 9, estado: 'recibida', solicitante: null, fecha_solicitud: null });
     });
 
@@ -411,12 +406,14 @@ describe('eventos', () => {
     const de = (id: number) => m.eventos.filter(e => e.solicitudId === id);
 
     it('una fila por cosa registrada, lo más nuevo arriba (en el mismo día, lo más avanzado primero)', () => {
+        // Sin «despachó» (don Luis 2026-10-23): el despacho de la 33 (21 oct) no es una fila.
         expect(m.eventos.slice(0, 4).map(e => `${e.fecha} ${e.accion} ${e.solicitudId}`)).toEqual([
-            '2026-10-21 despacho 33',
             '2026-10-20 aprobo 32',
             '2026-10-19 recibio_parte 34',
             '2026-10-17 aprobo 33',
+            '2026-10-15 pidio 32',
         ]);
+        expect(m.eventos.some(e => (e.accion as string) === 'despacho' || /despach/i.test(e.frase))).toBe(false);
         // Fechas en orden.
         const fechas = m.eventos.map(e => e.fecha);
         expect([...fechas].sort().reverse()).toEqual(fechas);
@@ -427,7 +424,7 @@ describe('eventos', () => {
             accion: 'pidio', quien: 'Carla Soto', frase: 'pidió materiales para Gorbea 3082', pie: 'TRF-202610-0041 · Cemento ×40 sacos', icono: 'pidio',
         })]);
         expect(de(32).find(e => e.accion === 'aprobo')).toMatchObject({ frase: 'aprobó la solicitud de Gorbea 3082', pie: 'TRF-202610-0032 · sale de Bodega Cerrillos' });
-        expect(de(33).find(e => e.accion === 'despacho')).toMatchObject({ frase: 'despachó a Domeyko desde Paraguay', pie: 'TRF-202610-0033', tono: 'azul' });
+        expect(de(33).map(e => e.accion)).toEqual(['aprobo', 'pidio']);
         expect(de(24).find(e => e.accion === 'rechazo')).toMatchObject({
             fecha: '2026-10-10', frase: 'no aprobó la solicitud de Domeyko', pie: 'TRF-202610-0024 · «Ya hay stock en la obra (bodega de faena).»', tono: 'rojo',
         });
@@ -438,8 +435,9 @@ describe('eventos', () => {
         expect(de(23).find(e => e.accion === 'recibio')).toMatchObject({ pie: 'TRF-202609-0118 · Arena fina: faltó 1 m³ · ya revisada', tono: 'neutro' });
     });
 
-    it('sin despacho registrado no hay fila de despacho; sin nombre, la frase va impersonal', () => {
+    it('nunca hay fila de despacho (aunque esté registrado); sin nombre, la frase va impersonal', () => {
         expect(de(22).map(e => e.accion)).toEqual(['recibio', 'aprobo', 'pidio']);
+        expect(de(21).map(e => e.accion)).toEqual(['recibio', 'aprobo', 'pidio']);
         // La 9 solo vino en «diferencias»: sin pidió (no hay fecha) y recibió sin nombre.
         expect(de(9).map(e => e.accion)).toEqual(['recibio', 'aprobo']);
         expect(de(9).find(e => e.accion === 'recibio')).toMatchObject({
@@ -453,7 +451,7 @@ describe('eventos', () => {
         expect(rotuloDia('2026-10-21', HOY)).toBe('Ayer · mié 21 oct');
         expect(rotuloDia('2026-10-20', HOY)).toBe('mar 20 oct');
         const dias = porDia(m.eventos, HOY);
-        expect(dias[0]).toMatchObject({ fecha: '2026-10-21', rotulo: 'Ayer · mié 21 oct' });
+        expect(dias[0]).toMatchObject({ fecha: '2026-10-20', rotulo: 'mar 20 oct' });
         expect(dias.reduce((n, d) => n + d.eventos.length, 0)).toBe(m.eventos.length);
         expect(new Set(dias.map(d => d.fecha)).size).toBe(dias.length);
     });
@@ -464,15 +462,14 @@ describe('eventos', () => {
 describe('conteos del mes', () => {
     const m = modeloSuperAdmin(datos());
 
-    it('aprobó y no aprobó quien aprueba (por id), pidieron y despachos por persona (quien despachó último primero)', () => {
+    it('aprobó y no aprobó quien aprueba (por id) y cuántas pidieron; sin despachos (fuera del ciclo)', () => {
         const c = conteosMes(m.eventos, HOY, [LEO.id]);
         expect(c.mes).toBe('octubre');
         // Aprobó en octubre: 32, 33, 34, 22, 21 (la 23 fue en septiembre; la 9, en agosto).
         expect(c.aprobo).toBe(5);
         expect(c.rechazo).toBe(1);
         expect(c.pidio).toBe(7);
-        expect(c.despachos).toEqual([{ nombre: 'Jhoan Vásquez', n: 2 }, { nombre: 'Héctor Gómez', n: 1 }]);
-        expect(c.totalDespachos).toBe(3);
+        expect(Object.keys(c)).toEqual(['mes', 'aprobo', 'rechazo', 'pidio']);
     });
 
     it('lo que aprobó el Super Administrador no se le cuenta a quien aprueba', () => {
@@ -491,18 +488,18 @@ describe('conteos del mes', () => {
 
 describe('quién tiene qué', () => {
     it('con los nombres de la respuesta y lo que hizo cada uno este mes', () => {
-        const [aprueba, bodega, obras, jefatura] = modeloSuperAdmin(datos()).responsables;
+        const responsables = modeloSuperAdmin(datos()).responsables;
+        // Tres cajas: sin «Bodega» (don Luis 2026-10-23).
+        expect(responsables.map(r => r.key)).toEqual(['aprueba', 'obras', 'jefatura']);
+        const [aprueba, obras, jefatura] = responsables;
         expect(aprueba).toMatchObject({
             nombre: 'Leonardo López', iniciales: 'LL', cifra: 1, linea: 'por aprobar · la más antigua, 9 días',
             nota: 'En octubre aprobó 5 y no aprobó 1.', ir: { filtro: 'aprobar' },
             ademas: { texto: 'Además, 2 diferencias por resolver', ir: { filtro: 'recibidas' } },
         });
-        expect(bodega).toMatchObject({
-            nombre: 'Bodega', iniciales: null, cifra: 1, linea: 'por recibir · la más antigua, aprobada hace 2 días',
-            nota: 'En octubre Jhoan despachó 2 y Héctor 1.', ir: { filtro: 'aprobada' },
-        });
+        // Por recibir = 1 aprobada + 1 en tránsito (las cifras exactas); la más antigua de la lista que va a una obra.
         expect(obras).toMatchObject({
-            cifra: 2, linea: 'por recibir · 1 en camino y 1 aprobada que ya puede recibir', nota: 'En octubre pidieron 7 y recibieron 2.',
+            cifra: 2, linea: 'aprobadas por recibir · la más antigua, 3 días', nota: 'En octubre pidieron 7 y recibieron 2.',
             ir: { filtro: 'todas', grupo: 'aprobada' },
         });
         // La respuesta no trae quién tiene `diferencias_ver`: el rótulo, no un nombre fijo.
@@ -512,16 +509,15 @@ describe('quién tiene qué', () => {
         });
     });
 
-    it('sin nada pendiente ni despachos; sin aprobadores, sin nombre', () => {
+    it('sin nada pendiente; sin aprobadores, sin nombre', () => {
         const vacio: CircuitoPerfil = {
             pedida: { total: 0, dias: null }, aprobada: { total: 0, dias: null }, despachada: { total: 0, dias: null },
             recibida: { total: 0, ultima: null }, diferencias: { total: 0, items: 0, dias: null },
         };
         const conteos = conteosMes([], HOY, []);
-        const [aprueba, bodega, obras, jefatura] = responsablesDe({ circuito: vacio, diferencias: [] }, conteos, quienApruebaDe([]));
+        const [aprueba, obras, jefatura] = responsablesDe({ circuito: vacio, diferencias: [] }, conteos, quienApruebaDe([]));
         expect(aprueba).toMatchObject({ nombre: QUIEN_APRUEBA, iniciales: null, linea: 'nada por aprobar', nota: 'En octubre: 0 aprobadas y 0 no aprobadas.' });
         expect(aprueba.ademas).toBeUndefined();
-        expect(bodega).toMatchObject({ linea: 'nada aprobado sale de bodega', nota: 'En octubre no se registró ningún despacho.' });
         expect(obras.linea).toBe('nada por recibir');
         expect(jefatura).toMatchObject({ linea: 'nada por investigar', nota: 'Sus WhatsApp no quedan guardados.' });
     });
@@ -533,32 +529,26 @@ describe('quién tiene qué', () => {
         expect(aprueba.nota).toBe('En octubre aprobaron 0 y no aprobaron 0.');
     });
 
-    it('«Obras» cuenta solo lo que va a una obra: una devolución la recibe la bodega', () => {
+    it('«Obras» cuenta solo lo que va a una obra: una devolución la recibe la bodega (y no hay «por enviar»)', () => {
         const dev = sol({ id: 90, tipo_flujo: 'devolucion', estado: 'aprobada', etapa: 'aprobada', origen: DOMEYKO, destino: CERRILLOS });
         const devRecibida = sol({ id: 91, tipo_flujo: 'devolucion', estado: 'recibida', etapa: 'recibida', del_mes: true, origen: DOMEYKO, destino: CERRILLOS });
         const c: CircuitoPerfil = { ...CIRCUITO, aprobada: { total: 2, dias: 2 }, recibida: { total: 3, ultima: null } };
-        const [, bodega, obras] = responsablesDe({ circuito: c, diferencias: [], solicitudes: [...SOLICITUDES, dev, devRecibida] },
+        const [, obras] = responsablesDe({ circuito: c, diferencias: [], solicitudes: [...SOLICITUDES, dev, devRecibida] },
             conteosMes([], HOY, []), quienApruebaDe([LEO]));
-        // La devolución aprobada sale de Domeyko: no es de la bodega (Marcos 2026-10-23); la obra la tiene «por enviar».
-        expect(bodega.cifra).toBe(1);
-        expect(obras).toMatchObject({
-            cifra: 3, linea: 'por recibir · 1 en camino y 1 aprobada que ya puede recibir · 1 por enviar desde una obra',
-        });
+        // 2 aprobadas + 1 en tránsito = 3 por recibir; la devolución va a una bodega: no es de «Obras».
+        expect(obras).toMatchObject({ cifra: 2, linea: 'aprobadas por recibir · la más antigua, 3 días' });
+        expect(obras.linea).not.toMatch(/enviar|bodega|camino/);
         expect(obras.nota).toBe('En octubre pidieron 0 y recibieron 2.');
     });
 
-    it('«Bodega» cuenta solo lo que sale de una bodega; un traslado obra → obra no se cuenta dos veces en «Obras»', () => {
+    it('un traslado obra → obra lo recibe la obra de destino: cuenta una vez en «Obras»', () => {
         const traslado = sol({ id: 92, tipo_flujo: 'intra_obra', estado: 'aprobada', etapa: 'aprobada', dias: 7, origen: DOMEYKO,
             destino: { tipo: 'obra', id: 3, nombre: 'Gorbea 3082', responsable: null } });
         const c: CircuitoPerfil = { ...CIRCUITO, aprobada: { total: 2, dias: 7 } };
-        const [, bodega, obras] = responsablesDe({ circuito: c, diferencias: [], solicitudes: [...SOLICITUDES, traslado] },
+        const [, obras] = responsablesDe({ circuito: c, diferencias: [], solicitudes: [...SOLICITUDES, traslado] },
             conteosMes([], HOY, []), quienApruebaDe([LEO]));
-        // La más antigua de la bodega es la suya (2 días), no el traslado (7).
-        expect(bodega).toMatchObject({ cifra: 1, linea: 'por recibir · la más antigua, aprobada hace 2 días' });
-        // El traslado lo recibe Gorbea (ya en «por recibir») y lo manda Domeyko: una sola vez en la cifra.
-        expect(obras).toMatchObject({
-            cifra: 3, linea: 'por recibir · 1 en camino y 2 aprobadas que ya pueden recibir · 1 por enviar desde una obra',
-        });
+        // 2 aprobadas (una es el traslado) + 1 en tránsito; la más antigua, el traslado (7 días).
+        expect(obras).toMatchObject({ cifra: 3, linea: 'aprobadas por recibir · la más antigua, 7 días' });
     });
 
     it('las diferencias cuentan solicitudes (como la tarjeta y las otras vistas), no ítems', () => {
@@ -567,7 +557,7 @@ describe('quién tiene qué', () => {
             dif({ id: 6, transferencia_id: 21, descripcion: 'Fierro 8 mm', diferencia: -1 }),
         ];
         const c: CircuitoPerfil = { ...CIRCUITO, diferencias: { total: 1, items: 2, dias: 14 } };
-        const [aprueba, , , jefatura] = responsablesDe({ circuito: c, diferencias: dos }, conteosMes([], HOY, []), quienApruebaDe([LEO]));
+        const [aprueba, , jefatura] = responsablesDe({ circuito: c, diferencias: dos }, conteosMes([], HOY, []), quienApruebaDe([LEO]));
         expect(aprueba.ademas?.texto).toBe('Además, 1 diferencia por resolver');
         expect(jefatura).toMatchObject({ cifra: 1, linea: 'diferencia por investigar · la más antigua, hace 14 días' });
         expect(jefatura.nota).toBe('1 con faltante y 1 con sobrante. Sus WhatsApp no quedan guardados.');
@@ -579,11 +569,9 @@ describe('quién tiene qué', () => {
     it('dos nombres cortos iguales: van completos («Juan Pérez o Juan Soto», no «Juan o Juan»)', () => {
         expect(nombresCortos(['Juan Pérez', 'Juan Soto', 'Ana Rojas'])).toEqual(['Juan Pérez', 'Juan Soto', 'Ana']);
         const ev = (id: number, quien: string): Evento => ({
-            clave: `${id}`, fecha: '2026-10-10', accion: 'despacho', solicitudId: id, porId: id, quien, frase: '', pie: '', tono: 'azul', icono: 'despacho',
+            clave: `${id}`, fecha: '2026-10-10', accion: 'aprobo', solicitudId: id, porId: id, quien, frase: '', pie: '', tono: 'neutro', icono: 'aprobo',
         });
-        const c = conteosMes([ev(1, 'Juan Pérez'), ev(2, 'Juan Soto'), ev(3, 'Juan Soto')], HOY);
-        const [, bodega] = responsablesDe({ circuito: CIRCUITO, diferencias: [] }, c, quienApruebaDe([LEO]));
-        expect(bodega.nota).toBe('En octubre Juan Soto despachó 2 y Juan Pérez 1.');
+        expect(conteosMes([ev(1, 'Juan Pérez'), ev(2, 'Juan Soto')], HOY, [1, 2]).aprobo).toBe(2);
         expect(quienApruebaDe([LEO, { id: 13, nombre: 'Leonardo Soto' }]).corto).toBe('Leonardo López o Leonardo Soto');
     });
 
@@ -592,36 +580,31 @@ describe('quién tiene qué', () => {
         expect(etiquetaResponsable(aprueba)).toBe('Leonardo López: 1, por aprobar · la más antigua, 9 días. En octubre aprobó 5 y no aprobó 1. Ver en la secuencia');
     });
 
-    it('muchos despachadores: solo el total', () => {
-        const ev = (id: number, quien: string): Evento => ({
-            clave: `${id}`, fecha: '2026-10-10', accion: 'despacho', solicitudId: id, porId: id, quien, frase: '', pie: '', tono: 'azul', icono: 'despacho',
-        });
-        const c = conteosMes([ev(1, 'A Uno'), ev(2, 'B Dos'), ev(3, 'C Tres'), ev(4, 'D Cuatro')], HOY);
-        const [, bodega] = responsablesDe({ circuito: CIRCUITO, diferencias: [] }, c, quienApruebaDe([LEO]));
-        expect(bodega.nota).toBe('En octubre se registraron 4 despachos.');
-    });
 });
 
 // ─────────────────────────────── Circuito ───────────────────────────────
 
 describe('circuito de todas las obras', () => {
-    it('las cifras exactas; «Despachada» se mantiene y con 0 dice «sin despacho»', () => {
+    it('tres etapas (sin «Despachada»: don Luis 2026-10-23); «Aprobada» suma las en tránsito', () => {
+        const pasos = circuitoSuperAdmin(CIRCUITO, HOY, { corto: 'Leonardo' }, 1);
+        expect(pasos.map(p => p.key)).toEqual(['pedida', 'aprobada', 'recibida']);
+        // 1 aprobada (2 días) + 1 en tránsito (1 día).
+        expect(pasos[1]).toMatchObject({ total: 2, hasta: 2, resaltar: true, ir: { filtro: 'aprobada' } });
         const c: CircuitoPerfil = { ...CIRCUITO, despachada: { total: 0, dias: null } };
-        const [pedida, aprobada, despachada, recibida] = circuitoSuperAdmin(c, HOY, { corto: 'Leonardo' }, 1);
+        const [pedida, aprobada, recibida] = circuitoSuperAdmin(c, HOY, { corto: 'Leonardo' }, 1);
         expect(pedida).toMatchObject({
             total: 1, hasta: 9, tono: 'ambar', resaltar: true, bajada: `espera a Leonardo${NB}↓`, bajadaCorta: `a Leonardo${NB}↓`, ir: { filtro: 'aprobar' },
         });
         expect(aprobada).toMatchObject({ total: 1, bajada: `por recibir${NB}↓`, bajadaCorta: `por recibir${NB}↓` });
-        expect(despachada).toMatchObject({ key: 'despachada', texto: 'Despachada', total: 0, hasta: null, resaltar: false, tono: 'neutro', bajada: 'sin despacho' });
         expect(recibida).toMatchObject({ total: 2, resaltar: false, bajada: `en octubre${NB}↓`, bajadaCorta: `en oct.${NB}↓`, nota: 'y 1 de antes', ir: { filtro: 'recibidas' } });
         // La etiqueta lleva todo lo que se ve (también «hasta 9 días»).
         expect(etiquetaPaso(pedida)).toBe('Pedida: 1, espera a Leonardo, hasta 9 días');
-        expect(etiquetaPaso(despachada)).toBe('Despachada: 0, sin despacho');
+        expect(etiquetaPaso(aprobada)).toBe('Aprobada: 1, por recibir, hasta 2 días');
         expect(etiquetaPaso(recibida)).toBe('Recibida: 2, en octubre, y 1 de antes');
     });
 
     it('sin nadie que apruebe ni pendientes', () => {
-        const c: CircuitoPerfil = { ...CIRCUITO, pedida: { total: 2, dias: 0 }, aprobada: { total: 0, dias: null } };
+        const c: CircuitoPerfil = { ...CIRCUITO, pedida: { total: 2, dias: 0 }, aprobada: { total: 0, dias: null }, despachada: { total: 0, dias: null } };
         const [pedida, aprobada] = circuitoSuperAdmin(c, HOY, { corto: null });
         expect(pedida).toMatchObject({ bajada: `por aprobar${NB}↓`, hasta: 0 });
         expect(aprobada).toMatchObject({ resaltar: false, bajada: 'nada por recibir' });
@@ -631,7 +614,7 @@ describe('circuito de todas las obras', () => {
 
     it('el modelo cuenta en «Recibida» las de meses anteriores que muestra la pestaña «Recibidas»', () => {
         // La 23 (septiembre) y la 9 (agosto, solo vino en «diferencias»): las dos salen en la pestaña.
-        expect(modeloSuperAdmin(datos()).circuito[3].nota).toBe('y 2 de antes');
+        expect(modeloSuperAdmin(datos()).circuito[2].nota).toBe('y 2 de antes');
     });
 
     it('las diferencias, aparte (cuenta solicitudes)', () => {

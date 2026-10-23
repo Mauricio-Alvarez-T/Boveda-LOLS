@@ -150,7 +150,7 @@ necesitan las tres vistas. Solo usa columnas y reglas que ya están en producci�
   `obra` (el resto). Además `super_admin` (rol 1), `alcance`, `puede` (aprobar, ver/resolver diferencias, solicitar, recibir,
   sod_bypass) y `hoy` (`CURDATE()` de la BD, la misma fecha con que se cuentan los días).
 - **`circuito`** (una consulta, cifras exactas): Pedida (`pendiente`), Aprobada (`aprobada`, por recibir), Despachada
-  (`en_transito` o `recepcion_parcial`), cada una con `{ total, dias }` (días de la más antigua en esa etapa); Recibida =
+  (`en_transito` o `recepcion_parcial`; desde 2026-10-23 las vistas la suman a Aprobada: § Circuito de tres pasos), cada una con `{ total, dias }` (días de la más antigua en esa etapa); Recibida =
   recibidas **este mes** + `ultima` (fecha de la última recibida); Diferencias aparte = solicitudes con diferencias
   `pendiente` ≠ 0 (`total`, como la tarjeta), `items` (cuántos ítems), `dias` (desde la recepción) y `mas_antigua_id`
   (la solicitud de la más antigua, o null). El circuito viene para todos con su alcance: así la obra tiene el aviso
@@ -198,6 +198,23 @@ necesitan las tres vistas. Solo usa columnas y reglas que ya están en producci�
   campo a campo (nada de `t.*`), de `items_inventario` solo descripción y unidad. Fechas `'YYYY-MM-DD'` (hora local de la
   BD). Los topes vienen en `limites`.
 
+### Circuito de tres pasos: bodegueros y conductores fuera del ciclo (2026-10-23)
+
+**Don Luis: bodegueros y conductores fuera del ciclo de solicitud** (Marcos 2026-10-23, tras hablarlo con Mauricio).
+En la app el ciclo real tiene tres pasos: **Pedida → Aprobada → Recibida** (+ diferencias). Las cuatro vistas del
+detalle (Leonardo, jefatura, obra y Super Admin) dibujan ese circuito, **sin «Despachada»**:
+- Las solicitudes `en_transito` o `recepcion_parcial` (nacen así por envío directo u orden de gerencia) se cuentan
+  **dentro de «Aprobada · por recibir»**: cifra = `circuito.aprobada.total + circuito.despachada.total`, días = el
+  máximo de los dos (`porRecibirCircuito` de `inventarioPerfil/formato.ts`, con test). El contrato del servidor **no
+  cambia**: sigue mandando `despachada` y `despacho`; la suma es del frontend. Si alguna por recibir está en tránsito, el
+  enlace de «Aprobada» abre «Todas» en Inventario (el filtro «Aprobadas» no la muestra).
+- **Nunca se nombra a quien despachó** (aunque la app lo tenga registrado): sin caja «Bodega», sin paso «Despachar», sin
+  eventos «despachó», sin «En octubre X despachó N», sin «antes despacharon …». Una fila en tránsito puede decir «En
+  camino» y «Salió de Paraguay el 21 oct» (origen y fecha), nunca «despachó X».
+- En Diferencias, «Quién lo hizo» = **Aprobó** (quien aprobó, que es quien las resuelve) + **Recibió**, cada uno con su
+  WhatsApp. El mensaje a quien recibió cierra «¿Me cuentas qué pasó?»; a quien aprobó, «¿La puedes revisar?»
+  (`CIERRE_DIFERENCIA` de `jefatura.modelo.ts`). Nunca se le escribe a un despachador.
+
 ### Qué vista ve cada uno (frontend)
 
 `DetalleInventario` elige con `vistaInventario` (`inventarioPerfil/perfil.ts`, con test; los permisos que mira son
@@ -207,8 +224,8 @@ pide la **combinación** de permisos con que funciona, no un permiso suelto. Ant
 caía en la bandeja de todas las obras sin tener `ver_todas` (el servidor no le manda las pendientes ajenas) y perdía su
 «Pedir materiales» y «Recibir»; un prevencionista que solo recibe caía en lo de producción.
 0. **Super Administrador** (rol 1: Marcos y Mauricio) → **`VistaSuperAdmin`** (diseño «Super Administrador» de la
-   opción A del lienzo; el paso «Despachada» se mantiene aunque la app no tenga «Despachar»: casi siempre en 0 o «sin
-   despacho»), con el selector **«Ver como»** arriba (abajo). Va primero porque tiene `aprobar` y todo lo demás. Mismo
+   opción A del lienzo; circuito de tres pasos, sin «Despachada»: § Circuito de tres pasos, arriba), con el selector
+   **«Ver como»** arriba (abajo). Va primero porque tiene `aprobar` y todo lo demás. Mismo
    criterio que el servidor (`super_admin: Number(user.rol_id) === 1`) y que `TransferenciasPanel` (`rol_id === 1`):
    `esSuperAdmin` de `perfil.ts`.
 1. **Sin la pestaña «Solicitudes»** (`inventario.tab.transferencias`) → lo de producción (punto 5), tenga lo que tenga.
@@ -224,7 +241,7 @@ caía en la bandeja de todas las obras sin tener `ver_todas` (el servidor no le 
    - «Aprobada · **por recibir**» (no «aún sin salir»: la app no registra la salida). Marcos 2026-10-23: el mismo texto
     en las cuatro vistas (Leonardo, jefatura, obra y Super Admin). El pie dice «Ver todas en
      Inventario», sin cifra (Pendientes pagina de a 20). Cada etapa dice en su `aria-label` / `title` qué lista abre
-     (Despachada → «Todas»; Recibidas = todos los meses).
+     (Aprobada con alguna en tránsito → «Todas»; Recibidas = todos los meses). Circuito de tres pasos (2026-10-23).
    - Cada fila abre `estado=pendiente&id=N`: **necesita que `Inventario.tsx` lea `id`** (`trfNavIntent`), que llegó a
      develop con las fichas (1a232c02) y no está en producción. Va con esta vista al promoverla (lo cuida un test de
      `leonardo.modelo.test.ts`); sin eso el panel abre la primera de la lista, la más nueva.
@@ -287,39 +304,41 @@ no hay, vuelve a «Super Admin»); como no vence, la nota evita confundir otra v
 Diseño «Super Administrador» de la opción A del lienzo: a Marcos y Mauricio no les toca nada, ven lo que hace cada uno.
 Lógica pura en `inventarioPerfil/superadmin.modelo.ts` (con test). Solo usa la respuesta de `/inicio/perfil`:
 - **Circuito de todas las obras** con las cifras exactas de `circuito`: Pedida («esperan a Leonardo», con el nombre de
-  `aprobadores`; sin uno o dos, «por aprobar»), Aprobada («por recibir»), **Despachada** (se mantiene aunque la
-  interfaz no tenga «Despachar»; con 0, en gris «sin despacho») y Recibida (este mes; «y N de antes» = las de meses
+  `aprobadores`; sin uno o dos, «por aprobar»), Aprobada («por recibir», con las en tránsito sumadas; sin
+  «Despachada» desde 2026-10-23) y Recibida (este mes; «y N de antes» = las de meses
   anteriores que trae la lista y salen en la pestaña «Recibidas»). Las diferencias van aparte y **cuentan solicitudes**
   (`circuito.diferencias.total`), como la tarjeta, la pestaña Diferencias, VistaLeonardo y VistaJefatura; si son más
   ítems, la bajada lo dice («… en 3 ítems»). Cada etapa baja a su pestaña de la secuencia. Con una obra elegida en el
   selector de arriba, una nota chica dice que este detalle no se filtra (como VistaJefatura).
-- **Quién tiene qué** (2×2): quien aprueba (nombre de `aprobadores`; sin nombre, «Quien aprueba»), con «En octubre aprobó
+- **Quién tiene qué** (tres cajas, en una fila desde 768 px; sin caja «Bodega» desde 2026-10-23): quien aprueba (nombre
+  de `aprobadores`; sin nombre, «Quien aprueba»), con «En octubre aprobó
   N y no aprobó M» (solo lo suyo, por id: lo que aprobó el Super Administrador no se le cuenta) y «Además, N diferencias
-  por resolver» (solicitudes); Bodega (solo lo aprobado que **sale de una bodega**, Marcos 2026-10-23: lo que sale de una obra —devoluciones,
-  traslados— va a **Obras** como «N por enviar desde una obra», sin contar dos veces un traslado obra → obra; «En octubre Jhoan despachó 3 y Héctor 4» con los
-  despachos registrados, o «no se registró ningún despacho»); **Obras** (solo lo que va a una obra: por recibir = en
-  camino + aprobadas, que la obra ya puede recibir; cuántas pidieron y recibieron este mes. A las cifras exactas se les
-  resta lo de la lista que va a una bodega: una devolución la recibe la bodega); **Jefatura** (solicitudes con
+  por resolver» (solicitudes); **Obras** (solo lo que va a una obra: «aprobadas por recibir · la más antigua, N días»,
+  con las en tránsito sumadas; cuántas pidieron y recibieron este mes. A las cifras exactas se les resta lo de la lista
+  que va a una bodega: una devolución la recibe la bodega, y no cuenta en ninguna caja: está en la secuencia. Ya no hay
+  «por enviar desde una obra»: lo que sale de una obra lo recibe igual su destino, y un traslado obra → obra cuenta
+  una vez, en la obra que lo recibe); **Jefatura** (solicitudes con
   diferencias por investigar, con cuántas tienen faltantes y sobrantes). La respuesta no dice quién tiene
   `diferencias_ver`: va el rótulo «Jefatura», no «Daphne». Sus WhatsApp no quedan guardados. Si dos nombres de una misma
   frase comparten el primero, van completos («Juan Pérez o Juan Soto»).
-- **Lo último que pasó**: una fila por cosa registrada (pidió, aprobó, no aprobó con su motivo, despachó, recibió una
-  parte, recibió, con la diferencia en la misma fila), agrupadas por día («Hoy · jue 22 oct»), lo más nuevo arriba. Sin
+- **Lo último que pasó**: una fila por cosa registrada (pidió, aprobó, no aprobó con su motivo, recibió una
+  parte, recibió, con la diferencia en la misma fila; sin «despachó» desde 2026-10-23), agrupadas por día («Hoy · jue 22 oct»), lo más nuevo arriba. Sin
   nombre registrado, la frase va impersonal («Se recibió en…»). Una devolución o un traslado se nombra como tal («pidió
   devolver a Bodega Cerrillos desde Domeyko», «aprobó el traslado de Domeyko a Gorbea 3082»). Se dibujan 30 cerrada (el
   alto las corta) y hasta 150 abierta («Ver los N», con N a lo más 150: en el computador se desliza por dentro); lo
   anterior, en Inventario.
-- **Secuencia completa · cada solicitud**, en seis pasos que no se pisan: Por aprobar, Aprobadas · por recibir, En
-  camino (con la recepción parcial), Recibidas con diferencia, Recibidas · llegaron completas y No aprobadas. Pestañas
-  Todas · Por aprobar · Aprobadas · En camino · Recibidas · No aprobada. Cada fila: Pidió → Aprobó → Despachó → Recibió →
-  (con diferencia pendiente) resolverla, con quién y cuándo, y «Ahora: … · a quién le toca». Aprobar le toca a quien
-  aprueba. Una aprobada «sale de bodega» (o «de la obra»), con el responsable de la bodega o, si no, «antes despacharon
-  Jhoan y Héctor» (quienes ya despacharon desde ahí: no está registrado para esa solicitud y lo dice). En camino, recibe
-  quien pidió; **una devolución o lo que va a una bodega lo recibe esa bodega** (con su responsable) **y un traslado, la
-  obra de destino** («lo confirma quien recibe en el destino»); la fila se titula «Domeyko → Bodega Cerrillos» y dice
-  «Devolución» / «Traslado». Una diferencia la resuelve quien aprueba y jefatura la investiga. Un paso que la app no
-  registró va en gris: «Sin despacho · la obra recibió directo», «Pidió · sin datos aquí». Una no aprobada que había
-  sido aprobada antes muestra «Aprobó · sin fecha» (la app guarda quién; el rechazo pisa la fecha). En «Todas» se ven 2
+- **Secuencia completa · cada solicitud**, en cinco pasos que no se pisan: Por aprobar, Aprobadas · por recibir (también
+  las en tránsito y con recepción parcial: sin grupo «En camino» desde 2026-10-23), Recibidas con diferencia, Recibidas ·
+  llegaron completas y No aprobadas. Pestañas Todas · Por aprobar · Aprobadas · Recibidas · No aprobada. Cada fila:
+  Pidió → Aprobó → Recibió → (con diferencia pendiente) resolverla, con quién y cuándo, y «Ahora: … · a quién le toca»
+  (cuatro casillas; sin «Despachó» ni «Despachar»). Aprobar le toca a quien aprueba. De dónde sale va bajo «Aprobó»
+  («sale de Bodega Cerrillos»; recibida, «salió de …»). Una aprobada o en tránsito: «Ahora: recibir · quien pidió»
+  (con una parte recibida, «recibir lo que falta · llegó una parte el 19 oct»); **una devolución o lo que va a una
+  bodega lo recibe esa bodega** (con su responsable) **y un traslado, la obra de destino** («lo confirma quien recibe
+  en el destino»); la fila se titula «Domeyko → Bodega Cerrillos» y dice «Devolución» / «Traslado». Una diferencia la
+  resuelve quien aprueba y jefatura la investiga. Un paso que la app no registró va en gris: «Pidió · sin datos aquí».
+  Una no aprobada que había sido aprobada antes muestra «Aprobó · sin fecha» (la app guarda quién; el rechazo pisa la
+  fecha); la no aprobada cierra «Cerrada · Sin aprobar» (antes «No pasó a bodega»). En «Todas» se ven 2
   por paso (1 en el celular); en una pestaña o desplegada, hasta 50 por paso y el resto en Inventario.
   - **Cómo llegó** (solo lo que la app registra): con diferencia pendiente, esa (roja o ámbar). Un ítem del **catálogo**
     que llegó distinto y ya no está en `diferencias` → «Diferencia revisada» (solo si la lista vino completa; si no, o
@@ -334,8 +353,8 @@ Lógica pura en `inventarioPerfil/superadmin.modelo.ts` (con test). Solo usa la 
     (`rutaDiferencia`). Si el servidor cortó alguna lista, un aviso lleva a Inventario: se compara cada etapa con su
     cifra exacta del circuito (los topes de `limites` son por etapa; las rechazadas del mes, que no tienen cifra exacta,
     cuentan al llegar a su tope), no la suma de las etapas.
-  - **Disposición**: los cinco pasos en columnas desde 768 px **y** si la lista mide 32rem o más (container query): con
-    el menú lateral abierto, de 768 a ~850 px la tarjeta mide ~460 px y en columnas de ~80 px no cabían las palabras;
+  - **Disposición**: los cuatro pasos en columnas desde 768 px **y** si la lista mide 32rem o más (container query): con
+    el menú lateral abierto, de 768 a ~850 px la tarjeta mide ~460 px y en columnas angostas no cabían las palabras;
     ahí va en vertical, como VistaJefatura pasa a su tira cuando la columna no da. Bajo 768 px, siempre en vertical.
 
 #### Vista de obra (`VistaObra`, 2026-10-22)
@@ -354,13 +373,15 @@ Ven solo lo suyo (alcance sin `ver_todas`): todo lo que pidieron, vaya donde vay
     Gorbea 3082 · salió el 21 oct», «Para Gorbea 3082 · …». Cada fila solo abre la solicitud. Lo pedido que espera
     aprobación sigue en «Esperando a Leonardo», con adónde va si no es su obra. Lo que no llega y ya se recibió no sale
     en el Inicio.
-- **Circuito**: las cifras son las del servidor, que cuenta TODAS sus solicitudes. Por eso «· Domeyko» en el título,
-  «Despachada · en camino a ti» y la nota «Marcado: lo que va a tu obra» salen solo si todo lo que está en el circuito
+- **Circuito** (tres pasos desde 2026-10-23: Pedida → Aprobada → Recibida, sin «Despachada»; las en tránsito cuentan
+  en «Aprobada»): las cifras son las del servidor, que cuenta TODAS sus solicitudes. Por eso «· Domeyko» en el título y
+  la nota «Marcado: lo que va a tu obra» salen solo si todo lo que está en el circuito
   (en curso y recibido este mes) va a su obra. Si no, el título es «Tus solicitudes en el circuito» y la nota «Marcado:
   lo aprobado que falta recibir». Desviaciones del lienzo, conscientes:
-  - «Aprobada · **por recibir**» y no «aún sin salir»: sin «Despachar», lo aprobado puede ir ya en el camión.
-  - Aprobada y Despachada se marcan (azul, anillo) solo si tienen alguna. Despachada casi siempre está en 0, como en la
-    vista del Super Administrador, y sin nada marcado no hay nota.
+  - «Aprobada · **por recibir**» y no «aún sin salir»: lo que se sabe es que nadie lo ha recibido.
+  - Aprobada se marca (azul, anillo) solo si tiene alguna; sin nada marcado no hay nota.
+- **Filas por recibir en camino** (`en_transito` / `recepcion_parcial`): píldora «En camino» (o «Llegó una parte») y
+  «Salió de Paraguay el 21 oct», el origen y la fecha si se registró (sin fecha, quién aprobó). Nunca «despachó X».
 - **Topes** (las cifras y la burbuja cuentan todas): 5 por recibir, 3 que van a otro lugar, 4 esperando, 2 no aprobadas y
   3 del historial. Pasado el tope, «Ver las N en Inventario» abre su filtro: aprobadas (o «Todas» si alguna va en
   camino), «Todas», pendientes y «Todas». El historial lleva siempre «Ver todo tu historial».
@@ -395,8 +416,9 @@ Ven solo lo suyo (alcance sin `ver_todas`): todo lo que pidieron, vaya donde vay
 
 Opción B «El circuito» del lienzo para quien ve diferencias sin aprobar (Daphne). Lógica pura en
 `inventarioPerfil/jefatura.modelo.ts` (con test). Daphne no aprueba ni resuelve: no hay botones de aprobar ni de resolver.
-- **Circuito** con las cifras exactas de `circuito`: Pedida → Aprobada → Despachada → Recibida (este mes) y Diferencias
-  aparte. **Todas cuentan solicitudes**, también Diferencias (`circuito.diferencias.total`, lo mismo que la tarjeta del
+- **Circuito** con las cifras exactas de `circuito`: Pedida → Aprobada → Recibida (este mes), pasos 1-3, y Diferencias
+  aparte: cuatro cajas (sin «Despachada» desde 2026-10-23; «Aprobada · por recibir» suma las en tránsito y su panel las
+  lista con las aprobadas, «N días sin recibir»). **Todas cuentan solicitudes**, también Diferencias (`circuito.diferencias.total`, lo mismo que la tarjeta del
   Inicio y la pestaña Inventario → Diferencias, que cuentan `COUNT(DISTINCT t.id)`). La lista de Diferencias va ítem por
   ítem: si no es uno por solicitud, la bajada lo dice («4 ítems en 3 solicitudes.») y el pie habla de ítems.
 - **Alcance en el rótulo**: sale de `alcance` («todas las obras» con `ver_todas`; sin él, «tus solicitudes» o «tus
@@ -407,20 +429,22 @@ Opción B «El circuito» del lienzo para quien ve diferencias sin aprobar (Daph
   aprobación») y su bajada.
 - **Disposición** (regla de Marcos: lo de celular, solo bajo 768 px de pantalla): bajo 768 px, la tira de una línea, el
   chip «N diferencias» y Pedida **resumida** («Apurar a Leonardo» + «Ver las 6»). Desde 768 px, Pedida siempre completa;
-  las cinco etapas en tarjetas en línea (compactas bajo 860 px de columna; en una columna de menos de 600 px, p. ej. 800 px
+  las cuatro cajas en tarjetas en línea (compactas bajo 860 px de columna; en una columna de menos de 600 px, p. ej. 800 px
   con el menú lateral abierto, en la tira porque no caben) y los dos paneles lado a lado desde 1000 px de columna.
 - **Topes del Inicio**: 8 solicitudes y 5 diferencias a la vista (las más antiguas en lo que está en curso, las más
   nuevas en lo recibido), con «Se ven 8 de 240 · Ver 200 de 240» / «Ocultar». Si el servidor cortó la lista (`limites`),
-  «Ver las 240 en Inventario» abre su filtro (en Despachada, sin cifra: abre «Todas», no hay filtro de en camino).
+  «Ver las 240 en Inventario» abre su filtro (en Aprobada con alguna en tránsito, sin cifra: abre «Todas»).
 - **Pedida**: las filas no se tocan (como el lienzo: ella no actúa sobre cada una). «Apurar a Leonardo» abre WhatsApp con
   la lista (tope de 15 líneas). Una pendiente que pidió **el único que aprueba** no va en el mensaje (SoD: `aprobar()` se
   la bloquea) y su fila dice «La pidió Leonardo: solo la puede aprobar un Super Administrador.»; si no queda ninguna que
   apurar, no hay botón.
-- **Aprobada, Despachada y Recibida** abren la solicitud en Inventario (`rutaSolicitud`, «Ver ›»); cada diferencia abre
+- **Aprobada y Recibida** abren la solicitud en Inventario (`rutaSolicitud`, «Ver ›»); cada diferencia abre
   Inventario → Diferencias en solo lectura (`rutaDiferencia`). En Recibida la píldora de cómo llegó es roja solo si la
   solicitud sigue con una diferencia pendiente (está en `diferencias`); ya aclarada, neutra «Llegó distinto». Si la lista
   de diferencias vino cortada, no se sabe y queda roja.
-- **«Preguntar»** a quien despachó (o aprobó, si no hay despacho) o recibió: WhatsApp sin número con el mensaje listo.
+- **«Preguntar»** a quien aprobó o a quien recibió («Quién lo hizo» = Aprobó + Recibió desde 2026-10-23; nunca quien
+  despachó): WhatsApp sin número con el mensaje listo; a quien recibió cierra «¿Me cuentas qué pasó?» y a quien aprobó,
+  «¿La puedes revisar?».
 - Pendiente de decidir con Marcos: la tarjeta de arriba (de Mauricio) dice «4 · por resolver» para Daphne
   (`por_aprobar` es null y solo suma diferencias); el lienzo aprobado decía «10 · pendientes y diferencias».
 

@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    ArrowDown, ArrowRight, Ban, Check, ChevronDown, HardHat, PackageCheck, PackagePlus, PackageX, Plus, Search,
-    Truck, UserCheck, Warehouse,
+    ArrowDown, ArrowRight, Ban, Check, ChevronDown, HardHat, PackageCheck, PackagePlus, PackageX, Plus, Search, UserCheck,
 } from 'lucide-react';
 import { useObra } from '../../../../context/ObraContext';
 import { cn } from '../../../../utils/cn';
@@ -25,11 +24,12 @@ import {
  * selector «Ver como» los pone DetalleInventario. Lógica (pasos, grupos, eventos, conteos, a quién le toca) en
  * `superadmin.modelo.ts`, con test.
  *
- * A ellos no les toca nada: arriba, en UNA tarjeta, el circuito de todas las obras (con «Despachada» aunque la app no
- * tenga «Despachar»: casi siempre «sin despacho») y lo pendiente de cada uno (2×2, chico); al lado, lo último que pasó
- * (mismo alto: al abrirlo se desliza por dentro); abajo, a todo el ancho, la secuencia de CADA solicitud agrupada por
- * paso, con nombres y fechas, el paso de ahora marcado y a quién le toca. Solo lo que la app guarda (pidió, aprobó o
- * no, despachó, recibió y la diferencia anotada al recibir): los WhatsApp de jefatura no quedan registrados.
+ * A ellos no les toca nada: arriba, en UNA tarjeta, el circuito de todas las obras (Pedida → Aprobada → Recibida: sin
+ * «Despachada», don Luis 2026-10-23, bodegueros y conductores fuera del ciclo de solicitud) y lo pendiente de cada uno
+ * (tres cajas chicas: quien aprueba, Obras y Jefatura); al lado, lo último que pasó (mismo alto: al abrirlo se desliza
+ * por dentro); abajo, a todo el ancho, la secuencia de CADA solicitud agrupada por paso, con nombres y fechas, el paso de
+ * ahora marcado y a quién le toca. Solo lo que la app guarda (pidió, aprobó o no, recibió y la diferencia anotada al
+ * recibir): los WhatsApp de jefatura no quedan registrados.
  * Celular: circuito, secuencia y lo último, en ese orden. Los toques del circuito y de «Quién tiene qué» bajan a la
  * secuencia; «Ver» abre la solicitud (o su diferencia) en Inventario.
  */
@@ -43,7 +43,7 @@ const idGrupo = (g: Grupo) => `inv-sa-g-${g}`;
 
 /** Punto del rótulo de cada paso (el gris de «No aprobada»: cerrada, sin significado de color). */
 const PUNTO: Record<Grupo, string> = {
-    aprobar: CUADRO.ambar, aprobada: CUADRO.ambar, camino: CUADRO.azul, dif: CUADRO.rojo, completa: CUADRO.verde,
+    aprobar: CUADRO.ambar, aprobada: CUADRO.ambar, dif: CUADRO.rojo, completa: CUADRO.verde,
     rechazada: 'bg-zinc-400 dark:bg-zinc-500',
 };
 
@@ -112,14 +112,14 @@ const ANILLO: Record<TonoTarjeta, string> = {
 };
 
 /**
- * El circuito en UNA línea (≈ 80 px): cuatro círculos unidos con su conteo; las etapas en curso con alguna, más
+ * El circuito en UNA línea (≈ 80 px): tres círculos unidos con su conteo; las etapas en curso con alguna, más
  * grandes, en su color y con anillo. Desde 640 px, bajo cada una, «hasta N días». Compacto: bajo 640 px los nombres
  * en `text-label` y la bajada corta, para que no se peguen a 360 px. Cada etapa baja a su pestaña de la secuencia.
  */
 const Circuito: React.FC<{ pasos: PasoCircuitoSA[]; etiqueta: string; onIr: (d: Destino) => void; className?: string }> = ({
     pasos, etiqueta, onIr, className,
 }) => (
-    <ol aria-label={etiqueta} className={cn('grid w-full max-w-2xl grid-cols-4', className)}>
+    <ol aria-label={etiqueta} className={cn('grid w-full max-w-2xl grid-cols-3', className)}>
         {pasos.map((p, i) => (
             <li key={p.key} className="relative min-w-0">
                 {/* La línea va de centro a centro de los círculos (columnas parejas). */}
@@ -168,7 +168,6 @@ const DiferenciasAparte: React.FC<{ titulo: string; bajada: string; onClick: () 
 
 const ICONO_RESPONSABLE: Record<Responsable['key'], React.ReactNode> = {
     aprueba: <UserCheck className="h-4 w-4" />,
-    bodega: <Warehouse className="h-4 w-4" />,
     obras: <HardHat className="h-4 w-4" />,
     jefatura: <Search className="h-4 w-4" />,
 };
@@ -214,7 +213,7 @@ const BORDE_AHORA: Record<TonoTarjeta, string> = {
     rojo: 'border-red-500', ambar: 'border-amber-500', azul: 'border-blue-500', verde: 'border-green-600', neutro: 'border-border',
 };
 
-/** El punto del paso (las reglas del camino P·A·D·R de la app: hecho relleno, ahora anillo, falta punteado, sin registro hueco). */
+/** El punto del paso (las reglas del camino P·A·R de la app: hecho relleno, ahora anillo, falta punteado, sin registro hueco). */
 const PuntoPaso: React.FC<{ c: Casilla }> = ({ c }) => {
     if (c.tipo === 'fin') {
         return c.completa
@@ -231,16 +230,16 @@ const PuntoPaso: React.FC<{ c: Casilla }> = ({ c }) => {
 };
 
 /**
- * Lo que no conviene partir («sale de bodega», «hace 2 días») va junto en el celular y desde 1280 px, donde la columna
- * le da el ancho. De 768 a 1279 px (iPad vertical, media ventana con el menú abierto) las cinco columnas son angostas y
- * se corta normal: con espacios que no se cortan, «sale de bodega» se salía de la píldora y se montaba en la columna
- * siguiente.
+ * Lo que no conviene partir («recibir lo que falta», «hace 2 días») va junto en el celular y desde 1280 px, donde la
+ * columna le da el ancho. De 768 a 1279 px (iPad vertical, media ventana con el menú abierto) las cuatro columnas son
+ * angostas y se corta normal: con espacios que no se cortan, un verbo largo se salía de la píldora y se montaba en la
+ * columna siguiente.
  */
 const JUNTO = 'whitespace-nowrap md:max-xl:whitespace-normal';
 const NB = String.fromCharCode(160);
 const NB_TODOS = new RegExp(NB, 'g');
 
-/** Un verbo corto, junto («Ahora:» / «sale de bodega», no «… de» / «bodega»). */
+/** Un verbo corto, junto («Ahora:» / «recibir», no partido en dos líneas). */
 const VerboAhora: React.FC<{ verbo: string }> = ({ verbo }) =>
     (verbo.length <= 15 ? <span className={JUNTO}>{verbo}</span> : <>{verbo}</>);
 
@@ -257,12 +256,12 @@ const TextoJunto: React.FC<{ texto: string }> = ({ texto }) => (
 );
 
 /**
- * Un paso. En cinco columnas que calzan fila con fila (desde 768 px Y con la lista de 32rem o más, abajo): el punto
+ * Un paso. En cuatro columnas que calzan fila con fila (desde 768 px Y con la lista de 32rem o más, abajo): el punto
  * arriba con la línea hacia el siguiente y debajo «Verbo · fecha», el nombre y un dato chico. Si no: en vertical, el
  * punto a la izquierda y la línea hacia abajo, «Pidió Carla Soto» en una línea; lo que falta no se dibuja (se nombra al
  * final).
- * Las cinco columnas piden las dos cosas (`md:@lg:`): con el menú lateral abierto, de 768 a ~850 px la tarjeta mide
- * ~460 px y en columnas de ~80 px no cabían ni «Domeyko» ni «despacharon» (se salían o se partían). Ahí va en
+ * Las cuatro columnas piden las dos cosas (`md:@lg:`): con el menú lateral abierto, de 768 a ~850 px la tarjeta mide
+ * ~460 px y en columnas angostas no cabían las palabras largas (se salían o se partían). Ahí va en
  * vertical, como VistaJefatura pasa a su tira cuando la columna no da. El `@container` es la lista (#inv-sa-s-lista).
  */
 const PasoSecuencia: React.FC<{ c: Casilla; sig?: Casilla }> = ({ c, sig }) => {
@@ -297,7 +296,7 @@ const PasoSecuencia: React.FC<{ c: Casilla; sig?: Casilla }> = ({ c, sig }) => {
                 )}
                 {c.tipo === 'sin' && (
                     <>
-                        {/* Celular: «Sin despacho · la obra recibió directo». */}
+                        {/* Celular: «Pidió · sin datos aquí». */}
                         <p className="text-sm leading-snug text-muted-foreground md:@lg:hidden">{[c.verbo, c.nota].filter(Boolean).join(' · ')}</p>
                         <p className="text-xs text-muted-foreground max-md:hidden @max-lg:hidden">{c.verbo}</p>
                         {c.nota && <p className="text-label leading-snug text-muted-foreground max-md:hidden @max-lg:hidden">{c.nota}</p>}
@@ -347,7 +346,7 @@ const VerSolicitud: React.FC<{ f: FilaSec; onIr: (ruta: string) => void; classNa
     </button>
 );
 
-/** Una solicitud con su secuencia completa: a la izquierda qué y adónde; a la derecha los cinco pasos. */
+/** Una solicitud con su secuencia completa: a la izquierda qué y adónde; a la derecha los cuatro pasos. */
 const FilaSecuencia: React.FC<{ f: FilaSec; onIr: (ruta: string) => void; className?: string }> = ({ f, onIr, className }) => (
     <li className={cn('border-t border-border py-4 first:border-t-0 md:py-2.5 xl:grid xl:grid-cols-[12rem_minmax(0,1fr)] xl:gap-6 2xl:grid-cols-[15rem_minmax(0,1fr)]', className)}>
         <div className="min-w-0">
@@ -359,7 +358,7 @@ const FilaSecuencia: React.FC<{ f: FilaSec; onIr: (ruta: string) => void; classN
             <p className="text-section leading-snug text-zinc-700 dark:text-zinc-300 xl:text-xs">{f.items}</p>
             <p className="mt-0.5 text-label text-muted-foreground">{f.tipo ? `${f.codigo} · ${f.tipo}` : f.codigo}</p>
         </div>
-        <ol aria-label={`Secuencia de la solicitud ${f.codigo}${f.ahora ? `. Ahora: ${f.ahora}` : ''}`} className="mt-3 md:@lg:grid md:@lg:grid-cols-5 xl:mt-0.5">
+        <ol aria-label={`Secuencia de la solicitud ${f.codigo}${f.ahora ? `. Ahora: ${f.ahora}` : ''}`} className="mt-3 md:@lg:grid md:@lg:grid-cols-4 xl:mt-0.5">
             {f.casillas.map((c, i) => <PasoSecuencia key={i} c={c} sig={f.casillas[i + 1]} />)}
         </ol>
         {f.despues && <p className="pl-7 text-xs text-muted-foreground md:@lg:hidden">{f.despues}</p>}
@@ -381,7 +380,6 @@ const ICONO_EVENTO: Record<IconoEvento, React.ReactNode> = {
     pidio: <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />,
     aprobo: <Check className="h-3.5 w-3.5" strokeWidth={2.5} />,
     rechazo: <Ban className="h-3.5 w-3.5" />,
-    despacho: <Truck className="h-3.5 w-3.5" />,
     recibio: <PackageCheck className="h-3.5 w-3.5" />,
     faltante: <PackageX className="h-3.5 w-3.5" />,
     sobrante: <PackagePlus className="h-3.5 w-3.5" />,
@@ -487,7 +485,7 @@ const VistaSuperAdmin: React.FC<PropsVistaInventario> = ({ datos }) => {
                 <div className="mt-5 space-y-3 border-t border-border pt-4">
                     <Rotulo id="inv-sa-q" nivel="h4" titulo="Quién tiene qué · lo pendiente de cada uno" nota="Toca para ver sus solicitudes" />
                     {/* Sin igualar altos: cada caja termina donde termina lo suyo. */}
-                    <ul className="grid grid-cols-1 items-start gap-2.5 md:grid-cols-2 md:gap-3">
+                    <ul className="grid grid-cols-1 items-start gap-2.5 md:grid-cols-3 md:gap-3">
                         {m.responsables.map(r => <PersonaPendiente key={r.key} r={r} onIr={ir} />)}
                     </ul>
                 </div>

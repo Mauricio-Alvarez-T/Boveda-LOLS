@@ -1,6 +1,6 @@
 import type { TonoTarjeta } from '../tarjetaActiva';
 import {
-    fechaCorta, fraseItems, llegoDistinto, masAntiguasPrimero, nombreCortoDe, nombreDe, nombreLugar, plural, quienAprueba,
+    fechaCorta, fraseItems, llegoDistinto, masAntiguasPrimero, nombreCortoDe, nombreLugar, plural, porRecibirCircuito, quienAprueba,
     rutaLista, rutaSolicitud, textoDias, tonoDias, type FiltroInventario,
 } from './formato';
 import type { CircuitoPerfil, InventarioPerfilApi, PuedePerfil, SolicitudPerfil } from './tipos';
@@ -9,7 +9,9 @@ import type { CircuitoPerfil, InventarioPerfilApi, PuedePerfil, SolicitudPerfil 
  * Lógica PURA de VistaObra (detalle «Inventario» del Inicio para jefes de obra y prevencionistas; opción A del lienzo,
  * boveda-diseno/frontend/src/preview/inventario/opcionA.tsx → VistaObra). Orden de las listas, topes y textos, con test en
  * `obra.modelo.test.ts`. Lo común (fechas, cantidades, ítems, enlaces) viene de `formato.ts`.
- * Solo lo que la app registra: si falta un dato (quién despachó, la fecha…), la frase lo omite; no se inventa.
+ * Solo lo que la app registra: si falta un dato (quién aprobó, la fecha…), la frase lo omite; no se inventa. Sin bodega ni
+ * despacho: don Luis (2026-10-23) dejó a bodegueros y conductores fuera del ciclo de solicitud (Pedida → Aprobada →
+ * Recibida); lo que va en tránsito cuenta en «Aprobada · por recibir» y no se nombra a quien lo despachó.
  * Reglas: docs/reglas/inventario-transferencias.md § Inicio por perfil → «Vista de obra».
  */
 
@@ -52,14 +54,18 @@ export function adondeVa(s: ConLugares, obraId: number | null): string {
 
 // ─────────────────────────────── Circuito ───────────────────────────────
 
-export type Paso = 'pedida' | 'aprobada' | 'despachada' | 'recibida';
+/** Pedida → Aprobada → Recibida (sin «Despachada»: don Luis 2026-10-23). */
+export type Paso = 'pedida' | 'aprobada' | 'recibida';
 
 export interface PasoCircuito {
     key: Paso;
     texto: string;
     /** La bajada bajo el nombre. */
     bajada: string;
-    /** El filtro de Inventario → Solicitudes que abre al tocarla (en tránsito no tiene uno propio: «Todas»). */
+    /**
+     * El filtro de Inventario → Solicitudes que abre al tocarla. «Aprobada» con alguna en tránsito abre «Todas»: el
+     * filtro «Aprobadas» no la muestra.
+     */
     filtro: FiltroInventario;
 }
 
@@ -73,16 +79,15 @@ export function mesDe(hoy?: string | null): string {
 }
 
 /**
- * Las cuatro etapas, con «Recibida · en octubre» según `hoy` (el mes del servidor). «Aprobada · por recibir» (el lienzo
- * decía «aún sin salir»): la app no tiene «Despachar» desde 2026-04-14 y casi todo pasa de aprobada a recibida, así que
- * lo aprobado puede ir ya en el camión; eso la app no lo registra.
+ * Las tres etapas, con «Recibida · en octubre» según `hoy` (el mes del servidor). «Aprobada · por recibir» (el lienzo
+ * decía «aún sin salir»): cuenta también lo que va en tránsito, y lo que se sabe es que nadie lo ha recibido.
+ * `enTransito` = cuántas de «Aprobada» están en tránsito (`DatosCircuito.enTransito`): con alguna, abre «Todas».
  */
-export function pasosCircuito(hoy?: string | null): PasoCircuito[] {
+export function pasosCircuito(hoy?: string | null, enTransito = 0): PasoCircuito[] {
     const mes = mesDe(hoy);
     return [
         { key: 'pedida', texto: 'Pedida', bajada: 'por aprobar', filtro: 'pendiente' },
-        { key: 'aprobada', texto: 'Aprobada', bajada: 'por recibir', filtro: 'aprobada' },
-        { key: 'despachada', texto: 'Despachada', bajada: 'en camino', filtro: 'todas' },
+        { key: 'aprobada', texto: 'Aprobada', bajada: 'por recibir', filtro: enTransito > 0 ? 'todas' : 'aprobada' },
         { key: 'recibida', texto: 'Recibida', bajada: mes ? `en ${mes}` : 'este mes', filtro: 'recibida' },
     ];
 }
@@ -91,17 +96,23 @@ export interface DatosCircuito {
     conteos: Record<Paso, number>;
     /** Días de la más antigua en cada etapa en curso (no en «Recibida»). */
     hasta: Partial<Record<Paso, number>>;
+    /** Cuántas de «Aprobada» van en tránsito o con una parte recibida (el `despachada` del servidor). */
+    enTransito: number;
 }
 
-/** Las cifras del circuito, tal cual las cuenta el servidor (exactas, con el alcance de quien mira: TODAS las suyas). */
+/**
+ * Las cifras del circuito, tal cual las cuenta el servidor (exactas, con el alcance de quien mira: TODAS las suyas).
+ * «Aprobada» = aprobadas + despachadas (`porRecibirCircuito`).
+ */
 export function datosCircuito(c: CircuitoPerfil): DatosCircuito {
+    const a = porRecibirCircuito(c);
     const hasta: Partial<Record<Paso, number>> = {};
     if (c.pedida.dias != null) hasta.pedida = c.pedida.dias;
-    if (c.aprobada.dias != null) hasta.aprobada = c.aprobada.dias;
-    if (c.despachada.dias != null) hasta.despachada = c.despachada.dias;
+    if (a.dias != null) hasta.aprobada = a.dias;
     return {
-        conteos: { pedida: c.pedida.total, aprobada: c.aprobada.total, despachada: c.despachada.total, recibida: c.recibida.total },
+        conteos: { pedida: c.pedida.total, aprobada: a.total, recibida: c.recibida.total },
         hasta,
+        enTransito: c.despachada?.total ?? 0,
     };
 }
 
@@ -117,14 +128,12 @@ export interface RotulosCircuito {
 
 /**
  * Qué se marca y cómo se rotula el circuito. El servidor cuenta TODAS sus solicitudes (también devoluciones y lo que
- * pidió para otra obra), así que «· Domeyko» en el título, «en camino a ti» y «lo que va a tu obra» solo cuando todo lo
- * que está en el circuito va a su obra (`todasASuObra`). Aprobada y Despachada se marcan solo si tienen alguna:
- * Despachada casi siempre está en 0 (sin «Despachar» en la app) y un anillo azul en un 0 no dice nada.
+ * pidió para otra obra), así que «· Domeyko» en el título y «lo que va a tu obra» solo cuando todo lo que está en el
+ * circuito va a su obra (`todasASuObra`). Aprobada se marca solo si tiene alguna: un anillo azul en un 0 no dice nada.
  */
 export function rotulosCircuito(c: DatosCircuito, obra: string | null, todasASuObra: boolean): RotulosCircuito {
     const marcas: Partial<Record<Paso, MarcaCircuito>> = {};
     if (c.conteos.aprobada > 0) marcas.aprobada = { tono: 'azul' };
-    if (c.conteos.despachada > 0) marcas.despachada = { tono: 'azul', bajada: todasASuObra ? 'en camino a ti' : 'en camino' };
     const hayMarcas = Object.keys(marcas).length > 0;
     return {
         marcas,
@@ -366,7 +375,8 @@ function textoParte(s: SolicitudPerfil): string | null {
 
 /**
  * La línea chica de una fila por recibir (lienzo A):
- *   - en camino: «Salió de Paraguay el 21 oct · despachó Jhoan Vásquez» (si no se registró el despacho, quién aprobó);
+ *   - en camino: «Salió de Paraguay el 21 oct» (el origen y la fecha, si se registró; si no, quién aprobó). Sin «despachó
+ *     X»: don Luis (2026-10-23) dejó a bodegueros y conductores fuera del ciclo de solicitud;
  *   - con una parte recibida, además «llegó una parte el 20 oct»;
  *   - aprobada: «Aprobó Leonardo el 18 oct · sale de Bodega Cerrillos».
  * Con varios orígenes: «Salió de Paraguay y 1 lugar más, el 21 oct» / «sale de Bodega Cerrillos y 1 lugar más».
@@ -377,10 +387,9 @@ export function lineaPorRecibir(s: SolicitudPerfil): string {
         const fecha = fechaCorta(s.despacho?.fecha);
         const coma = s.origenes_extra ? ',' : '';
         const salida = origen ? (fecha ? `Salió de ${origen}${coma} el ${fecha}` : `Salió de ${origen}`) : fecha ? `Salió el ${fecha}` : null;
-        const quien = nombreDe(s.despacho?.por);
-        // Sin despacho registrado (la app no tiene «Despachar»): lo que sí quedó, la aprobación.
-        const respaldo = !s.despacho?.fecha && !quien ? textoAprobo(s, { minuscula: !!salida }) : null;
-        return unir([salida, quien && `despachó ${quien}`, respaldo, textoParte(s)]);
+        // Sin fecha de salida registrada: lo que sí quedó, la aprobación.
+        const respaldo = !fecha ? textoAprobo(s, { minuscula: !!salida }) : null;
+        return unir([salida, respaldo, textoParte(s)]);
     }
     return unir([textoAprobo(s), origen && `sale de ${origen}`]);
 }
