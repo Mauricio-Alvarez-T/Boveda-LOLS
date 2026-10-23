@@ -1,10 +1,10 @@
 import {
-    MAX_LINEAS_APURAR, TOPE_INICIO, alcanceJefatura, anchoFila, bajadaAprobada, bajadaAprobadas, bajadaDespachada, bajadaDespachadas,
+    CIERRE_DIFERENCIA, MAX_LINEAS_APURAR, TOPE_INICIO, alcanceJefatura, anchoFila, bajadaAprobada, bajadaAprobadas, filtroEtapa,
     bajadaDiferencias, bajadaPedida, bajadaPedidas, bajadaRecibida, bajadaRecibidas, cargoDe, cifraDias, cifraDiferencia, cuantasPorApurar,
     diferenciasPendientes, disposicionDiferencia, etapasJefatura, etiquetaEtapa, fraseFila, fueraDeLista, haceCuanto, laApruebaSoloSuperAdmin,
     listasJefatura, mensajeApurar, mensajeDiferencia, mesDe, notaObraElegida, notaSoloSuperAdmin, personasDiferencia, pildoraRecibida,
     pildorasParcial, pildorasTipo, queDiferencia, rellenaEtapa, rutaDe, solicitudesConDiferencia, textoApurar, textoEnInventario, textosTope,
-    textoVerLista, textoVerResumen, tituloAprobadas, tituloDespachadas, tituloDiferencias, tituloFila, tituloPedidas, tituloRecibidas,
+    textoVerLista, textoVerResumen, tituloAprobadas, tituloDiferencias, tituloFila, tituloPedidas, tituloRecibidas,
     tonoCirculo,
 } from './jefatura.modelo';
 import type { CircuitoPerfil, DiferenciaPerfil, ItemPerfil, LugarPerfil, SolicitudPerfil } from './tipos';
@@ -53,17 +53,21 @@ const LEONARDO = [yo(10, 'Leonardo López')];
 
 // ─── El circuito ───
 
-describe('etapasJefatura: las cinco etapas del lienzo B con las cifras exactas del circuito', () => {
+describe('etapasJefatura: las cuatro cajas (sin «Despachada»: don Luis 2026-10-23) con las cifras exactas del circuito', () => {
     test('con datos: cifras, textos, datos, tonos y marcas («Apurar», «Aclarar») como el lienzo', () => {
-        const [p, a, c, r, d] = etapasJefatura(CIRCUITO);
+        const etapas = etapasJefatura(CIRCUITO);
+        expect(etapas.map(e => e.clave)).toEqual(['pedida', 'aprobada', 'recibida', 'diferencias']);
+        const [p, a, r, d] = etapas;
         expect(p).toEqual({
             clave: 'pedida', numero: 1, cifra: 6, que: 'esperan aprobación', dato: 'la más antigua: 9 días',
             tonoDato: 'ambar', tono: 'ambar', marca: { texto: 'Apurar', tono: 'ambar' },
         });
-        expect(a).toMatchObject({ numero: 2, cifra: 2, que: 'por recibir', dato: 'la más antigua: 4 días', tono: 'neutro' });
+        // «Aprobada · por recibir» = 2 aprobadas + 2 en tránsito; la más antigua de las dos.
+        expect(a).toMatchObject({ numero: 2, cifra: 4, que: 'por recibir', dato: 'la más antigua: 4 días', tono: 'neutro' });
         expect(a.marca).toBeUndefined();
-        expect(c).toMatchObject({ numero: 3, cifra: 2, que: 'van en camino', dato: 'la más antigua: 2 días', tono: 'azul' });
-        expect(r).toMatchObject({ numero: 4, cifra: 5, que: 'llegaron este mes', dato: 'la última: 20 oct', tono: 'neutro' });
+        expect(etapasJefatura({ ...CIRCUITO, despachada: { total: 1, dias: 12 } })[1]).toMatchObject({ cifra: 3, dato: 'la más antigua: 12 días' });
+        expect(etapasJefatura({ ...CIRCUITO, aprobada: { total: 0, dias: null } })[1]).toMatchObject({ cifra: 2, dato: 'la más antigua: 2 días' });
+        expect(r).toMatchObject({ numero: 3, cifra: 5, que: 'llegaron este mes', dato: 'la última: 20 oct', tono: 'neutro' });
         // Diferencias cuenta SOLICITUDES (3, como la tarjeta del Inicio y la pestaña), no los 4 ítems de su lista.
         expect(d).toEqual({
             clave: 'diferencias', numero: null, cifra: 3, que: 'llegaron distinto a lo enviado', dato: 'la más antigua: hace 14 días',
@@ -73,9 +77,9 @@ describe('etapasJefatura: las cinco etapas del lienzo B con las cifras exactas d
 
     test('vacío: todo neutro, sin marcas, «nada aquí» / «nada este mes» / «ninguna»', () => {
         const etapas = etapasJefatura(VACIO);
-        expect(etapas.map(e => e.dato)).toEqual(['nada aquí', 'nada aquí', 'nada aquí', 'nada este mes', 'ninguna']);
+        expect(etapas.map(e => e.dato)).toEqual(['nada aquí', 'nada aquí', 'nada este mes', 'ninguna']);
         expect(etapas.every(e => e.tono === 'neutro' && e.tonoDato === 'neutro' && !e.marca)).toBe(true);
-        expect(etapas.map(e => e.cifra)).toEqual([0, 0, 0, 0, 0]);
+        expect(etapas.map(e => e.cifra)).toEqual([0, 0, 0, 0]);
     });
 
     test('singular y «de hoy»; el dato de Pedida toma el color de los días (gris hasta 7, rojo más de 30)', () => {
@@ -83,11 +87,12 @@ describe('etapasJefatura: las cinco etapas del lienzo B con las cifras exactas d
             pedida: { total: 1, dias: 0 }, aprobada: { total: 1, dias: 1 }, despachada: { total: 1, dias: 0 },
             recibida: { total: 1, ultima: '2026-10-22' }, diferencias: { total: 1, dias: 0, items: 1 },
         };
-        const [p, a, c, r, d] = etapasJefatura(uno);
-        expect([p.que, a.que, c.que, r.que, d.que]).toEqual([
-            'espera aprobación', 'por recibir', 'va en camino', 'llegó este mes', 'llegó distinto a lo enviado',
+        const [p, a, r, d] = etapasJefatura(uno);
+        expect([p.que, a.que, r.que, d.que]).toEqual([
+            'espera aprobación', 'por recibir', 'llegó este mes', 'llegó distinto a lo enviado',
         ]);
         expect(p.dato).toBe('la más antigua: de hoy');
+        expect(a.cifra).toBe(2);
         expect(a.dato).toBe('la más antigua: 1 día');
         expect(d.dato).toBe('la más antigua: de hoy');
         expect(p.tonoDato).toBe('neutro');
@@ -95,13 +100,15 @@ describe('etapasJefatura: las cinco etapas del lienzo B con las cifras exactas d
     });
 
     test('etiquetaEtapa: lo que oye el lector de pantalla', () => {
-        const [p, , , , d] = etapasJefatura(CIRCUITO);
+        const [p, a, r, d] = etapasJefatura(CIRCUITO);
         expect(etiquetaEtapa(p)).toBe('Paso 1, Pedida: 6 esperan aprobación. la más antigua: 9 días. Apurar');
+        expect(etiquetaEtapa(a)).toBe('Paso 2, Aprobada: 4 por recibir. la más antigua: 4 días');
+        expect(etiquetaEtapa(r)).toBe('Paso 3, Recibida: 5 llegaron este mes. la última: 20 oct');
         expect(etiquetaEtapa(d)).toBe('Diferencias: 3 llegaron distinto a lo enviado. la más antigua: hace 14 días. Aclarar');
     });
 
     test('con 150 ítems en 34 solicitudes, la cifra es 34 (lo que lista Inventario → Diferencias)', () => {
-        const d = etapasJefatura({ ...CIRCUITO, diferencias: { total: 34, dias: 20, items: 150 } })[4];
+        const d = etapasJefatura({ ...CIRCUITO, diferencias: { total: 34, dias: 20, items: 150 } })[3];
         expect(d.cifra).toBe(34);
     });
 
@@ -139,11 +146,11 @@ describe('listasJefatura: cada etapa con su orden', () => {
     ];
     const difs = [dif({ id: 1, dias: 2 }), dif({ id: 2, dias: 14 }), dif({ id: 3, dias: 6 })];
 
-    test('en curso: las que llevan más días primero; recibidas: solo las del mes, la más nueva primero; sin rechazadas', () => {
+    test('en curso: las que llevan más días primero; las en tránsito van con las aprobadas; recibidas: solo las del mes', () => {
         const l = listasJefatura({ solicitudes: lista, diferencias: difs });
         expect(l.pedidas.map(s => s.id)).toEqual([2, 1]);
-        expect(l.aprobadas.map(s => s.id)).toEqual([4, 3]);
-        expect(l.despachadas.map(s => s.id)).toEqual([6, 5]);
+        expect(l.aprobadas.map(s => s.id)).toEqual([4, 6, 3, 5]);
+        expect(Object.keys(l)).toEqual(['pedidas', 'aprobadas', 'recibidas', 'diferencias']);
         expect(l.recibidas.map(s => s.id)).toEqual([8, 7]);
         expect(l.diferencias?.map(d => d.id)).toEqual([2, 3, 1]);
     });
@@ -199,8 +206,12 @@ describe('tope del Inicio: unas pocas a la vista, «Ver las N» y el resto en In
     test('textoEnInventario: con cifra solo si el filtro de llegada muestra esas', () => {
         expect(textoEnInventario('pedida', 240)).toBe('Ver las 240 en Inventario');
         expect(textoEnInventario('diferencias', 34)).toBe('Ver las 34 en Inventario');
-        // Despachada abre «todas» (Inventario no tiene filtro de en camino): sin cifra.
-        expect(textoEnInventario('despachada', 12)).toBe('Ver en Inventario');
+        expect(textoEnInventario('aprobada', 12)).toBe('Ver las 12 en Inventario');
+        // Aprobada con alguna en tránsito abre «todas» (el filtro «Aprobadas» no las muestra): sin cifra.
+        expect(filtroEtapa('aprobada', 2)).toBe('todas');
+        expect(filtroEtapa('aprobada', 0)).toBe('aprobada');
+        expect(filtroEtapa('pedida', 2)).toBe('pendiente');
+        expect(textoEnInventario('aprobada', 12, filtroEtapa('aprobada', 2))).toBe('Ver en Inventario');
         expect(textoEnInventario('diferencias', 1)).toBe('Ver en Inventario');
     });
 });
@@ -241,32 +252,30 @@ describe('textos de los paneles', () => {
         expect(tituloAprobadas(1)).toBe('1 aprobada por recibir');
         const de = (id: number, nombre: string | null) => sol({ id, estado: 'aprobada', etapa: 'aprobada',
             aprobacion: { por: nombre ? yo(10, nombre) : null, fecha: '2026-10-18' } });
-        expect(bajadaAprobadas([de(1, 'Leonardo López'), de(2, 'Leonardo López')])).toBe('Leonardo ya las aprobó; falta que salgan de bodega.');
-        expect(bajadaAprobadas([de(1, 'Leonardo López')])).toBe('Leonardo ya la aprobó; falta que salga de bodega.');
-        expect(bajadaAprobadas([de(1, 'Leonardo López'), de(2, 'Marco Uribe')])).toBe('Ya están aprobadas; falta que salgan de bodega.');
-        expect(bajadaAprobadas([de(1, null)])).toBe('Ya está aprobada; falta que salga de bodega.');
-        expect(bajadaAprobadas([])).toBe('Lo aprobado espera aquí hasta que salga de bodega.');
+        // Sin bodega ni despacho (don Luis 2026-10-23): lo que falta es recibir.
+        expect(bajadaAprobadas([de(1, 'Leonardo López'), de(2, 'Leonardo López')])).toBe('Leonardo ya las aprobó; falta que confirmen lo que llegó.');
+        expect(bajadaAprobadas([de(1, 'Leonardo López')])).toBe('Leonardo ya la aprobó; falta que confirmen lo que llegó.');
+        expect(bajadaAprobadas([de(1, 'Leonardo López'), de(2, 'Marco Uribe')])).toBe('Ya están aprobadas; falta que confirmen lo que llegó.');
+        expect(bajadaAprobadas([de(1, null)])).toBe('Ya está aprobada; falta que confirmen lo que llegó.');
+        expect(bajadaAprobadas([])).toBe('Lo aprobado espera aquí hasta que confirmen lo que llegó.');
+        expect([bajadaAprobadas([de(1, 'Leonardo López')]), bajadaAprobadas([])].join(' ')).not.toMatch(/bodega|despach/i);
     });
 
-    test('Despachada, Recibida y Diferencias', () => {
-        expect(tituloDespachadas(2)).toBe('2 van en camino');
-        expect(tituloDespachadas(1)).toBe('1 va en camino');
+    test('Recibida y Diferencias', () => {
         expect(tituloRecibidas(5)).toBe('5 llegaron este mes');
         expect(tituloRecibidas(1)).toBe('1 llegó este mes');
         expect(bajadaRecibidas('2026-10-22')).toBe('Recibidas en octubre. Si algo llegó distinto, también está en «Diferencias».');
         expect(tituloDiferencias(4)).toBe('4 diferencias por aclarar');
         expect(tituloDiferencias(1)).toBe('1 diferencia por aclarar');
-        expect(bajadaDespachadas(2)).toBe('Ya salieron de bodega; falta que la obra confirme lo que llegó.');
-        expect(bajadaDiferencias(4)).toBe('Lo que llegó no calza con lo enviado. Pregúntale por WhatsApp a quien despachó o recibió: el mensaje va listo.');
+        expect(bajadaDiferencias(4)).toBe('Lo que llegó no calza con lo enviado. Pregúntale por WhatsApp a quien aprobó o recibió: el mensaje va listo.');
         expect(bajadaDiferencias(4, 4)).toBe(bajadaDiferencias(4));
         // Varios ítems en una misma solicitud: se dice, porque la lista va ítem por ítem.
         expect(bajadaDiferencias(3, 4)).toMatch(/^4 ítems en 3 solicitudes\. Lo que llegó no calza/);
         expect(bajadaDiferencias(1, 3)).toMatch(/^3 ítems en 1 solicitud\. /);
-        expect(bajadaDiferencias(0)).toMatch(/^Cuando algo llegue distinto/);
-        expect(bajadaDespachadas(0)).toMatch(/^Lo que sale de bodega/);
+        expect(bajadaDiferencias(0)).toBe('Cuando algo llegue distinto a lo enviado, aparece aquí con quién lo aprobó y quién lo recibió.');
         // Vacíos: una frase, no «0 …».
-        expect([tituloAprobadas(0), tituloDespachadas(0), tituloRecibidas(0), tituloDiferencias(0)])
-            .toEqual(['Nada por recibir', 'Nada va en camino', 'Nada llegó este mes', 'Ninguna diferencia por aclarar']);
+        expect([tituloAprobadas(0), tituloRecibidas(0), tituloDiferencias(0)])
+            .toEqual(['Nada por recibir', 'Nada llegó este mes', 'Ninguna diferencia por aclarar']);
         expect(mesDe('2026-01-05')).toBe('enero');
         expect(mesDe('')).toBe('este mes');
     });
@@ -293,17 +302,16 @@ describe('filas de solicitudes', () => {
         expect(bajadaPedida(sinNada)).toBe('TRF-202610-0050');
     });
 
-    test('aprobada, despachada y recibida dicen solo lo registrado', () => {
+    test('aprobada (también en tránsito) y recibida dicen solo lo registrado; nunca quién despachó', () => {
         const aprobada = sol({ id: 31, estado: 'aprobada', etapa: 'aprobada', origen: bodega('Bodega Cerrillos'),
             aprobacion: { por: yo(10, 'Leonardo López'), fecha: '2026-10-18' } });
         expect(bajadaAprobada(aprobada)).toBe('Aprobó Leonardo el 18 oct · sale de Bodega Cerrillos');
 
         const enCamino = sol({ id: 33, estado: 'en_transito', etapa: 'despachada', origen: bodega('Paraguay', 2),
             aprobacion: { por: yo(10, 'Leonardo López'), fecha: '2026-10-17' }, despacho: { por: yo(30, 'Jhoan Vásquez'), fecha: '2026-10-21' } });
-        expect(bajadaDespachada(enCamino)).toBe('Despachó Jhoan Vásquez el 21 oct · desde Paraguay');
-        // Sin «Despachar» registrado: lo que sí se guardó, quién aprobó.
-        expect(bajadaDespachada({ ...enCamino, despacho: null })).toBe('Aprobó Leonardo el 17 oct · desde Paraguay');
-        expect(bajadaDespachada({ ...enCamino, despacho: null, aprobacion: null, origen: null })).toBe('TRF-202610-0033');
+        // En tránsito: la misma línea de una aprobada, sin «Despachó Jhoan» (don Luis 2026-10-23).
+        expect(bajadaAprobada(enCamino)).toBe('Aprobó Leonardo el 17 oct · sale de Paraguay');
+        expect(bajadaAprobada({ ...enCamino, aprobacion: null, origen: null })).toBe('TRF-202610-0033');
 
         const recibida = sol({ id: 25, estado: 'recibida', etapa: 'recibida', origen: bodega('Bodega Cerrillos'),
             recepcion: { por: yo(21, 'Carla Soto'), fecha: '2026-10-10' } });
@@ -322,7 +330,8 @@ describe('filas de solicitudes', () => {
     test('cifra de días, círculo y píldoras', () => {
         expect(cifraDias(9, 'esperando', 'ambar', 'pedida')).toEqual({ valor: '9', etiqueta: 'días esperando', tono: 'ambar' });
         expect(cifraDias(1, 'esperando', 'neutro', 'pedida')).toEqual({ valor: '1', etiqueta: 'día esperando', tono: 'neutro' });
-        expect(cifraDias(0, 'en camino', 'azul', 'salió')).toEqual({ valor: 'Hoy', etiqueta: 'salió', tono: 'neutro' });
+        expect(cifraDias(4, 'sin recibir', 'neutro', 'aprobada')).toEqual({ valor: '4', etiqueta: 'días sin recibir', tono: 'neutro' });
+        expect(cifraDias(0, 'sin recibir', 'neutro', 'aprobada')).toEqual({ valor: 'Hoy', etiqueta: 'aprobada', tono: 'neutro' });
         expect(tonoCirculo({ dias: 31 })).toBe('rojo');
         expect(tonoCirculo({ dias: 30 })).toBe('neutro');
         expect(pildorasTipo({ tipo: 'herramientas' })).toEqual([{ texto: 'Herramientas', tono: 'neutro' }]);
@@ -388,18 +397,18 @@ describe('filas de diferencias', () => {
         expect(disposicionDiferencia(280, 2)).toEqual({ sangria: false, juntas: false, boton: 'icono' });
         // Computador, paneles lado a lado (528): juntas y solo el ícono.
         expect(disposicionDiferencia(528, 2)).toEqual({ sangria: true, juntas: true, boton: 'icono' });
-        // Un solo panel ancho (1120): juntas y «Preguntar a Jhoan».
+        // Un solo panel ancho (1120): juntas y «Preguntar a Leonardo».
         expect(disposicionDiferencia(1120, 2)).toEqual({ sangria: true, juntas: true, boton: 'largo' });
         // Una sola persona: nunca «juntas».
         expect(disposicionDiferencia(1120, 1).juntas).toBe(false);
     });
 
-    test('personasDiferencia: despachó y recibió; sin despacho registrado, quien aprobó; nadie inventado', () => {
+    test('personasDiferencia: aprobó y recibió (nunca quién despachó, aunque esté registrado); nadie inventado', () => {
         expect(personasDiferencia(dif())).toEqual([
-            { paso: 'despacho', nombre: 'Jhoan Vásquez', cuando: ' el 7 oct', texto: 'Despachó el 7 oct' },
+            { paso: 'aprobacion', nombre: 'Leonardo López', cuando: ' el 6 oct', texto: 'Aprobó el 6 oct' },
             { paso: 'recepcion', nombre: 'Tomás Vera', cuando: ' el 8 oct', texto: 'Recibió el 8 oct' },
         ]);
-        expect(personasDiferencia(dif({ despacho: null })).map(p => p.texto)).toEqual(['Aprobó el 6 oct', 'Recibió el 8 oct']);
+        expect(personasDiferencia(dif({ despacho: null }))).toEqual(personasDiferencia(dif()));
         expect(personasDiferencia(dif({ despacho: { por: null, fecha: '2026-10-07' }, aprobacion: null, recepcion: { por: yo(1, 'Ana'), fecha: null } })))
             .toEqual([{ paso: 'recepcion', nombre: 'Ana', cuando: '', texto: 'Recibió' }]);
     });
@@ -440,23 +449,31 @@ describe('mensajes de WhatsApp', () => {
         expect(lineas[lineas.length - 2]).toBe(`• y ${32 - MAX_LINEAS_APURAR} más en Inventario`);
     });
 
-    test('mensajeDiferencia: saludo con su nombre, el ítem, quién despachó y recibió, y la pregunta', () => {
-        expect(mensajeDiferencia(dif(), 'Jhoan Vásquez')).toBe([
-            'Hola Jhoan, te escribo por una diferencia en la solicitud TRF-202610-0021 (Bodega Cerrillos → Domeyko).',
+    test('mensajeDiferencia a quien recibió: saludo con su nombre, el ítem, quién aprobó y recibió, y «¿Me cuentas qué pasó?»', () => {
+        expect(mensajeDiferencia(dif(), 'Tomás Vera', 'recepcion')).toBe([
+            'Hola Tomás, te escribo por una diferencia en la solicitud TRF-202610-0021 (Bodega Cerrillos → Domeyko).',
             '• Cemento: se enviaron 50 sacos y llegaron 48: faltan 2 sacos.',
-            '• Despachó Jhoan Vásquez el 7 oct. Recibió Tomás Vera el 8 oct.',
-            '¿Me cuentas qué pasó?',
-        ].join('\n'));
-    });
-
-    test('mensajeDiferencia: de más, sin despacho registrado (va quien aprobó) y sin origen', () => {
-        const d = dif({ descripcion: 'Puntal metálico 3 m', unidad: 'UN', enviada: 20, recibida: 21, diferencia: -1, origen: null, despacho: null });
-        expect(mensajeDiferencia(d, 'Leonardo López')).toBe([
-            'Hola Leonardo, te escribo por una diferencia en la solicitud TRF-202610-0021 (Domeyko).',
-            '• Puntal metálico 3 m: se enviaron 20 unidades y llegaron 21: llegó 1 unidad de más.',
             '• Aprobó Leonardo López el 6 oct. Recibió Tomás Vera el 8 oct.',
             '¿Me cuentas qué pasó?',
         ].join('\n'));
+        // Sin `paso`, el cierre de quien recibió.
+        expect(mensajeDiferencia(dif(), 'Tomás Vera')).toBe(mensajeDiferencia(dif(), 'Tomás Vera', 'recepcion'));
+    });
+
+    test('mensajeDiferencia a quien aprobó (él resuelve): de más, sin origen, «¿La puedes revisar?»', () => {
+        const d = dif({ descripcion: 'Puntal metálico 3 m', unidad: 'UN', enviada: 20, recibida: 21, diferencia: -1, origen: null });
+        expect(mensajeDiferencia(d, 'Leonardo López', 'aprobacion')).toBe([
+            'Hola Leonardo, te escribo por una diferencia en la solicitud TRF-202610-0021 (Domeyko).',
+            '• Puntal metálico 3 m: se enviaron 20 unidades y llegaron 21: llegó 1 unidad de más.',
+            '• Aprobó Leonardo López el 6 oct. Recibió Tomás Vera el 8 oct.',
+            '¿La puedes revisar?',
+        ].join('\n'));
+        expect(CIERRE_DIFERENCIA).toEqual({ recepcion: '¿Me cuentas qué pasó?', aprobacion: '¿La puedes revisar?' });
+    });
+
+    test('mensajeDiferencia nunca nombra a quien despachó ni habla de despacho o bodegueros', () => {
+        const texto = mensajeDiferencia(dif(), 'Tomás Vera') + mensajeDiferencia(dif(), 'Leonardo López', 'aprobacion');
+        expect(texto).not.toMatch(/Jhoan|despach|bodeguer|conductor/i);
     });
 
     test('SoD: la que pidió el único que aprueba no se le apura (solo la aprueba un Super Administrador)', () => {
@@ -478,7 +495,7 @@ describe('mensajes de WhatsApp', () => {
     });
 
     test('nunca hay dinero en los mensajes', () => {
-        const texto = mensajeApurar(pedidas, { aprobadores: LEONARDO }) + mensajeDiferencia(dif(), 'Jhoan');
+        const texto = mensajeApurar(pedidas, { aprobadores: LEONARDO }) + mensajeDiferencia(dif(), 'Tomás');
         expect(texto).not.toMatch(/\$|valor|costo|precio/i);
     });
 });

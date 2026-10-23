@@ -225,26 +225,33 @@ describe('filaPorAprobar', () => {
 });
 
 describe('circuito', () => {
-    it('cuatro etapas con las cifras exactas del servidor y su lista en Inventario', () => {
+    it('tres etapas (sin «Despachada»: don Luis 2026-10-23); «Aprobada» suma las en tránsito y abre «Todas»', () => {
         expect(pasosCircuito(CIRCUITO, '2026-10-22')).toEqual([
             {
                 key: 'pedida', texto: 'Pedida', bajada: 'por aprobar', total: 6, hasta: 9,
                 ruta: '/inventario?tab=transferencias&estado=pendiente', abre: 'Abre «Pendientes» en Inventario',
             },
             {
-                key: 'aprobada', texto: 'Aprobada', bajada: 'por recibir', total: 2, hasta: 4,
-                ruta: '/inventario?tab=transferencias&estado=aprobada', abre: 'Abre «Aprobadas» en Inventario',
-            },
-            {
-                key: 'despachada', texto: 'Despachada', bajada: 'en camino', total: 2, hasta: 2,
+                // 2 aprobadas + 2 en tránsito; los días, los de la más antigua de las dos.
+                key: 'aprobada', texto: 'Aprobada', bajada: 'por recibir', total: 4, hasta: 4,
                 ruta: '/inventario?tab=transferencias&estado=todas',
-                abre: 'Abre «Todas» en Inventario: no hay un filtro solo para lo que va en camino',
+                abre: 'Abre «Todas» en Inventario: algunas por recibir no están en «Aprobadas»',
             },
             {
                 key: 'recibida', texto: 'Recibida', bajada: 'en octubre', total: 5, hasta: null,
                 ruta: '/inventario?tab=transferencias&estado=recibida', abre: 'Abre «Recibidas» en Inventario, de todos los meses',
             },
         ]);
+    });
+
+    it('sin ninguna en tránsito, «Aprobada» abre «Aprobadas»; días: el máximo de las dos', () => {
+        const sinTransito: CircuitoPerfil = { ...CIRCUITO, despachada: { total: 0, dias: null } };
+        expect(pasosCircuito(sinTransito, '2026-10-22')[1]).toMatchObject({
+            total: 2, hasta: 4, ruta: '/inventario?tab=transferencias&estado=aprobada', abre: 'Abre «Aprobadas» en Inventario',
+        });
+        const transitoViejo: CircuitoPerfil = { ...CIRCUITO, despachada: { total: 1, dias: 11 } };
+        expect(pasosCircuito(transitoViejo, '2026-10-22')[1]).toMatchObject({ total: 3, hasta: 11 });
+        expect(pasosCircuito(CIRCUITO, '2026-10-22').map(p => p.texto)).toEqual(['Pedida', 'Aprobada', 'Recibida']);
     });
 
     it('«Aprobada» no afirma que no ha salido (la app no registra la salida): dice lo que sabe, «por recibir»', () => {
@@ -255,19 +262,19 @@ describe('circuito', () => {
 
     it('sin ninguna en la etapa no hay «hasta»', () => {
         const vacio: CircuitoPerfil = {
-            ...CIRCUITO, pedida: { total: 0, dias: null }, aprobada: { total: 0, dias: 3 },
+            ...CIRCUITO, pedida: { total: 0, dias: null }, aprobada: { total: 0, dias: 3 }, despachada: { total: 0, dias: 5 },
         };
         const pasos = pasosCircuito(vacio, '2026-01-05');
         expect(pasos[0].hasta).toBeNull();
         expect(pasos[1].hasta).toBeNull();
-        expect(pasos[3].bajada).toBe('en enero');
+        expect(pasos[2].bajada).toBe('en enero');
     });
 
     it('el mes de «Recibida» sale de hoy del servidor', () => {
         expect(mesLargo('2026-10-22')).toBe('octubre');
         expect(mesLargo('2026-12-01')).toBe('diciembre');
         expect(mesLargo('')).toBe('');
-        expect(pasosCircuito(CIRCUITO, '')[3].bajada).toBe('este mes');
+        expect(pasosCircuito(CIRCUITO, '')[2].bajada).toBe('este mes');
     });
 
     it('«hasta N días» sin «hasta de hoy»', () => {
@@ -283,12 +290,12 @@ describe('circuito', () => {
     });
 
     it('etiquetas para lectores de pantalla: la etapa completa y qué lista abre', () => {
-        const [pedida, , despachada, recibida] = pasosCircuito(CIRCUITO, '2026-10-22');
+        const [pedida, aprobada, recibida] = pasosCircuito(CIRCUITO, '2026-10-22');
         expect(etiquetaCircuito(true)).toBe('Circuito de la solicitud, todas las obras');
         expect(etiquetaCircuito(false)).toBe('Circuito de la solicitud, lo que puedes ver');
         expect(etiquetaPaso(pedida, marcaPedida(6))).toBe('Pedida: 6, por aprobar, son las de la lista. Abre «Pendientes» en Inventario');
         expect(etiquetaPaso({ ...pedida, total: 0 }, marcaPedida(0))).toBe('Pedida: 0, al día. Abre «Pendientes» en Inventario');
-        expect(etiquetaPaso(despachada)).toBe('Despachada: 2, en camino. Abre «Todas» en Inventario: no hay un filtro solo para lo que va en camino');
+        expect(etiquetaPaso(aprobada)).toBe('Aprobada: 4, por recibir. Abre «Todas» en Inventario: algunas por recibir no están en «Aprobadas»');
         expect(etiquetaPaso(recibida)).toBe('Recibida: 5, en octubre. Abre «Recibidas» en Inventario, de todos los meses');
     });
 });

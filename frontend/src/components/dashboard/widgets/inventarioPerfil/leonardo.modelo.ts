@@ -1,7 +1,7 @@
 import type { TonoTarjeta } from '../tarjetaActiva';
 import {
-    TIPO, fraseItems, iniciales, masAntiguasPrimero, nombreDe, nombreLugar, plural, rutaLista, rutaSolicitud, textoDias,
-    tonoDias, type FiltroInventario,
+    TIPO, fraseItems, iniciales, masAntiguasPrimero, nombreDe, nombreLugar, plural, porRecibirCircuito, rutaLista, rutaSolicitud,
+    textoDias, tonoDias, type FiltroInventario,
 } from './formato';
 import type { CircuitoPerfil, InventarioPerfilApi, SolicitudPerfil } from './tipos';
 
@@ -154,13 +154,14 @@ export function filaPorAprobar(s: SolicitudPerfil, i: number, total: number): Fi
 
 // ─────────────────────────────── Franja del circuito ───────────────────────────────
 
-export type Paso = 'pedida' | 'aprobada' | 'despachada' | 'recibida';
+/** Pedida → Aprobada → Recibida (don Luis 2026-10-23: bodegueros y conductores fuera del ciclo; sin «Despachada»). */
+export type Paso = 'pedida' | 'aprobada' | 'recibida';
 
 /** Una etapa del circuito tal como se dibuja. */
 export interface PasoCircuito {
     key: Paso;
     texto: string;
-    /** La bajada de siempre («por aprobar», «por recibir», «en camino», «en octubre»). */
+    /** La bajada de siempre («por aprobar», «por recibir», «en octubre»). */
     bajada: string;
     total: number;
     /** Días de la más antigua en esa etapa (solo las en curso; null en Recibida o sin ninguna). */
@@ -168,8 +169,8 @@ export interface PasoCircuito {
     /** Al tocarla: Inventario → Solicitudes con este filtro. */
     ruta: string;
     /**
-     * Qué lista abre, dicho tal cual (para el lector de pantalla y el `title`): Inventario no tiene filtro «En tránsito»
-     * (Despachada abre «Todas») y «Recibidas» es de todos los meses.
+     * Qué lista abre, dicho tal cual (para el lector de pantalla y el `title`): si alguna por recibir está en tránsito,
+     * «Aprobada» abre «Todas» (el filtro «Aprobadas» de Inventario no la muestra) y «Recibidas» es de todos los meses.
      */
     abre: string;
 }
@@ -189,24 +190,30 @@ export function mesLargo(iso?: string | null): string {
 const LISTA_PASO: Record<Paso, { filtro: FiltroInventario; abre: string }> = {
     pedida: { filtro: 'pendiente', abre: 'Abre «Pendientes» en Inventario' },
     aprobada: { filtro: 'aprobada', abre: 'Abre «Aprobadas» en Inventario' },
-    despachada: { filtro: 'todas', abre: 'Abre «Todas» en Inventario: no hay un filtro solo para lo que va en camino' },
     recibida: { filtro: 'recibida', abre: 'Abre «Recibidas» en Inventario, de todos los meses' },
 };
 
+/** «Aprobada» cuando alguna por recibir está en tránsito: el filtro «Aprobadas» de Inventario no la muestra. */
+const APROBADA_CON_TRANSITO = { filtro: 'todas', abre: 'Abre «Todas» en Inventario: algunas por recibir no están en «Aprobadas»' } as const;
+
 /**
- * Las cuatro etapas Pedida → Aprobada → Despachada → Recibida con las cifras exactas del servidor.
- * «Aprobada» dice «por recibir» (no «aún sin salir», del lienzo): la app no registra cuándo sale de bodega (la interfaz
- * no tiene «Despachar» y recibir() acepta una aprobada), así que una aprobada puede ir ya en el camión; lo que sí se sabe
- * es que nadie la ha recibido.
+ * Las tres etapas Pedida → Aprobada → Recibida con las cifras exactas del servidor (don Luis 2026-10-23: bodegueros y
+ * conductores fuera del ciclo de solicitud, sin «Despachada»). «Aprobada · por recibir» cuenta también las que el
+ * servidor manda como despachadas (en tránsito o con una parte recibida: envío directo u orden de gerencia), con los días
+ * de la más antigua de las dos (`porRecibirCircuito`). Dice «por recibir» (no «aún sin salir», del lienzo): lo que se
+ * sabe es que nadie la ha recibido.
  */
 export function pasosCircuito(c: CircuitoPerfil, hoy: string): PasoCircuito[] {
     const mes = mesLargo(hoy);
-    const paso = (key: Paso, texto: string, bajada: string, total: number, hasta: number | null): PasoCircuito =>
-        ({ key, texto, bajada, total, hasta: total > 0 ? hasta : null, ruta: rutaLista(LISTA_PASO[key].filtro), abre: LISTA_PASO[key].abre });
+    const enTransito = (c.despachada?.total ?? 0) > 0;
+    const paso = (key: Paso, texto: string, bajada: string, total: number, hasta: number | null): PasoCircuito => {
+        const lista = key === 'aprobada' && enTransito ? APROBADA_CON_TRANSITO : LISTA_PASO[key];
+        return { key, texto, bajada, total, hasta: total > 0 ? hasta : null, ruta: rutaLista(lista.filtro), abre: lista.abre };
+    };
+    const a = porRecibirCircuito(c);
     return [
         paso('pedida', 'Pedida', 'por aprobar', c.pedida.total, c.pedida.dias),
-        paso('aprobada', 'Aprobada', 'por recibir', c.aprobada.total, c.aprobada.dias),
-        paso('despachada', 'Despachada', 'en camino', c.despachada.total, c.despachada.dias),
+        paso('aprobada', 'Aprobada', 'por recibir', a.total, a.dias),
         paso('recibida', 'Recibida', mes ? `en ${mes}` : 'este mes', c.recibida.total, null),
     ];
 }

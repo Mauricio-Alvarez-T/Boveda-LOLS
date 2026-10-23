@@ -1,25 +1,27 @@
 import type { TonoTarjeta } from '../tarjetaActiva';
 import {
-    cantidad, fechaCorta, fraseItems, itemConCantidad, masAntiguasPrimero, nombreCorto, nombreCortoDe, nombreDe, nombreLugar,
-    numero, plural, quienAprueba, textoDiferencia, tonoDias,
+    cantidad, etapaTresPasos, fechaCorta, fraseItems, itemConCantidad, masAntiguasPrimero, nombreCorto, nombreCortoDe, nombreDe,
+    nombreLugar, numero, plural, porRecibirCircuito, quienAprueba, textoDiferencia, tonoDias, type EtapaTresPasos,
+    type FiltroInventario,
 } from './formato';
 import type { DiferenciaPerfil, InventarioPerfilApi, PasoPerfil, PersonaPerfil, SolicitudPerfil } from './tipos';
 
 /**
  * Lógica PURA de la vista «jefatura» del detalle «Inventario» del Inicio (Daphne Lazcano: «Ver diferencias» sin
  * aprobar; opción B «El circuito» del lienzo, `Jefatura` de boveda-diseno/frontend/src/preview/inventario/opcionB.tsx).
- * Arma, con la respuesta de GET /transferencias/inicio/perfil: las cinco etapas del circuito, las listas de cada una
- * (orden y topes), los textos de paneles y filas, y los mensajes de WhatsApp («Apurar a Leonardo» y «Preguntar» por una
- * diferencia). Solo usa lo que la app registra (quién pidió, aprobó, despachó y recibió, y cuándo): los WhatsApp no
- * quedan guardados. Test: `jefatura.modelo.test.ts`. El dibujo está en `VistaJefatura.tsx`.
+ * Arma, con la respuesta de GET /transferencias/inicio/perfil: las cuatro cajas del circuito (Pedida → Aprobada →
+ * Recibida y Diferencias aparte; sin «Despachada»: don Luis 2026-10-23, bodegueros y conductores fuera del ciclo de
+ * solicitud), las listas de cada una (orden y topes), los textos de paneles y filas, y los mensajes de WhatsApp («Apurar
+ * a Leonardo» y «Preguntar» por una diferencia). Solo usa lo que la app registra (quién pidió, aprobó y recibió, y
+ * cuándo): los WhatsApp no quedan guardados. Test: `jefatura.modelo.test.ts`. El dibujo está en `VistaJefatura.tsx`.
  */
 
 // ─────────────────────────────── El circuito ───────────────────────────────
 
-export type ClaveEtapa = 'pedida' | 'aprobada' | 'despachada' | 'recibida' | 'diferencias';
+export type ClaveEtapa = 'pedida' | 'aprobada' | 'recibida' | 'diferencias';
 
 export const NOMBRE_ETAPA: Record<ClaveEtapa, string> = {
-    pedida: 'Pedida', aprobada: 'Aprobada', despachada: 'Despachada', recibida: 'Recibida', diferencias: 'Diferencias',
+    pedida: 'Pedida', aprobada: 'Aprobada', recibida: 'Recibida', diferencias: 'Diferencias',
 };
 
 /** Lo que se abre al entrar: lo que espera a Leonardo y las diferencias, cada uno en su panel. */
@@ -29,7 +31,7 @@ export interface MarcaEtapa { texto: string; tono: TonoTarjeta }
 
 export interface EtapaCircuito {
     clave: ClaveEtapa;
-    /** 1-4 en el circuito; null = Diferencias (va aparte). */
+    /** 1-3 en el circuito; null = Diferencias (va aparte). */
     numero: number | null;
     cifra: number;
     /** Qué cuenta la cifra, en palabras: «esperan aprobación». */
@@ -53,13 +55,16 @@ function laMasAntigua(n: number | null, vacio: string, hace = false): string {
 }
 
 /**
- * Las cinco etapas, con las cifras EXACTAS de `circuito` (las listas pueden venir con tope):
- * Pedida → Aprobada → Despachada → Recibida (este mes) y Diferencias aparte. Todas cuentan SOLICITUDES, también
- * Diferencias (`circuito.diferencias.total`), como la tarjeta del Inicio y la pestaña Inventario → Diferencias; los
- * ítems con diferencia (`items`) son un detalle del panel («4 ítems en 3 solicitudes»).
+ * Las cuatro cajas, con las cifras EXACTAS de `circuito` (las listas pueden venir con tope):
+ * Pedida → Aprobada → Recibida (este mes) y Diferencias aparte. «Aprobada · por recibir» suma las aprobadas y las que el
+ * servidor manda como despachadas (en tránsito o con una parte recibida), con los días de la más antigua de las dos
+ * (`porRecibirCircuito`). Todas cuentan SOLICITUDES, también Diferencias (`circuito.diferencias.total`), como la tarjeta
+ * del Inicio y la pestaña Inventario → Diferencias; los ítems con diferencia (`items`) son un detalle del panel («4 ítems
+ * en 3 solicitudes»).
  */
 export function etapasJefatura(circuito: InventarioPerfilApi['circuito']): EtapaCircuito[] {
-    const { pedida: p, aprobada: a, despachada: c, recibida: r, diferencias: d } = circuito;
+    const { pedida: p, recibida: r, diferencias: d } = circuito;
+    const a = porRecibirCircuito(circuito);
     const nDif = d.total;
     return [
         {
@@ -73,11 +78,7 @@ export function etapasJefatura(circuito: InventarioPerfilApi['circuito']): Etapa
             dato: laMasAntigua(a.total ? a.dias ?? 0 : null, 'nada aquí'), tonoDato: 'neutro', tono: 'neutro',
         },
         {
-            clave: 'despachada', numero: 3, cifra: c.total, que: plural(c.total, 'va en camino', 'van en camino'),
-            dato: laMasAntigua(c.total ? c.dias ?? 0 : null, 'nada aquí'), tonoDato: 'neutro', tono: c.total ? 'azul' : 'neutro',
-        },
-        {
-            clave: 'recibida', numero: 4, cifra: r.total, que: plural(r.total, 'llegó este mes', 'llegaron este mes'),
+            clave: 'recibida', numero: 3, cifra: r.total, que: plural(r.total, 'llegó este mes', 'llegaron este mes'),
             dato: r.total && r.ultima ? `la última: ${fechaCorta(r.ultima)}` : 'nada este mes', tonoDato: 'neutro', tono: 'neutro',
         },
         {
@@ -121,18 +122,19 @@ export const notaObraElegida = (alcance: string): string =>
 export interface ListasJefatura {
     /** Pendientes de aprobar, la más antigua primero. */
     pedidas: SolicitudPerfil[];
-    /** Aprobadas que aún no salen, la más antigua primero. */
+    /**
+     * Aprobadas por recibir, la más antigua primero: también las que el servidor manda como despachadas (en tránsito o
+     * con una parte recibida).
+     */
     aprobadas: SolicitudPerfil[];
-    /** En tránsito o con recepción parcial, la más antigua primero. */
-    despachadas: SolicitudPerfil[];
     /** Recibidas ESTE mes, la más nueva primero. */
     recibidas: SolicitudPerfil[];
     /** Ítems con diferencia, la más antigua primero; null si el servidor no la mandó (sin permiso). */
     diferencias: DiferenciaPerfil[] | null;
 }
 
-const deEtapa = (lista: readonly SolicitudPerfil[], etapa: SolicitudPerfil['etapa']) =>
-    masAntiguasPrimero(lista.filter(s => s.etapa === etapa));
+const deEtapa = (lista: readonly SolicitudPerfil[], etapa: EtapaTresPasos) =>
+    masAntiguasPrimero(lista.filter(s => etapaTresPasos(s.etapa) === etapa));
 
 /** Fecha en que llegó (la recepción que la cerró), o '' si la app no la guardó. */
 const fechaRecepcion = (s: SolicitudPerfil) => s.recepcion?.fecha ?? '';
@@ -142,7 +144,6 @@ export function listasJefatura(datos: Pick<InventarioPerfilApi, 'solicitudes' | 
     return {
         pedidas: deEtapa(solicitudes, 'pedida'),
         aprobadas: deEtapa(solicitudes, 'aprobada'),
-        despachadas: deEtapa(solicitudes, 'despachada'),
         recibidas: solicitudes.filter(s => s.etapa === 'recibida' && s.del_mes)
             .sort((x, y) => fechaRecepcion(y).localeCompare(fechaRecepcion(x)) || y.id - x.id),
         diferencias: datos.diferencias ? masAntiguasPrimero(datos.diferencias) : null,
@@ -194,16 +195,23 @@ export const textoVerResumen = (total: number, tope: number = TOPE_INICIO.solici
 
 /** El filtro de Inventario → Solicitudes con la lista completa de cada etapa (si la del Inicio vino con tope). */
 export const FILTRO_ETAPA = {
-    pedida: 'pendiente', aprobada: 'aprobada', despachada: 'todas', recibida: 'recibida', diferencias: 'discrepancias',
-} as const satisfies Record<ClaveEtapa, string>;
+    pedida: 'pendiente', aprobada: 'aprobada', recibida: 'recibida', diferencias: 'discrepancias',
+} as const satisfies Record<ClaveEtapa, FiltroInventario>;
+
+/**
+ * El filtro de una etapa con lo que trae: «Aprobada» abre «Todas» si alguna por recibir está en tránsito (el filtro
+ * «Aprobadas» de Inventario no la muestra). `enTransito` = `circuito.despachada.total`.
+ */
+export const filtroEtapa = (clave: ClaveEtapa, enTransito = 0): FiltroInventario =>
+    (clave === 'aprobada' && enTransito > 0 ? 'todas' : FILTRO_ETAPA[clave]);
 
 /**
  * El enlace a Inventario cuando la lista del Inicio vino cortada por el servidor: «Ver las 240 en Inventario». Sin cifra
- * si el filtro de llegada no muestra solo esas (Despachada abre «todas»: Inventario no tiene filtro de en camino) o si
- * es una sola. En Diferencias la cifra es de solicitudes, como la pestaña.
+ * si el filtro de llegada no muestra solo esas («Todas»: p. ej. Aprobada con alguna en tránsito) o si es una sola. En
+ * Diferencias la cifra es de solicitudes, como la pestaña.
  */
-export const textoEnInventario = (clave: ClaveEtapa, total: number): string =>
-    (FILTRO_ETAPA[clave] === 'todas' || total <= 1 ? 'Ver en Inventario' : `Ver las ${total} en Inventario`);
+export const textoEnInventario = (clave: ClaveEtapa, total: number, filtro: FiltroInventario = FILTRO_ETAPA[clave]): string =>
+    (filtro === 'todas' || total <= 1 ? 'Ver en Inventario' : `Ver las ${total} en Inventario`);
 
 // ─────────────────────────────── Textos de los paneles ───────────────────────────────
 
@@ -254,20 +262,18 @@ export const textoApurar = (quien: string | null): string => (quien ? `Apurar a 
 
 export const tituloAprobadas = (n: number): string => (n === 0 ? 'Nada por recibir' : `${plural(n, '1 aprobada', `${n} aprobadas`)} por recibir`);
 
-/** «Leonardo ya las aprobó; falta que salgan de bodega.» Con varios aprobadores (o sin nombre), sin nombre. */
+/**
+ * «Leonardo ya las aprobó; falta que confirmen lo que llegó.» Con varios aprobadores (o sin nombre), sin nombre. Sin
+ * bodega ni despacho: don Luis (2026-10-23) dejó a bodegueros y conductores fuera del ciclo; lo que falta es recibir.
+ */
 export function bajadaAprobadas(lista: readonly SolicitudPerfil[]): string {
-    if (lista.length === 0) return 'Lo aprobado espera aquí hasta que salga de bodega.';
+    if (lista.length === 0) return 'Lo aprobado espera aquí hasta que confirmen lo que llegó.';
     const una = lista.length === 1;
     const quienes = lista.map(s => nombreCortoDe(s.aprobacion?.por)).filter((q, i, todos) => todos.indexOf(q) === i);
-    const salgan = una ? 'falta que salga de bodega' : 'falta que salgan de bodega';
-    if (quienes.length === 1 && quienes[0]) return `${quienes[0]} ya ${una ? 'la' : 'las'} aprobó; ${salgan}.`;
-    return `Ya ${una ? 'está aprobada' : 'están aprobadas'}; ${salgan}.`;
+    const falta = 'falta que confirmen lo que llegó';
+    if (quienes.length === 1 && quienes[0]) return `${quienes[0]} ya ${una ? 'la' : 'las'} aprobó; ${falta}.`;
+    return `Ya ${una ? 'está aprobada' : 'están aprobadas'}; ${falta}.`;
 }
-
-export const tituloDespachadas = (n: number): string => (n === 0 ? 'Nada va en camino' : `${plural(n, '1 va', `${n} van`)} en camino`);
-export const bajadaDespachadas = (n: number): string => (n === 0
-    ? 'Lo que sale de bodega aparece aquí hasta que la obra confirme lo que llegó.'
-    : 'Ya salieron de bodega; falta que la obra confirme lo que llegó.');
 
 export const tituloRecibidas = (n: number): string => (n === 0 ? 'Nada llegó este mes' : `${plural(n, '1 llegó', `${n} llegaron`)} este mes`);
 export const bajadaRecibidas = (hoy: string): string =>
@@ -281,9 +287,9 @@ export const tituloDiferencias = (n: number): string => (n === 0 ? 'Ninguna dife
  * («4 ítems en 3 solicitudes.»), porque la lista va ítem por ítem.
  */
 export function bajadaDiferencias(n: number, items: number = n): string {
-    if (n === 0) return 'Cuando algo llegue distinto a lo enviado, aparece aquí con quién lo despachó y quién lo recibió.';
+    if (n === 0) return 'Cuando algo llegue distinto a lo enviado, aparece aquí con quién lo aprobó y quién lo recibió.';
     const detalle = items > n ? `${items} ítems en ${plural(n, '1 solicitud', `${n} solicitudes`)}. ` : '';
-    return `${detalle}Lo que llegó no calza con lo enviado. Pregúntale por WhatsApp a quien despachó o recibió: el mensaje va listo.`;
+    return `${detalle}Lo que llegó no calza con lo enviado. Pregúntale por WhatsApp a quien aprobó o recibió: el mensaje va listo.`;
 }
 
 // ─────────────────────────────── Filas de solicitudes ───────────────────────────────
@@ -311,25 +317,15 @@ const elDia = (fecha?: string | null) => (fechaCorta(fecha) ? ` el ${fechaCorta(
 export const bajadaPedida = (s: SolicitudPerfil): string =>
     juntar([cargoDe(s.solicitante?.rol), fechaCorta(s.fecha_solicitud) && `pidió el ${fechaCorta(s.fecha_solicitud)}`, s.codigo]);
 
-/** Aprobada: «Aprobó Leonardo el 18 oct · sale de Bodega Cerrillos». */
+/**
+ * Aprobada por recibir: «Aprobó Leonardo el 18 oct · sale de Bodega Cerrillos». Igual en las que el servidor manda como
+ * despachadas (en tránsito): quién despachó no se nombra (don Luis 2026-10-23: bodegueros y conductores fuera del ciclo).
+ */
 export function bajadaAprobada(s: SolicitudPerfil): string {
     const quien = nombreCortoDe(s.aprobacion?.por);
     const origen = nombreLugar(s.origen);
     return juntar([quien ? `Aprobó ${quien}${elDia(s.aprobacion?.fecha)}` : fechaCorta(s.aprobacion?.fecha) && `Aprobada el ${fechaCorta(s.aprobacion?.fecha)}`,
         origen && `sale de ${origen}`]) || s.codigo;
-}
-
-/**
- * Despachada: «Despachó Jhoan Vásquez el 21 oct · desde Paraguay». La interfaz no tiene «Despachar» (muchas no traen
- * despacho): entonces dice lo que sí se registró, quién la aprobó.
- */
-export function bajadaDespachada(s: SolicitudPerfil): string {
-    const despacho = nombreDe(s.despacho?.por);
-    const aprobo = nombreCortoDe(s.aprobacion?.por);
-    const origen = nombreLugar(s.origen);
-    const quien = despacho ? `Despachó ${despacho}${elDia(s.despacho?.fecha)}`
-        : aprobo ? `Aprobó ${aprobo}${elDia(s.aprobacion?.fecha)}` : null;
-    return juntar([quien, origen && `desde ${origen}`]) || s.codigo;
 }
 
 /** Recibida: «Recibió Carla Soto el 10 oct · desde Bodega Cerrillos». */
@@ -361,7 +357,7 @@ export interface PildoraFila { texto: string; tono: TonoTarjeta }
 export const pildorasTipo = (s: Pick<SolicitudPerfil, 'tipo'>): PildoraFila[] =>
     (s.tipo === 'herramientas' ? [{ texto: 'Herramientas', tono: 'neutro' }] : []);
 
-/** Una despachada que ya empezó a llegar (recepción parcial): «Llegó una parte». */
+/** Una por recibir que ya empezó a llegar (recepción parcial): «Llegó una parte». */
 export const pildorasParcial = (s: Pick<SolicitudPerfil, 'estado'>): PildoraFila[] =>
     (s.estado === 'recepcion_parcial' ? [{ texto: 'Llegó una parte', tono: 'azul' }] : []);
 
@@ -452,16 +448,16 @@ export const queDiferencia = (d: Pick<DiferenciaPerfil, 'diferencia' | 'unidad'>
 export const haceCuanto = (n: number): string => (n <= 0 ? 'Hoy.' : `Hace ${dias(n)}.`);
 
 export interface PersonaDiferencia {
-    /** Qué hizo: despachó; si la app no registró despacho, quien aprobó (decidió qué salía); recibió. */
-    paso: 'despacho' | 'aprobacion' | 'recepcion';
+    /** Qué hizo: aprobó (decidió qué y cuánto salía) o recibió (anotó lo que llegó). */
+    paso: 'aprobacion' | 'recepcion';
     nombre: string;
     /** « el 7 oct» (vacío si la app no guardó la fecha). */
     cuando: string;
-    /** «Despachó el 7 oct», «Aprobó el 6 oct», «Recibió el 8 oct». */
+    /** «Aprobó el 6 oct», «Recibió el 8 oct». */
     texto: string;
 }
 
-const VERBO: Record<PersonaDiferencia['paso'], string> = { despacho: 'Despachó', aprobacion: 'Aprobó', recepcion: 'Recibió' };
+const VERBO: Record<PersonaDiferencia['paso'], string> = { aprobacion: 'Aprobó', recepcion: 'Recibió' };
 
 const persona = (paso: PersonaDiferencia['paso'], p: PasoPerfil | null | undefined): PersonaDiferencia | null => {
     const nombre = nombreDe(p?.por);
@@ -470,12 +466,12 @@ const persona = (paso: PersonaDiferencia['paso'], p: PasoPerfil | null | undefin
 };
 
 /**
- * «Quién lo hizo»: quien despachó y quien recibió, con su fecha. Si la app no registró despacho (la interfaz no tiene
- * «Despachar»), va quien la aprobó, que decidió qué salía. Quien falte no va (no se inventa).
+ * «Quién lo hizo»: quien aprobó (decidió qué y cuánto salía) y quien recibió, con su fecha. Quien despachó no va, aunque
+ * la app lo tenga registrado (don Luis 2026-10-23: bodegueros y conductores fuera del ciclo de solicitud). Quien falte no
+ * va (no se inventa).
  */
-export function personasDiferencia(d: Pick<DiferenciaPerfil, 'despacho' | 'aprobacion' | 'recepcion'>): PersonaDiferencia[] {
-    const sale = persona('despacho', d.despacho) ?? persona('aprobacion', d.aprobacion);
-    return [sale, persona('recepcion', d.recepcion)].filter((p): p is PersonaDiferencia => !!p);
+export function personasDiferencia(d: Pick<DiferenciaPerfil, 'aprobacion' | 'recepcion'>): PersonaDiferencia[] {
+    return [persona('aprobacion', d.aprobacion), persona('recepcion', d.recepcion)].filter((p): p is PersonaDiferencia => !!p);
 }
 
 // ─────────────────────────────── Medidas de una diferencia ───────────────────────────────
@@ -500,7 +496,7 @@ export type BotonPreguntarTexto = 'largo' | 'corto' | 'icono';
 /**
  * Cómo va una diferencia según el ancho de su fila: `sangria` (la frase y «Quién lo hizo» bajo el ítem, alineados tras
  * el ícono; angosta, a todo el ancho), `juntas` (las dos personas lado a lado) y el botón «Preguntar»: «Preguntar a
- * Jhoan», «Preguntar» o solo el ícono (44 × 44). Los mismos cortes del lienzo.
+ * Leonardo», «Preguntar» o solo el ícono (44 × 44). Los mismos cortes del lienzo.
  */
 export function disposicionDiferencia(ancho: number, personas: number): { sangria: boolean; juntas: boolean; boton: BotonPreguntarTexto } {
     const sangria = ancho >= 420;
@@ -546,11 +542,22 @@ export function mensajeApurar(
 }
 
 /**
- * A quien despachó (o aprobó) o recibió: «Hola Jhoan, te escribo por una diferencia en la solicitud TRF-… (Bodega
- * Cerrillos → Domeyko). • Cemento: se enviaron 50 sacos y llegaron 48: faltan 2 sacos. • Despachó Jhoan Vásquez el
- * 7 oct. Recibió Tomás Vera el 8 oct. ¿Me cuentas qué pasó?».
+ * El cierre del mensaje según a quién se le escribe: a quien recibió (anotó lo que llegó), «¿Me cuentas qué pasó?»; a
+ * quien aprobó (es quien resuelve las diferencias, mig 131), «¿La puedes revisar?». A nadie que despachó: no está en el
+ * ciclo (don Luis 2026-10-23).
  */
-export function mensajeDiferencia(d: DiferenciaPerfil, para: string): string {
+export const CIERRE_DIFERENCIA: Record<PersonaDiferencia['paso'], string> = {
+    recepcion: '¿Me cuentas qué pasó?',
+    aprobacion: '¿La puedes revisar?',
+};
+
+/**
+ * A quien aprobó o recibió: «Hola Tomás, te escribo por una diferencia en la solicitud TRF-… (Bodega Cerrillos →
+ * Domeyko). • Cemento: se enviaron 50 sacos y llegaron 48: faltan 2 sacos. • Aprobó Leonardo López el 6 oct. Recibió
+ * Tomás Vera el 8 oct. ¿Me cuentas qué pasó?». `paso` = qué hizo a quien se le escribe (decide el cierre); sin él, el
+ * de quien recibió.
+ */
+export function mensajeDiferencia(d: DiferenciaPerfil, para: string, paso: PersonaDiferencia['paso'] = 'recepcion'): string {
     const lugares = [nombreLugar(d.origen), nombreLugar(d.destino)].filter(Boolean).join(' → ');
     const quienes = personasDiferencia(d).map(p => `${VERBO[p.paso]} ${p.nombre}${p.cuando}.`);
     const nombre = nombreCorto(para);
@@ -558,6 +565,6 @@ export function mensajeDiferencia(d: DiferenciaPerfil, para: string): string {
         `Hola${nombre ? ` ${nombre}` : ''}, te escribo por una diferencia en la solicitud ${d.codigo}${lugares ? ` (${lugares})` : ''}.`,
         `• ${d.descripcion?.trim() || 'Ítem sin nombre'}: se enviaron ${cantidad(d.enviada, d.unidad)} y llegaron ${numero(d.recibida)}: ${queDiferencia(d)}.`,
         ...(quienes.length ? [`• ${quienes.join(' ')}`] : []),
-        '¿Me cuentas qué pasó?',
+        CIERRE_DIFERENCIA[paso],
     ].join('\n');
 }

@@ -640,10 +640,11 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       «El circuito» (`VistaJefatura`); quien pide para su obra (jefes de obra, prevencionistas) → opción A
       (`VistaObra`). El resto ve lo de antes (`RespaldoInventario`: «Solicitudes» con todos los grupos + «Alertas de
       inventario»). El Super Administrador (Marcos, Mauricio) → la vista «Super Administrador» de la opción A
-      (`VistaSuperAdmin`: el circuito de todas las obras y «Quién tiene qué» 2×2 en una tarjeta, «Lo último que
-      pasó» al lado del mismo alto —se desliza por dentro— y abajo, a todo el ancho, la «Secuencia completa» por paso con
-      pestañas; un paso que la app no registró va en gris, «Sin despacho»; los cinco pasos en columnas solo si la lista mide
-      32rem o más, con `@container`: si no, en vertical) con **«Ver como»** arriba (`VerComo.tsx`): Super Admin · quien
+      (`VistaSuperAdmin`: el circuito de todas las obras y «Quién tiene qué» —tres cajas en una fila desde 768 px:
+      quien aprueba · Obras · Jefatura— en una tarjeta, «Lo último que pasó» al lado del mismo alto —se desliza por
+      dentro— y abajo, a todo el ancho, la «Secuencia completa» por paso con pestañas; un paso que la app no registró va
+      en gris, «Pidió · sin datos aquí»; los cuatro pasos en columnas solo si la lista mide 32rem o más, con
+      `@container`: si no, en vertical) con **«Ver como»** arriba (`VerComo.tsx`): Super Admin · quien
       aprueba (su nombre, de la respuesta) · Jefatura · Jefe de obra (+ selector de obra de 44 px) (sin «Otros perfiles», Marcos 2026-10-23), con
       los mismos datos recalculados para cada perfil (etiquetas por rol, nunca un nombre fijo). Es un control segmentado como `FiltroFichas`
       (marco `bg-card` con sombra chica, indicador verde de ítem elegido de `PestanasElasticas`, sin cifras) dentro de
@@ -651,6 +652,12 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       (`ROTULO_FICHAS`) y una nota chica `text-xs` en cada opción que no es la propia (qué se está viendo). La línea
       bajo el título cambia con el perfil (y con lo elegido en «Ver como»; textos del lienzo). Regla de quién ve qué:
       inventario-transferencias.md § Qué vista ve cada uno. Piezas en `widgets/inventarioPerfil/`.
+      **Circuito de tres pasos (2026-10-23, don Luis: bodegueros y conductores fuera del ciclo de solicitud)**: en las
+      cuatro vistas el circuito es Pedida → Aprobada · por recibir → Recibida (+ Diferencias aparte), sin «Despachada»:
+      Leonardo, obra y Super Admin, tres círculos (`grid-cols-3`, mismo tope de 672 px); jefatura, tres tarjetas en línea
+      + Diferencias (cuatro cajas; la tira del celular, tres casillas). Lo que el servidor manda en tránsito o con una
+      parte recibida cuenta en «Aprobada» (`porRecibirCircuito` de `formato.ts`). Sin caja «Bodega», sin paso
+      «Despachar», sin «despachó» en ningún texto; en Diferencias, «Quién lo hizo» = Aprobó + Recibió.
     - **Vehículos** (`VehicleExpiries`, 3 filas en la tarjeta; tarjeta y franja siguen con el número del
       menú, que cuenta papeles). Detalle **«Calendario + ficha»** (`DetalleVehiculos`, Marcos 2026-10-22:
       la opción B «Calendario» del lienzo combinada con la ficha de la opción A;

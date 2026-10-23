@@ -10,15 +10,15 @@ import WhatsAppIcon from '../../../ui/WhatsAppIcon';
 import { EnlaceFicha, PieFicha, Pildora } from '../FichaInicio';
 import { CIFRA, PILDORA, ROTULO_FICHAS } from '../fichasInicio';
 import type { TonoTarjeta } from '../tarjetaActiva';
-import { iniciales, nombreCorto, numero, plural, rutaDiferencia, rutaLista, rutaSolicitud, tonoDias } from './formato';
+import { iniciales, nombreCorto, numero, plural, porRecibirCircuito, rutaDiferencia, rutaLista, rutaSolicitud, tonoDias } from './formato';
 import {
-    FILTRO_ETAPA, NOMBRE_ETAPA, POR_DEFECTO_JEFATURA, TOPE_INICIO, alcanceJefatura, anchoFila, aQuienApurar, bajadaAprobada,
-    bajadaAprobadas, bajadaDespachada, bajadaDespachadas, bajadaDiferencias, bajadaPedida, bajadaPedidas, bajadaRecibida,
-    bajadaRecibidas, cifraDias, cifraDiferencia, cuantasPorApurar, diferenciasPendientes, disposicionDiferencia, etapasJefatura,
-    etiquetaEtapa, fraseFila, fueraDeLista, haceCuanto, laApruebaSoloSuperAdmin, listasJefatura, mensajeApurar, mensajeDiferencia,
-    notaObraElegida, notaSoloSuperAdmin, personasDiferencia, pildoraRecibida, pildorasParcial, pildorasTipo, queDiferencia,
-    rellenaEtapa, rutaDe, solicitudesConDiferencia, textoApurar, textoEnInventario, textosTope, textoVerResumen, tituloAprobadas,
-    tituloDespachadas, tituloDiferencias, tituloFila, tituloPedidas, tituloRecibidas, tonoCirculo,
+    NOMBRE_ETAPA, POR_DEFECTO_JEFATURA, TOPE_INICIO, alcanceJefatura, anchoFila, aQuienApurar, bajadaAprobada, bajadaAprobadas,
+    bajadaDiferencias, bajadaPedida, bajadaPedidas, bajadaRecibida, bajadaRecibidas, cifraDias, cifraDiferencia, cuantasPorApurar,
+    diferenciasPendientes, disposicionDiferencia, etapasJefatura, etiquetaEtapa, filtroEtapa, fraseFila, fueraDeLista, haceCuanto,
+    laApruebaSoloSuperAdmin, listasJefatura, mensajeApurar, mensajeDiferencia, notaObraElegida, notaSoloSuperAdmin,
+    personasDiferencia, pildoraRecibida, pildorasParcial, pildorasTipo, queDiferencia, rellenaEtapa, rutaDe,
+    solicitudesConDiferencia, textoApurar, textoEnInventario, textosTope, textoVerResumen, tituloAprobadas, tituloDiferencias,
+    tituloFila, tituloPedidas, tituloRecibidas, tonoCirculo,
     type BotonPreguntarTexto, type ClaveEtapa, type CifraFila, type DiferenciasPendientes, type EtapaCircuito, type ListasJefatura,
     type PersonaDiferencia, type PildoraFila,
 } from './jefatura.modelo';
@@ -29,18 +29,19 @@ import type { DiferenciaPerfil, InventarioPerfilApi, SolicitudPerfil } from './t
  * Detalle «Inventario» del Inicio para JEFATURA (Daphne Lazcano: «Ver diferencias» sin aprobar; Marcos 2026-10-22):
  * opción B «El circuito» del lienzo (`Jefatura` de boveda-diseno/frontend/src/preview/inventario/opcionB.tsx).
  *
- * Arriba, el circuito de la solicitud de lo que ve (con `ver_todas`, todas las obras): Pedida → Aprobada → Despachada →
- * Recibida, y Diferencias aparte, cada etapa con su cifra (todas cuentan solicitudes, como la tarjeta del Inicio). Al
- * entrar vienen abiertas «Pedida» (lo que espera a Leonardo) y «Diferencias» (lo que ella aclara); tocar otra etapa
- * muestra solo su lista y tocarla de nuevo vuelve. Desde 768 px las cinco etapas van en tarjetas en línea (más compactas
+ * Arriba, el circuito de la solicitud de lo que ve (con `ver_todas`, todas las obras): Pedida → Aprobada → Recibida, y
+ * Diferencias aparte, cada etapa con su cifra (todas cuentan solicitudes, como la tarjeta del Inicio). Sin «Despachada»:
+ * don Luis (2026-10-23) dejó a bodegueros y conductores fuera del ciclo; lo que va en tránsito cuenta en «Aprobada · por
+ * recibir». Al entrar vienen abiertas «Pedida» (lo que espera a Leonardo) y «Diferencias» (lo que ella aclara); tocar otra
+ * etapa muestra solo su lista y tocarla de nuevo vuelve. Desde 768 px las cuatro cajas van en tarjetas en línea (más compactas
  * si la columna es angosta; en una columna de menos de 600 px, en la tira) y, con espacio, los dos paneles lado a lado,
  * siempre con «Pedida» completa; en el celular (bajo 768 px) el circuito va en una tira de una línea, las diferencias en
  * un chip rojo y lo que espera a Leonardo resumido, para que sus diferencias suban. Cada lista muestra primero unas
  * pocas (`TOPE_INICIO`) con «Ver las N» / «Ocultar».
  *
  * Daphne NO aprueba ni resuelve: no hay botones de aprobar ni de resolver. Sus acciones son de WhatsApp (sin número: los
- * usuarios no tienen teléfono, ella elige el contacto): «Apurar a Leonardo» con la lista y «Preguntar» a quien despachó o
- * recibió, con el mensaje listo. Las solicitudes aprobadas, en camino y recibidas abren Inventario → Solicitudes con ella
+ * usuarios no tienen teléfono, ella elige el contacto): «Apurar a Leonardo» con la lista y «Preguntar» a quien aprobó o
+ * recibió, con el mensaje listo. Las solicitudes aprobadas (también las en tránsito) y recibidas abren Inventario → Solicitudes con ella
  * a la vista y cada diferencia abre «Diferencias» (en solo lectura para ella); las pendientes no se tocan (como el
  * lienzo: ella no actúa sobre cada una). Solo se muestra lo que la app registra.
  * Lógica pura (orden, topes, textos, medidas y mensajes): `jefatura.modelo.ts`. La espera, el error y la línea bajo el
@@ -159,8 +160,8 @@ const Cola: React.FC = () => (
 );
 
 /**
- * Desde 768 px: cuatro tarjetas en línea con flechas y Diferencias aparte. `compacta` (columna angosta, bajo 860 px):
- * menos relleno y letra un paso más chica, para que las cinco quepan sin pasar a la tira del celular.
+ * Desde 768 px: tres tarjetas en línea con flechas y Diferencias aparte. `compacta` (columna angosta, bajo 860 px):
+ * menos relleno y letra un paso más chica, para que las cuatro quepan sin pasar a la tira del celular.
  */
 const CircuitoEnLinea: React.FC<{
     etapas: EtapaCircuito[]; abiertas: ClaveEtapa[]; conCola: boolean; compacta: boolean; onElegir: (c: ClaveEtapa) => void;
@@ -189,7 +190,7 @@ const CircuitoEnLinea: React.FC<{
                                 : cn('shadow-[var(--shadow-sm)] transition-colors duration-200 hover:bg-muted/40 motion-reduce:transition-none', FOCO,
                                     abierta && 'ring-2 ring-ring'))}>
                         {compacta ? (
-                            // Angosta: el círculo con la marca arriba y el nombre debajo, para que «Despachada» quepa entera.
+                            // Angosta: el círculo con la marca arriba y el nombre debajo, para que «Diferencias» quepa entera.
                             <>
                                 <span className="flex w-full flex-wrap items-center justify-between gap-1.5">
                                     <CirculoEtapa e={e} rellena={rellena} className="h-6 w-6" />
@@ -379,12 +380,15 @@ const Enlace: React.FC<React.ComponentProps<typeof EnlaceFicha>> = props => {
     return <span className={cn('contents', movil && '[&>button]:min-h-11')}><EnlaceFicha {...props} /></span>;
 };
 
-/** «Ver las 240 en Inventario»: solo si el servidor cortó la lista (lo que falta está en Inventario). */
-const pieInventario = (clave: ClaveEtapa, total: number, enLista: number, ir: Ir): React.ReactNode => (
-    fueraDeLista(total, enLista) > 0
-        ? <Enlace onClick={() => ir(rutaLista(FILTRO_ETAPA[clave]))}>{textoEnInventario(clave, total)}</Enlace>
-        : undefined
-);
+/**
+ * «Ver las 240 en Inventario»: solo si el servidor cortó la lista (lo que falta está en Inventario). `enTransito` =
+ * `circuito.despachada.total`: con alguna, «Aprobada» abre «Todas» (`filtroEtapa`).
+ */
+const pieInventario = (clave: ClaveEtapa, total: number, enLista: number, ir: Ir, enTransito = 0): React.ReactNode => {
+    if (fueraDeLista(total, enLista) <= 0) return undefined;
+    const filtro = filtroEtapa(clave, enTransito);
+    return <Enlace onClick={() => ir(rutaLista(filtro))}>{textoEnInventario(clave, total, filtro)}</Enlace>;
+};
 
 /** Qué hace la fila al tocarla. */
 type Accion = { texto: string; onClick: () => void };
@@ -478,11 +482,13 @@ const BotonApurar: React.FC<{ quien: string | null; mensaje: () => string }> = (
 );
 
 /**
- * «Preguntar» por WhatsApp a quien despachó (o aprobó) o recibió. Sin relleno (el relleno es para «Apurar a Leonardo»):
- * con espacio, enlace verde con el ícono; si no cabe, solo el ícono en un círculo de 44 × 44 con su nombre para el lector.
+ * «Preguntar» por WhatsApp a quien aprobó o recibió (el mensaje cierra distinto para cada uno: `CIERRE_DIFERENCIA`). Sin
+ * relleno (el relleno es para «Apurar a Leonardo»): con espacio, enlace verde con el ícono; si no cabe, solo el ícono en un
+ * círculo de 44 × 44 con su nombre para el lector.
  */
-const BotonPreguntar: React.FC<{ nombre: string; d: DiferenciaPerfil; texto: BotonPreguntarTexto }> = ({ nombre, d, texto }) => {
-    const alTocar = () => { void shareViaWhatsApp(mensajeDiferencia(d, nombre), `Diferencia ${d.codigo}`); };
+const BotonPreguntar: React.FC<{ p: PersonaDiferencia; d: DiferenciaPerfil; texto: BotonPreguntarTexto }> = ({ p, d, texto }) => {
+    const { nombre } = p;
+    const alTocar = () => { void shareViaWhatsApp(mensajeDiferencia(d, nombre, p.paso), `Diferencia ${d.codigo}`); };
     const etiqueta = `Preguntar a ${nombre} por WhatsApp`;
     if (texto === 'icono') {
         return (
@@ -503,7 +509,7 @@ const BotonPreguntar: React.FC<{ nombre: string; d: DiferenciaPerfil; texto: Bot
     );
 };
 
-/** Una persona de la diferencia: quién despachó (o aprobó) o quién recibió (nombre y fecha, una línea cada uno) y su botón. */
+/** Una persona de la diferencia: quién aprobó o quién recibió (nombre y fecha, una línea cada uno) y su botón. */
 const Persona: React.FC<{ p: PersonaDiferencia; d: DiferenciaPerfil; boton: BotonPreguntarTexto }> = ({ p, d, boton }) => (
     <li className="flex min-w-0 items-center gap-2.5 py-1.5">
         <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-label font-bold text-foreground shadow-[var(--shadow-sm)]">
@@ -513,12 +519,12 @@ const Persona: React.FC<{ p: PersonaDiferencia; d: DiferenciaPerfil; boton: Boto
             <span className="block break-words text-sm font-semibold leading-snug">{p.nombre}</span>
             <span className="block text-xs text-muted-foreground">{p.texto}</span>
         </span>
-        <BotonPreguntar nombre={p.nombre} d={d} texto={boton} />
+        <BotonPreguntar p={p} d={d} texto={boton} />
     </li>
 );
 
 /**
- * Una diferencia: qué ítem, cuánto falta (o sobra) y las personas con nombre: quién despachó y quién recibió. `ancho` =
+ * Una diferencia: qué ítem, cuánto falta (o sobra) y las personas con nombre: quién aprobó y quién recibió. `ancho` =
  * el de su fila, calculado desde la vista (`anchoFila`): angosta (celular), la frase y las personas usan todo el ancho,
  * sin la sangría del ícono; ancha, las dos personas van lado a lado. La cabeza (ítem, ruta y cifra) se toca y abre la
  * diferencia en Inventario (solo lectura).
@@ -627,33 +633,18 @@ const PanelEtapa: React.FC<DatosPanel & { clave: ClaveEtapa; ctx: Contexto }> = 
     const tope = TOPE_INICIO.solicitudes;
     if (clave === 'pedida') return <PedidasJefatura datos={datos} listas={listas} quien={props.quien} pendientes={pendientes} ir={ir} ctx={ctx} />;
     if (clave === 'aprobada') {
+        // Por recibir: las aprobadas y las que el servidor manda como despachadas (en tránsito o con una parte recibida).
         const lista = listas.aprobadas;
-        const total = Math.max(circuito.aprobada.total, lista.length);
+        const enTransito = circuito.despachada?.total ?? 0;
+        const total = Math.max(porRecibirCircuito(circuito).total, lista.length);
         return (
             <Panel rotulo="Paso 2 · Aprobada" tono="neutro" grande={grande} titulo={tituloAprobadas(total)} bajada={bajadaAprobadas(lista)}
-                pie={pieInventario(clave, total, lista.length, ir)}>
+                pie={pieInventario(clave, total, lista.length, ir, enTransito)}>
                 {lista.length > 0 && (
                     <ListaConTope lista={lista} total={total} tope={tope} dos={dos}>
                         {s => (
-                            <FilaTodas key={s.id} s={s} bajada={bajadaAprobada(s)} accion={ver(s, ir)}
-                                cifra={cifraDias(s.dias, 'en bodega', tonoDias(s.dias), 'aprobada')} />
-                        )}
-                    </ListaConTope>
-                )}
-            </Panel>
-        );
-    }
-    if (clave === 'despachada') {
-        const lista = listas.despachadas;
-        const total = Math.max(circuito.despachada.total, lista.length);
-        return (
-            <Panel rotulo="Paso 3 · Despachada" tono={total ? 'azul' : 'neutro'} grande={grande} titulo={tituloDespachadas(total)} bajada={bajadaDespachadas(total)}
-                pie={pieInventario(clave, total, lista.length, ir)}>
-                {lista.length > 0 && (
-                    <ListaConTope lista={lista} total={total} tope={tope} dos={dos}>
-                        {s => (
-                            <FilaTodas key={s.id} s={s} bajada={bajadaDespachada(s)} accion={ver(s, ir)} extra={pildorasParcial(s)}
-                                cifra={cifraDias(s.dias, 'en camino', 'azul', 'salió')} />
+                            <FilaTodas key={s.id} s={s} bajada={bajadaAprobada(s)} accion={ver(s, ir)} extra={pildorasParcial(s)}
+                                cifra={cifraDias(s.dias, 'sin recibir', tonoDias(s.dias), 'aprobada')} />
                         )}
                     </ListaConTope>
                 )}
@@ -664,7 +655,7 @@ const PanelEtapa: React.FC<DatosPanel & { clave: ClaveEtapa; ctx: Contexto }> = 
         const lista = listas.recibidas;
         const total = Math.max(circuito.recibida.total, lista.length);
         return (
-            <Panel rotulo="Paso 4 · Recibida" tono={total ? 'verde' : 'neutro'} grande={grande} titulo={tituloRecibidas(total)} bajada={bajadaRecibidas(datos.hoy)}
+            <Panel rotulo="Paso 3 · Recibida" tono={total ? 'verde' : 'neutro'} grande={grande} titulo={tituloRecibidas(total)} bajada={bajadaRecibidas(datos.hoy)}
                 pie={pieInventario(clave, total, lista.length, ir)}>
                 {lista.length > 0 && (
                     <ListaConTope lista={lista} total={total} tope={tope} dos={dos}>
@@ -686,7 +677,7 @@ const PanelEtapa: React.FC<DatosPanel & { clave: ClaveEtapa; ctx: Contexto }> = 
     return (
         <Panel rotulo="Aparte · Diferencias" tono={total ? 'rojo' : 'neutro'} grande={grande} titulo={tituloDiferencias(total)}
             bajada={bajadaDiferencias(total, items)}
-            pie={enInventario && <Enlace onClick={() => ir(rutaLista(FILTRO_ETAPA[clave]))}>{enInventario}</Enlace>}>
+            pie={enInventario && <Enlace onClick={() => ir(rutaLista(filtroEtapa(clave)))}>{enInventario}</Enlace>}>
             {lista == null ? <Vacio>Las diferencias se revisan en Inventario → Diferencias.</Vacio>
                 : lista.length > 0 && (
                     <ListaConTope lista={lista} total={items} tope={TOPE_INICIO.diferencias} dos={dos} items={items !== total}>
