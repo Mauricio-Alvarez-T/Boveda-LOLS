@@ -76,7 +76,9 @@ export function useActividadesSugeridas() {
                         params: { obra_id: payload.obra_id, mes, anio },
                     });
                     // El backend puede devolver la semana como ISO completo; comparamos YYYY-MM-DD.
-                    const existing = listRes.data.data.find(s => (s.semana || '').split('T')[0] === payload.semana);
+                    // Solo la ACTIVA bloquea: las canceladas de esa semana conviven (mig 135).
+                    const existing = listRes.data.data.find(s =>
+                        (s.semana || '').split('T')[0] === payload.semana && s.estado !== 'cancelada');
                     if (existing) {
                         toast.error(msg, {
                             description: 'Ya hay una lista activa para esta obra en esa semana. Se abre la existente.',

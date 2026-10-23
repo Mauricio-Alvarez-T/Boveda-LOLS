@@ -12,8 +12,8 @@ const { isoDe, esLunesIso, labelSemana } = require('../utils/semana');
  * migraciones 038/040, renombradas en la 116).
  *
  * Decisión de jefatura (2026-09-21): la lista NO fija un día. La semana se
- * identifica por su LUNES en la columna `semana` (DATE). Una lista por obra y
- * semana.
+ * identifica por su LUNES en la columna `semana` (DATE). Una lista ACTIVA por
+ * obra y semana: una cancelada libera el cupo (mig 135, dueño 2026-10-23).
  *
  * Flujo:
  *   1. POST   /actividades-sugeridas                 → crearLista
@@ -206,7 +206,10 @@ const actividadesSugeridasService = {
      *
      * Concurrencia: SELECT ... FOR UPDATE sobre (obra, semana) dentro de la
      * transacción evita que dos usuarios creen la misma lista a la vez. La
-     * UNIQUE uniq_obra_semana sigue como red de seguridad (ER_DUP_ENTRY → 409).
+     * UNIQUE uniq_obra_semana_activa sigue como red de seguridad (ER_DUP_ENTRY → 409).
+     *
+     * Las listas CANCELADAS de esa obra y semana no bloquean (mig 135): se
+     * conservan como historial y se arma una nueva al lado.
      *
      * Validaciones: semana (lunes, no pasada, ≤ 1 año), obra activa,
      * trabajadores activos, mínimo 1, máximo 500.
@@ -222,11 +225,15 @@ const actividadesSugeridasService = {
         try {
             await conn.beginTransaction();
 
-            // Lock pesimista contra (obra, semana) para prevenir creaciones simultáneas
-            await conn.query(
-                'SELECT id FROM actividades_sugeridas WHERE obra_id = ? AND semana = ? FOR UPDATE',
+            // Lock pesimista contra (obra, semana) para prevenir creaciones simultáneas.
+            // Solo una lista ACTIVA bloquea; las canceladas liberan la semana.
+            const [existentes] = await conn.query(
+                'SELECT id, estado FROM actividades_sugeridas WHERE obra_id = ? AND semana = ? FOR UPDATE',
                 [obra_id, semana]
             );
+            if ((existentes || []).some(e => e.estado !== 'cancelada')) {
+                throw err409('Ya existe una lista para esta obra en esa semana');
+            }
 
             await validarObraYTrabajadores(conn, obra_id, trabajadores);
 

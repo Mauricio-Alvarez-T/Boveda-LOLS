@@ -156,8 +156,13 @@ claves de permiso, archivos) en la migración 116.
   y la arman el lunes siguiente a la actividad; la de hace dos semanas ya no) — 400 "Solo se puede
   armar la lista desde la semana pasada en adelante"; máx. 1 año.
   **Sin cruce con feriados** (una semana no "coincide" con un feriado).
-- **Una lista por obra y semana** (UNIQUE `uniq_obra_semana` + `SELECT … FOR UPDATE`); 409 "Ya
-  existe una lista para esta obra en esa semana" → la UI abre la existente.
+- **Una lista ACTIVA por obra y semana** (UNIQUE `uniq_obra_semana_activa` sobre la columna
+  generada `semana_activa` = `semana`, o NULL si está cancelada + `SELECT … FOR UPDATE`); 409 "Ya
+  existe una lista para esta obra en esa semana" → la UI abre la existente (la activa).
+  **Una lista cancelada libera la semana** (mig 135, dueño 2026-10-23: Héctor Herrera armó una
+  lista con la semana equivocada y al cancelarla no podía armar la correcta). Si se canceló, no
+  habrá actividad → se puede armar otra para esa obra y semana. La cancelada se conserva
+  (historial; la lista muestra ambas con su estado), no se borra.
 - Flujo/estados (ENUM interno intacto): `citada` (UI "Creada") → `realizada` (registro) →
   `cancelada` (soft-delete; detalle `cancelado`). Solo se edita en `citada`; la semana no se edita.
 - **SIN horas (jefatura 2026-08-17)**: solo asistió/no asistió + observación. Columnas
