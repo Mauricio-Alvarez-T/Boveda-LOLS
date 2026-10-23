@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Package, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useObra } from '../../../context/ObraContext';
@@ -14,10 +14,9 @@ import {
 } from './inventarioPerfil/perfil';
 import type { InventarioPerfilApi } from './inventarioPerfil/tipos';
 import { useInventarioPerfil } from './inventarioPerfil/useInventarioPerfil';
+import { useVerComo } from './inventarioPerfil/useVerComo';
 import VerComo from './inventarioPerfil/VerComo';
-import {
-    almacenLocal, datosVerComo, descripcionVerComo, guardarVerComo, opcionesVerComo, verComoGuardado, type VistaVerComo,
-} from './inventarioPerfil/verComo.modelo';
+import { datosVerComo, descripcionVerComo } from './inventarioPerfil/verComo.modelo';
 import VistaJefatura from './inventarioPerfil/VistaJefatura';
 import VistaLeonardo from './inventarioPerfil/VistaLeonardo';
 import VistaObra from './inventarioPerfil/VistaObra';
@@ -71,7 +70,7 @@ const DetalleInventario: React.FC<Props> = ({ version, onIr, respaldo }) => {
     }
     // `key`: si cambia el perfil o la persona (otra sesión), la carga y lo elegido parten de cero.
     if (vista === 'superadmin') {
-        return <DetalleSuperAdmin key={`superadmin-${user?.id ?? ''}`} version={version} accion={accion} />;
+        return <DetalleSuperAdmin key={`superadmin-${user?.id ?? ''}`} version={version} accion={accion} respaldo={respaldo} />;
     }
     return <DetalleConDatos key={vista} vista={vista} version={version} accion={accion} />;
 };
@@ -129,18 +128,15 @@ const DetalleConDatos: React.FC<{ vista: Exclude<VistaConDatos, 'superadmin'>; v
  * la suya, de todas las obras. La elección se recuerda por persona en localStorage; la descripción bajo el título es la
  * de la vista elegida.
  */
-const DetalleSuperAdmin: React.FC<{ version?: unknown; accion: Accion }> = ({ version, accion }) => {
+const DetalleSuperAdmin: React.FC<{ version?: unknown; accion: Accion; respaldo: React.ReactNode }> = ({ version, accion, respaldo }) => {
     const { user } = useAuth();
     const { obras: globales, selectedObra } = useObra();
     const carga = useInventarioPerfil(version);
     const { datos } = carga;
     const userId = user?.id;
 
-    const [como, setComoEstado] = useState<VistaVerComo>(() => verComoGuardado(almacenLocal(), userId));
-    const setComo = useCallback((v: VistaVerComo) => {
-        setComoEstado(v);
-        guardarVerComo(almacenLocal(), userId, v);
-    }, [userId]);
+    // Lo elegido en la barra «Ver como» de arriba del Inicio (VerComoInicio, Marcos 2026-10-23), compartido.
+    const [como] = useVerComo(userId);
 
     // «Jefe de obra»: la obra que se tocó aquí; mientras no se toque ninguna, sigue a la de arriba (o la de más movimiento).
     const [obraElegida, setObraElegida] = useState<number | null>(null);
@@ -150,12 +146,22 @@ const DetalleSuperAdmin: React.FC<{ version?: unknown; accion: Accion }> = ({ ve
 
     const datosVista = useMemo(() => (datos ? datosVerComo(como, datos, obra) : null), [como, datos, obra]);
     const descripcion = descripcionVerComo(como, { obra: obra?.nombre, aprobadores: datos?.aprobadores });
-    const opcionesComo = useMemo(() => opcionesVerComo(datos?.aprobadores), [datos?.aprobadores]);
+
+    // «Gerencia»: en Inventario don Luis ve lo general (el respaldo, como el resto de los Administradores).
+    if (como === 'gerencia') {
+        return (
+            <DetalleModulo icon={Package} titulo="Inventario" descripcion={descripcion} accion={accion}>
+                {respaldo}
+            </DetalleModulo>
+        );
+    }
 
     return (
         <DetalleModulo icon={Package} titulo="Inventario" descripcion={descripcion} accion={accion}>
-            <VerComo como={como} onComo={setComo} opciones={opcionesComo} aprobadores={datos?.aprobadores}
-                obras={opciones} obra={obraId} onObra={setObraElegida} />
+            {como === 'obra' && (
+                <VerComo modo="obra" como={como} onComo={() => {}} aprobadores={datos?.aprobadores}
+                    obras={opciones} obra={obraId} onObra={setObraElegida} />
+            )}
             <ConCarga carga={carga}>{() => {
                 if (!datosVista) {
                     return (

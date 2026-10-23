@@ -1,6 +1,6 @@
 import { comoObra } from './comoObra';
 import { quienAprueba } from './formato';
-import { descripcionInventario, type VistaInventario } from './perfil';
+import { DESCRIPCION_RESPALDO, descripcionInventario, type VistaInventario } from './perfil';
 import type { InventarioPerfilApi, PersonaPerfil, PuedePerfil, SolicitudPerfil } from './tipos';
 
 /**
@@ -11,6 +11,10 @@ import type { InventarioPerfilApi, PersonaPerfil, PuedePerfil, SolicitudPerfil }
  *   - quien aprueba (su nombre, de `aprobadores`) → VistaLeonardo como la ve él (`comoAprobador`).
  *   - «Jefatura» → VistaJefatura con lo que puede quien ve diferencias sin aprobar (`comoJefatura`).
  *   - «Jefe de obra» → VistaObra con lo de una obra (`comoObra` de comoObra.ts) y un selector de obra.
+ *   - «Gerencia» (Marcos 2026-10-23: «yo tengo que tener todas las vistas») → el Inicio como lo ve gerencia: arriba el
+ *     tablero «N temas esperan una decisión» (InicioGerencia) y, en Inventario, lo general (el respaldo), como don Luis.
+ * El selector va arriba de TODO el Inicio (VerComoInicio.tsx), no dentro de Inventario; la elección se comparte
+ * entre la barra, el Inicio y la tarjeta Inventario con `useVerComo`.
  * Sin «Otros perfiles» (Marcos 2026-10-23): los demás solo miran o tocan para que el ciclo avance; las vistas que
  * importan son estas.
  * Nunca un nombre fijo: las etiquetas son roles, y quien aprueba sale de la respuesta. Cada opción que no es la propia
@@ -19,8 +23,8 @@ import type { InventarioPerfilApi, PersonaPerfil, PuedePerfil, SolicitudPerfil }
  * Lógica PURA, con test en `verComo.modelo.test.ts`; el control está en VerComo.tsx.
  */
 
-/** Las vistas que se pueden mirar con «Ver como» (todas menos el respaldo). */
-export type VistaVerComo = Exclude<VistaInventario, 'otro'>;
+/** Las vistas que se pueden mirar con «Ver como»: las de Inventario (todas menos el respaldo) y la de gerencia. */
+export type VistaVerComo = Exclude<VistaInventario, 'otro'> | 'gerencia';
 
 export interface OpcionVerComo { key: VistaVerComo; texto: string }
 
@@ -34,6 +38,7 @@ export const TEXTO_QUIEN_APRUEBA = 'Quien aprueba';
 export function opcionesVerComo(aprobadores?: readonly PersonaPerfil[] | null): OpcionVerComo[] {
     return [
         { key: 'superadmin', texto: 'Super Admin' },
+        { key: 'gerencia', texto: 'Gerencia' },
         { key: 'leonardo', texto: quienAprueba(aprobadores) ?? TEXTO_QUIEN_APRUEBA },
         { key: 'jefatura', texto: 'Jefatura' },
         { key: 'obra', texto: 'Jefe de obra' },
@@ -90,7 +95,7 @@ export function descripcionVerComo(
     vista: VistaVerComo,
     { obra, aprobadores }: { obra?: string | null; aprobadores?: readonly PersonaPerfil[] | null } = {},
 ): string {
-    return descripcionInventario(vista, { obra, aprobadores });
+    return vista === 'gerencia' ? DESCRIPCION_RESPALDO : descripcionInventario(vista, { obra, aprobadores });
 }
 
 /**
@@ -106,6 +111,9 @@ export function notaVerComo(
             const quien = quienAprueba(aprobadores);
             return `Así lo ve ${quien ?? 'quien aprueba'}, con los mismos datos.`;
         }
+        case 'gerencia':
+            return 'Así lo ve gerencia: arriba, los temas que esperan una decisión; en Inventario, lo general. Las tarjetas de '
+                + 'abajo siguen con tus permisos.';
         case 'jefatura':
             return 'Así lo ve jefatura (ve las diferencias, no aprueba), con los mismos datos.';
         case 'obra': {
