@@ -206,6 +206,41 @@ describe('ActividadesSugeridas Service', () => {
             expect(detSql).toMatch(/INSERT INTO actividades_sugeridas_trabajadores\s*\(actividad_id,/);
         });
 
+        // Mig 135 (dueño 2026-10-23): una lista cancelada libera la semana de su obra.
+        test('crea aunque esa obra y semana tenga una lista CANCELADA (la conserva)', async () => {
+            connQueryMock
+                .mockResolvedValueOnce([[{ id: 5, estado: 'cancelada' }]])
+                .mockResolvedValueOnce([[{ id: 1, activa: 1 }]])
+                .mockResolvedValueOnce([[{ id: 10, activo: 1, fecha_desvinculacion: null }]])
+                .mockResolvedValueOnce([{ insertId: 77 }])
+                .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+            const result = await service.crearLista(
+                { obra_id: 1, semana: SEMANA_ACTUAL, trabajadores: [{ trabajador_id: 10 }] }, 1
+            );
+            expect(result).toEqual({ id: 77 });
+            expect(commitMock).toHaveBeenCalled();
+            const sqls = connQueryMock.mock.calls.map(c => c[0]);
+            // No toca la cancelada: ni la borra ni la reactiva.
+            expect(sqls.some(s => /DELETE FROM actividades_sugeridas\b/i.test(s))).toBe(false);
+            expect(sqls.some(s => /UPDATE actividades_sugeridas\b/i.test(s))).toBe(false);
+        });
+
+        test('409 sin INSERT si ya hay una lista ACTIVA (Creada o Realizada) en esa obra y semana', async () => {
+            for (const estado of ['citada', 'realizada']) {
+                connQueryMock.mockReset();
+                rollbackMock.mockClear();
+                connQueryMock.mockResolvedValueOnce([[{ id: 5, estado: 'cancelada' }, { id: 6, estado }]]);
+
+                await expect(
+                    service.crearLista({ obra_id: 1, semana: SEMANA_ACTUAL, trabajadores: [{ trabajador_id: 10 }] }, 1)
+                ).rejects.toMatchObject({ statusCode: 409, message: 'Ya existe una lista para esta obra en esa semana' });
+                const sqls = connQueryMock.mock.calls.map(c => c[0]);
+                expect(sqls.some(s => /INSERT INTO actividades_sugeridas/i.test(s))).toBe(false);
+                expect(rollbackMock).toHaveBeenCalled();
+            }
+        });
+
         test('mapea ER_DUP_ENTRY a 409 con mensaje de semana', async () => {
             const dupErr = new Error('Duplicate');
             dupErr.code = 'ER_DUP_ENTRY';
