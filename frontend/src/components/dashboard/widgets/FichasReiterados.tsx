@@ -3,7 +3,8 @@ import { cn } from '../../../utils/cn';
 import { shareViaWhatsApp } from '../../../utils/whatsappShare';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
 import { EnlaceFicha, PieFicha } from './FichaInicio';
-import { ariaFaltas, fraseFaltas, mensajeGrupoFaltas, reglasDe, REGLA_FALTA, semanasDelMes, type CeldaCalendario, type TrabajadorFaltas } from './resumenFaltasMes';
+import { mensajeGrupoFaltas } from './mensajesWhatsApp';
+import { ariaFaltas, fraseFaltas, reglasDe, REGLA_FALTA, semanasDelMes, type CeldaCalendario, type TrabajadorFaltas } from './resumenFaltasMes';
 
 interface FechaMes {
     anio: number;

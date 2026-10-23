@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { ArrowRight, FileText, PackageCheck } from 'lucide-react';
 
 import { cn } from '../../../utils/cn';
@@ -6,6 +6,7 @@ import { Button } from '../../ui/Button';
 import { EncabezadoTarjeta, CifraTarjeta } from './EncabezadoTarjeta';
 import { BotonVerMas } from './BotonVerMas';
 import { BarraTenencia } from '../../documentos-fisicos/BarraTenencia';
+import { LoteDetalleModal } from '../../documentos-fisicos/LoteDetalleModal';
 import { diaCorto, type LoteConDocumentos, type MisLotesRespuesta } from '../../documentos-fisicos/documentosFisicos';
 import type { ResumenTusDocumentos } from './resumenTusDocumentos';
 
@@ -43,8 +44,8 @@ export const TusDocumentosInicio: React.FC<{ resumen: ResumenTusDocumentos | nul
     </div>
 );
 
-const TarjetaLote: React.FC<{ l: LoteConDocumentos; enMano: boolean }> = ({ l, enMano }) => (
-    <article className={cn('rounded-2xl border bg-card p-4',
+const TarjetaLote: React.FC<{ l: LoteConDocumentos; enMano: boolean; onConfirmar?: () => void }> = ({ l, enMano, onConfirmar }) => (
+    <article className={cn('flex flex-col rounded-2xl border bg-card p-4',
         l.tenencia?.atrasado ? 'border-red-300 dark:border-red-800/70' : enMano ? 'border-border' : 'border-amber-300 dark:border-amber-700/70')}>
         <h4 className="text-base font-semibold text-foreground">Lote #{l.id} · {l.total} {plural(l.total, 'documento', 'documentos')}</h4>
         <p className="text-xs text-muted-foreground">
@@ -61,35 +62,46 @@ const TarjetaLote: React.FC<{ l: LoteConDocumentos; enMano: boolean }> = ({ l, e
                 </li>
             ))}
         </ul>
+        {/* El retiro se confirma en el mismo lote (dueño 2026-10-23: la acción donde se ve el problema). */}
+        {onConfirmar && (
+            <div className="mt-auto pt-3">
+                <Button size="sm" leftIcon={<PackageCheck className="h-4 w-4" />} onClick={onConfirmar}>Confirmar retiro</Button>
+            </div>
+        )}
     </article>
 );
 
 /** Detalle de «Tus documentos»: en tus manos (con tenencia) y lo que te espera en oficina. */
-export const DetalleTusDocumentos: React.FC<{ mis: MisLotesRespuesta; onIr: () => void }> = ({ mis, onIr }) => (
-    <div className="space-y-6">
-        <section>
-            <h3 className="mb-3 text-section font-bold text-foreground">En tus manos · llévalos a firmar y devuélvelos</h3>
-            {mis.en_mano.length === 0
-                ? <p className="text-sm text-muted-foreground">No tienes documentos en terreno.</p>
-                : <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{mis.en_mano.map(l => <TarjetaLote key={l.id} l={l} enMano />)}</div>}
-        </section>
-        <section>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-section font-bold text-foreground">Te esperan en la oficina</h3>
-                {mis.en_oficina.length > 0 && (
-                    <Button size="sm" leftIcon={<PackageCheck className="h-4 w-4" />} onClick={onIr}>Confirmar retiro</Button>
-                )}
-            </div>
-            {mis.en_oficina.length === 0
-                ? <p className="text-sm text-muted-foreground">Nada por retirar.</p>
-                : <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{mis.en_oficina.map(l => <TarjetaLote key={l.id} l={l} enMano={false} />)}</div>}
-        </section>
-        <p className="text-sm text-muted-foreground">
-            {mis.devueltos_semana > 0
-                ? `Esta semana devolviste ${mis.devueltos_semana} ${plural(mis.devueltos_semana, 'documento', 'documentos')}.`
-                : 'Esta semana aún no devuelves documentos.'}
-            {' '}
-            <Button variant="ghost" size="sm" rightIcon={<ArrowRight className="h-4 w-4" />} onClick={onIr}>Ir a Documentos físicos</Button>
-        </p>
-    </div>
-);
+export const DetalleTusDocumentos: React.FC<{ mis: MisLotesRespuesta; onIr: () => void; onCambio?: () => void }> = ({ mis, onIr, onCambio }) => {
+    const [loteAbierto, setLoteAbierto] = useState<number | null>(null);
+    // Estable: LoteDetalleModal recarga el lote cuando cambia `onClose`.
+    const cerrarLote = useCallback(() => setLoteAbierto(null), []);
+    return (
+        <div className="space-y-6">
+            <section>
+                <h3 className="mb-3 text-section font-bold text-foreground">En tus manos · llévalos a firmar y devuélvelos</h3>
+                {mis.en_mano.length === 0
+                    ? <p className="text-sm text-muted-foreground">No tienes documentos en terreno.</p>
+                    : <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{mis.en_mano.map(l => <TarjetaLote key={l.id} l={l} enMano />)}</div>}
+            </section>
+            <section>
+                <h3 className="mb-3 text-section font-bold text-foreground">Te esperan en la oficina</h3>
+                {mis.en_oficina.length === 0
+                    ? <p className="text-sm text-muted-foreground">Nada por retirar.</p>
+                    : (
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            {mis.en_oficina.map(l => <TarjetaLote key={l.id} l={l} enMano={false} onConfirmar={() => setLoteAbierto(l.id)} />)}
+                        </div>
+                    )}
+            </section>
+            <p className="text-sm text-muted-foreground">
+                {mis.devueltos_semana > 0
+                    ? `Esta semana devolviste ${mis.devueltos_semana} ${plural(mis.devueltos_semana, 'documento', 'documentos')}.`
+                    : 'Esta semana aún no devuelves documentos.'}
+                {' '}
+                <Button variant="ghost" size="sm" rightIcon={<ArrowRight className="h-4 w-4" />} onClick={onIr}>Ir a Documentos físicos</Button>
+            </p>
+            <LoteDetalleModal loteId={loteAbierto} onClose={cerrarLote} onCambio={onCambio} />
+        </div>
+    );
+};

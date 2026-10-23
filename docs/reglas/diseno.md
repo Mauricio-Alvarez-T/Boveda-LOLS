@@ -628,6 +628,17 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       ingreso»: esperando revisión; rechazadas con su motivo, pendientes con sus días, aprobadas de los
       últimos 30 días; «+ Nuevo ingreso») y su detalle `DetalleTusSolicitudes` en 3 columnas por estado.
       Portador y terreno ven su tarjeta PRIMERO (también en la barra del celular).
+    - **La acción va donde se ve el problema (dueño 2026-10-23).** Cada alerta del detalle lleva su acción en
+      la misma ficha o fila —nada de menús, bandejas ni pantallas aparte—, con enlaces del pie (`EnlaceFicha`:
+      verde = la acción, gris con su ícono = secundaria). Primero comunicar: WhatsApp con el mensaje ya escrito
+      (`mensajesWhatsApp.ts`, funciones puras con test, pie «Mensaje generado desde Bóveda LOLS», **nunca el
+      RUT**: van a grupos) vía `shareViaWhatsApp` (sin número: se elige el grupo). Asistencia: «Preguntar al
+      grupo» en cada ficha de reiterados y en la fila «Falta» de hoy; «Preguntar» por persona en el patrón de
+      fin de semana; «Recordar por WhatsApp» en obras sin guardar (todas, no solo las visibles). Gestiones RRHH
+      (`FlujoDocumentos`): «Imprimir» (marca impreso) en sin imprimir, «Armar lote» en impreso sin portador,
+      «Recordar» al portador + «Ver lote» (oficina) o «Recibir» (terreno) por lote, con los modales de
+      Documentos físicos. Portador: «Confirmar retiro» en cada lote que lo espera. Tras cada acción el Inicio
+      vuelve a pedir sus cifras.
     - **Franja de marca** (`InicioMarca`, propuesta C del lienzo, dueño 2026-10-21): sin detalle abierto, bajo
       las tarjetas, el logo LOLS en grande con saludo por hora («Buenos días, Mauricio») y hasta 4 accesos
       directos según permiso (Marcar asistencia · Nuevo ingreso · Nuevo lote · Pedir materiales). Desde 640 px.

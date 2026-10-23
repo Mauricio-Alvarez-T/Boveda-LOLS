@@ -24,12 +24,21 @@ describe('pasosFlujo', () => {
         expect(p[0]).toMatchObject({ n: 2, fuera: 1 });
         expect(p[0].filas[0]).toMatchObject({ dias: '9 días', tono: 'critico', sub: 'Pérez Ana · Sur' });
         expect(p[3]).toMatchObject({ n: 1, fuera: 1 });
-        expect(p[3].filas[0]).toMatchObject({ dias: '1 día de atraso', tono: 'critico', quien: 'Con Jhoan' });
+        expect(p[3].filas[0]).toMatchObject({ dias: '1 día de atraso', tono: 'critico', quien: 'Con Jhoan', loteId: 5 });
+        expect(p[3].filas[0].aviso).toMatch(/^Hola Jhoan, el lote #5 \(2 documentos\) venció el jue 22: /);
+        expect(p[2].filas[0]).toMatchObject({ loteId: 9 });
+        expect(p[2].filas[0].aviso).toMatch(/^Hola Jhoan, tienes el lote #9 con 2 documentos esperando/);
+        expect(p[0].filas[0]).toMatchObject({ documentoId: 1 });
         expect(p[4].filas[0]).toMatchObject({ dias: 'mar 20', tono: 'listo' });
         expect(pasoInicial(p)).toBe(0);
         expect(estadoPaso(p[0])).toBe('1 fuera de plazo');
         expect(estadoPaso(p[1])).toBe('nada pendiente');
         expect(estadoPaso(p[4])).toBe('cerrados');
+    });
+
+    it('lote sin portador (usuario eliminado): sin mensaje de WhatsApp', () => {
+        const p = pasosFlujo({ ...base, en_oficina: [lote(9, 'pendiente_retiro', { portador_id: null, portador_nombre: null })] }, null);
+        expect(p[2].filas[0].aviso).toBeNull();
     });
 
     it('sin nada fuera de plazo abre el primer paso con algo pendiente', () => {

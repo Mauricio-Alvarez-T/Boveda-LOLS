@@ -1,9 +1,13 @@
 import React from 'react';
 import { cn } from '../../../utils/cn';
+import { shareViaWhatsApp } from '../../../utils/whatsappShare';
 import { NumeroRodante } from '../../ui/NumeroRodante';
 import { SkeletonText } from '../../ui/Skeleton';
+import WhatsAppIcon from '../../ui/WhatsAppIcon';
 import AsistenciaPendiente from './AsistenciaPendiente';
+import { EnlaceFicha } from './FichaInicio';
 import { FichasReiterados } from './FichasReiterados';
+import { mensajeFaltasHoy } from './mensajesWhatsApp';
 import { DescuentosMes, FaltasPorObra, HorasExtraObras, PatronFinde, ProximosDias, TendenciaMeses } from './DetalleAsistenciaMes';
 import type { DetalleAsistenciaApi } from './resumenAsistenciaDetalle';
 import { ordenarReiterados, type FaltasMesData } from './resumenFaltasMes';
@@ -44,6 +48,7 @@ const DetalleAsistencia: React.FC<Props> = ({
 }) => {
     const reiterados = faltas ? ordenarReiterados(faltas.lista) : [];
     const grupos = ausentes ? gruposAusentes(ausentes) : [];
+    const hoyIso = `${anio}-${String(mes).padStart(2, '0')}-${String(hoyDia).padStart(2, '0')}`;
 
     if (cargando) return <div className={CARD}><SkeletonText lines={6} /></div>;
 
@@ -57,8 +62,7 @@ const DetalleAsistencia: React.FC<Props> = ({
                 {reiterados.length === 0 ? (
                     <p className={cn(CARD, 'text-sm text-muted-foreground')}>Nadie con faltas reiteradas en {mesNombre}.</p>
                 ) : (
-                    <FichasReiterados lista={reiterados} onTrabajador={onTrabajador} anio={anio} mes={mes} hoyDia={hoyDia}
-                        hoyIso={`${anio}-${String(mes).padStart(2, '0')}-${String(hoyDia).padStart(2, '0')}`} />
+                    <FichasReiterados lista={reiterados} onTrabajador={onTrabajador} anio={anio} mes={mes} hoyDia={hoyDia} hoyIso={hoyIso} />
                 )}
                 {faltas && faltas.reiterados > faltas.lista.length && (
                     <p className="text-xs text-muted-foreground">
@@ -89,9 +93,17 @@ const DetalleAsistencia: React.FC<Props> = ({
                                         <li key={g.codigo} className="flex items-start gap-3 border-t border-border py-2.5 first:border-t-0">
                                             <span className={cn('mt-1 h-2.5 w-2.5 shrink-0 rounded-[3px]', colorEstado(g.codigo))} aria-hidden />
                                             <span className="w-36 shrink-0 text-sm font-semibold">{g.nombre}</span>
-                                            <span className="min-w-0 flex-1 text-section text-muted-foreground"
+                                            <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-section text-muted-foreground"
                                                 title={g.personas.map(p => `${p.apellido_paterno} ${p.nombres}${p.obra ? ` (${p.obra})` : ''}`).join(', ')}>
                                                 <span className="line-clamp-2">{g.personas.map(p => `${p.apellido_paterno} ${p.nombres.split(' ')[0]}`).join(', ')}</span>
+                                                {/* Solo la falta sin justificar pide preguntar (dueño 2026-10-23: la acción en la fila
+                                                    del problema); licencias y vacaciones ya tienen su motivo. */}
+                                                {g.codigo === 'F' && (
+                                                    <EnlaceFicha apagado onClick={() => { void shareViaWhatsApp(mensajeFaltasHoy(g.personas, hoyIso)); }}
+                                                        icono={<WhatsAppIcon className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" />}>
+                                                        Preguntar al grupo
+                                                    </EnlaceFicha>
+                                                )}
                                             </span>
                                             <span className="text-base font-bold tabular-nums">{g.n}</span>
                                         </li>
@@ -102,7 +114,7 @@ const DetalleAsistencia: React.FC<Props> = ({
                     </div>
                     {obras && obras.total > 0 && !obras.finDeSemana && obras.sinGuardar.length > 0 && (
                         <div className={CARD}>
-                            <AsistenciaPendiente sinGuardar={obras.sinGuardar} total={obras.total} onNavigate={onAsistencia} />
+                            <AsistenciaPendiente sinGuardar={obras.sinGuardar} total={obras.total} hoyIso={hoyIso} onNavigate={onAsistencia} />
                         </div>
                     )}
                 </section>

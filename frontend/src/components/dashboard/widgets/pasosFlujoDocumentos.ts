@@ -6,6 +6,7 @@
  */
 import type { AlertasDocumentos } from '../../documentos-fisicos/documentosAlertas';
 import { diaCorto, diasDesde, resumenLote, textoTenencia, tonoTenencia, type LoteResumen } from '../../documentos-fisicos/documentosFisicos';
+import { mensajeLoteOficina, mensajeLoteTerreno } from './mensajesWhatsApp';
 
 export interface DocFlujo {
     documento_id: number;
@@ -29,7 +30,14 @@ export interface FlujoRespuesta {
 }
 
 export type TonoFila = 'normal' | 'aviso' | 'critico' | 'listo';
-export interface FilaFlujo { key: string; titulo: string; sub: string; quien: string; dias: string; tono: TonoFila }
+export interface FilaFlujo {
+    key: string; titulo: string; sub: string; quien: string; dias: string; tono: TonoFila;
+    /** Para las acciones de la fila (dueño 2026-10-23: la acción donde se ve el problema). */
+    documentoId?: number;
+    loteId?: number;
+    /** Mensaje de WhatsApp para el portador del lote; null si el lote quedó sin portador. */
+    aviso?: string | null;
+}
 export interface PasoFlujo {
     key: 'sin_imprimir' | 'impresos' | 'en_oficina' | 'en_terreno' | 'firmados';
     nombre: string;
@@ -55,12 +63,13 @@ export function pasosFlujo(f: FlujoRespuesta, alertas: AlertasDocumentos | null,
     };
     const fuera = (filas: FilaFlujo[]) => filas.filter(x => x.tono === 'aviso' || x.tono === 'critico').length;
 
-    const sin = f.sin_imprimir.items.map(d => ({ key: `d${d.documento_id}`, titulo: d.tipo_nombre || 'Documento', sub: persona(d), quien: 'RRHH', dias: diasTexto(d.dias), tono: tonoDoc(d.documento_id) }));
-    const imp = f.impresos.items.map(d => ({ key: `d${d.documento_id}`, titulo: d.tipo_nombre || 'Documento', sub: persona(d), quien: 'Sin portador', dias: diasTexto(d.dias), tono: tonoDoc(d.documento_id) }));
+    const sin = f.sin_imprimir.items.map(d => ({ key: `d${d.documento_id}`, titulo: d.tipo_nombre || 'Documento', sub: persona(d), quien: 'RRHH', dias: diasTexto(d.dias), tono: tonoDoc(d.documento_id), documentoId: d.documento_id }));
+    const imp = f.impresos.items.map(d => ({ key: `d${d.documento_id}`, titulo: d.tipo_nombre || 'Documento', sub: persona(d), quien: 'Sin portador', dias: diasTexto(d.dias), tono: tonoDoc(d.documento_id), documentoId: d.documento_id }));
     const ofi = f.en_oficina.map(l => {
         const c = alertaOficina.get(l.id);
         return {
-            key: `l${l.id}`, titulo: `Lote #${l.id} · ${l.total} ${plural(l.total, 'documento', 'documentos')}`,
+            key: `l${l.id}`, loteId: l.id, aviso: l.portador_id != null ? mensajeLoteOficina(l) : null,
+            titulo: `Lote #${l.id} · ${l.total} ${plural(l.total, 'documento', 'documentos')}`,
             sub: l.creado_por_nombre ? `Lo preparó ${l.creado_por_nombre}` : 'Listo para retiro',
             quien: `Para ${l.portador_nombre || '(usuario eliminado)'}`, dias: diasTexto(diasDesde(l.creado_en, hoy)),
             tono: (c === undefined ? 'normal' : c ? 'critico' : 'aviso') as TonoFila,
@@ -70,7 +79,8 @@ export function pasosFlujo(f: FlujoRespuesta, alertas: AlertasDocumentos | null,
         const t = l.tenencia;
         const tono = t ? tonoTenencia(t) : 'ok';
         return {
-            key: `l${l.id}`, titulo: `Lote #${l.id} · ${l.total} ${plural(l.total, 'documento', 'documentos')}`, sub: resumenLote(l),
+            key: `l${l.id}`, loteId: l.id, aviso: l.portador_id != null ? mensajeLoteTerreno(l) : null,
+            titulo: `Lote #${l.id} · ${l.total} ${plural(l.total, 'documento', 'documentos')}`, sub: resumenLote(l),
             quien: `Con ${l.portador_nombre || '(usuario eliminado)'}`, dias: t ? textoTenencia(t).cifra : diasTexto(diasDesde(l.retirado_en, hoy)),
             tono: (tono === 'atrasado' ? 'critico' : tono === 'ultimo' ? 'aviso' : 'normal') as TonoFila,
         };

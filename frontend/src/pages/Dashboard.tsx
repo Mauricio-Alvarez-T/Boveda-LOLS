@@ -363,6 +363,10 @@ const Dashboard: React.FC = () => {
     const refreshAll = useCallback(() => {
         fetchSummary(); fetchInventory(); fetchImpresos(); fetchResumenInv(); refetchAlertasDocs(); refetchLotes(); fetchMisLotes(); fetchMisSolicitudes(); refetchVencimientos();
     }, [fetchSummary, fetchInventory, fetchImpresos, fetchResumenInv, refetchAlertasDocs, refetchLotes, fetchMisLotes, fetchMisSolicitudes, refetchVencimientos]);
+    // Tras una acción sobre documentos físicos desde el Inicio (imprimir, armar lote, recibir, confirmar retiro).
+    const refreshDocumentos = useCallback(() => {
+        fetchImpresos(); refetchAlertasDocs(); refetchLotes(); fetchMisLotes();
+    }, [fetchImpresos, refetchAlertasDocs, refetchLotes, fetchMisLotes]);
 
     // ─── Encabezado: rótulo, fecha y «Actualizar» (antes vivían en la tarjeta verde, que se fue el 2026-10-20) ───
     const hora = lastUpdated ? lastUpdated.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : null;
@@ -659,7 +663,7 @@ const Dashboard: React.FC = () => {
                     accion={{ texto: 'Ir a Documentos físicos', onClick: () => navigate('/consultas?tab=fisicos') }}>
                     <div className="grid grid-cols-1 gap-6">
                         <Panel>
-                            {misLotes ? <DetalleTusDocumentos mis={misLotes} onIr={() => navigate('/consultas?tab=fisicos')} /> : <SkeletonText lines={6} />}
+                            {misLotes ? <DetalleTusDocumentos mis={misLotes} onIr={() => navigate('/consultas?tab=fisicos')} onCambio={refreshDocumentos} /> : <SkeletonText lines={6} />}
                         </Panel>
                         {/* El portador que además envía fichas de ingreso ve aquí cómo van. */}
                         {creaFichas && resumenSol && (
@@ -692,7 +696,7 @@ const Dashboard: React.FC = () => {
                             <Panel>
                                 <EncabezadoTarjeta icon={FileWarning} tono={resumenDocs.tono} titulo="Documentos físicos"
                                     subtitulo="Elige una etapa del flujo para ver qué hay en ella" />
-                                <FlujoDocumentos alertas={alertasDocs.alertas} onIr={() => navigate('/consultas?tab=fisicos')} />
+                                <FlujoDocumentos alertas={alertasDocs.alertas} onIr={() => navigate('/consultas?tab=fisicos')} onCambio={refreshDocumentos} />
                             </Panel>
                         )}
                         <Panel>

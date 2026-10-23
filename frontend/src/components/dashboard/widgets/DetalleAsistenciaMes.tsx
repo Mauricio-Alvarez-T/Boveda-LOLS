@@ -3,8 +3,12 @@ import { Area, AreaChart, CartesianGrid, Line, ResponsiveContainer, Tooltip, XAx
 import { useReducedMotion } from 'framer-motion';
 import { ArrowRight, ChevronDown, Lock, TrendingUp } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { shareViaWhatsApp } from '../../../utils/whatsappShare';
 import { Chip } from '../../ui/Chip';
 import { NumeroRodante } from '../../ui/NumeroRodante';
+import WhatsAppIcon from '../../ui/WhatsAppIcon';
+import { EnlaceFicha } from './FichaInicio';
+import { mensajePatronFinde } from './mensajesWhatsApp';
 import {
     anchoRelativo, bloqueFecha, describirEvento, fechasPatron, fmtHoras, fmtPct, mesCorto, resumenTendencia,
     type DetalleAsistenciaApi, type MesTendencia, type TrabajadorPatron,
@@ -342,7 +346,7 @@ export const PatronFinde: React.FC<{ datos: NonNullable<DetalleAsistenciaApi['pa
             {abierto && (
                 <ul id={idLista} className="border-t border-amber-200/70 px-5 py-1 dark:border-amber-500/20">
                     {datos.lista.map((t: TrabajadorPatron) => (
-                        <li key={t.trabajador_id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-t border-amber-200/70 py-2.5 first:border-t-0 dark:border-amber-500/20">
+                        <li key={t.trabajador_id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-amber-200/70 py-2 first:border-t-0 dark:border-amber-500/20">
                             {/* eslint-disable-next-line no-restricted-syntax -- enlace de fila */}
                             <button type="button" onClick={() => onTrabajador(t.rut)}
                                 className="rounded text-left text-sm font-semibold hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50">
@@ -350,6 +354,11 @@ export const PatronFinde: React.FC<{ datos: NonNullable<DetalleAsistenciaApi['pa
                             </button>
                             {t.obra && <span className="text-xs text-amber-800/80 dark:text-amber-200/80">{t.obra}</span>}
                             <span className="ml-auto text-xs tabular-nums text-amber-900 dark:text-amber-100">{fechasPatron(t.fechas)}</span>
+                            {/* «Conviene conversarlo»: la pregunta sale de la misma fila (dueño 2026-10-23). */}
+                            <EnlaceFicha apagado onClick={() => { void shareViaWhatsApp(mensajePatronFinde(t, datos.dias)); }}
+                                icono={<WhatsAppIcon className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" />}>
+                                Preguntar
+                            </EnlaceFicha>
                         </li>
                     ))}
                 </ul>
