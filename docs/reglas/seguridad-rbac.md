@@ -64,8 +64,11 @@
 
 - 9 permisos granulares: solicitar, aprobar, despachar, recibir, cancelar, push_directo,
   intra_bodega, orden_gerencia, **sod_bypass**. Detalle en inventario-transferencias.md.
+- `aprobar` es solo de Leonardo López (permiso propio) y del Super Administrador desde la mig 133 (abajo, § Roles).
 - Más `diferencias_ver` (mig 131): mirar las diferencias sin resolverlas (no es un paso del flujo, no entra en
   la SoD).
+  Con el mismo OR sobre `aprobar` abre la lista `diferencias` del Inicio por perfil (`GET /transferencias/inicio/perfil`,
+  `inicioPerfil`); sin ninguno de los dos viene `null`. Ver inventario-transferencias.md § Inicio por perfil.
 
 ## Overrides por usuario
 
@@ -74,7 +77,11 @@
 
 ## Roles: Super Administrador vs Administrador (2026-10-21)
 
-- **Super Administrador** = quienes programan y prueban (Marcos, Mauricio): todo el catálogo.
+- **Super Administrador** = quienes programan y prueban (Marcos, Mauricio): todo el catálogo. Se reconoce por el
+  **rol 1** (`rol_id`), no por un permiso (los tiene todos): así lo hace el servidor (`super_admin` de
+  `inicioPerfil`, rehacer diferencias) y el frontend (`esSuperAdmin` de `inventarioPerfil/perfil.ts`,
+  `TransferenciasPanel`). En el Inicio tiene su vista propia de Inventario y «Ver como» para mirar el formato de los
+  demás con SUS datos (solo UX: no pide nada ni da permisos; inventario-transferencias.md § «Ver como»).
 - **Administrador** (mig 126) = dueños y jefatura (Paula Martínez, Rodrigo Riquelme, Leonardo López,
   Matías Millanao, Luis Lazcano, Daphne Lazcano): **ven todo y toman decisiones de jefatura**, sin la
   operación diaria, sin configuración del sistema (usuarios, roles, permisos, correo, plantillas, catálogos
@@ -83,7 +90,8 @@
   ver de Asistencia (con horas extra y todas las obras), Trabajadores (con financiero), Documentos (descargar
   incluido laborales), Gestiones (exportar/enviar), catálogos, Inventario completo con valores + orden de
   gerencia, Vehículos y Presupuestos (`costos.gestionar`, único permiso del módulo). **Aprobar solicitudes de
-  inventario ya NO es del rol** (mig 131): solo Leonardo, como permiso propio (abajo).
+  inventario ya NO es del rol** (mig 131) **ni de ningún otro rol salvo Super Administrador** (mig 133): solo
+  Leonardo, como permiso propio (abajo).
 - Lo que una persona necesite de más se agrega de a poco como **permiso propio** (override `grant`), no al
   rol — preguntar a Marcos antes. Mig 127: Paula y Matías (RRHH) → emitir documentos laborales, registrar
   entregas físicas, crear y editar trabajadores (editar: el contrato pide completar la ficha); Leonardo →
@@ -106,6 +114,24 @@
     rol 1). Ojo: `versionService` guarda las versiones en memoria → el cierre de sesiones corre recién cuando el
     backend se reinicia (el auto-migrate del deploy lo hace; corriendo migrate a mano, reiniciar).
   - Super Administrador no cambia (tiene todo el catálogo; `diferencias_ver` queda también en su rol).
+- **Mig 133 (2026-10-23, «solo Leonardo aprueba, en TODOS los roles»)**, decisión del dueño («Sí, a todos»): la 131
+  lo había quitado solo del rol Administrador y los roles de terreno que lo traían (p. ej. «Supervisor de Obra» en
+  test) seguían aprobando. **Desde la 133 aprueban (y resuelven diferencias) solo Leonardo López, como permiso
+  propio, y el Super Administrador (rol 1).** Regla: no volver a dar `inventario.transferencias.aprobar` a un rol ni
+  a otra persona sin preguntar a Marcos.
+  - Quita `aprobar` de `permisos_rol_v2` de **todos** los roles salvo el 1, y el `aprobar` propio (`grant`) de todas
+    las personas salvo Leonardo (por correo). Los `deny` quedan. Leonardo queda con `aprobar` propio
+    (`ON DUPLICATE KEY UPDATE tipo = 'grant'`; si no existe en ese entorno, nada). En test, Leonardo está en
+    «Supervisor de Obra»: ese rol lo pierde y él lo conserva como propio.
+  - **Quién debe volver a iniciar sesión** (`roles.version + 1`, que va PRIMERO, porque después del borrado ya no se
+    sabe quién lo tenía): todos los de un rol (salvo el 1) que traía `aprobar`, y todos los del mismo rol que una
+    persona (que no sea Leonardo) con `aprobar` propio, activa o no (el token no se revisa contra `usuarios.activo`).
+    Si Leonardo está en uno de esos roles (en test), también re-loguea y vuelve con `aprobar` propio. El rol
+    Administrador **no** re-loguea (ya no lo tenía y solo Leonardo lo tiene propio), salvo que alguien se lo haya
+    devuelto a mano; el rol 1 nunca. Igual que en la 131, las sesiones se cierran cuando el backend se reinicia.
+  - Idempotente (la segunda pasada no sube versiones ni borra nada) y sin subconsultas sobre `roles` en el UPDATE
+    (MySQL 1093). Probada dos veces sobre MySQL 5.7 con sql_mode estricto y de MariaDB 10.6. Test:
+    `backend/tests/transferencias_aprobar_solo_leonardo.test.js`.
 
 ## Middleware y endurecimiento
 

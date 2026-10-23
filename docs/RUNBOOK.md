@@ -1069,6 +1069,8 @@ Por decisión de jefatura, los roles existentes NO heredan automáticamente los 
 
 Mientras no se reasignen, **los usuarios de esos roles no podrán ejecutar acciones de transferencias** (default deny). Hacerlo inmediatamente después del deploy minimiza la ventana de impacto operacional.
 
+> ⚠️ **Desde la mig 133 (2026-10-23) esta matriz ya NO vale para `transferencias.aprobar`:** por decisión del dueño solo lo tienen Leonardo López (permiso propio) y el Super Administrador; ningún rol lo trae. No volver a darlo a un rol sin preguntar a Marcos. Ver `docs/reglas/seguridad-rbac.md` § Roles.
+
 ### 16.6 Audit log de SoD bypass
 
 Toda acción ejecutada con `sod_bypass` queda en `logs_actividad`. Revisar periódicamente:

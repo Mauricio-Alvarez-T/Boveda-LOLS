@@ -80,6 +80,16 @@ router.get('/pendientes', auth, checkPermission('inventario.transferencias.aprob
     } catch (err) { next(err); }
 });
 
+// GET /api/transferencias/inicio/perfil — detalle «Inventario» del Inicio por perfil (Leonardo, jefatura, obra): circuito,
+// solicitudes con sus ítems, diferencias (solo `aprobar` o `diferencias_ver`) y SoD, en una respuesta y con el alcance
+// de GET /:id (transferenciaService.inicioPerfil). Va ANTES de /:id.
+router.get('/inicio/perfil', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.inicioPerfil(req.user);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // GET /api/transferencias/inicio — conteos de la tarjeta «Inventario» del Inicio, según el perfil
 // (transferenciaService.resumenInicio). Va ANTES de /:id para que Express no lo tome como un ID.
 router.get('/inicio', auth, checkPermission('inventario.ver'), async (req, res, next) => {

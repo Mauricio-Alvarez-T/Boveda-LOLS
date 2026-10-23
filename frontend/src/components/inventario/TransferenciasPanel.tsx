@@ -1,6 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Plus, ArrowLeftRight, AlertTriangle, Search, X, Filter } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
+import api from '../../services/api';
+import type { TransferenciaConDiscrepancias } from '../../types/entities';
 import { useTransferencias } from '../../hooks/inventario/useTransferencias';
 import { useAuth } from '../../context/AuthContext';
 import StatusFilterBar from './StatusFilterBar';
@@ -30,9 +33,16 @@ interface Props {
      * initialStatusFilter: solo se aplica al montar.
      */
     initialSelectedId?: number | null;
+    /**
+     * Abrir el asistente «Pedir» al montar (`&nuevo=pedir`: «Pedir materiales» del Inicio, 2026-10-22). Solo con
+     * permiso de pedir y fuera de «Diferencias» / «Histórico» (ahí no hay botón «Pedir»). Solo se aplica al montar.
+     */
+    initialPedir?: boolean;
+    /** Avisa al montar que se usó `initialPedir`, para que el parent no lo vuelva a abrir si el panel se remonta. */
+    onInitialPedirUsado?: () => void;
 }
 
-const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialStatusFilter, initialSelectedId }) => {
+const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialStatusFilter, initialSelectedId, initialPedir, onInitialPedirUsado }) => {
     const { user } = useAuth();
     const trfHook = useTransferencias();
 
@@ -52,7 +62,14 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
     const [fechaHasta, setFechaHasta] = useState('');
     const [solicitanteId, setSolicitanteId] = useState<number | null>(null);
     const [solicitantes, setSolicitantes] = useState<{ id: number; nombre: string }[]>([]);
-    const [wizardModo, setWizardModo] = useState<'pedir' | 'mover' | null>(null);
+    const puedePedir = hasPermission('inventario.transferencias.solicitar') ||
+        hasPermission('inventario.transferencias.solicitud_materiales');
+    const [wizardModo, setWizardModo] = useState<'pedir' | 'mover' | null>(() => (
+        initialPedir && puedePedir && statusFilter !== 'discrepancias' && statusFilter !== 'historico' ? 'pedir' : null));
+    useEffect(() => {
+        if (initialPedir) onInitialPedirUsado?.();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const [actionLoading, setActionLoading] = useState(false);
     // Modal-resumen post-acción: se abre tras crear/aprobar/recibir y aloja el
     // botón de WhatsApp, para que quede claro CUÁNDO se envía el respaldo.
@@ -73,6 +90,21 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
             if (!canVerDiscrepancias) return;
             const list = await trfHook.fetchDiscrepancias('pendiente');
             setPendientesCount(list.length);
+            // Llegó a diferencias con una solicitud (detalle «Inventario» del Inicio, 2026-10-22): abre la suya si sigue
+            // pendiente.
+            if (!initialSelectedId || !isDiscrepanciasMode) return;
+            let pedida = list.find(d => d.id === initialSelectedId);
+            if (!pedida) {
+                // La lista trae las 50 más nuevas y el Inicio muestra primero las más antiguas: se busca una
+                // vez con el máximo del servidor, sin tocar la lista (el filtro la está pidiendo a la vez).
+                try {
+                    const res = await api.get<{ data: TransferenciaConDiscrepancias[] }>('/transferencias/discrepancias',
+                        { params: { estado: 'pendiente', limit: 200 } });
+                    pedida = res.data.data.find(d => d.id === initialSelectedId);
+                } catch { /* sin conexión: queda la lista */ }
+            }
+            if (pedida) trfHook.setSelectedDiscrepancia(pedida);
+            else toast.info('Esa solicitud ya no tiene diferencias pendientes.');
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -325,10 +357,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 canVerDiscrepancias={canVerDiscrepancias}
                 searchQuery={isDiscrepanciasMode ? discSearchQuery : searchQuery}
                 onSearchChange={isDiscrepanciasMode ? setDiscSearchQuery : setSearchQuery}
-                canPedir={!isDiscrepanciasMode && !isHistoricoMode && (
-                    hasPermission('inventario.transferencias.solicitar') ||
-                    hasPermission('inventario.transferencias.solicitud_materiales')
-                )}
+                canPedir={!isDiscrepanciasMode && !isHistoricoMode && puedePedir}
                 canMover={!isDiscrepanciasMode && !isHistoricoMode && (
                     hasPermission('inventario.transferencias.solicitar') ||
                     hasPermission('inventario.transferencias.push_directo') ||

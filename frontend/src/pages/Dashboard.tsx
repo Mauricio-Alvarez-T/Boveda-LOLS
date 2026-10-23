@@ -31,7 +31,9 @@ import AsistenciaInicio from '../components/dashboard/widgets/AsistenciaInicio';
 import DetalleAsistencia from '../components/dashboard/widgets/DetalleAsistencia';
 import type { AusentesHoy } from '../components/dashboard/widgets/resumenAsistenciaHoy';
 import type { DetalleAsistenciaApi } from '../components/dashboard/widgets/resumenAsistenciaDetalle';
-import InventarioInicio, { FilaInventarioInicio } from '../components/dashboard/widgets/InventarioInicio';
+import InventarioInicio from '../components/dashboard/widgets/InventarioInicio';
+import DetalleInventario from '../components/dashboard/widgets/DetalleInventario';
+import RespaldoInventario from '../components/dashboard/widgets/inventarioPerfil/RespaldoInventario';
 import DetalleVehiculos from '../components/dashboard/widgets/DetalleVehiculos';
 import { resumenInventarioInicio, type FilaInventario, type ResumenInventarioApi } from '../components/dashboard/widgets/resumenInventarioInicio';
 import TarjetaPendientes from '../components/dashboard/widgets/TarjetaPendientes';
@@ -690,28 +692,11 @@ const Dashboard: React.FC = () => {
             )}
 
             {activo === 'inventario' && (
-                <DetalleModulo icon={Package} titulo="Inventario"
-                    descripcion="Solicitudes que te tocan y alertas de transferencias"
-                    accion={{ texto: 'Ir a Inventario', onClick: () => navigate('/inventario?tab=transferencias') }}>
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                        <Panel>
-                            <EncabezadoTarjeta icon={Package} tono={modeloInv.tono} titulo="Solicitudes" subtitulo="Según tu perfil: aprobar, despachar, recibir y las tuyas" />
-                            {modeloInv.filas.length === 0
-                                ? <p className="text-sm text-muted-foreground">{resumenInv ? 'Tu perfil no tiene solicitudes por revisar.' : 'Cargando…'}</p>
-                                : <div>{modeloInv.filas.map(f => <FilaInventarioInicio key={f.clave} f={f} onClick={() => irAFilaInventario(f)} />)}</div>}
-                        </Panel>
-                        <Panel>
-                            <BandejaDelDia
-                                titulo="Alertas de inventario"
-                                vacio={{ titulo: 'Sin alertas', descripcion: 'Ninguna transferencia atrasada, rechazada ni con diferencias.' }}
-                                tasks={[]}
-                                inventoryItems={invItems}
-                                grupoAbierto="inventario"
-                                onNavigate={(route) => navigate(route)}
-                            />
-                        </Panel>
-                    </div>
-                </DetalleModulo>
+                // Una vista por perfil (Marcos 2026-10-22): DetalleInventario elige la vista y su descripción; a los
+                // demás perfiles les deja lo de antes (`respaldo`: «Solicitudes» + «Alertas de inventario»).
+                <DetalleInventario version={lastUpdated} onIr={() => navigate('/inventario?tab=transferencias')}
+                    respaldo={<RespaldoInventario Tarjeta={Panel} modelo={modeloInv} cargado={resumenInv !== null}
+                        onFila={irAFilaInventario} alertas={invItems} onNavigate={(route) => navigate(route)} />} />
             )}
 
             {activo === 'vehiculos' && (

@@ -4,7 +4,8 @@
  *   · Resolver, rehacer, foto y borrar una diferencia NO se abren con `diferencias_ver`.
  *   · La migración: catálogo primero, el rol «Administrador» deja de aprobar, los permisos propios van por correo y
  *     fuerza el re-login (roles.version + 1) sin tocar al Super Administrador.
- * El conteo del Inicio con `diferencias_ver` se prueba en transferencias_inicio.test.js.
+ * El conteo del Inicio con `diferencias_ver` se prueba en transferencias_inicio.test.js y la lista de diferencias del
+ * Inicio por perfil, en transferencias_inicio_perfil.test.js.
  */
 
 jest.mock('../src/config/db', () => ({
