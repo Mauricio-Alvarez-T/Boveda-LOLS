@@ -36,7 +36,7 @@ const AsistenciaPendiente: React.FC<Props> = ({ sinGuardar, total, hoyIso, onNav
     }
     const visibles = sinGuardar.slice(0, MAX_NOMBRES);
     return (
-        <div className="flex h-full flex-col">
+        <div className="@container flex h-full flex-col">
             <EncabezadoTarjeta icon={Clock} tono="ambar" titulo="Asistencia pendiente" subtitulo="Obras que aún no guardan la de hoy" />
             <CifraTarjeta valor={n} etiqueta={n === 1 ? 'obra sin guardar' : 'obras sin guardar'} tono="ambar" />
             <ul className="flex flex-wrap gap-1.5" aria-label="Obras sin guardar">
@@ -50,11 +50,13 @@ const AsistenciaPendiente: React.FC<Props> = ({ sinGuardar, total, hoyIso, onNav
                 )}
             </ul>
             {/* La acción va donde se ve el problema (dueño 2026-10-23): recordar a las obras por WhatsApp con
-                todas las que faltan (no solo las visibles); se elige el grupo al enviar. */}
+                todas las que faltan (no solo las visibles); se elige el grupo al enviar. En la caja angosta
+                (celular de 360 px) «por WhatsApp» queda solo para lectores —el ícono ya lo dice— y los dos
+                enlaces caben en una línea. */}
             <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
                 <EnlaceFicha apagado onClick={() => { void shareViaWhatsApp(mensajeObrasSinGuardar(sinGuardar, hoyIso)); }}
                     icono={<WhatsAppIcon className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" />}>
-                    Recordar por WhatsApp
+                    <span>Recordar<span className="sr-only @[19.5rem]:not-sr-only"> por WhatsApp</span></span>
                 </EnlaceFicha>
                 <EnlaceFicha onClick={onNavigate}>Ir a Asistencia</EnlaceFicha>
             </div>
