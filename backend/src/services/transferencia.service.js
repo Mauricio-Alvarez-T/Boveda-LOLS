@@ -866,7 +866,7 @@ const transferenciaService = {
             await conn.beginTransaction();
 
             const [[origRow]] = await conn.query(
-                'SELECT destino_obra_id, destino_bodega_id, solicitante_id FROM transferencias WHERE id = ? FOR UPDATE',
+                'SELECT codigo, destino_obra_id, destino_bodega_id, solicitante_id FROM transferencias WHERE id = ? FOR UPDATE',
                 [transferenciaOriginalId]
             );
             if (!origRow) throw new Error('Transferencia original no encontrada');
@@ -915,7 +915,9 @@ const transferenciaService = {
                     origRow.destino_obra_id,
                     origRow.destino_bodega_id,
                     solicitanteId,
-                    `Faltante de transferencia #${transferenciaOriginalId} (auto-generada)`,
+                    // Código legible (TRF-…), no el id interno: el usuario debe poder
+                    // ubicar la original en la lista. Esta es SOLO la parte no enviada.
+                    `Faltante de ${origRow.codigo || `transferencia #${transferenciaOriginalId}`}: lo que no se envió en la aprobación parcial (auto-generada)`,
                     transferenciaOriginalId,
                     creadoPorId, // audit creado_por (el aprobador que la generó)
                 ]

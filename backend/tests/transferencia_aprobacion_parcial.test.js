@@ -211,7 +211,7 @@ describe('transferenciaService.crearFaltante', () => {
 
         conn.query
             // SELECT destino + solicitante original (FOR UPDATE)
-            .mockResolvedValueOnce([[{ destino_obra_id: 10, destino_bodega_id: null, solicitante_id: 55 }]])
+            .mockResolvedValueOnce([[{ codigo: 'TRF-202610-0001', destino_obra_id: 10, destino_bodega_id: null, solicitante_id: 55 }]])
             // SELECT faltante existente (idempotencia) → ninguno
             .mockResolvedValueOnce([[]])
             // SELECT items originales
@@ -243,6 +243,9 @@ describe('transferenciaService.crearFaltante', () => {
         expect(trfInsert[1][3]).toBe(55);
         // El aprobador queda en creado_por (audit)
         expect(trfInsert[1][6]).toBe(77);
+        // La observación nombra el CÓDIGO de la original (no el id interno #123)
+        expect(trfInsert[1][4]).toContain('Faltante de TRF-202610-0001');
+        expect(trfInsert[1][4]).not.toContain('#123');
 
         // Items insertados: solo los 2 con faltante
         const itemInserts = conn.query.mock.calls.filter(c =>
