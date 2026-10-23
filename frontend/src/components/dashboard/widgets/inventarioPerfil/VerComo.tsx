@@ -5,14 +5,13 @@ import { PestanasElasticas } from '../../../ui/PestanasElasticas';
 import { ROTULO_FICHAS } from '../fichasInicio';
 import type { ObraVerComo } from './comoObra';
 import { plural } from './formato';
-import type { VistaInventario } from './perfil';
 import type { PersonaPerfil } from './tipos';
-import { OPCIONES_VER_COMO, notaVerComo, type OpcionVerComo } from './verComo.modelo';
+import { OPCIONES_VER_COMO, notaVerComo, type OpcionVerComo, type VistaVerComo } from './verComo.modelo';
 
 interface Props {
     /** La vista que se está mostrando. */
-    como: VistaInventario;
-    onComo: (vista: VistaInventario) => void;
+    como: VistaVerComo;
+    onComo: (vista: VistaVerComo) => void;
     /** Las opciones con sus etiquetas (`opcionesVerComo(datos.aprobadores)`: la de quien aprueba lleva su nombre). */
     opciones?: readonly OpcionVerComo[];
     /** Quiénes aprueban (`datos.aprobadores`), para la nota de su opción. */

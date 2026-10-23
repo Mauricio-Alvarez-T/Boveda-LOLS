@@ -273,10 +273,8 @@ lo que él ya puede ver, **recalculado para cada perfil** (lo que el servidor ca
   entre las que llegaron). Un selector de obra al lado: por defecto la del selector global de arriba (`ObraContext`) si
   tiene alguna elegida; si no, la de más solicitudes. Las obras a elegir: las de la respuesta + las del selector global
   (sin prueba, finalizadas, inactivas ni las que no participan en transferencias).
-- **Otros perfiles** → `RespaldoInventario` como lo ve un **Administrador sin aprobar** (`modeloComoElResto`: lo mismo
-  que `resumenInventarioInicio` con por aprobar, diferencias, por despachar y por recibir en null, que es lo que le manda
-  el servidor): solo «Tus solicitudes en curso» (las del Super Administrador) y la tarjeta neutra o verde. Las alertas de
-  inventario son las mismas para todos. Un bodeguero vería además lo que tiene por despachar y por recibir (no se simula).
+- Sin «Otros perfiles» (Marcos 2026-10-23: «en los que ya creamos están las personas que van a trabajar los apartados
+  de Inicio; el resto simplemente mira o presiona para que el ciclo de inventario se cumpla»).
 
 Cada opción que no es la propia lleva una **nota chica** que dice qué se ve («Así lo ve Leonardo, con los mismos datos»;
 en «Jefe de obra», que un jefe real ve solo lo que pidió él). La descripción bajo «Inventario» es la de la vista elegida.

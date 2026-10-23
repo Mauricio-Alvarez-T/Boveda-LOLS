@@ -644,7 +644,7 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       pasó» al lado del mismo alto —se desliza por dentro— y abajo, a todo el ancho, la «Secuencia completa» por paso con
       pestañas; un paso que la app no registró va en gris, «Sin despacho»; los cinco pasos en columnas solo si la lista mide
       32rem o más, con `@container`: si no, en vertical) con **«Ver como»** arriba (`VerComo.tsx`): Super Admin · quien
-      aprueba (su nombre, de la respuesta) · Jefatura · Jefe de obra (+ selector de obra de 44 px) · Otros perfiles, con
+      aprueba (su nombre, de la respuesta) · Jefatura · Jefe de obra (+ selector de obra de 44 px) (sin «Otros perfiles», Marcos 2026-10-23), con
       los mismos datos recalculados para cada perfil (etiquetas por rol, nunca un nombre fijo). Es un control segmentado como `FiltroFichas`
       (marco `bg-card` con sombra chica, indicador verde de ítem elegido de `PestanasElasticas`, sin cifras) dentro de
       `BarraPaginada` (en el celular va de a páginas, §9.6); opciones de 44 px de alto en el celular; rótulo «VER COMO»

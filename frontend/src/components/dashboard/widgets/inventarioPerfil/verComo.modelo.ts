@@ -1,7 +1,6 @@
-import type { ModeloInventarioInicio } from '../resumenInventarioInicio';
 import { comoObra } from './comoObra';
 import { quienAprueba } from './formato';
-import { DESCRIPCION_RESPALDO, descripcionInventario, type VistaInventario } from './perfil';
+import { descripcionInventario, type VistaInventario } from './perfil';
 import type { InventarioPerfilApi, PersonaPerfil, PuedePerfil, SolicitudPerfil } from './tipos';
 
 /**
@@ -12,15 +11,18 @@ import type { InventarioPerfilApi, PersonaPerfil, PuedePerfil, SolicitudPerfil }
  *   - quien aprueba (su nombre, de `aprobadores`) → VistaLeonardo como la ve él (`comoAprobador`).
  *   - «Jefatura» → VistaJefatura con lo que puede quien ve diferencias sin aprobar (`comoJefatura`).
  *   - «Jefe de obra» → VistaObra con lo de una obra (`comoObra` de comoObra.ts) y un selector de obra.
- *   - «Otros perfiles» → lo de producción (RespaldoInventario) como lo ve un Administrador sin aprobar
- *     (`modeloComoElResto`: sin aprobar, diferencias, despachar ni recibir).
+ * Sin «Otros perfiles» (Marcos 2026-10-23): los demás solo miran o tocan para que el ciclo avance; las vistas que
+ * importan son estas.
  * Nunca un nombre fijo: las etiquetas son roles, y quien aprueba sale de la respuesta. Cada opción que no es la propia
  * lleva una nota chica que dice qué se está viendo. La elección se recuerda por persona en localStorage (comodidad: si
  * falla o no hay, vuelve a «Super Admin»).
  * Lógica PURA, con test en `verComo.modelo.test.ts`; el control está en VerComo.tsx.
  */
 
-export interface OpcionVerComo { key: VistaInventario; texto: string }
+/** Las vistas que se pueden mirar con «Ver como» (todas menos el respaldo). */
+export type VistaVerComo = Exclude<VistaInventario, 'otro'>;
+
+export interface OpcionVerComo { key: VistaVerComo; texto: string }
 
 /** Sin nombre en la respuesta (nadie aprueba, o más de dos): el rol. */
 export const TEXTO_QUIEN_APRUEBA = 'Quien aprueba';
@@ -35,7 +37,6 @@ export function opcionesVerComo(aprobadores?: readonly PersonaPerfil[] | null): 
         { key: 'leonardo', texto: quienAprueba(aprobadores) ?? TEXTO_QUIEN_APRUEBA },
         { key: 'jefatura', texto: 'Jefatura' },
         { key: 'obra', texto: 'Jefe de obra' },
-        { key: 'otro', texto: 'Otros perfiles' },
     ];
 }
 
@@ -43,10 +44,10 @@ export function opcionesVerComo(aprobadores?: readonly PersonaPerfil[] | null): 
 export const OPCIONES_VER_COMO: readonly OpcionVerComo[] = opcionesVerComo();
 
 /** Lo que se ve al entrar (y si lo guardado no sirve). */
-export const VER_COMO_INICIAL: VistaInventario = 'superadmin';
+export const VER_COMO_INICIAL: VistaVerComo = 'superadmin';
 
 /** Una opción válida, o la inicial. */
-export const leerVerComo = (texto: unknown): VistaInventario =>
+export const leerVerComo = (texto: unknown): VistaVerComo =>
     OPCIONES_VER_COMO.find(o => o.key === texto)?.key ?? VER_COMO_INICIAL;
 
 /** La clave de localStorage de cada persona (Marcos y Mauricio, cada uno la suya). */
@@ -65,7 +66,7 @@ export function almacenLocal(): Almacen | null {
 }
 
 /** Lo que eligió esa persona la última vez; sin persona, sin almacén o si falla, la inicial. */
-export function verComoGuardado(almacen: Almacen | null | undefined, userId: number | string | null | undefined): VistaInventario {
+export function verComoGuardado(almacen: Almacen | null | undefined, userId: number | string | null | undefined): VistaVerComo {
     if (!almacen || userId == null) return VER_COMO_INICIAL;
     try {
         return leerVerComo(almacen.getItem(claveVerComo(userId)));
@@ -75,7 +76,7 @@ export function verComoGuardado(almacen: Almacen | null | undefined, userId: num
 }
 
 /** Recuerda la elección de esa persona. Si no se puede, no pasa nada (la próxima vez parte en «Super Admin»). */
-export function guardarVerComo(almacen: Almacen | null | undefined, userId: number | string | null | undefined, vista: VistaInventario): void {
+export function guardarVerComo(almacen: Almacen | null | undefined, userId: number | string | null | undefined, vista: VistaVerComo): void {
     if (!almacen || userId == null) return;
     try {
         almacen.setItem(claveVerComo(userId), vista);
@@ -86,10 +87,10 @@ export function guardarVerComo(almacen: Almacen | null | undefined, userId: numb
 
 /** La línea bajo el título «Inventario»: la de la vista elegida (en «Jefe de obra», con el nombre de esa obra). */
 export function descripcionVerComo(
-    vista: VistaInventario,
+    vista: VistaVerComo,
     { obra, aprobadores }: { obra?: string | null; aprobadores?: readonly PersonaPerfil[] | null } = {},
 ): string {
-    return vista === 'otro' ? DESCRIPCION_RESPALDO : descripcionInventario(vista, { obra, aprobadores });
+    return descripcionInventario(vista, { obra, aprobadores });
 }
 
 /**
@@ -97,7 +98,7 @@ export function descripcionVerComo(
  * día puede abrir directo en otra: lo recordado no vence), así no se confunde con su vista. null en «Super Admin».
  */
 export function notaVerComo(
-    vista: VistaInventario,
+    vista: VistaVerComo,
     { obra, aprobadores }: { obra?: string | null; aprobadores?: readonly PersonaPerfil[] | null } = {},
 ): string | null {
     switch (vista) {
@@ -112,31 +113,9 @@ export function notaVerComo(
             return `${nombre ? `Lo de ${nombre}` : 'Lo de esa obra'}: lo que va a ella y las devoluciones y traslados que salen de ahí. `
                 + 'Un jefe de obra real ve solo lo que pidió él.';
         }
-        case 'otro':
-            return 'Así lo ve un Administrador que no aprueba: «Tus solicitudes en curso» (aquí, las tuyas) y las alertas, que '
-                + 'son las mismas para todos. Un bodeguero ve además lo que tiene por despachar y por recibir.';
         default:
             return null;
     }
-}
-
-/**
- * «Otros perfiles»: la tarjeta «Solicitudes» de producción (RespaldoInventario) como la ve un Administrador sin aprobar,
- * desde el modelo del Super Administrador (`resumenInventarioInicio` de GET /transferencias/inicio). El servidor le
- * manda null en por aprobar, diferencias, por despachar y por recibir (no tiene esos permisos): queda solo «Tus
- * solicitudes en curso» y la tarjeta va neutra (o verde sin ninguna), igual que `resumenInventarioInicio` con esos null.
- * Mientras carga (`cifra` null), igual.
- */
-export function modeloComoElResto(m: ModeloInventarioInicio): ModeloInventarioInicio {
-    if (m.cifra === null) return m;
-    const filas = m.filas.filter(f => f.clave === 'mis_solicitudes');
-    const mias = filas[0]?.total ?? 0;
-    return {
-        tono: mias > 0 ? 'neutro' : 'verde',
-        cifra: mias,
-        etiqueta: mias === 1 ? 'solicitud tuya en curso' : 'solicitudes tuyas en curso',
-        filas,
-    };
 }
 
 /** Lo que puede jefatura (rol Administrador + «Ver diferencias», mig 131): ve todo y las diferencias, sin aprobar. */
@@ -187,10 +166,10 @@ export function comoAprobador(datos: InventarioPerfilApi): InventarioPerfilApi {
 
 /**
  * Los datos para la vista elegida: los del Super Administrador tal cual (su vista), como quien aprueba, como jefatura,
- * o como la obra `obra` (null si no hay ninguna obra para elegir). «Otros perfiles» no usa estos datos: null.
+ * o como la obra `obra` (null si no hay ninguna obra para elegir).
  */
 export function datosVerComo(
-    vista: VistaInventario,
+    vista: VistaVerComo,
     datos: InventarioPerfilApi,
     obra?: { id: number; nombre: string | null } | null,
 ): InventarioPerfilApi | null {

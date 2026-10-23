@@ -7,7 +7,6 @@ import { Button } from '../../ui/Button';
 import { SkeletonText } from '../../ui/Skeleton';
 import { DetalleModulo } from './DetalleModulo';
 import type { EstadoInventarioPerfil } from './inventarioPerfil/cargaInventarioPerfil';
-import type { ModeloInventarioInicio } from './resumenInventarioInicio';
 import { obraPorDefecto, obrasVerComo } from './inventarioPerfil/comoObra';
 import { TARJETA } from './inventarioPerfil/formato';
 import {
@@ -17,7 +16,7 @@ import type { InventarioPerfilApi } from './inventarioPerfil/tipos';
 import { useInventarioPerfil } from './inventarioPerfil/useInventarioPerfil';
 import VerComo from './inventarioPerfil/VerComo';
 import {
-    almacenLocal, datosVerComo, descripcionVerComo, guardarVerComo, modeloComoElResto, opcionesVerComo, verComoGuardado,
+    almacenLocal, datosVerComo, descripcionVerComo, guardarVerComo, opcionesVerComo, verComoGuardado, type VistaVerComo,
 } from './inventarioPerfil/verComo.modelo';
 import VistaJefatura from './inventarioPerfil/VistaJefatura';
 import VistaLeonardo from './inventarioPerfil/VistaLeonardo';
@@ -43,20 +42,9 @@ interface Props {
     onIr: () => void;
     /**
      * Lo que ven los demás perfiles: lo de producción (`<RespaldoInventario modelo={…} />`, armado en Dashboard con los
-     * datos de quien mira). «Ver como → Otros perfiles» lo vuelve a dibujar con `modeloComoElResto` (`respaldoComoElResto`).
+     * datos de quien mira).
      */
     respaldo: React.ReactNode;
-}
-
-/**
- * «Ver como → Otros perfiles»: el mismo respaldo, con la tarjeta «Solicitudes» como la ve un Administrador sin aprobar
- * (`modeloComoElResto`: el Super Administrador recibe además por aprobar, diferencias, por despachar y por recibir, que
- * cambian las filas y el tono, no solo las cifras). Las alertas son las mismas para todos. Si `respaldo` no trae
- * `modelo`, va tal cual.
- */
-function respaldoComoElResto(respaldo: React.ReactNode): React.ReactNode {
-    if (!React.isValidElement<{ modelo?: ModeloInventarioInicio }>(respaldo) || !respaldo.props.modelo) return respaldo;
-    return React.cloneElement(respaldo, { modelo: modeloComoElResto(respaldo.props.modelo) });
 }
 
 /**
@@ -83,7 +71,7 @@ const DetalleInventario: React.FC<Props> = ({ version, onIr, respaldo }) => {
     }
     // `key`: si cambia el perfil o la persona (otra sesión), la carga y lo elegido parten de cero.
     if (vista === 'superadmin') {
-        return <DetalleSuperAdmin key={`superadmin-${user?.id ?? ''}`} version={version} accion={accion} respaldo={respaldo} />;
+        return <DetalleSuperAdmin key={`superadmin-${user?.id ?? ''}`} version={version} accion={accion} />;
     }
     return <DetalleConDatos key={vista} vista={vista} version={version} accion={accion} />;
 };
@@ -137,19 +125,19 @@ const DetalleConDatos: React.FC<{ vista: Exclude<VistaConDatos, 'superadmin'>; v
 /**
  * El Super Administrador (Marcos y Mauricio): su vista y, con «Ver como» (inventarioPerfil/VerComo.tsx y verComo.modelo.ts),
  * las de quien aprueba, jefatura, un jefe de obra (con selector de obra: por defecto la del selector global de arriba,
- * si no la de más movimiento) y «Otros perfiles» (`respaldo` como lo ve un Administrador sin aprobar). Una sola carga:
+ * si no la de más movimiento). Sin «Otros perfiles» (Marcos 2026-10-23). Una sola carga:
  * la suya, de todas las obras. La elección se recuerda por persona en localStorage; la descripción bajo el título es la
  * de la vista elegida.
  */
-const DetalleSuperAdmin: React.FC<{ version?: unknown; accion: Accion; respaldo: React.ReactNode }> = ({ version, accion, respaldo }) => {
+const DetalleSuperAdmin: React.FC<{ version?: unknown; accion: Accion }> = ({ version, accion }) => {
     const { user } = useAuth();
     const { obras: globales, selectedObra } = useObra();
     const carga = useInventarioPerfil(version);
     const { datos } = carga;
     const userId = user?.id;
 
-    const [como, setComoEstado] = useState<VistaInventario>(() => verComoGuardado(almacenLocal(), userId));
-    const setComo = useCallback((v: VistaInventario) => {
+    const [como, setComoEstado] = useState<VistaVerComo>(() => verComoGuardado(almacenLocal(), userId));
+    const setComo = useCallback((v: VistaVerComo) => {
         setComoEstado(v);
         guardarVerComo(almacenLocal(), userId, v);
     }, [userId]);
@@ -168,20 +156,18 @@ const DetalleSuperAdmin: React.FC<{ version?: unknown; accion: Accion; respaldo:
         <DetalleModulo icon={Package} titulo="Inventario" descripcion={descripcion} accion={accion}>
             <VerComo como={como} onComo={setComo} opciones={opcionesComo} aprobadores={datos?.aprobadores}
                 obras={opciones} obra={obraId} onObra={setObraElegida} />
-            {como === 'otro' ? respaldoComoElResto(respaldo) : (
-                <ConCarga carga={carga}>{() => {
-                    if (!datosVista) {
-                        return (
-                            <div className={TARJETA}>
-                                <p className="text-sm text-muted-foreground">No hay obras con solicitudes para mostrar.</p>
-                            </div>
-                        );
-                    }
-                    const Vista = VISTAS[como];
-                    // `key`: otra obra (o volver a una vista) parte limpia, sin filtros ni listas abiertas de la anterior.
-                    return <Vista key={como === 'obra' ? `obra-${obraId}` : como} datos={datosVista} />;
-                }}</ConCarga>
-            )}
+            <ConCarga carga={carga}>{() => {
+                if (!datosVista) {
+                    return (
+                        <div className={TARJETA}>
+                            <p className="text-sm text-muted-foreground">No hay obras con solicitudes para mostrar.</p>
+                        </div>
+                    );
+                }
+                const Vista = VISTAS[como];
+                // `key`: otra obra (o volver a una vista) parte limpia, sin filtros ni listas abiertas de la anterior.
+                return <Vista key={como === 'obra' ? `obra-${obraId}` : como} datos={datosVista} />;
+            }}</ConCarga>
         </DetalleModulo>
     );
 };
