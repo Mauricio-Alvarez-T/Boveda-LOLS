@@ -66,7 +66,7 @@ const DocumentosInicio: React.FC<Props> = ({ resumen: r, activo, onVerMas, onEta
                             {/* eslint-disable-next-line no-restricted-syntax -- píldora de etapa: abre el detalle en su paso */}
                             <button type="button" onClick={() => onEtapa(e.paso)}
                                 aria-label={`${e.texto}: ${e.total}. Ver en el detalle`}
-                                className={cn('flex min-h-8 items-center gap-1.5 rounded-lg py-1 pl-2.5 pr-1.5 text-xs font-medium transition-colors',
+                                className={cn('flex min-h-8 cursor-pointer items-center gap-1.5 rounded-lg py-1 pl-2.5 pr-1.5 text-xs font-medium transition-colors',
                                     'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40',
                                     e.critico
                                         ? 'bg-red-50 text-red-800 hover:bg-red-100 dark:bg-red-500/15 dark:text-red-200 dark:hover:bg-red-500/25'
