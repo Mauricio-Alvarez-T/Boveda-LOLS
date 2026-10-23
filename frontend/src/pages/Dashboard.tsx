@@ -34,6 +34,7 @@ import type { AusentesHoy } from '../components/dashboard/widgets/resumenAsisten
 import type { DetalleAsistenciaApi } from '../components/dashboard/widgets/resumenAsistenciaDetalle';
 import InventarioInicio from '../components/dashboard/widgets/InventarioInicio';
 import DetalleInventario from '../components/dashboard/widgets/DetalleInventario';
+import RespaldoInventario from '../components/dashboard/widgets/inventarioPerfil/RespaldoInventario';
 import DetalleVehiculos from '../components/dashboard/widgets/DetalleVehiculos';
 import { resumenInventarioInicio, type FilaInventario, type ResumenInventarioApi } from '../components/dashboard/widgets/resumenInventarioInicio';
 import TarjetaPendientes from '../components/dashboard/widgets/TarjetaPendientes';
@@ -699,12 +700,11 @@ const Dashboard: React.FC = () => {
             )}
 
             {activo === 'inventario' && (
-                <DetalleModulo icon={Package} titulo="Inventario"
-                    descripcion="Las solicitudes que te tocan y en qué paso van"
-                    accion={{ texto: 'Ir a Inventario', onClick: () => navigate('/inventario?tab=transferencias') }}>
-                    {/* Fichas por solicitud (opción A del lienzo, Marcos 2026-10-22): sin Panel, las fichas son la superficie. */}
-                    <DetalleInventario version={lastUpdated} />
-                </DetalleModulo>
+                // Una vista por perfil (Marcos 2026-10-22): DetalleInventario elige la vista y su descripción; a los
+                // demás perfiles les deja lo de antes (`respaldo`: «Solicitudes» + «Alertas de inventario»).
+                <DetalleInventario version={lastUpdated} onIr={() => navigate('/inventario?tab=transferencias')}
+                    respaldo={<RespaldoInventario Tarjeta={Panel} modelo={modeloInv} cargado={resumenInv !== null}
+                        onFila={irAFilaInventario} alertas={invItems} onNavigate={(route) => navigate(route)} />} />
             )}
 
             {activo === 'vehiculos' && (

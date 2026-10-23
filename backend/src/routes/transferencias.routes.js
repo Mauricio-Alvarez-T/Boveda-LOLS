@@ -5,7 +5,6 @@ const validateBody = require('../middleware/validateBody');
 const transferenciaService = require('../services/transferencia.service');
 const uploadTransferencias = require('../middleware/upload-transferencias');
 const { logManualActivity } = require('../middleware/logger');
-const { normalizePagination } = require('../utils/pagination');
 const {
     crearTransferencia, aprobar, recibir, resolverDiscrepancia,
     pushDirecto, intraBodega, devolucion, intraObra,
@@ -81,22 +80,21 @@ router.get('/pendientes', auth, checkPermission('inventario.transferencias.aprob
     } catch (err) { next(err); }
 });
 
+// GET /api/transferencias/inicio/perfil — detalle «Inventario» del Inicio por perfil (Leonardo, jefatura, obra): circuito,
+// solicitudes con sus ítems, diferencias (solo `aprobar` o `diferencias_ver`) y SoD, en una respuesta y con el alcance
+// de GET /:id (transferenciaService.inicioPerfil). Va ANTES de /:id.
+router.get('/inicio/perfil', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.inicioPerfil(req.user);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // GET /api/transferencias/inicio — conteos de la tarjeta «Inventario» del Inicio, según el perfil
 // (transferenciaService.resumenInicio). Va ANTES de /:id para que Express no lo tome como un ID.
 router.get('/inicio', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const result = await transferenciaService.resumenInicio(req.user);
-        res.json({ data: result });
-    } catch (err) { next(err); }
-});
-
-// GET /api/transferencias/inicio/fichas?limit= — fichas por solicitud de la tarjeta «Inventario» del Inicio: mismas
-// etapas y alcance que /inicio, con ítems y la acción de este usuario (transferenciaService.fichasInicio). `limit` es
-// por etapa (por defecto 50, máximo 100). También va ANTES de /:id.
-router.get('/inicio/fichas', auth, checkPermission('inventario.ver'), async (req, res, next) => {
-    try {
-        const { limit } = normalizePagination(req.query, 50, 100);
-        const result = await transferenciaService.fichasInicio(req.user, { limite: limit });
         res.json({ data: result });
     } catch (err) { next(err); }
 });
@@ -196,7 +194,7 @@ router.delete('/discrepancias/:id', auth, checkPermission('inventario.transferen
 // DESTINADAS a su bodega (usuarios.bodega_id, rol bodeguero). Evita que un
 // usuario adivine IDs y abra solicitudes de terceros.
 // Excepción (2026-10-22): quien APRUEBA ve el detalle de una solicitud PENDIENTE ajena — las pendientes ya le
-// llegan globales (GET /pendientes y las fichas del Inicio) y para aprobarlas tiene que poder abrirlas.
+// llegan globales (GET /pendientes) y para aprobarlas tiene que poder abrirlas.
 router.get('/:id', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const result = await transferenciaService.getById(req.params.id);

@@ -223,6 +223,80 @@ const _ubicDeFila = (r) => ({
     obra: r.obra_id != null ? Number(r.obra_id) : null,
     bodega: r.bodega_id != null ? Number(r.bodega_id) : null,
 });
+
+// ── Inicio por perfil (inicioPerfil · GET /api/transferencias/inicio/perfil, 2026-10-22) ──
+// Solo usa columnas y reglas que ya están en producción. Detalle en docs/reglas/inventario-transferencias.md § Inicio por perfil.
+/** Topes de cada lista (las cifras del circuito son exactas; las listas, hasta este tope). */
+const PERFIL_LIMITES = Object.freeze({
+    en_curso: 200,            // POR ETAPA en curso: pendientes · aprobadas · en tránsito / recepción parcial (las más antiguas primero)
+    recibidas: 100,           // recibidas leídas (las más nuevas primero) ...
+    recibidas_recientes: 10,  // ... de las que quedan las del mes y, como mínimo, estas últimas
+    rechazadas: 50,           // rechazadas de este mes
+    diferencias: 100,         // ítems con diferencia pendiente (las más antiguas primero)
+    aprobadores: 10,
+});
+/** Etapa del circuito de cada estado (cancelada no entra). */
+const PERFIL_ETAPA = Object.freeze({
+    pendiente: 'pedida', aprobada: 'aprobada', en_transito: 'despachada', recepcion_parcial: 'despachada',
+    recibida: 'recibida', rechazada: 'rechazada',
+});
+/** Primer día del mes de la BD (DATE, sin comparar contra un texto). */
+const _INICIO_MES = 'DATE_SUB(CURDATE(), INTERVAL DAYOFMONTH(CURDATE()) - 1 DAY)';
+/** Fecha local de la BD → 'YYYY-MM-DD' (o NULL). */
+const _dia = (col) => `DATE_FORMAT(${col}, '%Y-%m-%d')`;
+// Quién hizo cada paso, con los respaldos de la mig 039 (push directo y orden de gerencia llenan *_por y no
+// transportista_id). En una RECHAZADA, rechazar() pisa aprobador_id y fecha_aprobacion con quien rechazó y cuándo:
+// la aprobación previa solo queda en aprobado_por (sin fecha).
+const _APROBADOR = "CASE WHEN t.estado = 'rechazada' THEN t.aprobado_por ELSE COALESCE(t.aprobador_id, t.aprobado_por) END";
+const _DESPACHADOR = 'COALESCE(t.transportista_id, t.despachado_por)';
+const _RECEPTOR = 'COALESCE(t.receptor_id, t.recibido_por)';
+/** Desde cuándo está en la etapa actual (los «días» de cada solicitud). */
+const _DESDE_ETAPA = `CASE t.estado
+            WHEN 'pendiente' THEN t.fecha_solicitud
+            WHEN 'aprobada' THEN COALESCE(t.fecha_aprobacion, t.fecha_solicitud)
+            WHEN 'recibida' THEN COALESCE(t.fecha_recepcion, t.fecha_despacho, t.fecha_aprobacion, t.fecha_solicitud)
+            WHEN 'rechazada' THEN COALESCE(t.fecha_aprobacion, t.fecha_solicitud)
+            ELSE COALESCE(t.fecha_despacho, t.fecha_aprobacion, t.fecha_solicitud) END`;
+/** Origen y destino: obra o bodega (con su responsable, para formatBodegaNombreResponsable del frontend). */
+const _COLUMNAS_LUGARES = `t.origen_obra_id, oo.nombre AS origen_obra_nombre,
+            t.origen_bodega_id, ob.nombre AS origen_bodega_nombre, ob.responsable_nombre AS origen_bodega_responsable,
+            t.destino_obra_id, do2.nombre AS destino_obra_nombre,
+            t.destino_bodega_id, db2.nombre AS destino_bodega_nombre, db2.responsable_nombre AS destino_bodega_responsable`;
+const _JOIN_LUGARES = `LEFT JOIN obras oo ON oo.id = t.origen_obra_id
+        LEFT JOIN bodegas ob ON ob.id = t.origen_bodega_id
+        LEFT JOIN obras do2 ON do2.id = t.destino_obra_id
+        LEFT JOIN bodegas db2 ON db2.id = t.destino_bodega_id`;
+
+/**
+ * Alcance de inicioPerfil = el de GET /:id en producción, para que todo lo que se muestre se pueda abrir: con
+ * `ver_todas`, todo; sin él, las propias y, si tiene bodega (mig 097), las destinadas a su bodega. La obra asignada
+ * (usuarios.obra_id) NO abre nada en GET /:id, así que no amplía el alcance.
+ */
+function _alcancePerfil(user = {}) {
+    const p = Array.isArray(user.p) ? user.p : [];
+    if (p.includes('inventario.transferencias.ver_todas')) return { todas: true, sql: '', params: [] };
+    if (user.bodega_id != null) {
+        return { todas: false, sql: ' AND (t.solicitante_id = ? OR t.destino_bodega_id = ?)', params: [user.id, user.bodega_id] };
+    }
+    return { todas: false, sql: ' AND t.solicitante_id = ?', params: [user.id] };
+}
+/** ¿Mismo usuario? (ids de la BD y del JWT; null nunca coincide). */
+const _esMismoUsuario = (a, b) => a != null && b != null && Number(a) === Number(b);
+const _diasPerfil = (v) => Math.max(0, Math.trunc(Number(v)) || 0);
+const _cantidadPerfil = (v) => (v == null ? null : _r4(v));
+const _personaPerfil = (id, nombre) => (id == null ? null : { id: Number(id), nombre: nombre ?? null });
+/** Un paso hecho: quién y cuándo; null si no hay ni lo uno ni lo otro. */
+const _pasoPerfil = (por, fecha) => (por || fecha ? { por: por || null, fecha: fecha ?? null } : null);
+/** Origen o destino de una fila: la obra si hay; si no, la bodega; null si no hay ninguna. */
+function _lugarPerfil(r, lado) {
+    const obra = r[`${lado}_obra_id`];
+    if (obra != null) return { tipo: 'obra', id: Number(obra), nombre: r[`${lado}_obra_nombre`] ?? null, responsable: null };
+    const bodega = r[`${lado}_bodega_id`];
+    if (bodega == null) return null;
+    const resp = typeof r[`${lado}_bodega_responsable`] === 'string' ? r[`${lado}_bodega_responsable`].trim() : '';
+    return { tipo: 'bodega', id: Number(bodega), nombre: r[`${lado}_bodega_nombre`] ?? null, responsable: resp || null };
+}
+
 // SELECT de transferencia_discrepancias tolerante a las columnas de las mig 129/130 (sin ellas cae a menos columnas;
 // sin la tabla, 1146 → []). `extra` = columnas fijas adicionales; `resto` = WHERE … (FOR UPDATE).
 async function _selectDiscrepancias(conn, extra, resto, params) {
@@ -246,76 +320,6 @@ async function _selectDiscrepancias(conn, extra, resto, params) {
 // columna (mig 130 sin aplicar) no se sabe → no bloquea.
 const _pendienteReglaAnterior = (fila) =>
     fila.estado === 'pendiente' && fila.diferencia_aplicada !== undefined && !_esReglaNueva(fila.diferencia_aplicada);
-
-// ── Fichas de la tarjeta «Inventario» del Inicio (fichasInicio, 2026-10-22) ──
-// Orden de prioridad de las etapas: si una solicitud cae en dos, queda UNA ficha con la primera de esta lista.
-const ETAPAS_INICIO = ['discrepancias', 'por_recibir', 'por_despachar', 'por_aprobar'];
-// Etapas que este usuario ve, con EXACTAMENTE los permisos, condiciones y alcance de los grupos de resumenInicio
-// (copia literal: los conteos y las fichas no pueden desfasarse; lo cuida tests/transferencias_fichas_inicio.test.js).
-// Única diferencia admitida: discrepancias va con EXISTS en vez de JOIN (el JOIN repetiría la ficha por cada ítem).
-// `desde` = fecha en que entró a la etapa (los «días esperando»). null = el perfil no ve esa etapa.
-function _etapasInicio(user = {}) {
-    const p = Array.isArray(user.p) ? user.p : [];
-    const tiene = (k) => p.includes(k);
-    let alcance = '';
-    const alcanceParams = [];
-    if (!tiene('inventario.transferencias.ver_todas')) {
-        alcance = user.bodega_id
-            ? ' AND (t.solicitante_id = ? OR t.destino_bodega_id = ?)'
-            : ' AND t.solicitante_id = ?';
-        alcanceParams.push(user.id);
-        if (user.bodega_id) alcanceParams.push(user.bodega_id);
-    }
-    const aprobar = tiene('inventario.transferencias.aprobar');
-    // Ver diferencias (mig 131): quien aprueba o quien solo las mira (diferencias_ver), igual que resumenInicio.
-    const verDiferencias = aprobar || tiene('inventario.transferencias.diferencias_ver');
-    return {
-        discrepancias: verDiferencias ? {
-            where: " AND EXISTS (SELECT 1 FROM transferencia_discrepancias d WHERE d.transferencia_id = t.id AND d.estado = 'pendiente' AND d.diferencia <> 0)",
-            params: [],
-            desde: 'COALESCE(t.fecha_recepcion, t.fecha_despacho, t.fecha_solicitud)',
-        } : null,
-        por_recibir: tiene('inventario.transferencias.recibir') ? {
-            where: " AND t.estado IN ('en_transito', 'recepcion_parcial')" + alcance,
-            params: alcanceParams,
-            desde: 'COALESCE(t.fecha_despacho, t.fecha_aprobacion, t.fecha_solicitud)',
-        } : null,
-        por_despachar: tiene('inventario.transferencias.despachar') ? {
-            where: " AND t.estado = 'aprobada'" + alcance,
-            params: alcanceParams,
-            desde: 'COALESCE(t.fecha_aprobacion, t.fecha_solicitud)',
-        } : null,
-        por_aprobar: aprobar ? { where: " AND t.estado = 'pendiente'", params: [], desde: 't.fecha_solicitud' } : null,
-    };
-}
-// ¿Mismo usuario? (ids de la BD y del JWT; null nunca coincide).
-const _mismoId = (a, b) => a != null && b != null && Number(a) === Number(b);
-// Lo que ESTE usuario puede hacer ahora con la ficha y, si nada, por qué. Copia de canAprobar / canRecibir de
-// frontend/src/hooks/inventario/useTransferenciaDetail.ts: la interfaz no tiene «Despachar» desde 14-04-2026 y
-// recibir() acepta 'aprobada', así que en por_despachar la acción también es Recibir. Solo decide qué enlace muestra
-// la ficha: aprobar/recibir/resolver vuelven a validar todo (SoD, bodega) al ejecutarse.
-function _accionInicio(t, etapa, user = {}) {
-    const p = Array.isArray(user.p) ? user.p : [];
-    const bypass = _hasBypass(p);
-    const nada = (bloqueo) => ({ accion: null, bloqueo });
-    if (etapa === 'discrepancias') {
-        if (_hasPerm(p, 'inventario.transferencias.aprobar')) return { accion: 'resolver', bloqueo: null };
-        // Solo diferencias_ver (mig 131): la ve, sin acción y sin bloqueo (la ficha dice «Ver diferencia»).
-        if (_hasPerm(p, 'inventario.transferencias.diferencias_ver')) return { accion: null, bloqueo: null };
-        return nada('sin_permiso');
-    }
-    if (etapa === 'por_aprobar') {
-        if (!_hasPerm(p, 'inventario.transferencias.aprobar')) return nada('sin_permiso');
-        if (_mismoId(t.solicitante_id, user.id) && !bypass) return nada('sod_solicitante');
-        return { accion: 'aprobar', bloqueo: null };
-    }
-    // por_despachar (aprobada) y por_recibir (en tránsito / recepción parcial): Recibir.
-    if (!_hasPerm(p, 'inventario.transferencias.recibir')) return nada('sin_permiso');
-    if (etapa === 'por_despachar' && _mismoId(t.aprobador_id, user.id) && !bypass) return nada('sod_aprobador');
-    if (etapa === 'por_recibir' && _mismoId(t.transportista_id, user.id) && !bypass) return nada('sod_transportista');
-    if (user.bodega_id != null && !_mismoId(t.destino_bodega_id, user.bodega_id)) return nada('otra_bodega');
-    return { accion: 'recibir', bloqueo: null };
-}
 
 const transferenciaService = {
     /**
@@ -2086,6 +2090,337 @@ const transferenciaService = {
     },
 
     /**
+     * Detalle «Inventario» del Inicio por perfil (lienzo elegido 2026-10-22: Leonardo y obra = opción A, jefatura =
+     * opción B): TODO lo que necesitan las vistas en una respuesta. Contrato en
+     * frontend/src/components/dashboard/widgets/inventarioPerfil/tipos.ts; reglas en inventario-transferencias.md
+     * § Inicio por perfil.
+     *   - Alcance (_alcancePerfil) = el de GET /:id en producción: todo lo que sale se puede abrir.
+     *   - Consultas FIJAS, sin N+1: circuito, listas (UNION ALL), aprobadores, diferencias (solo con `aprobar` o
+     *     `diferencias_ver`) y la obra del token (si tiene) en paralelo; después ítems y personalizados en lote
+     *     (IN (?)), solo si hay solicitudes. Excluye obras de prueba y finalizadas, como resumenInicio.
+     *   - Nunca columnas de $: de items_inventario solo descripción y unidad; todo se arma campo a campo.
+     *   - Lo que la app NO registra no sale (p. ej. los WhatsApp: no queda quién le escribió a quién).
+     */
+    async inicioPerfil(user = {}) {
+        const p = Array.isArray(user.p) ? user.p : [];
+        const tiene = (k) => p.includes(k);
+        const aprobar = tiene('inventario.transferencias.aprobar');
+        const verDiferencias = aprobar || tiene('inventario.transferencias.diferencias_ver');
+        const bypass = _hasBypass(p);
+        const alcance = _alcancePerfil(user);
+        const L = PERFIL_LIMITES;
+        const base = `WHERE t.activo = 1${EXCLUIR_OBRAS_PRUEBA}${alcance.sql}`;
+
+        // 1) El circuito (una fila): cuántas hay en cada etapa y los días de la más antigua; recibidas = del mes.
+        // Las diferencias, por solicitud con alguna pendiente ≠ 0 (como resumenInicio), y cuántos ítems suman; además
+        // la solicitud de la más antigua (dif_mas_antigua: el aviso de la obra la abre, sin ver la lista).
+        const sqlCircuito = `
+            SELECT ${_dia('CURDATE()')} AS hoy,
+                   SUM(t.estado = 'pendiente') AS pedida_n,
+                   MAX(CASE WHEN t.estado = 'pendiente' THEN DATEDIFF(CURDATE(), t.fecha_solicitud) END) AS pedida_dias,
+                   SUM(t.estado = 'aprobada') AS aprobada_n,
+                   MAX(CASE WHEN t.estado = 'aprobada' THEN DATEDIFF(CURDATE(), COALESCE(t.fecha_aprobacion, t.fecha_solicitud)) END) AS aprobada_dias,
+                   SUM(t.estado IN ('en_transito', 'recepcion_parcial')) AS despachada_n,
+                   MAX(CASE WHEN t.estado IN ('en_transito', 'recepcion_parcial')
+                       THEN DATEDIFF(CURDATE(), COALESCE(t.fecha_despacho, t.fecha_aprobacion, t.fecha_solicitud)) END) AS despachada_dias,
+                   SUM(t.estado = 'recibida' AND t.fecha_recepcion >= ${_INICIO_MES}) AS recibida_n,
+                   ${_dia("MAX(CASE WHEN t.estado = 'recibida' THEN t.fecha_recepcion END)")} AS recibida_ultima,
+                   COUNT(dd.transferencia_id) AS dif_n,
+                   SUM(dd.items) AS dif_items,
+                   MAX(CASE WHEN dd.transferencia_id IS NOT NULL THEN DATEDIFF(CURDATE(), COALESCE(t.fecha_recepcion, dd.desde)) END) AS dif_dias,
+                   SUBSTRING_INDEX(GROUP_CONCAT(CASE WHEN dd.transferencia_id IS NOT NULL THEN t.id END
+                       ORDER BY COALESCE(t.fecha_recepcion, dd.desde) ASC, t.id ASC SEPARATOR ','), ',', 1) AS dif_mas_antigua
+            FROM transferencias t
+            LEFT JOIN (SELECT d.transferencia_id, COUNT(*) AS items, MIN(d.created_at) AS desde
+                       FROM transferencia_discrepancias d
+                       WHERE d.estado = 'pendiente' AND d.diferencia <> 0
+                       GROUP BY d.transferencia_id) dd ON dd.transferencia_id = t.id
+            ${base}`;
+
+        // 2) Las solicitudes: en curso (cada etapa hasta su tope) + recibidas recientes + rechazadas del mes, en UNA
+        // consulta (UNION ALL de la misma tabla). Personas y fechas campo a campo (nada de t.*).
+        const columnas = `t.id, t.codigo, t.estado, t.tipo_flujo,
+            ${_COLUMNAS_LUGARES},
+            t.solicitante_id, us.nombre AS solicitante_nombre, rs.nombre AS solicitante_rol,
+            ${_APROBADOR} AS aprobador_id, ua.nombre AS aprobador_nombre,
+            ${_DESPACHADOR} AS despachador_id, ut.nombre AS despachador_nombre,
+            ${_RECEPTOR} AS receptor_id, ur.nombre AS receptor_nombre,
+            t.rechazado_por AS rechazador_id, urj.nombre AS rechazador_nombre, t.observaciones_rechazo AS motivo_rechazo,
+            trx.receptor_id AS parcial_receptor_id, utrx.nombre AS parcial_receptor_nombre,
+            ${_dia('trx.fecha_recepcion')} AS parcial_fecha,
+            ${_dia('t.fecha_solicitud')} AS fecha_solicitud,
+            CASE WHEN t.estado = 'rechazada' THEN NULL ELSE ${_dia('t.fecha_aprobacion')} END AS fecha_aprobacion,
+            ${_dia('t.fecha_despacho')} AS fecha_despacho,
+            ${_dia('t.fecha_recepcion')} AS fecha_recepcion,
+            CASE WHEN t.estado = 'rechazada' THEN ${_dia('t.fecha_aprobacion')} END AS fecha_rechazo,
+            DATEDIFF(CURDATE(), ${_DESDE_ETAPA}) AS dias,
+            CASE WHEN (t.estado = 'recibida' AND t.fecha_recepcion >= ${_INICIO_MES})
+                   OR (t.estado = 'rechazada' AND t.fecha_aprobacion >= ${_INICIO_MES}) THEN 1 ELSE 0 END AS del_mes`;
+        const desde = `FROM transferencias t
+        ${_JOIN_LUGARES}
+        LEFT JOIN usuarios us ON us.id = t.solicitante_id
+        LEFT JOIN roles rs ON rs.id = us.rol_id
+        LEFT JOIN usuarios ua ON ua.id = ${_APROBADOR}
+        LEFT JOIN usuarios ut ON ut.id = ${_DESPACHADOR}
+        LEFT JOIN usuarios ur ON ur.id = ${_RECEPTOR}
+        LEFT JOIN usuarios urj ON urj.id = t.rechazado_por
+        LEFT JOIN (SELECT transferencia_id, MAX(id) AS id FROM transferencia_recepciones GROUP BY transferencia_id) ultx
+               ON ultx.transferencia_id = t.id AND t.estado = 'recepcion_parcial'
+        LEFT JOIN transferencia_recepciones trx ON trx.id = ultx.id
+        LEFT JOIN usuarios utrx ON utrx.id = trx.receptor_id`;
+        const parte = (where, orden) => `(SELECT ${columnas}
+        ${desde}
+        ${base} AND ${where}
+        ORDER BY ${orden}
+        LIMIT ?)`;
+        // En curso: una parte (con su tope) POR ETAPA. Con una sola parte «las más antiguas primero», las aprobadas viejas
+        // (siguen «aprobada» hasta que la obra recibe: no hay «Despachar») llenaban el tope y dejaban fuera las
+        // pendientes, que suelen ser más nuevas: la bandeja de quien aprueba quedaba vacía con la cifra en N.
+        const sqlLista = [
+            parte("t.estado = 'pendiente'", 'dias DESC, t.id ASC'),
+            parte("t.estado = 'aprobada'", 'dias DESC, t.id ASC'),
+            parte("t.estado IN ('en_transito', 'recepcion_parcial')", 'dias DESC, t.id ASC'),
+            parte("t.estado = 'recibida'", 't.fecha_recepcion DESC, t.id DESC'),
+            parte(`t.estado = 'rechazada' AND t.fecha_aprobacion >= ${_INICIO_MES}`, 't.fecha_aprobacion DESC, t.id DESC'),
+        ].join('\nUNION ALL\n');
+        const paramsLista = [
+            ...alcance.params, L.en_curso,
+            ...alcance.params, L.en_curso,
+            ...alcance.params, L.en_curso,
+            ...alcance.params, L.recibidas,
+            ...alcance.params, L.rechazadas,
+        ];
+
+        // 3) Quién aprueba hoy (permiso efectivo = rol + grant − deny, como permisosService), sin Super Administrador
+        // (rol 1: quienes programan). Para «Esperando a …» y «Apurar a …».
+        const clave = 'inventario.transferencias.aprobar';
+        const sqlAprobadores = `
+            SELECT u.id, u.nombre FROM usuarios u
+            WHERE u.activo = 1 AND u.rol_id <> 1
+              AND NOT EXISTS (SELECT 1 FROM permisos_usuario_override o
+                              WHERE o.usuario_id = u.id AND o.permiso_clave = ? AND o.tipo = 'deny')
+              AND (EXISTS (SELECT 1 FROM permisos_rol_v2 pr WHERE pr.rol_id = u.rol_id AND pr.permiso_clave = ?)
+                   OR EXISTS (SELECT 1 FROM permisos_usuario_override o
+                              WHERE o.usuario_id = u.id AND o.permiso_clave = ? AND o.tipo = 'grant'))
+            ORDER BY u.nombre ASC
+            LIMIT ?`;
+
+        // 4) Diferencias pendientes ≠ 0, por ítem: solo quien aprueba o «Ver diferencias» (mig 131), con el alcance.
+        const sqlDiferencias = `
+            SELECT d.id, d.transferencia_id, t.codigo, i.descripcion, i.unidad,
+                   d.cantidad_enviada, d.cantidad_recibida, d.diferencia,
+                   ${_COLUMNAS_LUGARES},
+                   ${_APROBADOR} AS aprobador_id, ua.nombre AS aprobador_nombre,
+                   CASE WHEN t.estado = 'rechazada' THEN NULL ELSE ${_dia('t.fecha_aprobacion')} END AS fecha_aprobacion,
+                   ${_DESPACHADOR} AS despachador_id, ut.nombre AS despachador_nombre, ${_dia('t.fecha_despacho')} AS fecha_despacho,
+                   COALESCE(d.reportado_por, ${_RECEPTOR}) AS receptor_id, ur.nombre AS receptor_nombre,
+                   ${_dia('COALESCE(t.fecha_recepcion, d.created_at)')} AS fecha_recepcion,
+                   DATEDIFF(CURDATE(), COALESCE(t.fecha_recepcion, d.created_at)) AS dias
+            FROM transferencia_discrepancias d
+            JOIN transferencias t ON t.id = d.transferencia_id
+            JOIN items_inventario i ON i.id = d.item_id
+            ${_JOIN_LUGARES}
+            LEFT JOIN usuarios ua ON ua.id = ${_APROBADOR}
+            LEFT JOIN usuarios ut ON ut.id = ${_DESPACHADOR}
+            LEFT JOIN usuarios ur ON ur.id = COALESCE(d.reportado_por, ${_RECEPTOR})
+            ${base} AND d.estado = 'pendiente' AND d.diferencia <> 0
+            ORDER BY dias DESC, d.id ASC
+            LIMIT ?`;
+
+        const [[filasCircuito], [filasLista], [filasAprobadores], resDiferencias, resObra] = await Promise.all([
+            db.query(sqlCircuito, alcance.params),
+            db.query(sqlLista, paramsLista),
+            db.query(sqlAprobadores, [clave, clave, clave, L.aprobadores]),
+            verDiferencias ? db.query(sqlDiferencias, [...alcance.params, L.diferencias]) : null,
+            user.obra_id != null ? db.query('SELECT id, nombre FROM obras WHERE id = ?', [user.obra_id]) : null,
+        ]);
+
+        // Un UNION ALL sin ORDER BY afuera no garantiza el orden entre sus partes: se reagrupa y se ordena aquí (orden
+        // estable: dentro del mismo día queda el de la BD, que ordenó por fecha y hora).
+        const grupos = [[], [], []]; // en curso · recibidas · rechazadas
+        (Array.isArray(filasLista) ? filasLista : []).forEach(r => {
+            grupos[r.estado === 'recibida' ? 1 : r.estado === 'rechazada' ? 2 : 0].push(r);
+        });
+        const masNueva = (k) => (a, b) => String(b[k] ?? '').localeCompare(String(a[k] ?? ''));
+        grupos[0].sort((a, b) => (_diasPerfil(b.dias) - _diasPerfil(a.dias)) || (Number(a.id) - Number(b.id)));
+        grupos[1].sort(masNueva('fecha_recepcion'));
+        grupos[2].sort(masNueva('fecha_rechazo'));
+        // Recibidas: las del mes y, como mínimo, las últimas `recibidas_recientes` (el «Historial de aprobados»).
+        const recibidas = grupos[1].filter((r, i) => Number(r.del_mes) === 1 || i < L.recibidas_recientes);
+        const filas = [...grupos[0], ...recibidas, ...grupos[2]];
+
+        // 5) Ítems en lote (sin N+1): catálogo y personalizados. Personalizados con aprobado = FALSE = los quitó quien
+        // aprobó (mig 070): no van. Además, de cuántos lugares distintos sale cada una (la cabecera guarda solo el
+        // origen «principal»; la aprobación puede sacar de varias bodegas y obras): splits con cantidad
+        // (transferencia_item_origenes, mig 032), el origen de cada ítem (mig 029, las de antes de los splits) y el de los
+        // personalizados que salen de una obra (mig 071). UNION (sin ALL) ya deja cada lugar una sola vez.
+        const ids = filas.map(r => r.id);
+        const [[items], [custom], [origenesLote]] = ids.length
+            ? await Promise.all([
+                db.query(`
+                    SELECT ti.transferencia_id, ti.id, i.descripcion, i.unidad,
+                           ti.cantidad_solicitada, ti.cantidad_enviada, ti.cantidad_recibida
+                    FROM transferencia_items ti
+                    JOIN items_inventario i ON i.id = ti.item_id
+                    WHERE ti.transferencia_id IN (?)
+                    ORDER BY ti.transferencia_id, ti.id`, [ids]),
+                db.query(`
+                    SELECT tic.transferencia_id, tic.id, tic.descripcion, tic.unidad,
+                           tic.cantidad, tic.cantidad_aprobada, tic.cantidad_recibida
+                    FROM transferencia_items_custom tic
+                    WHERE tic.transferencia_id IN (?) AND tic.aprobado = 1
+                    ORDER BY tic.transferencia_id, tic.id`, [ids]),
+                db.query(`
+                    SELECT ti.transferencia_id, tio.origen_obra_id AS obra_id, tio.origen_bodega_id AS bodega_id
+                    FROM transferencia_item_origenes tio
+                    JOIN transferencia_items ti ON ti.id = tio.transferencia_item_id
+                    WHERE ti.transferencia_id IN (?) AND tio.cantidad_enviada > 0
+                    UNION
+                    SELECT ti.transferencia_id, ti.origen_obra_id, ti.origen_bodega_id
+                    FROM transferencia_items ti
+                    WHERE ti.transferencia_id IN (?) AND (ti.origen_obra_id IS NOT NULL OR ti.origen_bodega_id IS NOT NULL)
+                    UNION
+                    SELECT tic.transferencia_id, tic.origen_obra_id, NULL
+                    FROM transferencia_items_custom tic
+                    WHERE tic.transferencia_id IN (?) AND tic.aprobado = 1 AND tic.origen_obra_id IS NOT NULL`, [ids, ids, ids]),
+            ])
+            : [[[]], [[]], [[]]];
+        const porTrf = (rows) => {
+            const m = new Map();
+            (Array.isArray(rows) ? rows : []).forEach(r => {
+                if (!m.has(r.transferencia_id)) m.set(r.transferencia_id, []);
+                m.get(r.transferencia_id).push(r);
+            });
+            return m;
+        };
+        const itemsDe = porTrf(items);
+        const customDe = porTrf(custom);
+        const origenesDe = porTrf(origenesLote);
+        // Lugares de origen distintos ADEMÁS del de la cabecera (0 con uno solo o ninguno).
+        const lugarClave = (obraId, bodegaId) => (obraId != null ? `o${Number(obraId)}` : bodegaId != null ? `b${Number(bodegaId)}` : null);
+        const origenesExtra = (r) => {
+            const lugares = new Set((origenesDe.get(r.id) || []).map(o => lugarClave(o.obra_id, o.bodega_id)).filter(Boolean));
+            const principal = lugarClave(r.origen_obra_id, r.origen_bodega_id);
+            if (principal) lugares.delete(principal);
+            return principal ? lugares.size : Math.max(0, lugares.size - 1);
+        };
+
+        const solicitudes = filas.map(r => {
+            // «Recibida» solo después de una recepción: antes es null (en los personalizados la columna es NOT NULL
+            // DEFAULT 0, y un 0 no quiere decir «llegó 0»).
+            const huboRecepcion = r.estado === 'recepcion_parcial' || r.estado === 'recibida';
+            const recibida = (v) => (huboRecepcion ? _cantidadPerfil(v) : null);
+            const deCatalogo = (itemsDe.get(r.id) || []).map(i => ({
+                clave: `c${i.id}`, personalizado: false, descripcion: i.descripcion ?? '', unidad: i.unidad ?? null,
+                pedida: _r4(i.cantidad_solicitada), enviada: _cantidadPerfil(i.cantidad_enviada), recibida: recibida(i.cantidad_recibida),
+            }));
+            const personalizados = (customDe.get(r.id) || []).map(c => ({
+                clave: `p${c.id}`, personalizado: true, descripcion: c.descripcion ?? '', unidad: c.unidad ?? null,
+                pedida: _r4(c.cantidad), enviada: _cantidadPerfil(c.cantidad_aprobada), recibida: recibida(c.cantidad_recibida),
+            }));
+            const propia = _esMismoUsuario(r.solicitante_id, user.id);
+            const pendienteAprobable = r.estado === 'pendiente' && aprobar;
+            const sod = pendienteAprobable && propia && !bypass;
+            return {
+                id: r.id,
+                codigo: r.codigo,
+                estado: r.estado,
+                etapa: PERFIL_ETAPA[r.estado] ?? null,
+                tipo_flujo: r.tipo_flujo ?? null,
+                // materiales = materiales de construcción (solo ítems personalizados, se compran); herramientas = lleva
+                // ítems del catálogo (equipos y herramientas).
+                tipo: r.tipo_flujo === 'solicitud_materiales' || (deCatalogo.length === 0 && personalizados.length > 0)
+                    ? 'materiales' : 'herramientas',
+                origen: _lugarPerfil(r, 'origen'),
+                origenes_extra: origenesExtra(r),
+                destino: _lugarPerfil(r, 'destino'),
+                solicitante: r.solicitante_id == null ? null
+                    : { id: Number(r.solicitante_id), nombre: r.solicitante_nombre ?? null, rol: r.solicitante_rol ?? null },
+                propia,
+                fecha_solicitud: r.fecha_solicitud ?? null,
+                aprobacion: _pasoPerfil(_personaPerfil(r.aprobador_id, r.aprobador_nombre), r.fecha_aprobacion),
+                despacho: _pasoPerfil(_personaPerfil(r.despachador_id, r.despachador_nombre), r.fecha_despacho),
+                recepcion: _pasoPerfil(_personaPerfil(r.receptor_id, r.receptor_nombre), r.fecha_recepcion),
+                ultima_recepcion: r.estado === 'recepcion_parcial'
+                    ? _pasoPerfil(_personaPerfil(r.parcial_receptor_id, r.parcial_receptor_nombre), r.parcial_fecha)
+                    : null,
+                rechazo: r.estado === 'rechazada'
+                    ? { por: _personaPerfil(r.rechazador_id, r.rechazador_nombre), fecha: r.fecha_rechazo ?? null, motivo: r.motivo_rechazo ?? null }
+                    : null,
+                dias: _diasPerfil(r.dias),
+                del_mes: Number(r.del_mes) === 1,
+                // SoD (solicitante ≠ aprobador): solo en pendientes y si quien mira aprueba. Lo vuelve a validar aprobar().
+                puede_aprobar: pendienteAprobable ? !sod : null,
+                bloqueo_aprobar: sod ? 'sod_solicitante' : null,
+                items: [...deCatalogo, ...personalizados],
+            };
+        });
+
+        const c = (filasCircuito && filasCircuito[0]) || {};
+        const etapa = (n, dias) => ({ total: Number(n) || 0, dias: dias == null ? null : _diasPerfil(dias) });
+        const hoyLocal = () => {
+            const f = new Date();
+            const dd = (n) => String(n).padStart(2, '0');
+            return `${f.getFullYear()}-${dd(f.getMonth() + 1)}-${dd(f.getDate())}`;
+        };
+        const filasDif = resDiferencias ? (Array.isArray(resDiferencias[0]) ? resDiferencias[0] : []) : null;
+        const obra = resObra && Array.isArray(resObra[0]) && resObra[0][0]
+            ? { id: Number(resObra[0][0].id), nombre: resObra[0][0].nombre ?? null }
+            : null;
+
+        return {
+            hoy: c.hoy || hoyLocal(),
+            perfil: aprobar ? 'aprueba' : verDiferencias ? 'jefatura' : 'obra',
+            super_admin: Number(user.rol_id) === 1,
+            alcance: { todas: alcance.todas, bodega_id: alcance.todas || user.bodega_id == null ? null : Number(user.bodega_id) },
+            obra,
+            puede: {
+                aprobar,
+                ver_diferencias: verDiferencias,
+                resolver_diferencias: aprobar,
+                solicitar: tiene('inventario.transferencias.solicitar') || tiene('inventario.transferencias.solicitud_materiales'),
+                recibir: tiene('inventario.transferencias.recibir'),
+                sod_bypass: bypass,
+            },
+            aprobadores: (Array.isArray(filasAprobadores) ? filasAprobadores : []).map(u => ({ id: Number(u.id), nombre: u.nombre ?? null })),
+            circuito: {
+                pedida: etapa(c.pedida_n, c.pedida_dias),
+                aprobada: etapa(c.aprobada_n, c.aprobada_dias),
+                despachada: etapa(c.despachada_n, c.despachada_dias),
+                recibida: { total: Number(c.recibida_n) || 0, ultima: c.recibida_ultima ?? null },
+                diferencias: {
+                    ...etapa(c.dif_n, c.dif_dias),
+                    items: Number(c.dif_items) || 0,
+                    mas_antigua_id: Number(c.dif_mas_antigua) > 0 ? Number(c.dif_mas_antigua) : null,
+                },
+            },
+            solicitudes,
+            diferencias: filasDif == null ? null : filasDif.map(d => {
+                const dif = _r4(d.diferencia); // enviada − recibida: positivo = faltan
+                return {
+                    id: d.id,
+                    transferencia_id: d.transferencia_id,
+                    codigo: d.codigo,
+                    descripcion: d.descripcion ?? '',
+                    unidad: d.unidad ?? null,
+                    enviada: _r4(d.cantidad_enviada),
+                    recibida: _r4(d.cantidad_recibida),
+                    diferencia: dif,
+                    faltan: dif > 0 ? dif : 0,
+                    sobran: dif < 0 ? _r4(-dif) : 0,
+                    origen: _lugarPerfil(d, 'origen'),
+                    destino: _lugarPerfil(d, 'destino'),
+                    aprobacion: _pasoPerfil(_personaPerfil(d.aprobador_id, d.aprobador_nombre), d.fecha_aprobacion),
+                    despacho: _pasoPerfil(_personaPerfil(d.despachador_id, d.despachador_nombre), d.fecha_despacho),
+                    recepcion: _pasoPerfil(_personaPerfil(d.receptor_id, d.receptor_nombre), d.fecha_recepcion),
+                    dias: _diasPerfil(d.dias),
+                };
+            }),
+            limites: { ...L },
+        };
+    },
+
+    /**
      * Tarjeta «Inventario» del Inicio (dueño 2026-10-20): lo que le toca a ESTE usuario según su perfil.
      * Cada cifra es null cuando el perfil no puede actuar sobre ella (la tarjeta no la muestra):
      *   - por_aprobar   (transferencias.aprobar): pendientes de aprobación, todas — igual que GET /pendientes.
@@ -2139,141 +2474,6 @@ const transferenciaService = {
             out[k] = r ? grupo(r[0]?.[0]?.n, r[0]?.[0]?.dias) : null;
         });
         return out;
-    },
-
-    /**
-     * Fichas de la tarjeta «Inventario» del Inicio (opción A «Fichas por solicitud», 2026-10-22): las solicitudes
-     * detrás de las cifras de resumenInicio, con sus ítems y lo que ESTE usuario puede hacer con cada una.
-     *   - Etapas = los grupos de resumenInicio (_etapasInicio: mismos permisos, condiciones y alcance);
-     *     mis_solicitudes no genera fichas. Si una solicitud cae en dos etapas, una sola ficha (ETAPAS_INICIO).
-     *   - Consultas fijas, sin N+1: una por etapa permitida (hasta `limite` por etapa, las más antiguas) + ítems,
-     *     ítems personalizados y diferencias en lote (IN (?)), solo si hay ids.
-     *   - Nunca columnas de $ (items_inventario.valor_*): de los ítems solo descripción y unidad.
-     * Devuelve { conteos (resumenInicio sin cambios, para «Ver las N»), limite, fichas } con las fichas por días
-     * DESC, id ASC. `estancada` = la regla de inventario.service (10 días o la prórroga), solo en por_aprobar.
-     */
-    async fichasInicio(user = {}, { limite } = {}) {
-        // LIMIT numérico (un string rompe en MariaDB, RUNBOOK §6): se normaliza aunque la ruta ya lo haga.
-        const lim = normalizePagination({ limit: limite }, 50, 100).limit;
-        const etapas = _etapasInicio(user);
-        const activas = ETAPAS_INICIO.filter(k => etapas[k]);
-        const [conteos, ...porEtapa] = await Promise.all([
-            this.resumenInicio(user),
-            // `k` sale de ETAPAS_INICIO (lista fija), no del request.
-            ...activas.map(k => db.query(`
-                SELECT t.id, t.codigo, t.estado, t.tipo_flujo, t.solicitante_id, t.aprobador_id, t.transportista_id,
-                       t.destino_bodega_id, '${k}' AS etapa,
-                       COALESCE(oo.nombre, ob.nombre) AS origen_nombre,
-                       COALESCE(do2.nombre, db2.nombre) AS destino_nombre,
-                       us.nombre AS solicitante_nombre,
-                       DATEDIFF(CURDATE(), ${etapas[k].desde}) AS dias,
-                       DATEDIFF(COALESCE(t.prorroga_hasta, DATE_ADD(DATE(t.fecha_solicitud), INTERVAL 10 DAY)), CURDATE()) AS dias_hasta_limite
-                FROM transferencias t
-                LEFT JOIN obras oo ON t.origen_obra_id = oo.id
-                LEFT JOIN bodegas ob ON t.origen_bodega_id = ob.id
-                LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
-                LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
-                LEFT JOIN usuarios us ON t.solicitante_id = us.id
-                WHERE t.activo = 1${EXCLUIR_OBRAS_PRUEBA}${etapas[k].where}
-                ORDER BY dias DESC, t.id ASC
-                LIMIT ?
-            `, [...etapas[k].params, lim])),
-        ]);
-
-        // Una ficha por solicitud: `activas` va en orden de prioridad → la primera etapa que la trae, gana.
-        const porId = new Map();
-        activas.forEach((k, i) => {
-            (porEtapa[i]?.[0] || []).forEach(r => { if (!porId.has(r.id)) porId.set(r.id, { ...r, etapa: k }); });
-        });
-        const filas = [...porId.values()];
-        if (!filas.length) return { conteos, limite: lim, fichas: [] };
-
-        const ids = filas.map(r => r.id);
-        const idsDiferencias = filas.filter(r => r.etapa === 'discrepancias').map(r => r.id);
-        const [[items], [custom], [difs]] = await Promise.all([
-            db.query(`
-                SELECT ti.transferencia_id, ti.id, ti.cantidad_solicitada, ti.cantidad_recibida,
-                       i.descripcion AS nombre, i.unidad
-                FROM transferencia_items ti
-                JOIN items_inventario i ON i.id = ti.item_id
-                WHERE ti.transferencia_id IN (?)
-                ORDER BY ti.transferencia_id, ti.id
-            `, [ids]),
-            // Personalizados (fuera de catálogo): aprobado = FALSE es un ítem que el aprobador quitó (mig 070).
-            db.query(`
-                SELECT tic.transferencia_id, tic.id, tic.descripcion AS nombre, tic.unidad,
-                       tic.cantidad, tic.cantidad_aprobada, tic.cantidad_recibida
-                FROM transferencia_items_custom tic
-                WHERE tic.transferencia_id IN (?) AND tic.aprobado = 1
-                ORDER BY tic.transferencia_id, tic.id
-            `, [ids]),
-            idsDiferencias.length
-                ? db.query(`
-                    SELECT d.transferencia_id, d.id, d.cantidad_enviada, d.cantidad_recibida, d.diferencia,
-                           i.descripcion AS nombre, i.unidad
-                    FROM transferencia_discrepancias d
-                    JOIN items_inventario i ON i.id = d.item_id
-                    WHERE d.transferencia_id IN (?) AND d.estado = 'pendiente' AND d.diferencia <> 0
-                    ORDER BY d.transferencia_id, d.id
-                `, [idsDiferencias])
-                : [[]],
-        ]);
-
-        const agrupar = (rows) => {
-            const m = new Map();
-            (rows || []).forEach(r => {
-                if (!m.has(r.transferencia_id)) m.set(r.transferencia_id, []);
-                m.get(r.transferencia_id).push(r);
-            });
-            return m;
-        };
-        const itemsDe = agrupar(items);
-        const customDe = agrupar(custom);
-        const difsDe = agrupar(difs);
-
-        const fichas = filas.map(r => {
-            // «Recibida» solo tiene sentido si ya hubo una recepción: antes es null (en los personalizados la columna
-            // es NOT NULL DEFAULT 0 y un 0 no quiere decir «llegó 0»).
-            const huboRecepcion = r.estado === 'recepcion_parcial' || r.estado === 'recibida';
-            const recibida = (v) => (huboRecepcion ? _r4(v) : null);
-            const diferencias = (difsDe.get(r.id) || []).map(d => ({
-                id: d.id, nombre: d.nombre, unidad: d.unidad ?? null,
-                enviada: _r4(d.cantidad_enviada), recibida: _r4(d.cantidad_recibida), diferencia: _r4(d.diferencia),
-            }));
-            const { accion, bloqueo } = _accionInicio(r, r.etapa, user);
-            return {
-                id: r.id,
-                codigo: r.codigo,
-                estado: r.estado,
-                tipo_flujo: r.tipo_flujo ?? null,
-                etapa: r.etapa,
-                origen_nombre: r.origen_nombre ?? null,
-                destino_nombre: r.destino_nombre ?? null,
-                solicitante_id: r.solicitante_id ?? null,
-                solicitante_nombre: r.solicitante_nombre ?? null,
-                dias: Math.max(0, Math.trunc(Number(r.dias)) || 0),
-                estancada: r.etapa === 'por_aprobar' && r.dias_hasta_limite != null && Number(r.dias_hasta_limite) <= 0,
-                accion,
-                bloqueo,
-                items: [
-                    ...(itemsDe.get(r.id) || []).map(i => ({
-                        id: i.id, nombre: i.nombre, unidad: i.unidad ?? null,
-                        cantidad: _r4(i.cantidad_solicitada), recibida: recibida(i.cantidad_recibida),
-                    })),
-                    ...(customDe.get(r.id) || []).map(c => ({
-                        id: c.id, nombre: c.nombre, unidad: c.unidad ?? null,
-                        cantidad: _r4(c.cantidad_aprobada != null ? c.cantidad_aprobada : c.cantidad),
-                        recibida: recibida(c.cantidad_recibida),
-                    })),
-                ],
-                diferencias,
-                // diferencia = enviada − recibida: positiva = faltante, negativa = sobrante (mig 052).
-                faltan: _r4(diferencias.reduce((s, d) => s + (d.diferencia > 0 ? d.diferencia : 0), 0)),
-                sobran: _r4(diferencias.reduce((s, d) => s + (d.diferencia < 0 ? -d.diferencia : 0), 0)),
-            };
-        });
-        fichas.sort((a, b) => (b.dias - a.dias) || (a.id - b.id));
-        return { conteos, limite: lim, fichas };
     },
 
     async getMisSolicitudes(userId, query = {}) {

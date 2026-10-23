@@ -634,24 +634,21 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     - **Inventario** (`InventarioInicio`, `GET /api/transferencias/inicio`): lo que le toca según el
       perfil —por aprobar y diferencias (aprobador), por despachar / por recibir (bodega), sus solicitudes
       en curso—; cada fila abre Inventario → Solicitudes con su filtro (`?tab=transferencias&estado=`).
-      Detalle «Fichas por solicitud» (`DetalleInventario`, opción A del lienzo, Marcos 2026-10-22;
-      `GET /api/transferencias/inicio/fichas`, mismo alcance que la tarjeta; se pide al abrirlo y con
-      «Actualizar»): **Requiere acción** en una ficha por solicitud —iniciales del solicitante (rojo si
-      espera más de 30 días), destino, «desde {origen} · {código}», días esperando (gris hasta 7, ámbar
-      8-30, rojo > 30), la frase «Ana pidió Andamio ×4, Carretilla ×7 y 2 ítems más.» (en diferencias, qué
-      llegó de cada ítem), píldoras (etapa, Estancada, «Falta 1 u.»/«Faltan 2 SACO» —si se mezclan unidades,
-      «2 ítems con faltante»—, lo mismo con sobrantes en ámbar y, si no puede actuar, por qué:
-      «Pedida por ti», «Va a otra bodega»…) y el **camino P·A·D·R** (hecho relleno, en curso como anillo
-      azul en tránsito y ámbar en el resto, lo que falta punteado, la R roja si llegó con diferencias)—.
-      Pie: «Ver N ítems» (despliega la lista dentro de la ficha) y el enlace verde con lo que le toca a
-      quien mira (Aprobar · Recibir · Resolver, o «Ver solicitud»), que abre Inventario con esa solicitud
-      (`&id=`): aprobar o recibir piden formulario, no se hacen desde el Inicio. Filtro por etapa
-      (`FiltroFichas`: `PestanasElasticas` dentro de `BarraPaginada`, §9.6) solo con los grupos del perfil
-      y los totales de la tarjeta (se oculta si ve un solo grupo); primero las que llevan más días; 9 a la
-      vista + «Ver las N» y, si la tarjeta cuenta más de las que llegaron (máx. 50 por etapa), «Ver todas
-      en Inventario». Las solicitudes propias (`mis_solicitudes`) no van en fichas: se nombran abajo («Además
-      tienes 3 solicitudes tuyas en curso · Ver tus solicitudes») o en el vacío. Reemplazó a las filas por
-      grupo + «Alertas de inventario».
+      Detalle **por perfil** (`DetalleInventario`, Marcos 2026-10-22, del lienzo de diseño;
+      `GET /api/transferencias/inicio/perfil`, se pide al abrirlo y con «Actualizar»): quien aprueba (Leonardo) →
+      opción A «Lo tuyo primero» (`VistaLeonardo`); jefatura que ve diferencias sin aprobar (Daphne) → opción B
+      «El circuito» (`VistaJefatura`); quien pide para su obra (jefes de obra, prevencionistas) → opción A
+      (`VistaObra`). El resto ve lo de antes (`RespaldoInventario`: «Solicitudes» con todos los grupos + «Alertas de
+      inventario»). El Super Administrador (Marcos, Mauricio) → la vista «Super Administrador» de la opción A
+      (`VistaSuperAdmin`: el circuito de todas las obras y «Quién tiene qué» 2×2 en una tarjeta, «Lo último que
+      pasó» al lado del mismo alto —se desliza por dentro— y abajo, a todo el ancho, la «Secuencia completa» por paso con
+      pestañas; un paso que la app no registró va en gris, «Sin despacho») con **«Ver como»** arriba (`VerComo.tsx`): Super Admin · Leonardo · Daphne · Jefe de obra
+      (+ selector de obra de 44 px) · El resto, con sus mismos datos. Es un control segmentado como `FiltroFichas`
+      (marco `bg-card` con sombra chica, indicador verde de ítem elegido de `PestanasElasticas`, sin cifras) dentro de
+      `BarraPaginada` (en el celular va de a páginas, §9.6); opciones de 44 px de alto en el celular; rótulo «VER COMO»
+      (`ROTULO_FICHAS`) y una nota chica `text-xs` cuando lo que se ve no es exactamente lo de esa persona. La línea
+      bajo el título cambia con el perfil (y con lo elegido en «Ver como»; textos del lienzo). Regla de quién ve qué:
+      inventario-transferencias.md § Qué vista ve cada uno. Piezas en `widgets/inventarioPerfil/`.
     - **Vehículos** (`VehicleExpiries`, 3 filas en la tarjeta; tarjeta y franja siguen con el número del
       menú, que cuenta papeles). Detalle **«Calendario + ficha»** (`DetalleVehiculos`, Marcos 2026-10-22:
       la opción B «Calendario» del lienzo combinada con la ficha de la opción A;
@@ -681,16 +678,18 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       abrió; si tras «Actualizar» lo elegido ya no tiene nada, vuelve a los vencidos. Todo con `eventosFlota`
       (vencido o por vencer que avisa, papel por papel). Reemplazó a la lista de vencimientos y, el mismo
       día, a la grilla de fichas.
-    Inventario va **sin `Panel`** (las fichas son la superficie, grilla 1/2/3 columnas, como Asistencia);
+    Las vistas de Inventario van **sin `Panel`** alrededor: sus tarjetas `rounded-3xl` (`TARJETA` de
+    `inventarioPerfil/formato.ts`, con menos relleno en el celular) son la superficie, como Asistencia; el respaldo
+    sigue en los dos `Panel` de antes.
     Vehículos va en tarjetas `rounded-3xl` (calendario, vencidos y próximos, como «Hoy» y «Próximos 14 días» de
-    Asistencia) más la ficha `rounded-[20px]` al tocar. Los dos usan las piezas de `FichaInicio.tsx` +
-    `fichasInicio.ts` (`PILDORA`, `CIFRA`, `CUADRO`), que copian las clases de `FichasReiterados` (sombra
-    `--shadow-sm`) sin tocar los archivos de Asistencia.
+    Asistencia) más la ficha `rounded-[20px]` al tocar, con las piezas de `FichaInicio.tsx` + `fichasInicio.ts`
+    (`PILDORA`, `CIFRA`, `CUADRO`), que copian las clases de `FichasReiterados` sin tocar los archivos de Asistencia.
     Piel común: **tarjetas blancas sin borde** (`rounded-3xl`, sombra `--shadow-md`) con
     `EncabezadoTarjeta` (**círculo de color sólido** + título `text-base`) y `CifraTarjeta` (número grande
     en el mismo color, rampa 700/300). Tonos: rojo = vencido o grave, ámbar = pendiente, azul =
     informativo, verde = al día, neutro = solo dato. Las cuatro van **en una sola línea desde 1280 px**
     (`xl`), 2×2 en tablet y una bajo otra en celular (`COLUMNAS` según cuántas ve el perfil). Lógica pura
     con test: `resumenFaltasMes.ts`,
-    `resumenDocumentosInicio.ts`, `resumenInventarioInicio.ts`, `fichasInventarioInicio.ts`,
+    `resumenDocumentosInicio.ts`, `resumenInventarioInicio.ts`, `inventarioPerfil/perfil.ts`,
+    `inventarioPerfil/formato.ts`, `inventarioPerfil/verComo.modelo.ts`, `inventarioPerfil/comoObra.ts`,
     `fichasVehiculosInicio.ts`.

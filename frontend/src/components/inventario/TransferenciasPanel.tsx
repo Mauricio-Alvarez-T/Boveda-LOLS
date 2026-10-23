@@ -33,9 +33,16 @@ interface Props {
      * initialStatusFilter: solo se aplica al montar.
      */
     initialSelectedId?: number | null;
+    /**
+     * Abrir el asistente «Pedir» al montar (`&nuevo=pedir`: «Pedir materiales» del Inicio, 2026-10-22). Solo con
+     * permiso de pedir y fuera de «Diferencias» / «Histórico» (ahí no hay botón «Pedir»). Solo se aplica al montar.
+     */
+    initialPedir?: boolean;
+    /** Avisa al montar que se usó `initialPedir`, para que el parent no lo vuelva a abrir si el panel se remonta. */
+    onInitialPedirUsado?: () => void;
 }
 
-const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialStatusFilter, initialSelectedId }) => {
+const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialStatusFilter, initialSelectedId, initialPedir, onInitialPedirUsado }) => {
     const { user } = useAuth();
     const trfHook = useTransferencias();
 
@@ -55,7 +62,14 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
     const [fechaHasta, setFechaHasta] = useState('');
     const [solicitanteId, setSolicitanteId] = useState<number | null>(null);
     const [solicitantes, setSolicitantes] = useState<{ id: number; nombre: string }[]>([]);
-    const [wizardModo, setWizardModo] = useState<'pedir' | 'mover' | null>(null);
+    const puedePedir = hasPermission('inventario.transferencias.solicitar') ||
+        hasPermission('inventario.transferencias.solicitud_materiales');
+    const [wizardModo, setWizardModo] = useState<'pedir' | 'mover' | null>(() => (
+        initialPedir && puedePedir && statusFilter !== 'discrepancias' && statusFilter !== 'historico' ? 'pedir' : null));
+    useEffect(() => {
+        if (initialPedir) onInitialPedirUsado?.();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const [actionLoading, setActionLoading] = useState(false);
     // Modal-resumen post-acción: se abre tras crear/aprobar/recibir y aloja el
     // botón de WhatsApp, para que quede claro CUÁNDO se envía el respaldo.
@@ -342,10 +356,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 canVerDiscrepancias={canVerDiscrepancias}
                 searchQuery={isDiscrepanciasMode ? discSearchQuery : searchQuery}
                 onSearchChange={isDiscrepanciasMode ? setDiscSearchQuery : setSearchQuery}
-                canPedir={!isDiscrepanciasMode && !isHistoricoMode && (
-                    hasPermission('inventario.transferencias.solicitar') ||
-                    hasPermission('inventario.transferencias.solicitud_materiales')
-                )}
+                canPedir={!isDiscrepanciasMode && !isHistoricoMode && puedePedir}
                 canMover={!isDiscrepanciasMode && !isHistoricoMode && (
                     hasPermission('inventario.transferencias.solicitar') ||
                     hasPermission('inventario.transferencias.push_directo') ||

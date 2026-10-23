@@ -53,8 +53,7 @@
 - Caso vigente: `inventario.transferencias.diferencias_ver` (mig 131, «Ver diferencias») abre solo lo de
   **VER** diferencias con OR sobre `inventario.transferencias.aprobar`: `GET /transferencias/discrepancias`, el
   filtro «Diferencias» y su detalle en solo lectura (`TransferenciasPanel`), y el grupo `discrepancias` de
-  `resumenInicio` / `fichasInicio` (Inicio). Resolver, rehacer, subir foto y la ficha «Resolver» siguen con
-  `aprobar` solo (sin OR). Ver inventario-transferencias.md § Ver diferencias sin resolverlas.
+  `resumenInicio` (Inicio). Resolver, rehacer y subir foto siguen con `aprobar` solo (sin OR). Ver inventario-transferencias.md § Ver diferencias sin resolverlas.
 - ⚠️ **Excepción deliberada**: `documentos.laborales.emitir` / `.descargar` y `cargos.sueldo.*` usan gate
   **EXCLUSIVO** (un solo permiso, sin OR con el genérico del módulo). Son "solo oficina": heredarlos desde
   `documentos.descargar` o `cargos.ver` daría acceso a contratos y remuneraciones a todo terreno.
@@ -67,6 +66,8 @@
   intra_bodega, orden_gerencia, **sod_bypass**. Detalle en inventario-transferencias.md.
 - Más `diferencias_ver` (mig 131): mirar las diferencias sin resolverlas (no es un paso del flujo, no entra en
   la SoD).
+  Con el mismo OR sobre `aprobar` abre la lista `diferencias` del Inicio por perfil (`GET /transferencias/inicio/perfil`,
+  `inicioPerfil`); sin ninguno de los dos viene `null`. Ver inventario-transferencias.md § Inicio por perfil.
 
 ## Overrides por usuario
 
@@ -75,7 +76,11 @@
 
 ## Roles: Super Administrador vs Administrador (2026-10-21)
 
-- **Super Administrador** = quienes programan y prueban (Marcos, Mauricio): todo el catálogo.
+- **Super Administrador** = quienes programan y prueban (Marcos, Mauricio): todo el catálogo. Se reconoce por el
+  **rol 1** (`rol_id`), no por un permiso (los tiene todos): así lo hace el servidor (`super_admin` de
+  `inicioPerfil`, rehacer diferencias) y el frontend (`esSuperAdmin` de `inventarioPerfil/perfil.ts`,
+  `TransferenciasPanel`). En el Inicio tiene su vista propia de Inventario y «Ver como» para mirar el formato de los
+  demás con SUS datos (solo UX: no pide nada ni da permisos; inventario-transferencias.md § «Ver como»).
 - **Administrador** (mig 126) = dueños y jefatura (Paula Martínez, Rodrigo Riquelme, Leonardo López,
   Matías Millanao, Luis Lazcano, Daphne Lazcano): **ven todo y toman decisiones de jefatura**, sin la
   operación diaria, sin configuración del sistema (usuarios, roles, permisos, correo, plantillas, catálogos

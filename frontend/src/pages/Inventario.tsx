@@ -160,9 +160,12 @@ const InventarioPage: React.FC = () => {
     const [hideEmptyUbic, setHideEmptyUbic] = useState(false);
     // Intent de navegación desde el Resumen Ejecutivo hacia Transferencias.
     // Se consume como props iniciales del Panel; cambia de valor fuerza remount via `key`.
-    // `&id=N` en la URL (fichas del Inicio, 2026-10-22) abre esa solicitud al entrar.
+    // `&id=N` en la URL (detalle «Inventario» del Inicio, 2026-10-22) abre esa solicitud al entrar.
     const [trfNavIntent, setTrfNavIntent] = useState<{ estado?: string; id?: number | null; nonce: number }>(
         () => ({ estado: searchParams.get('estado') ?? undefined, id: Number(searchParams.get('id')) || null, nonce: 0 }));
+    // `&nuevo=pedir` («Pedir materiales» del Inicio, 2026-10-22) abre el asistente de pedir al entrar, UNA vez: el
+    // panel avisa que lo usó y, si se vuelve a la pestaña, ya no se abre solo. El permiso lo revisa el panel.
+    const [pedirAlEntrar, setPedirAlEntrar] = useState(() => searchParams.get('nuevo') === 'pedir');
 
     // El subtítulo del header muestra el tab activo como breadcrumb (→ Tab)
     // para que el usuario sepa dónde está sin mirar las pestañas.
@@ -492,6 +495,8 @@ const InventarioPage: React.FC = () => {
                         hasPermission={hasPermission}
                         initialStatusFilter={trfNavIntent.estado}
                         initialSelectedId={trfNavIntent.id ?? null}
+                        initialPedir={pedirAlEntrar}
+                        onInitialPedirUsado={() => setPedirAlEntrar(false)}
                     />
                 )}
 
