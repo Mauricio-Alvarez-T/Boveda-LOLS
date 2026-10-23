@@ -1,19 +1,21 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, ChevronDown, RotateCcw, Truck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, ChevronDown, RotateCcw, Truck, X } from 'lucide-react';
 import api from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { cn } from '../../../utils/cn';
 import { avisarPorWhatsApp } from '../../../utils/whatsappShare';
 import { Button } from '../../ui/Button';
+import { IconButton } from '../../ui/IconButton';
+import { VehiculoDocumentos } from '../../vehiculos/VehiculoDocumentos';
 import { SkeletonText } from '../../ui/Skeleton';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
 import { CabezaFicha, EnlaceFicha, Pildora, PieFicha, RotuloFichas } from './FichaInicio';
 import { CUADRO, plural, ROTULO_FICHAS } from './fichasInicio';
 import {
     abreFormulario, ariaSemaforo, bajadaVehiculo, diasCalendario, eventosFlota, fechaConDia, fechaCorta, fichasVehiculos, fraseVehiculo,
-    hoyIso, mensajeWhatsApp, ordenSemaforo, porMes, PAPELES_META, pildora, rutaSubir, telefonoAvisar, textoAvisar, textoPlazo, tituloVehiculo, tonoCelda, tonoFicha,
-    urgenteDeEvento, type EventoPapel, type PapelApi, type PapelesFlotaApi, type TonoCelda, type Urgente, type VehiculoPapelesApi,
+    hoyIso, mensajeWhatsApp, ordenSemaforo, porMes, PAPELES_META, pildora, rutaSubir, telefonoAvisar, textoAvisar, textoPlazo, tipoSubir, tituloVehiculo, tonoCelda, tonoFicha,
+    urgenteDeEvento, type EventoPapel, type TipoDocumentoPapel, type PapelApi, type PapelesFlotaApi, type TonoCelda, type Urgente, type VehiculoPapelesApi,
 } from './fichasVehiculosInicio';
 
 /** Tarjetas grandes del detalle: las mismas de Asistencia («Hoy», «Próximos 14 días»). */
@@ -69,9 +71,14 @@ const LEYENDA_CALENDARIO = [
 ];
 
 /** La ficha de un vehículo (la de la opción A), la misma familia que las fichas de Asistencia. */
-const FichaVehiculo: React.FC<{ v: VehiculoPapelesApi; urg: Urgente[]; puede: { editar: boolean; crear: boolean } }> = ({ v, urg, puede }) => {
+const FichaVehiculo: React.FC<{
+    v: VehiculoPapelesApi; urg: Urgente[]; puede: { editar: boolean; crear: boolean };
+    /** «Subir el nuevo»: abre el formulario aquí mismo, debajo (Marcos 2026-10-23). */
+    onSubir: (v: VehiculoPapelesApi, tipo: TipoDocumentoPapel) => void;
+}> = ({ v, urg, puede, onSubir }) => {
     const navigate = useNavigate();
     const tono = tonoFicha(v);
+    const tipo = abreFormulario(v, urg, puede) ? tipoSubir(urg) : null;
     return (
         <div className="flex flex-col gap-3.5 rounded-[20px] bg-card p-5 text-foreground shadow-[var(--shadow-sm)] ring-1 ring-border/60">
             <CabezaFicha circulo={<Truck className="h-4 w-4" />} tonoCirculo={tono}
@@ -94,8 +101,8 @@ const FichaVehiculo: React.FC<{ v: VehiculoPapelesApi; urg: Urgente[]; puede: { 
                     icono={<WhatsAppIcon className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" />}>
                     {textoAvisar(v)}
                 </EnlaceFicha>
-                <EnlaceFicha onClick={() => navigate(rutaSubir(v, urg))}>
-                    {abreFormulario(v, urg, puede) ? 'Subir el nuevo' : 'Ver vehículo'}
+                <EnlaceFicha onClick={() => (tipo ? onSubir(v, tipo) : navigate(rutaSubir(v, urg)))}>
+                    {tipo ? 'Subir el nuevo' : 'Ver vehículo'}
                 </EnlaceFicha>
             </PieFicha>
         </div>
@@ -138,6 +145,27 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
     const tituloRef = useRef<HTMLParagraphElement>(null);
     const listaRef = useRef<HTMLDivElement>(null);
     const verVencidos = () => { setSel(null); requestAnimationFrame(() => listaRef.current?.focus({ preventScroll: true })); };
+
+    // «Subir el nuevo» en el mismo Inicio (Marcos 2026-10-23): el formulario de Vehículos (VehiculoDocumentos, el mismo
+    // de la ficha del vehículo) abierto en «Renovar» o «Agregar» de ese papel, debajo del calendario. `n` lo vuelve a
+    // montar si se toca otra vez, para que se reabra. Al guardar se piden de nuevo los papeles (la ficha se pone al día).
+    const navigate = useNavigate();
+    const [subir, setSubir] = useState<{ v: VehiculoPapelesApi; tipo: TipoDocumentoPapel; n: number } | null>(null);
+    const subirRef = useRef<HTMLDivElement>(null);
+    // VehiculoDocumentos avisa `onCambio` también al cargar por primera vez: ese aviso no es un cambio.
+    const cargasSubir = useRef(0);
+    const alCambiarPapel = useCallback(() => {
+        cargasSubir.current += 1;
+        if (cargasSubir.current > 1) setIntento(n => n + 1);
+    }, []);
+    const abrirSubir = (v: VehiculoPapelesApi, tipo: TipoDocumentoPapel) => {
+        cargasSubir.current = 0;
+        setSubir(s => ({ v, tipo, n: (s?.n ?? 0) + 1 }));
+        requestAnimationFrame(() => {
+            const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            subirRef.current?.scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
+        });
+    };
 
     useEffect(() => {
         let vigente = true;
@@ -304,7 +332,7 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
                         <p className="sr-only" aria-live="polite">{anuncio}</p>
                         {selV ? (
                             <div className="space-y-3">
-                                {elegidas.map(({ v, urg }) => <FichaVehiculo key={v.vehiculo_id} v={v} urg={urg} puede={puede} />)}
+                                {elegidas.map(({ v, urg }) => <FichaVehiculo key={v.vehiculo_id} v={v} urg={urg} puede={puede} onSubir={abrirSubir} />)}
                                 {/* Sobre blanco, como en la ficha: el gris «al día» no se ve sobre el fondo de la página. */}
                                 <div className="rounded-2xl bg-card px-4 py-2.5 shadow-[var(--shadow-sm)]">
                                     <Leyenda items={leyendaSemaforo(dias)} />
@@ -405,6 +433,23 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
                     </section>
                 </div>
             </div>
+
+            {subir && (
+                <div ref={subirRef} className={cn(CARD, 'mt-6 min-w-0 scroll-mt-20 space-y-4')}>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className={ROTULO_FICHAS}>Subir el nuevo · {subir.v.patente} · {tituloVehiculo(subir.v)}</p>
+                        <div className="flex items-center gap-2">
+                            <EnlaceFicha apagado onClick={() => navigate(`/vehiculos?vehiculo=${subir.v.vehiculo_id}`)}
+                                icono={<ArrowRight className="h-4 w-4" aria-hidden />}>
+                                Abrir en Vehículos
+                            </EnlaceFicha>
+                            <IconButton size="sm" aria-label="Cerrar" onClick={() => setSubir(null)} icon={<X className="h-4 w-4" />} />
+                        </div>
+                    </div>
+                    <VehiculoDocumentos key={`${subir.v.vehiculo_id}-${subir.tipo}-${subir.n}`} vehiculoId={subir.v.vehiculo_id}
+                        abrir={subir.tipo} onCambio={alCambiarPapel} />
+                </div>
+            )}
         </section>
     );
 };

@@ -262,6 +262,14 @@ export const rutaSubir = (v: VehiculoPapelesApi, urg: Urgente[]) => {
     return `/vehiculos?vehiculo=${v.vehiculo_id}${clave ? `&papel=${clave}` : ''}`;
 };
 
+/**
+ * El tipo del formulario de `VehiculoDocumentos` que abre «Subir el nuevo» en el mismo Inicio (Marcos 2026-10-23: «que
+ * en el mismo lugar o abajo se pueda abrir la opción para cargar el documento ahí mismo»): el del papel más urgente si
+ * es uno de los cinco; null si no (lo de `otros` va al vehículo en Vehículos).
+ */
+export const tipoSubir = (urg: Urgente[]): TipoDocumentoPapel | null =>
+    PAPELES_META.find(m => m.clave === urg[0]?.clave)?.tipoDocumento ?? null;
+
 /** Categorías que Vehículos sabe renovar desde el enlace (las tablas antiguas de seguros y permisos no). */
 const RENOVABLES: ReadonlyArray<PapelApi['categoria']> = ['documento', 'revision', 'mantencion'];
 
