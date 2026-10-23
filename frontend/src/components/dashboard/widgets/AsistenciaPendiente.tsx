@@ -1,6 +1,5 @@
 import React from 'react';
 import { CheckSquare, Clock } from 'lucide-react';
-import { Button } from '../../ui/Button';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
 import { shareViaWhatsApp } from '../../../utils/whatsappShare';
 import { EncabezadoTarjeta, CifraTarjeta } from './EncabezadoTarjeta';
@@ -57,9 +56,7 @@ const AsistenciaPendiente: React.FC<Props> = ({ sinGuardar, total, hoyIso, onNav
                     icono={<WhatsAppIcon className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" />}>
                     Recordar por WhatsApp
                 </EnlaceFicha>
-                <Button variant="link" size="sm" onClick={onNavigate} className="text-green-700 dark:text-green-300">
-                    Ir a Asistencia
-                </Button>
+                <EnlaceFicha onClick={onNavigate}>Ir a Asistencia</EnlaceFicha>
             </div>
         </div>
     );
