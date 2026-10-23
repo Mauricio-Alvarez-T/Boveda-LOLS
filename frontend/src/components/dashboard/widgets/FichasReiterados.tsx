@@ -100,7 +100,8 @@ export const FichasReiterados: React.FC<{ lista: TrabajadorFaltas[]; onTrabajado
                     <PieFicha>
                         <EnlaceFicha apagado onClick={() => { void shareViaWhatsApp(mensajeGrupoFaltas(t, hoyIso)); }}
                             icono={<WhatsAppIcon className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" />}>
-                            Preguntar<span className="sr-only @[18.5rem]:not-sr-only"> al grupo</span>
+                            {/* Un solo hijo del flex: si no, el gap se suma al espacio y queda «Preguntar  al grupo». */}
+                            <span>Preguntar<span className="sr-only @[18.5rem]:not-sr-only"> al grupo</span></span>
                         </EnlaceFicha>
                         <EnlaceFicha onClick={() => onTrabajador(t.rut)}>Ver en asistencia</EnlaceFicha>
                     </PieFicha>
