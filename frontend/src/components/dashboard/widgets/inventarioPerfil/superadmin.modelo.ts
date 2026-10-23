@@ -878,22 +878,29 @@ export function notaObraElegida(obraElegida: string | null | undefined, lugar = 
 
 export interface OpcionFiltro { key: FiltroSec; texto: string; n: number }
 
-export interface ModeloSuperAdmin {
-    /** Con `ver_todas` («todas las obras»). */
-    todas: boolean;
-    circuito: PasoCircuitoSA[];
-    diferencias: ReturnType<typeof avisoDiferencias>;
-    responsables: Responsable[];
+/**
+ * «Secuencia completa · cada solicitud» (SecuenciaCompleta.tsx): la usan VistaSuperAdmin y, desde 2026-10-23, VistaJefatura
+ * (el dueño: a Daphne «le interesa tener el detalle en lo que va cada solicitud»). La arma `modeloSecuencia`.
+ */
+export interface ModeloSecuencia {
     /** Los cinco pasos con su rótulo (el de «completas» cambia si alguna no se sabe si llegó completa). */
     grupos: GrupoSec[];
     /** Las filas de cada paso, ya ordenadas (lo pendiente de resolver primero; después lo que se movió último). */
     porGrupo: Record<Grupo, FilaSec[]>;
     /** Pestañas con su cifra (de la lista). */
     filtros: OpcionFiltro[];
-    /** Todo lo registrado, lo más nuevo arriba. */
-    eventos: Evento[];
     /** Alguna lista vino cortada (el servidor la topó): lo que falta está en Inventario. */
     tope: { texto: string; ruta: string } | null;
+}
+
+export interface ModeloSuperAdmin extends ModeloSecuencia {
+    /** Con `ver_todas` («todas las obras»). */
+    todas: boolean;
+    circuito: PasoCircuitoSA[];
+    diferencias: ReturnType<typeof avisoDiferencias>;
+    responsables: Responsable[];
+    /** Todo lo registrado, lo más nuevo arriba. */
+    eventos: Evento[];
 }
 
 /**
@@ -913,12 +920,12 @@ export function listaCortada(datos: Pick<InventarioPerfilApi, 'circuito' | 'soli
         || (datos.diferencias != null && (c.diferencias.items || 0) > datos.diferencias.length);
 }
 
-export function modeloSuperAdmin(datos: InventarioPerfilApi): ModeloSuperAdmin {
-    const registros = registrosDe(datos);
-    // Se sabe si una diferencia ya no está pendiente solo con la lista completa (vino y no se cortó).
-    const conocidas = datos.diferencias != null && (datos.circuito.diferencias.items || 0) <= datos.diferencias.length;
-    const eventos = ordenarEventos(registros.flatMap(r => eventosDeRegistro(r, conocidas)));
-    const aprueba = quienApruebaDe(datos.aprobadores);
+/** Se sabe si una diferencia ya no está pendiente solo con la lista completa (vino y no se cortó). */
+const diferenciasConocidas = (datos: Pick<InventarioPerfilApi, 'circuito' | 'diferencias'>): boolean =>
+    datos.diferencias != null && (datos.circuito.diferencias.items || 0) <= datos.diferencias.length;
+
+/** La secuencia de cada solicitud con lo ya juntado de la respuesta (lo comparten las dos funciones de abajo). */
+function secuenciaDe(datos: InventarioPerfilApi, registros: Registro[], conocidas: boolean, aprueba: QuienApruebaSA): ModeloSecuencia {
     const ctx: Contexto = {
         aprueba: aprueba.nombre ?? QUIEN_APRUEBA,
         investiga: JEFATURA,
@@ -942,6 +949,27 @@ export function modeloSuperAdmin(datos: InventarioPerfilApi): ModeloSuperAdmin {
         { key: 'recibidas', texto: plural(recibidas, 'Recibida', 'Recibidas'), n: recibidas },
         { key: 'rechazada', texto: plural(n('rechazada'), 'No aprobada', 'No aprobadas'), n: n('rechazada') },
     ];
+    return {
+        grupos,
+        porGrupo,
+        filtros,
+        tope: listaCortada(datos) ? { texto: 'La lista llegó a su tope: lo que no está aquí, en Inventario', ruta: rutaLista('todas') } : null,
+    };
+}
+
+/**
+ * Solo la «Secuencia completa · cada solicitud» (VistaJefatura la pone bajo lo suyo): la MISMA que arma `modeloSuperAdmin`
+ * con estos datos, sin el circuito, «Quién tiene qué» ni «Lo último que pasó».
+ */
+export function modeloSecuencia(datos: InventarioPerfilApi): ModeloSecuencia {
+    return secuenciaDe(datos, registrosDe(datos), diferenciasConocidas(datos), quienApruebaDe(datos.aprobadores));
+}
+
+export function modeloSuperAdmin(datos: InventarioPerfilApi): ModeloSuperAdmin {
+    const registros = registrosDe(datos);
+    const conocidas = diferenciasConocidas(datos);
+    const eventos = ordenarEventos(registros.flatMap(r => eventosDeRegistro(r, conocidas)));
+    const aprueba = quienApruebaDe(datos.aprobadores);
     // «Recibida» cuenta las de este mes (cifra exacta); la lista trae además las últimas de antes.
     const antes = registros.filter(r => r.s.estado === 'recibida' && !r.s.del_mes).length;
     return {
@@ -949,10 +977,7 @@ export function modeloSuperAdmin(datos: InventarioPerfilApi): ModeloSuperAdmin {
         circuito: circuitoSuperAdmin(datos.circuito, datos.hoy, aprueba, antes),
         diferencias: avisoDiferencias(datos.circuito.diferencias),
         responsables: responsablesDe(datos, conteosMes(eventos, datos.hoy, aprueba.ids), aprueba),
-        grupos,
-        porGrupo,
-        filtros,
+        ...secuenciaDe(datos, registros, conocidas, aprueba),
         eventos,
-        tope: listaCortada(datos) ? { texto: 'La lista llegó a su tope: lo que no está aquí, en Inventario', ruta: rutaLista('todas') } : null,
     };
 }

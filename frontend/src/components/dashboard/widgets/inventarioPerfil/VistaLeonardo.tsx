@@ -1,18 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Check, ChevronRight, PackageX, User } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ChevronRight, PackageX, User } from 'lucide-react';
+import { useAuth } from '../../../../context/AuthContext';
+import type { Transferencia } from '../../../../types/entities';
 import { cn } from '../../../../utils/cn';
+import ResumenAccionModal from '../../../inventario/transferencia-detail/ResumenAccionModal';
 import { Pildora } from '../FichaInicio';
 import { CIFRA, PILDORA, ROTULO_FICHAS } from '../fichasInicio';
 import type { TonoTarjeta } from '../tarjetaActiva';
 import { TARJETA } from './formato';
 import {
-    NOTA_PROPIA, NOTA_PROPIA_CORTA, RUTA_POR_APROBAR, TEXTO_FUERA_DE_LISTA, TOPE_LEO, avisoDiferencias, bajadaPorAprobar,
-    esPropiaBloqueada, etiquetaCircuito, etiquetaPaso, filaPorAprobar, marcaPedida, pasosCircuito, porAprobar, textoCifra,
-    textoHasta, textoPie, textoVacio,
-    type AvisoDiferencias, type FilaPorAprobarModelo, type MarcaPaso, type PasoCircuito,
+    NOTA_PROPIA, NOTA_PROPIA_CORTA, NOTA_RESOLVER_VER_COMO, RUTA_POR_APROBAR, TEXTO_FUERA_DE_LISTA, TOPE_LEO, abiertaVigente,
+    avisoDiferencias, bajadaPorAprobar, esPropiaBloqueada, etiquetaCircuito, etiquetaPaso, filaPorAprobar, marcaPedida,
+    pasosCircuito, porAprobar, resumenTrasAccion, textoCifra, textoHasta, textoPie, textoVacio,
+    type AccionResuelta, type AvisoDiferencias, type FilaPorAprobarModelo, type MarcaPaso, type PasoCircuito,
+    type ResumenTrasAccion,
 } from './leonardo.modelo';
-import type { PropsVistaInventario } from './perfil';
+import { esSuperAdmin, type PropsVistaInventario } from './perfil';
+import ResolverSolicitud from './ResolverSolicitud';
 
 /**
  * Detalle «Inventario» del Inicio para quien APRUEBA (Leonardo López; el Super Administrador tiene su vista aparte):
@@ -22,9 +27,12 @@ import type { PropsVistaInventario } from './perfil';
  *
  * Una tarjeta: «Te toca · por aprobar» con la cifra grande en ámbar, el circuito completo en una línea (Pedida marcada:
  * «estas son ↓»), las diferencias sin aclarar aparte en una fila roja (las resuelve él; la tarjeta de arriba las suma a
- * lo por aprobar) y la bandeja de las más antiguas primero (5 a la vista). Una acción por fila: la fila entera abre la
- * solicitud en Inventario para aprobarla o rechazarla (nada se aprueba aquí). Si la pidió él mismo (SoD), en vez del
- * botón va una nota apagada. Bajo 1280 px (celular, tablet y notebook chico con el menú abierto): «Revisar →» arriba a
+ * lo por aprobar) y la bandeja de las más antiguas primero (5 a la vista). Una acción por fila: la fila entera despliega
+ * debajo, ahí mismo, el detalle REAL de Inventario para aprobarla o rechazarla (el dueño 2026-10-23: «resolver
+ * enseguida y no me lleve hasta Inventario»; ResolverSolicitud.tsx envuelve TransferenciaDetail), una abierta a la vez,
+ * con «Abrir en Inventario» y la X; al resolverla se cierra, sale el aviso (y el resumen con WhatsApp al aprobar) y se
+ * vuelve a pedir el Inicio. Si la pidió él mismo (SoD), en vez del botón va una nota apagada y la fila abre la solicitud
+ * en Inventario, como antes. Bajo 1280 px (celular, tablet y notebook chico con el menú abierto): «Revisar →» arriba a
  * la derecha y los días en una píldora corta; desde 1280 px, la fila del lienzo en una línea con la pastilla.
  *
  * OJO al promover: el enlace de cada fila (`&id=N`) necesita que Inventario lea `id` y lo pase a TransferenciasPanel
@@ -42,26 +50,37 @@ const Circulo: React.FC<{ tono: TonoTarjeta; children: React.ReactNode }> = ({ t
     </span>
 );
 
-/** Fila entera tocable (una acción por fila): abre la solicitud. Lo de adentro marca la acción con verde. */
-const FilaTocable: React.FC<{ onClick: () => void; children: React.ReactNode }> = ({ onClick, children }) => (
-    // eslint-disable-next-line no-restricted-syntax -- fila entera tocable del lienzo: abre la solicitud (navega)
-    <button type="button" onClick={onClick}
-        className={cn('group -mx-2 flex w-[calc(100%+1rem)] min-h-11 items-start gap-3 rounded-xl px-2 py-3 text-left transition-colors duration-200 hover:bg-muted/60 xl:items-center', FOCO)}>
+/**
+ * Fila entera tocable (una acción por fila). Con `abierta` (boolean) despliega el detalle bajo ella (acordeón: el lector
+ * de pantalla oye «expandido / contraído»); sin él, abre la solicitud en Inventario. Lo de adentro marca la acción con verde.
+ */
+const FilaTocable: React.FC<{ onClick: () => void; abierta?: boolean; controla?: string; children: React.ReactNode }> = ({
+    onClick, abierta, controla, children,
+}) => (
+    // eslint-disable-next-line no-restricted-syntax -- fila entera tocable del lienzo: despliega el detalle (o abre la solicitud)
+    <button type="button" onClick={onClick} aria-expanded={abierta} aria-controls={abierta ? controla : undefined}
+        className={cn('group -mx-2 flex w-[calc(100%+1rem)] min-h-11 items-start gap-3 rounded-xl px-2 py-3 text-left transition-colors duration-200 hover:bg-muted/60 xl:items-center',
+            abierta && 'bg-muted/60', FOCO)}>
         {children}
     </button>
 );
 
-/** La acción de la fila bajo 1280 px: enlace verde chico («Revisar →»), no una barra. */
-const AccionCorta: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
+/** La flecha de la acción: hacia la derecha si navega; hacia abajo si despliega (hacia arriba, ya abierta). */
+const FlechaAccion: React.FC<{ abierta?: boolean }> = ({ abierta }) => (abierta === undefined
+    ? <ArrowRight className="h-4 w-4" aria-hidden />
+    : <ChevronDown className={cn('h-4 w-4 transition-transform duration-200 motion-reduce:transition-none', abierta && 'rotate-180')} aria-hidden />);
+
+/** La acción de la fila bajo 1280 px: enlace verde chico («Revisar ⌄»), no una barra. */
+const AccionCorta: React.FC<{ children: React.ReactNode; abierta?: boolean; className?: string }> = ({ children, abierta, className }) => (
     <span className={cn('inline-flex items-center gap-1 text-sm font-semibold text-green-700 group-hover:underline dark:text-green-300', className)}>
-        {children}<ArrowRight className="h-4 w-4" aria-hidden />
+        {children}<FlechaAccion abierta={abierta} />
     </span>
 );
 
 /** La acción de la fila desde 1280 px: la pastilla verde de 44 px a la derecha (dibujo; el botón es la fila). */
-const AccionPastilla: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
+const AccionPastilla: React.FC<{ children: React.ReactNode; abierta?: boolean; className?: string }> = ({ children, abierta, className }) => (
     <span className={cn('inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-green-50 px-4 text-sm font-semibold text-green-700 transition-colors duration-200 group-hover:bg-green-100 dark:bg-green-500/15 dark:text-green-300 dark:group-hover:bg-green-500/25', className)}>
-        {children}<ArrowRight className="h-4 w-4" aria-hidden />
+        {children}<FlechaAccion abierta={abierta} />
     </span>
 );
 
@@ -170,9 +189,18 @@ const DiferenciasAparte: React.FC<{ aviso: AvisoDiferencias; onClick: () => void
  *     derecha apretaba el texto): apilada, «Revisar →» arriba a la derecha y los días en una píldora corta;
  *   - desde 1280 px: en una línea — obra y quién · ítems · «9 días esperando» · «Aprobar o rechazar».
  */
-const FilaPorAprobar: React.FC<{ f: FilaPorAprobarModelo; onIr: (ruta: string) => void }> = ({ f, onIr }) => (
-    <li className="border-t border-border first:border-t-0">
-        <FilaTocable onClick={() => onIr(f.ruta)}>
+const FilaPorAprobar: React.FC<{
+    f: FilaPorAprobarModelo; onIr: (ruta: string) => void;
+    /** Solo las que se resuelven aquí (`f.resuelveAqui`): si su despliegue está abierto, y qué hacer al tocarla. */
+    abierta: boolean; onResolver: () => void;
+    /** El despliegue (ResolverSolicitud), cuando está abierta. */
+    children?: React.ReactNode;
+}> = ({ f, onIr, abierta, onResolver, children }) => {
+    const aqui = f.resuelveAqui;
+    const idDespliegue = idDespliegueDe(f.id);
+    return (
+    <li id={idFila(f.id)} className="scroll-mt-20 border-t border-border first:border-t-0">
+        <FilaTocable onClick={aqui ? onResolver : () => onIr(f.ruta)} abierta={aqui ? abierta : undefined} controla={idDespliegue}>
             <Circulo tono={f.tonoCirculo}>{f.iniciales || <User className="h-4 w-4" />}</Circulo>
             <span className="min-w-0 flex-1 xl:flex xl:items-center xl:gap-6">
                 <span className="block xl:w-56 xl:shrink-0">
@@ -181,7 +209,7 @@ const FilaPorAprobar: React.FC<{ f: FilaPorAprobarModelo; onIr: (ruta: string) =
                         <span className="min-w-0 text-base font-semibold leading-snug">{f.lugar}</span>
                         {f.propia
                             ? <span className="shrink-0 text-xs text-muted-foreground xl:hidden">{NOTA_PROPIA_CORTA}</span>
-                            : <AccionCorta className="shrink-0 xl:hidden">Revisar</AccionCorta>}
+                            : <AccionCorta className="shrink-0 xl:hidden" abierta={abierta}>Revisar</AccionCorta>}
                     </span>
                     {/* Sin cortar: el cargo baja de línea si no cabe. */}
                     {f.quien && <span className="block text-xs text-muted-foreground">{f.quien}</span>}
@@ -207,21 +235,72 @@ const FilaPorAprobar: React.FC<{ f: FilaPorAprobarModelo; onIr: (ruta: string) =
                     {NOTA_PROPIA}<ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
                 </span>
             ) : (
-                <AccionPastilla className="ml-3 self-center max-xl:hidden">Aprobar o rechazar</AccionPastilla>
+                <AccionPastilla className="ml-3 self-center max-xl:hidden" abierta={abierta}>Aprobar o rechazar</AccionPastilla>
             )}
         </FilaTocable>
+        {aqui && abierta && (
+            // A todo el ancho de la tarjeta (el mismo de la fila), con borde: es el detalle de Inventario de esta solicitud.
+            <div id={idDespliegue} role="region" aria-label={`Aprobar o rechazar ${f.codigo}`}
+                className="-mx-2 mb-3 mt-1 rounded-2xl border border-border bg-card shadow-[var(--shadow-sm)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-200">
+                {children}
+            </div>
+        )}
     </li>
-);
+    );
+};
 
-const VistaLeonardo: React.FC<PropsVistaInventario> = ({ datos }) => {
+/** Ids de la fila y de su despliegue (para llevar la vista hasta ella y devolverle el foco al cerrar). */
+const idFila = (id: number) => `inv-leo-f-${id}`;
+const idDespliegueDe = (id: number) => `inv-leo-d-${id}`;
+
+/** Lleva la fila a la vista si su despliegue quedó abajo, fuera de la pantalla (sin animar con «reducir movimiento»). */
+const mostrarFila = (id: number) => window.requestAnimationFrame(() => {
+    const fila = document.getElementById(idFila(id));
+    const despliegue = document.getElementById(idDespliegueDe(id));
+    if (!fila || !despliegue) return;
+    const tope = fila.closest('.overflow-y-auto')?.getBoundingClientRect().top ?? 0;
+    const r = despliegue.getBoundingClientRect();
+    if (r.top < tope || r.top > window.innerHeight - 160) {
+        const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        fila.scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
+    }
+});
+
+const VistaLeonardo: React.FC<PropsVistaInventario> = ({ datos, onCambio }) => {
     const navigate = useNavigate();
     const ir = (ruta: string) => navigate(ruta);
+    const { user } = useAuth();
     const pendientes = porAprobar(datos);
     // La cifra es la exacta del circuito (la lista puede venir con tope); la bandeja muestra las 5 más antiguas.
     const n = datos.circuito.pedida.total;
     const propias = pendientes.filter(esPropiaBloqueada).length;
     const visibles = pendientes.slice(0, TOPE_LEO);
     const diferencias = avisoDiferencias(datos.circuito.diferencias);
+
+    // «Aprobar o rechazar» ahí mismo (el dueño 2026-10-23): una fila abierta a la vez. `n` vuelve a montar el despliegue
+    // (la solicitud se pide de nuevo) cada vez que se abre.
+    const [abierta, setAbierta] = useState<{ id: number; n: number } | null>(null);
+    const idAbierta = abiertaVigente(abierta?.id, visibles.map(s => s.id));
+    // El resumen con WhatsApp que Inventario abre tras aprobar (ResumenAccionModal), con la solicitud fresca.
+    const [resumen, setResumen] = useState<{ open: boolean; t: Transferencia | null; tipo: ResumenTrasAccion }>({ open: false, t: null, tipo: 'aprobar' });
+    // «Ver como → quien aprueba» del Super Administrador: lo que haga ahí queda a SU nombre.
+    const nota = esSuperAdmin(user) && !datos.super_admin ? NOTA_RESOLVER_VER_COMO : null;
+    const resolver = (id: number) => {
+        if (idAbierta === id) { setAbierta(null); return; }
+        setAbierta(a => ({ id, n: (a?.n ?? 0) + 1 }));
+        mostrarFila(id);
+    };
+    const cerrar = (id: number) => {
+        setAbierta(null);
+        // La X desaparece con el despliegue: el foco vuelve a la fila.
+        window.requestAnimationFrame(() => document.getElementById(idFila(id))?.querySelector('button')?.focus({ preventScroll: true }));
+    };
+    const alResolver = (accion: AccionResuelta, t: Transferencia | null) => {
+        setAbierta(null);
+        const tipo = resumenTrasAccion(accion);
+        if (tipo && t) setResumen({ open: true, t, tipo });
+        onCambio?.();
+    };
     return (
         <section data-vista="leonardo" className={TARJETA} aria-labelledby="inv-leo-t">
             <Encabezado id="inv-leo-t" rotulo="Te toca · por aprobar" cifra={n} tono="ambar" texto={textoCifra(n)}
@@ -236,11 +315,28 @@ const VistaLeonardo: React.FC<PropsVistaInventario> = ({ datos }) => {
                 : (
                     <>
                         {visibles.length > 0
-                            ? <ul className="mt-2">{visibles.map((s, i) => <FilaPorAprobar key={s.id} f={filaPorAprobar(s, i, pendientes.length)} onIr={ir} />)}</ul>
+                            ? (
+                                <ul className="mt-2">
+                                    {visibles.map((s, i) => {
+                                        const f = filaPorAprobar(s, i, pendientes.length);
+                                        const esta = idAbierta === s.id;
+                                        return (
+                                            <FilaPorAprobar key={s.id} f={f} onIr={ir} abierta={esta} onResolver={() => resolver(s.id)}>
+                                                {esta && (
+                                                    <ResolverSolicitud key={`${s.id}-${abierta?.n ?? 0}`} id={s.id} ruta={f.ruta} nota={nota}
+                                                        onCerrar={() => cerrar(s.id)} onResuelta={alResolver} onCambio={() => onCambio?.()} />
+                                                )}
+                                            </FilaPorAprobar>
+                                        );
+                                    })}
+                                </ul>
+                            )
                             : <p className="py-3 text-sm text-muted-foreground">{TEXTO_FUERA_DE_LISTA}</p>}
                         <PieEnlace onClick={() => ir(RUTA_POR_APROBAR)}>{textoPie(n)}</PieEnlace>
                     </>
                 )}
+            {/* Lo mismo que Inventario tras aprobar: el resumen con el respaldo por WhatsApp (queda abierto aunque la fila salga). */}
+            <ResumenAccionModal isOpen={resumen.open} onClose={() => setResumen(r => ({ ...r, open: false }))} t={resumen.t} tipo={resumen.tipo} />
         </section>
     );
 };
