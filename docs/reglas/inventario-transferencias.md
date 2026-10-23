@@ -68,6 +68,9 @@ Implementación: `backend/src/services/transferencia.service.js`.
   emergencias); queda en audit log.
 - Flujos push_directo / intra_bodega / orden_gerencia consolidan roles a propósito → SoD no aplica,
   solo gate de permiso.
+- **Quién aprueba** (`inventario.transferencias.aprobar`: aprobar o rechazar solicitudes y resolver diferencias): solo
+  **Leonardo López**, como permiso propio, y el Super Administrador. La mig 131 se lo quitó al rol Administrador y la
+  133 a todos los demás roles y permisos propios (detalle y re-login: seguridad-rbac.md § Roles).
 
 ## Stock y régimen (`stock_reconciliado`, mig 036)
 
@@ -186,7 +189,8 @@ necesitan las tres vistas. Solo usa columnas y reglas que ya están en producci�
   y días desde la recepción. Con el alcance de arriba (para Leonardo y Daphne es global, como la pestaña).
 - **`aprobadores`**: quiénes aprueban hoy (permiso efectivo `aprobar` = rol + grant − deny, como `permisosService`), activos
   y **sin Super Administrador**; es lo que permite escribir «Esperando a Leonardo» y «Apurar a Leonardo» sin dejar el nombre
-  fijo. Vacío si nadie (p. ej. en test, donde Leonardo puede no existir).
+  fijo. Vacío si nadie (p. ej. en test, donde Leonardo puede no existir). Desde la mig 133 es solo Leonardo: ningún
+  rol trae `aprobar` salvo Super Administrador, que no se lista.
 - **Solo lo que la app registra**: los WhatsApp no quedan guardados (no hay «le preguntó a…») y los usuarios no tienen
   teléfono: los botones abren WhatsApp con el mensaje listo y la persona elige el contacto (`utils/whatsappShare.ts`).
 - **Consultas fijas, sin N+1**: circuito, lista, aprobadores, diferencias (si corresponde) y la obra del token (si tiene) en
@@ -196,13 +200,23 @@ necesitan las tres vistas. Solo usa columnas y reglas que ya están en producci�
 
 ### Qué vista ve cada uno (frontend)
 
-`DetalleInventario` elige con `vistaInventario` (`inventarioPerfil/perfil.ts`, con test), en este orden:
+`DetalleInventario` elige con `vistaInventario` (`inventarioPerfil/perfil.ts`, con test; los permisos que mira son
+constantes exportadas de ese archivo), en este orden. **Regla firme (2026-10-23)**: en producción los roles y los
+permisos de cada persona (grant / deny) se arman a mano, así que un rol puede traer combinaciones inesperadas; cada vista
+pide la **combinación** de permisos con que funciona, no un permiso suelto. Antes bastaba `aprobar` para la vista de Leonardo: un jefe de obra con `aprobar`
+caía en la bandeja de todas las obras sin tener `ver_todas` (el servidor no le manda las pendientes ajenas) y perdía su
+«Pedir materiales» y «Recibir»; un prevencionista que solo recibe caía en lo de producción.
 0. **Super Administrador** (rol 1: Marcos y Mauricio) → **`VistaSuperAdmin`** (diseño «Super Administrador» de la
    opción A del lienzo; el paso «Despachada» se mantiene aunque la app no tenga «Despachar»: casi siempre en 0 o «sin
    despacho»), con el selector **«Ver como»** arriba (abajo). Va primero porque tiene `aprobar` y todo lo demás. Mismo
    criterio que el servidor (`super_admin: Number(user.rol_id) === 1`) y que `TransferenciasPanel` (`rol_id === 1`):
    `esSuperAdmin` de `perfil.ts`.
-1. `aprobar` → **`VistaLeonardo`** (Leonardo López). Lógica en `leonardo.modelo.ts` (con test):
+1. **Sin la pestaña «Solicitudes»** (`inventario.tab.transferencias`) → lo de producción (punto 5), tenga lo que tenga.
+   Todos los enlaces de las vistas van a `/inventario?tab=transferencias&…` y, sin la pestaña, `Inventario.tsx` cae en
+   la primera pestaña que sí tiene: ningún enlace llevaría a lo que dice.
+2. **`ver_todas` + `aprobar`** → **`VistaLeonardo`** (Leonardo López: `aprobar` propio de la mig 131 + rol
+   Administrador, que trae `ver_todas`). Es la bandeja de todas las obras, y sin `ver_todas` el servidor no manda las
+   pendientes ajenas (alcance de arriba). Lógica en `leonardo.modelo.ts` (con test):
    - Bajo el circuito, la fila roja **«N diferencias sin aclarar»** (`circuito.diferencias.total`: solicitudes, como la
      tarjeta y la pestaña) que abre Inventario → Diferencias: él las resuelve (mig 131) y la tarjeta de arriba suma por
      aprobar + diferencias; sin ella, «Inventario 10» abría «6 esperan tu aprobación». Con diferencias el vacío dice
@@ -213,19 +227,26 @@ necesitan las tres vistas. Solo usa columnas y reglas que ya están en producci�
    - Cada fila abre `estado=pendiente&id=N`: **necesita que `Inventario.tsx` lea `id`** (`trfNavIntent`), que llegó a
      develop con las fichas (1a232c02) y no está en producción. Va con esta vista al promoverla (lo cuida un test de
      `leonardo.modelo.test.ts`); sin eso el panel abre la primera de la lista, la más nueva.
-2. Si no, `diferencias_ver` → **`VistaJefatura`** (Daphne Lazcano).
-3. Si no, puede pedir (`solicitar` o `solicitud_materiales`) y **no** tiene bodega asignada (`bodega_id` null) →
-   **`VistaObra`**: jefes de obra y prevencionistas (los roles de terreno: solicitar + recibir, RUNBOOK § 16.5). Qué
-   muestra: § «Vista de obra», abajo.
-4. Todos los demás → lo de antes, sin pedir `/inicio/perfil` (`RespaldoInventario`: «Solicitudes» con los grupos de la
-   tarjeta + «Alertas de inventario»). Aquí quedan los bodegueros (`bodega_id`: reciben en su bodega, no piden para una
-   obra) y los Administradores sin `aprobar` (Paula, Rodrigo, Matías, Luis: el rol de la mig 126 no trae `solicitar`).
+3. **`ver_todas` + `diferencias_ver`** (sin `aprobar`) → **`VistaJefatura`** (Daphne Lazcano, mig 131): el circuito y
+   las diferencias de todas las obras, que sin `ver_todas` no vendrían.
+4. **Sin `ver_todas`, sin bodega asignada (`bodega_id` null) y con alguno de `solicitar`, `solicitud_materiales` o
+   `recibir`** → **`VistaObra`**: jefes de obra y prevencionistas (los roles de terreno: solicitar + recibir, RUNBOOK §
+   16.5). Va por aquí aunque tenga `aprobar` o `diferencias_ver` (un rol de obra hecho a mano): sin `ver_todas` no tiene
+   la bandeja de todas y VistaObra no aprueba nada (no hay botones de aprobar). Un prevencionista que **solo recibe**
+   también, sin «Pedir materiales». Sin `ver_todas` porque VistaObra es «lo tuyo»: con él, el servidor manda lo de
+   todas las obras y se mostraría como si fuera suyo. Qué muestra: § «Vista de obra», abajo.
+5. **Todos los demás** → lo de antes, sin pedir `/inicio/perfil` (`RespaldoInventario`: «Solicitudes» con los grupos de
+   la tarjeta + «Alertas de inventario»). Aquí quedan los bodegueros (`bodega_id`: reciben en su bodega, no piden para
+   una obra), los Administradores sin `aprobar` ni `diferencias_ver` (Paula, Rodrigo, Matías, Luis: ven todas las obras;
+   el rol de la mig 126 no trae `solicitar`, y aunque lo tuvieran, por `ver_todas` no es la de obra), quien no tiene la
+   pestaña y quien aprueba o ve diferencias sin `ver_todas` y además con bodega o sin pedir ni recibir.
 
 La obra asignada (`usuarios.obra_id`) no decide la vista: solo nombra la obra en los textos. La descripción bajo
 «Inventario» cambia con la vista (textos del lienzo, `descripcionInventario`; la de jefatura nombra a quien aprueba
-con `aprobadores`). El campo `perfil` de la respuesta es la misma idea del lado del servidor, pero la vista la elige el
-frontend con el rol y los permisos del token (el servidor llama `obra` también a los perfiles del punto 4 y `aprueba`
-al Super Administrador). Las vistas reciben `{ datos }` (`PropsVistaInventario`) y comparten el formato de
+con `aprobadores`; la de obra, sin permiso de pedir, no invita a pedir: «Recibe lo que llega a Domeyko y revisa lo que
+ya llegó.»). El campo `perfil` de la respuesta es una idea parecida del lado del servidor, pero el frontend **no lo lee**:
+la vista la elige solo esta regla, con el rol y los permisos del token (el servidor no mira la pestaña ni `ver_todas`
+para `perfil`). Las vistas reciben `{ datos }` (`PropsVistaInventario`) y comparten el formato de
 `inventarioPerfil/formato.ts` (fechas, cantidades con su unidad, frases de ítems y diferencias, nombres, enlaces; con
 test).
 
@@ -235,24 +256,32 @@ Marcos: «con Mauricio tengamos una vista propia como super administradores pero
 formatos de otros trabajadores ya que somos los programadores». Selector `inventarioPerfil/VerComo.tsx` (lógica pura en
 `verComo.modelo.ts` y `comoObra.ts`, con test) arriba del contenido, con **una sola carga**: la del Super Administrador
 (alcance de todas las obras, con la lista de diferencias). No pide nada más ni da permisos: solo cambia cómo se muestra
-lo que él ya puede ver.
+lo que él ya puede ver, **recalculado para cada perfil** (lo que el servidor calculó para el Super Administrador —SoD,
+`propia`, `sod_bypass`, los grupos de la tarjeta— no se arrastra). Las etiquetas son roles, **nunca un nombre fijo**:
 - **Super Admin** (por defecto) → `VistaSuperAdmin`.
-- **Leonardo** → `VistaLeonardo` con los mismos datos (Leonardo también aprueba y ve todas las obras).
-- **Daphne** → `VistaJefatura` con lo que puede ella (`comoJefatura`): ve diferencias; no aprueba ni las resuelve
-  (`puede_aprobar` null, `propia` false).
-- **Jefe de obra** → `VistaObra` con `comoObra`: las solicitudes cuyo destino es esa obra (todas como propias, sin nada
-  de aprobar), `obra` = esa obra, `puede` de un jefe de obra (pide y recibe; sin aprobar, sin ver diferencias, sin
-  `sod_bypass`), `diferencias` null pero con el **conteo** de las de esa obra en el circuito, y el circuito recalculado
-  desde esas listas (con sus topes; la «última recibida» solo si está entre las que llegaron). Un selector de obra al
-  lado: por defecto la del selector global de arriba (`ObraContext`) si tiene alguna elegida; si no, la de más
-  solicitudes. Las obras a elegir: las de la respuesta + las del selector global (sin prueba, finalizadas, inactivas ni
-  las que no participan en transferencias). Nota chica: es «lo que va a esa obra»; un jefe de obra real ve solo las
-  que pidió él.
-- **El resto** → `RespaldoInventario` (Paula, Rodrigo, Matías, Luis, bodegueros), con las cifras del propio Super
-  Administrador; lo dice una nota chica.
+- **Quien aprueba** (su primer nombre, de `aprobadores`: «Leonardo», «Leonardo o Ana»; sin nadie, «Quien aprueba») →
+  `VistaLeonardo` con `comoAprobador`: mismo alcance, sin `sod_bypass` ni `super_admin`; con un solo aprobador, lo que
+  pidió él es `propia` y no lo puede aprobar (`bloqueo_aprobar: 'sod_solicitante'`), como lo vería él.
+- **Jefatura** → `VistaJefatura` con lo que puede quien ve diferencias sin aprobar (`comoJefatura`): no aprueba ni las
+  resuelve (`puede_aprobar` null, `propia` false).
+- **Jefe de obra** → `VistaObra` con `comoObra`: las solicitudes de esa obra (`deLaObra`: las que van a ella y las
+  devoluciones y traslados que **salen** de ella, que pide su jefe de obra, mig 080; VistaObra las pone en «Va a otro
+  lugar»; un pedido normal que saca stock de esa obra para otra no cuenta), todas como propias y sin nada de aprobar,
+  `obra` = esa obra, `puede` de un jefe de obra (pide y recibe; sin aprobar, sin ver diferencias, sin `sod_bypass`),
+  `diferencias` null pero con el **conteo** de las de esa obra en el circuito (y `mas_antigua_id`, para que el aviso
+  abra esa solicitud), y el circuito recalculado desde esas listas (con sus topes; la «última recibida» solo si está
+  entre las que llegaron). Un selector de obra al lado: por defecto la del selector global de arriba (`ObraContext`) si
+  tiene alguna elegida; si no, la de más solicitudes. Las obras a elegir: las de la respuesta + las del selector global
+  (sin prueba, finalizadas, inactivas ni las que no participan en transferencias).
+- **Otros perfiles** → `RespaldoInventario` como lo ve un **Administrador sin aprobar** (`modeloComoElResto`: lo mismo
+  que `resumenInventarioInicio` con por aprobar, diferencias, por despachar y por recibir en null, que es lo que le manda
+  el servidor): solo «Tus solicitudes en curso» (las del Super Administrador) y la tarjeta neutra o verde. Las alertas de
+  inventario son las mismas para todos. Un bodeguero vería además lo que tiene por despachar y por recibir (no se simula).
 
-La descripción bajo «Inventario» es la de la vista elegida. La elección se recuerda por persona en `localStorage`
-(`boveda-inicio-inventario-ver-como:<id>`, comodidad: si falla o no hay, vuelve a «Super Admin»).
+Cada opción que no es la propia lleva una **nota chica** que dice qué se ve («Así lo ve Leonardo, con los mismos datos»;
+en «Jefe de obra», que un jefe real ve solo lo que pidió él). La descripción bajo «Inventario» es la de la vista elegida.
+La elección se recuerda por persona en `localStorage` (`boveda-inicio-inventario-ver-como:<id>`, comodidad: si falla o
+no hay, vuelve a «Super Admin»); como no vence, la nota evita confundir otra vista con la propia.
 
 #### Vista del Super Administrador (`VistaSuperAdmin`, 2026-10-22)
 
@@ -261,32 +290,53 @@ Lógica pura en `inventarioPerfil/superadmin.modelo.ts` (con test). Solo usa la 
 - **Circuito de todas las obras** con las cifras exactas de `circuito`: Pedida («esperan a Leonardo», con el nombre de
   `aprobadores`; sin uno o dos, «por aprobar»), Aprobada («aún sin salir»), **Despachada** (se mantiene aunque la
   interfaz no tenga «Despachar»; con 0, en gris «sin despacho») y Recibida (este mes; «y N de antes» = las de meses
-  anteriores que trae la lista y salen en la pestaña «Recibidas»). Las diferencias van aparte y cuentan ítems, como en
-  la vista de jefatura. Cada etapa baja a su pestaña de la secuencia.
+  anteriores que trae la lista y salen en la pestaña «Recibidas»). Las diferencias van aparte y **cuentan solicitudes**
+  (`circuito.diferencias.total`), como la tarjeta, la pestaña Diferencias, VistaLeonardo y VistaJefatura; si son más
+  ítems, la bajada lo dice («… en 3 ítems»). Cada etapa baja a su pestaña de la secuencia. Con una obra elegida en el
+  selector de arriba, una nota chica dice que este detalle no se filtra (como VistaJefatura).
 - **Quién tiene qué** (2×2): quien aprueba (nombre de `aprobadores`; sin nombre, «Quien aprueba»), con «En octubre aprobó
   N y no aprobó M» (solo lo suyo, por id: lo que aprobó el Super Administrador no se le cuenta) y «Además, N diferencias
-  por resolver»; Bodega (aprobadas aún sin salir; «En octubre Jhoan despachó 3 y Héctor 4» con los despachos
-  registrados, o «no se registró ningún despacho»); Obras (por recibir = en camino + aprobadas, que la obra ya puede
-  recibir; cuántas pidieron y recibieron este mes); **Jefatura** (diferencias por investigar, con faltantes y
-  sobrantes). La respuesta no dice quién tiene `diferencias_ver`: va el rótulo «Jefatura», no «Daphne». Sus WhatsApp no
-  quedan guardados.
+  por resolver» (solicitudes); Bodega (aprobadas aún sin salir; «En octubre Jhoan despachó 3 y Héctor 4» con los
+  despachos registrados, o «no se registró ningún despacho»); **Obras** (solo lo que va a una obra: por recibir = en
+  camino + aprobadas, que la obra ya puede recibir; cuántas pidieron y recibieron este mes. A las cifras exactas se les
+  resta lo de la lista que va a una bodega: una devolución la recibe la bodega); **Jefatura** (solicitudes con
+  diferencias por investigar, con cuántas tienen faltantes y sobrantes). La respuesta no dice quién tiene
+  `diferencias_ver`: va el rótulo «Jefatura», no «Daphne». Sus WhatsApp no quedan guardados. Si dos nombres de una misma
+  frase comparten el primero, van completos («Juan Pérez o Juan Soto»).
 - **Lo último que pasó**: una fila por cosa registrada (pidió, aprobó, no aprobó con su motivo, despachó, recibió una
   parte, recibió, con la diferencia en la misma fila), agrupadas por día («Hoy · jue 22 oct»), lo más nuevo arriba. Sin
-  nombre registrado, la frase va impersonal («Se recibió en…»). Se dibujan 30 cerrada (el alto las corta) y hasta 150
-  abierta («Ver los N»: en el computador se desliza por dentro); lo anterior, en Inventario.
+  nombre registrado, la frase va impersonal («Se recibió en…»). Una devolución o un traslado se nombra como tal («pidió
+  devolver a Bodega Cerrillos desde Domeyko», «aprobó el traslado de Domeyko a Gorbea 3082»). Se dibujan 30 cerrada (el
+  alto las corta) y hasta 150 abierta («Ver los N», con N a lo más 150: en el computador se desliza por dentro); lo
+  anterior, en Inventario.
 - **Secuencia completa · cada solicitud**, en seis pasos que no se pisan: Por aprobar, Aprobadas · aún sin salir, En
-  camino (con la recepción parcial), Recibidas con diferencia (pendiente o ya revisada), Recibidas · llegaron completas
-  y No aprobadas. Pestañas Todas · Por aprobar · Aprobadas · En camino · Recibidas · No aprobada. Cada fila: Pidió →
-  Aprobó → Despachó → Recibió → (con diferencia pendiente) resolverla, con quién y cuándo, y «Ahora: … · a quién le
-  toca». Aprobar le toca a quien aprueba. Una aprobada «sale de bodega», con el responsable de la bodega o con quienes
-  ya despacharon desde ahí. En camino, recibe quien pidió. Una diferencia la resuelve quien aprueba y jefatura la
-  investiga. Un paso que la app no registró va en gris: «Sin despacho · la obra recibió directo», «Pidió · sin datos
-  aquí». En «Todas» se ven 2 por paso (1 en el celular); en una pestaña o desplegada, hasta 50 por paso y el resto en
-  Inventario.
+  camino (con la recepción parcial), Recibidas con diferencia, Recibidas · llegaron completas y No aprobadas. Pestañas
+  Todas · Por aprobar · Aprobadas · En camino · Recibidas · No aprobada. Cada fila: Pidió → Aprobó → Despachó → Recibió →
+  (con diferencia pendiente) resolverla, con quién y cuándo, y «Ahora: … · a quién le toca». Aprobar le toca a quien
+  aprueba. Una aprobada «sale de bodega» (o «de la obra»), con el responsable de la bodega o, si no, «antes despacharon
+  Jhoan y Héctor» (quienes ya despacharon desde ahí: no está registrado para esa solicitud y lo dice). En camino, recibe
+  quien pidió; **una devolución o lo que va a una bodega lo recibe esa bodega** (con su responsable) **y un traslado, la
+  obra de destino** («lo confirma quien recibe en el destino»); la fila se titula «Domeyko → Bodega Cerrillos» y dice
+  «Devolución» / «Traslado». Una diferencia la resuelve quien aprueba y jefatura la investiga. Un paso que la app no
+  registró va en gris: «Sin despacho · la obra recibió directo», «Pidió · sin datos aquí». Una no aprobada que había
+  sido aprobada antes muestra «Aprobó · sin fecha» (la app guarda quién; el rechazo pisa la fecha). En «Todas» se ven 2
+  por paso (1 en el celular); en una pestaña o desplegada, hasta 50 por paso y el resto en Inventario.
+  - **Cómo llegó** (solo lo que la app registra): con diferencia pendiente, esa (roja o ámbar). Un ítem del **catálogo**
+    que llegó distinto y ya no está en `diferencias` → «Diferencia revisada» (solo si la lista vino completa; si no, o
+    sin ella, «Llegó con diferencia»). Un ítem **fuera del catálogo** (personalizado) que llegó distinto → «Llegó
+    distinto · Sin diferencia registrada»: `recibir()` solo anota diferencias de ítems del catálogo, así que nadie la
+    revisó. Si de algún ítem no se sabe cuánto llegó (`recibida` null, o un personalizado en 0 con algo enviado: el
+    contador de RecibirForm parte en 0, la misma regla de VistaObra) → «Recibida», sin «completa», y el paso se rotula
+    «Recibidas · sin diferencia registrada». Si no, «Llegó completa».
   - Una solicitud con diferencia pendiente que no vino en `solicitudes` (recibida antes de las 10 últimas) se arma con
     lo que trae `diferencias` (sin quién pidió).
   - «Ver» abre la solicitud (`rutaSolicitud`); si tiene una diferencia por resolver, Inventario → Diferencias
-    (`rutaDiferencia`). Si alguna lista llegó a su tope (`limites`), un aviso lleva a Inventario.
+    (`rutaDiferencia`). Si el servidor cortó alguna lista, un aviso lleva a Inventario: se compara cada etapa con su
+    cifra exacta del circuito (los topes de `limites` son por etapa; las rechazadas del mes, que no tienen cifra exacta,
+    cuentan al llegar a su tope), no la suma de las etapas.
+  - **Disposición**: los cinco pasos en columnas desde 768 px **y** si la lista mide 32rem o más (container query): con
+    el menú lateral abierto, de 768 a ~850 px la tarjeta mide ~460 px y en columnas de ~80 px no cabían las palabras;
+    ahí va en vertical, como VistaJefatura pasa a su tira cuando la columna no da. Bajo 768 px, siempre en vertical.
 
 #### Vista de obra (`VistaObra`, 2026-10-22)
 
@@ -324,6 +374,14 @@ Ven solo lo suyo (alcance sin `ver_todas`): todo lo que pidieron, vaya donde vay
   … y N lugares más» (`origenes_extra`).
 - **Sin `inventario.transferencias.recibir`**: el botón grande dice «Lo que llega» y va neutro (sin verde de acción), la
   nota dice «Quien recibe en obra confirma lo que llegó» y cada fila dice «Ver».
+- **Sin permiso de pedir** (`puede.solicitar` false: ni `solicitar` ni `solicitud_materiales`; p. ej. un prevencionista
+  que solo recibe): **no hay «Pedir materiales»** (`botonesGrandes` de `obra.modelo.ts`, con test) y «Recibir» va solo,
+  a todo el ancho y en una fila también en el celular. Se quita en vez de dejarlo neutro (como «Lo que llega»): ese
+  sigue mostrando lo que viene a su obra, mientras que «Pedir» abriría Inventario sin el asistente (`TransferenciasPanel`
+  lo abre solo con permiso de pedir). La descripción bajo «Inventario» tampoco lo invita a pedir.
+- **Nunca aprueba**: aunque quien mira tenga `aprobar` (un rol de obra hecho a mano, punto 4 de arriba), la vista no
+  tiene botones de aprobar ni lee `puede.aprobar` / `puede_aprobar`; lo pendiente va en «Esperando a…» y cada fila solo
+  abre la solicitud (aprobar se hace en Inventario). Lo cuida un test de `obra.modelo.test.ts` que lee `VistaObra.tsx`.
 - **«Recibir»**: con una por recibir, abre esa; con varias, baja a la lista; sin nada en camino, abre las recibidas (las
   aprobadas estarían vacías).
 - **Aviso de diferencias**: con una sola solicitud con diferencias, abre esa (`estado=recibida&id=N`). Con varias, dice

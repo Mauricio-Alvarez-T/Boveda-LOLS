@@ -642,11 +642,13 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       inventario»). El Super Administrador (Marcos, Mauricio) → la vista «Super Administrador» de la opción A
       (`VistaSuperAdmin`: el circuito de todas las obras y «Quién tiene qué» 2×2 en una tarjeta, «Lo último que
       pasó» al lado del mismo alto —se desliza por dentro— y abajo, a todo el ancho, la «Secuencia completa» por paso con
-      pestañas; un paso que la app no registró va en gris, «Sin despacho») con **«Ver como»** arriba (`VerComo.tsx`): Super Admin · Leonardo · Daphne · Jefe de obra
-      (+ selector de obra de 44 px) · El resto, con sus mismos datos. Es un control segmentado como `FiltroFichas`
+      pestañas; un paso que la app no registró va en gris, «Sin despacho»; los cinco pasos en columnas solo si la lista mide
+      32rem o más, con `@container`: si no, en vertical) con **«Ver como»** arriba (`VerComo.tsx`): Super Admin · quien
+      aprueba (su nombre, de la respuesta) · Jefatura · Jefe de obra (+ selector de obra de 44 px) · Otros perfiles, con
+      los mismos datos recalculados para cada perfil (etiquetas por rol, nunca un nombre fijo). Es un control segmentado como `FiltroFichas`
       (marco `bg-card` con sombra chica, indicador verde de ítem elegido de `PestanasElasticas`, sin cifras) dentro de
       `BarraPaginada` (en el celular va de a páginas, §9.6); opciones de 44 px de alto en el celular; rótulo «VER COMO»
-      (`ROTULO_FICHAS`) y una nota chica `text-xs` cuando lo que se ve no es exactamente lo de esa persona. La línea
+      (`ROTULO_FICHAS`) y una nota chica `text-xs` en cada opción que no es la propia (qué se está viendo). La línea
       bajo el título cambia con el perfil (y con lo elegido en «Ver como»; textos del lienzo). Regla de quién ve qué:
       inventario-transferencias.md § Qué vista ve cada uno. Piezas en `widgets/inventarioPerfil/`.
     - **Vehículos** (`VehicleExpiries`, 3 filas en la tarjeta; tarjeta y franja siguen con el número del

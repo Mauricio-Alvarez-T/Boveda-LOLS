@@ -3,7 +3,7 @@ import {
     fechaCorta, fraseItems, llegoDistinto, masAntiguasPrimero, nombreCortoDe, nombreDe, nombreLugar, plural, quienAprueba,
     rutaLista, rutaSolicitud, textoDias, tonoDias, type FiltroInventario,
 } from './formato';
-import type { CircuitoPerfil, InventarioPerfilApi, SolicitudPerfil } from './tipos';
+import type { CircuitoPerfil, InventarioPerfilApi, PuedePerfil, SolicitudPerfil } from './tipos';
 
 /**
  * Lógica PURA de VistaObra (detalle «Inventario» del Inicio para jefes de obra y prevencionistas; opción A del lienzo,
@@ -297,6 +297,25 @@ export function botonRecibir(n: number, enObra: string, puedeRecibir: boolean): 
 
 /** Sin nada en camino, «Recibir» abre lo último que llegó (la lista de aprobadas estaría vacía). */
 export const RUTA_RECIBIR_VACIO = rutaLista('recibida');
+
+// ─────────────────────────────── Botones grandes ───────────────────────────────
+
+/** Un botón grande de arriba. No hay uno de aprobar (ver `botonesGrandes`). */
+export type BotonGrande = 'pedir' | 'recibir';
+
+/**
+ * Qué botones grandes se ofrecen arriba, en orden:
+ *   - «Pedir materiales», solo si puede pedir (`puede.solicitar` = `solicitar` o `solicitud_materiales`). Sin el permiso
+ *     (un prevencionista que solo recibe) no va: `RUTA_PEDIR` abriría Inventario sin el asistente (TransferenciasPanel
+ *     lo abre solo con permiso de pedir) y un botón verde que no pide nada engaña. No queda neutro como «Lo que llega»
+ *     (`botonRecibir` sin `recibir`) porque ese sí muestra algo, lo que viene a su obra; un «Pedir» neutro no lleva a nada.
+ *   - «Recibir» (sin `recibir`, «Lo que llega» y neutro), siempre.
+ * Nunca uno de aprobar, aunque quien mira tenga `aprobar` (un rol de obra hecho a mano, sin `ver_todas`): la vista de
+ * obra no aprueba ni mira `puede.aprobar` / `puede_aprobar`; aprobar se hace en Inventario.
+ */
+export function botonesGrandes(puede: PuedePerfil): BotonGrande[] {
+    return puede.solicitar ? ['pedir', 'recibir'] : ['recibir'];
+}
 
 // ─────────────────────────────── Textos de las filas ───────────────────────────────
 

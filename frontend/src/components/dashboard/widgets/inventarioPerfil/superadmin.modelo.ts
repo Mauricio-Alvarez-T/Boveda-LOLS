@@ -4,8 +4,8 @@ import {
     plural, quienAprueba, rutaDiferencia, rutaLista, rutaSolicitud, textoDias, textoDiferencia, type FiltroInventario,
 } from './formato';
 import type {
-    CircuitoPerfil, DiferenciaPerfil, EstadoSolicitudPerfil, InventarioPerfilApi, LugarPerfil, PasoPerfil, PersonaPerfil,
-    SolicitudPerfil,
+    CircuitoPerfil, DiferenciaPerfil, EstadoSolicitudPerfil, InventarioPerfilApi, ItemPerfil, LugarPerfil, PasoPerfil,
+    PersonaPerfil, SolicitudPerfil,
 } from './tipos';
 
 /**
@@ -15,12 +15,14 @@ import type {
  * Arma, SOLO con lo que trae GET /transferencias/inicio/perfil (contrato en tipos.ts):
  *   - el circuito de todas las obras (Pedida → Aprobada → Despachada → Recibida) con las cifras exactas del servidor;
  *     «Despachada» se mantiene aunque la interfaz no tenga «Despachar» (casi siempre en 0: «sin despacho»);
- *   - «Quién tiene qué»: lo pendiente de quien aprueba (nombre de `aprobadores`), de bodega, de las obras y de quien
- *     investiga las diferencias (la respuesta no dice quién tiene `diferencias_ver`: va el rótulo «Jefatura»);
+ *   - «Quién tiene qué»: lo pendiente de quien aprueba (nombre de `aprobadores`), de bodega, de las obras (solo lo que va
+ *     a una obra) y de quien investiga las diferencias (la respuesta no dice quién tiene `diferencias_ver`: va el rótulo
+ *     «Jefatura»). Las diferencias cuentan SOLICITUDES, como la tarjeta, VistaLeonardo y VistaJefatura;
  *   - «Lo último que pasó»: una fila por cosa registrada (pidió, aprobó, no aprobó, despachó, recibió), por día;
  *   - «Secuencia completa · cada solicitud»: los pasos de cada una (quién y cuándo), el de ahora y a quién le toca,
- *     agrupadas en seis pasos que no se pisan.
- * Lo que la app NO guarda no aparece: los WhatsApp de jefatura no quedan registrados. Nunca dinero.
+ *     agrupadas en seis pasos que no se pisan. Una devolución o un traslado los recibe el destino, no quien pidió.
+ * Lo que la app NO guarda no aparece: los WhatsApp de jefatura no quedan registrados; un ítem fuera del catálogo
+ * (personalizado) no deja diferencia, así que no hay «diferencia revisada» para él. Nunca dinero.
  */
 
 /** Espacio que no se corta: la flecha nunca queda sola en otra línea, «hace 2 días» no se parte. */
@@ -42,6 +44,18 @@ export const TOPE_ULTIMO = 150;
 export const QUIEN_APRUEBA = 'Quien aprueba';
 /** La respuesta no trae quién tiene `diferencias_ver` (Daphne): este rótulo va en su lugar. */
 export const JEFATURA = 'Jefatura';
+
+/** Cómo terminó una recibida (la casilla final). */
+export const FIN_COMPLETA = 'Llegó completa';
+export const FIN_REVISADA = 'Diferencia revisada';
+/** Un ítem del catálogo llegó distinto y no se sabe si su diferencia sigue pendiente (sin la lista, o cortada). */
+export const FIN_CON_DIFERENCIA = 'Llegó con diferencia';
+/** Un ítem fuera del catálogo llegó distinto: la app no le registra diferencia (no hay nada que revisar). */
+export const FIN_DISTINTO = 'Llegó distinto';
+/** La app no sabe cuánto llegó de algún ítem: no se dice «completa». */
+export const FIN_RECIBIDA = 'Recibida';
+/** Lo que va bajo un ítem fuera del catálogo que llegó distinto. */
+export const SIN_DIFERENCIA_REGISTRADA = 'Sin diferencia registrada.';
 
 // ─────────────────────────────── Pasos y pestañas ───────────────────────────────
 
@@ -73,8 +87,15 @@ export const GRUPOS: readonly GrupoSec[] = [
     { key: 'rechazada', texto: ['No aprobada', 'No aprobadas'], filtro: 'rechazada', tono: 'neutro', lista: 'todas' },
 ];
 
-/** Los grupos que muestra una pestaña («Todas»: los seis). */
-export const gruposDe = (filtro: FiltroSec): GrupoSec[] => GRUPOS.filter(g => filtro === 'todas' || g.filtro === filtro);
+/**
+ * El rótulo de «completas» cuando alguna de ese paso no se sabe si llegó completa (la app no anotó cuánto llegó de
+ * algún ítem): no se afirma lo que la app no registró.
+ */
+export const TEXTO_SIN_DIFERENCIA: [string, string] = ['Recibida · sin diferencia registrada', 'Recibidas · sin diferencia registrada'];
+
+/** Los grupos que muestra una pestaña («Todas»: los seis). `lista`: los del modelo (`ModeloSuperAdmin.grupos`). */
+export const gruposDe = (filtro: FiltroSec, lista: readonly GrupoSec[] = GRUPOS): GrupoSec[] =>
+    lista.filter(g => filtro === 'todas' || g.filtro === filtro);
 
 /** «Por aprobar · 6», «Recibidas · llegaron completas · 2» (la cifra va pegada: si no cabe, baja junto). */
 export const rotuloGrupo = (g: GrupoSec, n: number): string => `${plural(n, g.texto[0], g.texto[1])} ·${NB}${n}`;
@@ -89,7 +110,16 @@ export function filasDelGrupo(n: number, { enTodas, desplegada }: { enTodas: boo
     return { vista, resto: n - vista };
 }
 
-// ─────────────────────────────── Quién aprueba ───────────────────────────────
+// ─────────────────────────────── Nombres ───────────────────────────────
+
+/**
+ * Primeros nombres para una frase («Jhoan o Héctor»). Si dos de la misma lista comparten el primero («Juan Pérez» y
+ * «Juan Soto»), esos van completos: «Juan Pérez o Juan Soto», no «Juan o Juan».
+ */
+export function nombresCortos(nombres: readonly string[]): string[] {
+    const cortos = nombres.map(nombreCorto);
+    return nombres.map((n, i) => (cortos.filter(c => c === cortos[i]).length > 1 ? n.trim() : cortos[i]));
+}
 
 /** Quién aprueba, con los nombres de `datos.aprobadores` (nunca fijos). */
 export interface QuienApruebaSA {
@@ -109,8 +139,56 @@ export function quienApruebaDe(aprobadores?: readonly PersonaPerfil[] | null): Q
     const lista = aprobadores ?? [];
     const conNombre = lista.filter(p => !!nombreDe(p));
     const uno = conNombre.length === 1 ? nombreDe(conNombre[0]) : null;
-    const corto = quienAprueba(conNombre);
+    const nombres = conNombre.map(p => nombreDe(p) as string);
+    const corto = nombres.length === 2 ? nombresCortos(nombres).join(' o ') : quienAprueba(conNombre);
     return { nombre: uno ?? corto, corto, iniciales: uno ? iniciales(uno) : null, cuantos: conNombre.length, ids: lista.map(p => p.id) };
+}
+
+// ─────────────────────────────── Devoluciones y traslados ───────────────────────────────
+
+type ConLugares = Pick<SolicitudPerfil, 'tipo_flujo' | 'origen' | 'destino'>;
+
+/** Va a una obra (lo único que cuenta la caja «Obras»): el destino es una obra y no es una devolución. */
+export const vaAUnaObra = (s: ConLugares): boolean => s.destino?.tipo === 'obra' && s.tipo_flujo !== 'devolucion';
+
+/**
+ * La recibe el destino, no quien pidió: lo que va a una bodega (una devolución) y un traslado entre obras (lo pide la
+ * obra de origen). En un pedido normal recibe quien pidió.
+ */
+export const recibeElDestino = (s: ConLugares): boolean =>
+    s.destino?.tipo === 'bodega' || s.tipo_flujo === 'devolucion' || s.tipo_flujo === 'intra_obra';
+
+/** «Bodega Cerrillos (Juan Pérez)» si va a una bodega; «Gorbea 3082» en un traslado; si no, quien pidió. */
+export function quienRecibe(s: ConLugares & Pick<SolicitudPerfil, 'solicitante'>): string {
+    if (s.destino?.tipo === 'bodega') return nombreLugar(s.destino, { conResponsable: true }) ?? 'La bodega';
+    if (recibeElDestino(s)) return nombreLugar(s.destino) ?? 'El destino';
+    return nombreDe(s.solicitante) ?? nombreLugar(s.destino) ?? 'La obra';
+}
+
+/** La nota de «Recibir» cuando lo recibe el destino. */
+export const NOTA_DESTINO = 'lo confirma quien recibe en el destino';
+
+/** Una devolución o un traslado con los dos lugares: «Domeyko → Bodega Cerrillos»; si no, null. */
+function ruta(s: ConLugares): string | null {
+    if (s.tipo_flujo !== 'devolucion' && s.tipo_flujo !== 'intra_obra') return null;
+    const origen = nombreLugar(s.origen);
+    const destino = nombreLugar(s.destino);
+    return origen && destino ? `${origen} → ${destino}` : null;
+}
+
+/** Cómo se nombra cada solicitud en «Lo último que pasó» (según `tipo_flujo`). */
+function frasesDe(s: Pick<SolicitudPerfil, 'tipo_flujo' | 'origen' | 'destino' | 'tipo'>): { pidio: [string, string]; cual: string } {
+    const destino = nombreLugar(s.destino) ?? 'su destino';
+    const origen = nombreLugar(s.origen);
+    if (s.tipo_flujo === 'devolucion') {
+        const que = origen ? `devolver a ${destino} desde ${origen}` : `devolver a ${destino}`;
+        return { pidio: [`pidió ${que}`, `Se pidió ${que}`], cual: origen ? `la devolución de ${origen} a ${destino}` : `la devolución a ${destino}` };
+    }
+    if (s.tipo_flujo === 'intra_obra') {
+        const tramo = origen ? `de ${origen} a ${destino}` : `a ${destino}`;
+        return { pidio: [`pidió trasladar ${s.tipo} ${tramo}`, `Se pidió trasladar ${s.tipo} ${tramo}`], cual: `el traslado ${tramo}` };
+    }
+    return { pidio: [`pidió ${s.tipo} para ${destino}`, `Se pidieron ${s.tipo} para ${destino}`], cual: `la solicitud de ${destino}` };
 }
 
 // ─────────────────────────────── Lo que se juntó de la respuesta ───────────────────────────────
@@ -126,7 +204,7 @@ interface Registro {
 /**
  * Una solicitud que vino SOLO en `diferencias` (su recepción quedó fuera de la lista): se arma con lo que trae la
  * diferencia (código, origen → destino, quién aprobó, despachó y recibió, y cuándo). Quién pidió y cuándo no
- * vienen: ese paso dice «sin datos aquí». Sus ítems son los que tienen diferencia.
+ * vienen: ese paso dice «sin datos aquí». Sus ítems son los que tienen diferencia (del catálogo: solo esos la dejan).
  */
 export function solicitudDesdeDiferencias(difs: readonly DiferenciaPerfil[]): SolicitudPerfil {
     const d = difs[0];
@@ -161,9 +239,9 @@ export function solicitudDesdeDiferencias(difs: readonly DiferenciaPerfil[]): So
 function registrosDe(datos: Pick<InventarioPerfilApi, 'solicitudes' | 'diferencias'>): Registro[] {
     const difsPor = new Map<number, DiferenciaPerfil[]>();
     for (const d of datos.diferencias ?? []) difsPor.set(d.transferencia_id, [...(difsPor.get(d.transferencia_id) ?? []), d]);
-    const enLista = new Set(datos.solicitudes.map(s => s.id));
+    const enLaLista = new Set(datos.solicitudes.map(s => s.id));
     const solas = [...difsPor.entries()]
-        .filter(([id]) => !enLista.has(id))
+        .filter(([id]) => !enLaLista.has(id))
         .map(([, difs]): Registro => ({ s: solicitudDesdeDiferencias(difs), difs, soloDiferencia: true }));
     return [
         ...datos.solicitudes.map((s): Registro => ({ s, difs: difsPor.get(s.id) ?? [], soloDiferencia: false })),
@@ -172,9 +250,17 @@ function registrosDe(datos: Pick<InventarioPerfilApi, 'solicitudes' | 'diferenci
 }
 
 const cifraDistinta = (a: number, b: number) => Math.round((a - b) * 10_000) !== 0;
-/** Ítems que llegaron distinto de lo enviado (también los de una diferencia ya revisada). */
-const itemsDistintos = (s: SolicitudPerfil) =>
-    s.items.filter(i => i.enviada != null && i.recibida != null && cifraDistinta(i.enviada, i.recibida));
+/** Llegó distinto de lo enviado (las dos cifras anotadas). */
+const distinto = (i: ItemPerfil) => i.enviada != null && i.recibida != null && cifraDistinta(i.enviada, i.recibida);
+/**
+ * La app no sabe cuánto llegó: `recibida` null, o un ítem fuera del catálogo en 0 con algo enviado (RecibirForm parte
+ * su contador en 0 y antes del 2026-06-15 ni se guardaba: ese 0 no es «no llegó nada»; la misma regla de VistaObra).
+ */
+const sinAnotar = (i: ItemPerfil) => i.recibida == null || (i.personalizado && i.recibida === 0 && (i.enviada ?? 0) > 0);
+/** Del catálogo y llegaron distinto: dejan diferencia (recibir() la anota en transferencia_discrepancias, por item_id). */
+const delCatalogoDistintos = (s: SolicitudPerfil) => s.items.filter(i => !i.personalizado && distinto(i));
+/** Fuera del catálogo (personalizados) y llegaron distinto: la app NO les registra diferencia. */
+const personalizadosDistintos = (s: SolicitudPerfil) => s.items.filter(i => i.personalizado && !sinAnotar(i) && distinto(i));
 
 /** El paso de una solicitud (las seis no se pisan). Recibida: con diferencia si tiene alguna pendiente o llegó distinto. */
 function grupoDe({ s, difs }: Registro): Grupo {
@@ -184,7 +270,8 @@ function grupoDe({ s, difs }: Registro): Grupo {
         case 'en_transito':
         case 'recepcion_parcial': return 'camino';
         case 'rechazada': return 'rechazada';
-        default: return difs.length > 0 || itemsDistintos(s).length > 0 ? 'dif' : 'completa';
+        default:
+            return difs.length > 0 || delCatalogoDistintos(s).length > 0 || personalizadosDistintos(s).length > 0 ? 'dif' : 'completa';
     }
 }
 
@@ -196,17 +283,87 @@ const AVANCE: Record<EstadoSolicitudPerfil, number> = {
     pendiente: 0, aprobada: 1, rechazada: 1, en_transito: 2, recepcion_parcial: 2, recibida: 3,
 };
 
-// ─────────────────────────────── Pasos de una solicitud ───────────────────────────────
+// ─────────────────────────────── Cómo llegó una recibida ───────────────────────────────
 
 /** Lo que llegó distinto en un ítem, como va bajo «Recibió». */
 export interface DifCasilla {
     clave: string;
-    /** «Faltan 3 unidades» / «Llegó 1 unidad de más» (pendiente) · «Faltaron 3 unidades» (ya revisada). */
+    /** «Faltan 3 unidades» / «Llegó 1 unidad de más» (pendiente) · «Faltaron 3 unidades» (ya revisada o sin registro). */
     pildora: string;
     tono: TonoTarjeta;
     /** «Salieron 12, llegaron 9. La anotó al recibir.»; con varios ítems, con el nombre delante. */
     texto: string;
 }
+
+/** «Salieron 12, llegaron 9.» (con `nombre`: «Andamio: salieron 12, llegaron 9.»). */
+function salieronLlegaron(enviada: number, recibida: number, nombre?: string): string {
+    const frase = `${plural(enviada, 'alió', 'alieron')} ${numero(enviada)}, ${plural(recibida, 'llegó', 'llegaron')} ${numero(recibida)}.`;
+    return nombre ? `${nombre}: s${frase}` : `S${frase}`;
+}
+
+interface Llegada {
+    lista: DifCasilla[];
+    /** Hay diferencias pendientes (en `diferencias`): la casilla final es «resolver la diferencia». */
+    pendientes: boolean;
+    /** Alguna pendiente es un faltante (rojo); si no, sobrante (ámbar). */
+    falta: boolean;
+    /** Sin pendientes: cómo se cerró (FIN_*). */
+    fin: string;
+    /** Lo que va en el pie del evento «recibió» (ítem por ítem y, al final, si se revisó o no se registra). */
+    pie: string[];
+}
+
+/**
+ * Cómo llegó una recibida, con lo que la app registró:
+ *   - con diferencias pendientes (`diferencias`): esas, en rojo o ámbar;
+ *   - un ítem del CATÁLOGO que llegó distinto y ya no está pendiente: «Diferencia revisada» (si vino la lista completa;
+ *     si no, «Llegó con diferencia»: no se sabe);
+ *   - un ítem fuera del catálogo que llegó distinto: «Llegó distinto» y «Sin diferencia registrada» (la app no se la
+ *     anota: nadie la revisó);
+ *   - si de algún ítem no se sabe cuánto llegó (o no hay ítems): «Recibida», sin «completa»;
+ *   - si no, «Llegó completa».
+ */
+function llegadaDe({ s, difs }: Registro, conocidas: boolean): Llegada {
+    const varios = s.items.length > 1;
+    if (difs.length > 0) {
+        return {
+            pendientes: true,
+            falta: difs.some(d => d.diferencia > 0),
+            fin: FIN_CON_DIFERENCIA,
+            lista: difs.map(d => ({
+                clave: `d${d.id}`,
+                pildora: textoDiferencia(d.diferencia, d.unidad),
+                tono: d.diferencia > 0 ? 'rojo' : 'ambar',
+                texto: `${salieronLlegaron(d.enviada, d.recibida, varios ? d.descripcion : undefined)} La anotó al recibir.`,
+            })),
+            pie: difs.map(x => `${x.descripcion}: ${textoDiferencia(x.diferencia, x.unidad, { minuscula: true })}`),
+        };
+    }
+    const catalogo = delCatalogoDistintos(s);
+    const personalizados = personalizadosDistintos(s);
+    const falto = (i: ItemPerfil, opciones: { minuscula?: boolean } = {}) =>
+        textoDiferencia((i.enviada ?? 0) - (i.recibida ?? 0), i.unidad, { pasado: true, ...opciones });
+    const casilla = (i: ItemPerfil, nota?: string): DifCasilla => ({
+        clave: i.clave,
+        pildora: falto(i),
+        tono: 'neutro',
+        texto: [salieronLlegaron(i.enviada ?? 0, i.recibida ?? 0, varios ? i.descripcion : undefined), nota].filter(Boolean).join(' '),
+    });
+    const pieItem = (i: ItemPerfil) => `${i.descripcion}: ${falto(i, { minuscula: true })}`;
+    const fin = catalogo.length > 0 ? (conocidas ? FIN_REVISADA : FIN_CON_DIFERENCIA)
+        : personalizados.length > 0 ? FIN_DISTINTO
+            : s.items.length === 0 || s.items.some(sinAnotar) ? FIN_RECIBIDA : FIN_COMPLETA;
+    const cierre = catalogo.length > 0 ? (conocidas ? ['ya revisada'] : []) : personalizados.length > 0 ? ['sin diferencia registrada'] : [];
+    return {
+        pendientes: false,
+        falta: false,
+        fin,
+        lista: [...catalogo.map(i => casilla(i)), ...personalizados.map(i => casilla(i, SIN_DIFERENCIA_REGISTRADA))],
+        pie: [...catalogo.map(pieItem), ...personalizados.map(pieItem), ...cierre],
+    };
+}
+
+// ─────────────────────────────── Pasos de una solicitud ───────────────────────────────
 
 /**
  * Una casilla de la secuencia (lienzo: Casilla): lo hecho (verbo, nombre, fecha y un dato chico), el paso de ahora
@@ -230,7 +387,7 @@ export interface Casilla {
     punto?: TonoTarjeta;
     motivo?: string;
     difs?: DifCasilla[];
-    /** «fin»: check verde (cerrada bien) o prohibido gris (no pasó a bodega). */
+    /** «fin»: check verde (cerrada) o prohibido gris (no pasó a bodega). */
     completa?: boolean;
 }
 
@@ -244,7 +401,7 @@ interface Contexto {
     investiga: string;
     /** Quiénes despachan desde ese origen (responsable de la bodega o quienes ya despacharon de ahí). */
     despachan: (origen: LugarPerfil | null) => string | null;
-    /** Vino la lista `diferencias` (sin ella no se sabe si una diferencia sigue pendiente). */
+    /** Vino la lista `diferencias` completa (sin ella, o cortada, no se sabe si una diferencia sigue pendiente). */
     conocidas: boolean;
 }
 
@@ -258,43 +415,11 @@ function hecho(verbo: string, paso: PasoPerfil | null | undefined, extra?: strin
 const sinDatos = (verbo: string): Casilla => ({ tipo: 'sin', verbo, nota: 'sin datos aquí' });
 const haceDias = (dias: number) => (dias <= 0 ? 'de hoy' : sinCortes(`hace ${textoDias(dias)}`));
 
-/** «Salieron 12, llegaron 9.» (con `nombre`: «Andamio: salieron 12, llegaron 9.»). */
-function salieronLlegaron(enviada: number, recibida: number, nombre?: string): string {
-    const frase = `${plural(enviada, 'alió', 'alieron')} ${numero(enviada)}, ${plural(recibida, 'llegó', 'llegaron')} ${numero(recibida)}.`;
-    return nombre ? `${nombre}: s${frase}` : `S${frase}`;
-}
-
-/** Lo que llegó distinto: las pendientes de `difs` o, si ya se revisaron, lo que dicen los ítems. */
-function difsCasilla({ s, difs }: Registro): { lista: DifCasilla[]; pendientes: boolean; falta: boolean } {
-    const varios = s.items.length > 1;
-    if (difs.length > 0) {
-        return {
-            pendientes: true,
-            falta: difs.some(d => d.diferencia > 0),
-            lista: difs.map(d => ({
-                clave: `d${d.id}`,
-                pildora: textoDiferencia(d.diferencia, d.unidad),
-                tono: d.diferencia > 0 ? 'rojo' : 'ambar',
-                texto: `${salieronLlegaron(d.enviada, d.recibida, varios ? d.descripcion : undefined)} La anotó al recibir.`,
-            })),
-        };
-    }
-    return {
-        pendientes: false,
-        falta: false,
-        lista: itemsDistintos(s).map(i => ({
-            clave: i.clave,
-            pildora: textoDiferencia((i.enviada ?? 0) - (i.recibida ?? 0), i.unidad, { pasado: true }),
-            tono: 'neutro',
-            texto: salieronLlegaron(i.enviada ?? 0, i.recibida ?? 0, varios ? i.descripcion : undefined),
-        })),
-    };
-}
-
 /** Pidió → Aprobó → Despachó → Recibió → (si hay diferencia pendiente) resolverla. Cinco casillas siempre. */
 function casillasDe(r: Registro, ctx: Contexto): Casilla[] {
     const { s } = r;
     const pidio = hecho('Pidió', { por: s.solicitante, fecha: s.fecha_solicitud }, s.solicitante?.rol) ?? sinDatos('Pidió');
+    const alDestino = recibeElDestino(s);
     if (s.estado === 'pendiente') {
         return [pidio,
             { tipo: 'ahora', verbo: 'aprobar', quien: ctx.aprueba, tono: s.dias > 30 ? 'rojo' : 'ambar',
@@ -302,12 +427,14 @@ function casillasDe(r: Registro, ctx: Contexto): Casilla[] {
             { tipo: 'falta', verbo: 'Despachar' }, { tipo: 'falta', verbo: 'Recibir' }, NADA];
     }
     if (s.estado === 'rechazada') {
-        return [pidio,
-            {
-                tipo: 'hecho', verbo: 'No aprobó', quien: nombreDe(s.rechazo?.por) ?? undefined,
-                fecha: fechaCorta(s.rechazo?.fecha) || undefined, punto: 'rojo', motivo: s.rechazo?.motivo?.trim() || undefined,
-            },
-            { tipo: 'fin', verbo: 'Cerrada', quien: 'No pasó a bodega', completa: false }, NADA, NADA];
+        const no: Casilla = {
+            tipo: 'hecho', verbo: 'No aprobó', quien: nombreDe(s.rechazo?.por) ?? undefined,
+            fecha: fechaCorta(s.rechazo?.fecha) || undefined, punto: 'rojo', motivo: s.rechazo?.motivo?.trim() || undefined,
+        };
+        const cerrada: Casilla = { tipo: 'fin', verbo: 'Cerrada', quien: 'No pasó a bodega', completa: false };
+        // Si había sido aprobada antes, la app guarda quién (sin fecha: el rechazo la pisa). Es un paso registrado.
+        const antes = s.aprobacion?.por ? hecho('Aprobó', { por: s.aprobacion.por, fecha: null }, 'sin fecha') : null;
+        return antes ? [pidio, antes, no, cerrada, NADA] : [pidio, no, cerrada, NADA, NADA];
     }
     const origen = nombreLugar(s.origen);
     const aprobo = hecho('Aprobó', s.aprobacion) ?? sinDatos('Aprobó');
@@ -318,14 +445,15 @@ function casillasDe(r: Registro, ctx: Contexto): Casilla[] {
                 tipo: 'ahora', verbo: s.origen?.tipo === 'obra' ? 'sale de la obra' : 'sale de bodega', quien: origen ?? 'Bodega', tono: 'ambar',
                 detalle: [ctx.despachan(s.origen), haceDias(s.dias)].filter(Boolean).join(' · '),
             },
-            { tipo: 'falta', verbo: 'Recibir', nota: 'la obra ya puede hacerlo' }, NADA];
+            { tipo: 'falta', verbo: 'Recibir', nota: alDestino ? NOTA_DESTINO : 'la obra ya puede hacerlo' }, NADA];
     }
     const recibida = s.estado === 'recibida';
     // Sin despacho registrado (la interfaz no tiene «Despachar»): el paso se mantiene, en gris.
     const despacho: Casilla = hecho('Despachó', s.despacho, origen ? `desde ${origen}` : null)
-        ?? { tipo: 'sin', verbo: 'Sin despacho', nota: recibida ? 'la obra recibió directo' : undefined };
+        ?? { tipo: 'sin', verbo: 'Sin despacho', nota: recibida ? (alDestino ? 'el destino recibió directo' : 'la obra recibió directo') : undefined };
     if (!recibida) {
-        const quien = nombreDe(s.solicitante) ?? nombreLugar(s.destino) ?? 'La obra';
+        // Recibe quien pidió; en una devolución o un traslado, el destino.
+        const quien = quienRecibe(s);
         if (s.estado === 'recepcion_parcial') {
             const parte = fechaCorta(s.ultima_recepcion?.fecha);
             return [pidio, aprobo, despacho,
@@ -339,7 +467,7 @@ function casillasDe(r: Registro, ctx: Contexto): Casilla[] {
             },
             NADA];
     }
-    const d = difsCasilla(r);
+    const d = llegadaDe(r, ctx.conocidas);
     const recibio: Casilla = {
         ...(hecho('Recibió', s.recepcion) ?? { tipo: 'hecho', verbo: 'Recibió' }),
         difs: d.lista.length ? d.lista : undefined,
@@ -354,8 +482,7 @@ function casillasDe(r: Registro, ctx: Contexto): Casilla[] {
                 detalle: dias <= 0 ? 'anotada hoy' : `${textoDias(dias)} sin resolver`, nota: `${ctx.investiga} la investiga`,
             }];
     }
-    const fin = d.lista.length === 0 ? 'Llegó completa' : ctx.conocidas ? 'Diferencia revisada' : 'Llegó con diferencia';
-    return [pidio, aprobo, despacho, recibio, { tipo: 'fin', verbo: 'Cerrada', quien: fin, completa: true }];
+    return [pidio, aprobo, despacho, recibio, { tipo: 'fin', verbo: 'Cerrada', quien: d.fin, completa: true }];
 }
 
 /** «aprobar · Leonardo López»: el paso de ahora y a quién le toca (null si ya se cerró). */
@@ -375,11 +502,11 @@ export interface FilaSec {
     id: number;
     codigo: string;
     grupo: Grupo;
-    /** Obra (o bodega) de destino; sin ella, el código. */
+    /** Obra (o bodega) de destino; en una devolución o un traslado, «Domeyko → Bodega Cerrillos»; sin ella, el código. */
     lugar: string;
     /** «Extintor PQS 6 kg ×3 y Botiquín ×1». */
     items: string;
-    /** «Materiales» / «Herramientas»; null si solo vino la diferencia (no se sabe). */
+    /** «Materiales» / «Herramientas» / «Devolución» / «Traslado»; null si solo vino la diferencia (no se sabe). */
     tipo: string | null;
     casillas: Casilla[];
     /** «aprobar · Leonardo López» (null si está cerrada). */
@@ -394,6 +521,8 @@ export interface FilaSec {
     soloDiferencia: boolean;
 }
 
+const TIPO_FLUJO: Partial<Record<NonNullable<SolicitudPerfil['tipo_flujo']>, string>> = { devolucion: 'Devolución', intra_obra: 'Traslado' };
+
 function filaSec(r: Registro, ctx: Contexto): FilaSec {
     const { s } = r;
     const casillas = casillasDe(r, ctx);
@@ -402,11 +531,11 @@ function filaSec(r: Registro, ctx: Contexto): FilaSec {
         id: s.id,
         codigo: s.codigo,
         grupo: grupoDe(r),
-        lugar: nombreLugar(s.destino) ?? s.codigo,
+        lugar: ruta(s) ?? nombreLugar(s.destino) ?? s.codigo,
         items: (r.soloDiferencia
             ? fraseItems(s.items, { formato: i => i.descripcion?.trim() || 'Ítem sin nombre' })
             : fraseItems(s.items)) || 'Sin ítems registrados',
-        tipo: r.soloDiferencia ? null : TIPO[s.tipo] ?? TIPO.materiales,
+        tipo: r.soloDiferencia ? null : (s.tipo_flujo && TIPO_FLUJO[s.tipo_flujo]) || (TIPO[s.tipo] ?? TIPO.materiales),
         casillas,
         ahora: ahoraDe(casillas),
         despues: despuesDe(casillas),
@@ -443,9 +572,11 @@ export interface Evento {
 /** Dentro del mismo día, lo que va después en el circuito primero. */
 const ORDEN_ACCION: Record<AccionEvento, number> = { pidio: 0, aprobo: 1, rechazo: 1, despacho: 2, recibio_parte: 3, recibio: 3 };
 
-function eventosDeRegistro({ s, difs }: Registro): Evento[] {
+function eventosDeRegistro(r: Registro, conocidas: boolean): Evento[] {
+    const { s } = r;
     const lugar = nombreLugar(s.destino) ?? 'su destino';
     const origen = nombreLugar(s.origen);
+    const { pidio, cual } = frasesDe(s);
     const ev = (accion: AccionEvento, paso: PasoPerfil | null | undefined, con: string, sin: string,
         pie: string, tono: TonoTarjeta, icono: IconoEvento): Evento[] => {
         if (!paso?.fecha) return [];
@@ -458,25 +589,27 @@ function eventosDeRegistro({ s, difs }: Registro): Evento[] {
     const desde = origen ? ` desde ${origen}` : '';
     const recibio = (): Evento[] => {
         if (s.estado !== 'recibida') return [];
-        const d = difsCasilla({ s, difs, soloDiferencia: false });
+        const d = llegadaDe(r, conocidas);
         if (d.lista.length === 0) {
-            return ev('recibio', s.recepcion, `recibió en ${lugar}`, `Se recibió en ${lugar}`, `${s.codigo} · llegó completa`, 'neutro', 'recibio');
+            return ev('recibio', s.recepcion, `recibió en ${lugar}`, `Se recibió en ${lugar}`,
+                d.fin === FIN_COMPLETA ? `${s.codigo} · llegó completa` : s.codigo, 'neutro', 'recibio');
         }
-        const detalle = d.pendientes
-            ? difs.map(x => `${x.descripcion}: ${textoDiferencia(x.diferencia, x.unidad, { minuscula: true })}`)
-            : itemsDistintos(s).map(i => `${i.descripcion}: ${textoDiferencia((i.enviada ?? 0) - (i.recibida ?? 0), i.unidad, { pasado: true, minuscula: true })}`);
+        // «con diferencia» solo si la app la registró (catálogo); un ítem fuera del catálogo «llegó distinto».
+        const registrada = d.pendientes || d.fin !== FIN_DISTINTO;
         const tono: TonoTarjeta = d.pendientes ? (d.falta ? 'rojo' : 'ambar') : 'neutro';
-        return ev('recibio', s.recepcion, `recibió en ${lugar} con diferencia`, `Se recibió en ${lugar} con diferencia`,
-            [s.codigo, ...detalle, ...(d.pendientes ? [] : ['ya revisada'])].join(' · '), tono,
+        return ev('recibio', s.recepcion,
+            registrada ? `recibió en ${lugar} con diferencia` : `recibió en ${lugar}`,
+            registrada ? `Se recibió en ${lugar} con diferencia` : `Se recibió en ${lugar}`,
+            [s.codigo, ...d.pie].join(' · '), tono,
             d.pendientes ? (d.falta ? 'faltante' : 'sobrante') : 'recibio');
     };
     return [
-        ...ev('pidio', { por: s.solicitante, fecha: s.fecha_solicitud }, `pidió ${s.tipo} para ${lugar}`, `Se pidieron ${s.tipo} para ${lugar}`,
+        ...ev('pidio', { por: s.solicitante, fecha: s.fecha_solicitud }, pidio[0], pidio[1],
             `${s.codigo} · ${fraseItems(s.items, { max: 1 }) || 'sin ítems'}`, 'neutro', 'pidio'),
         ...(s.estado === 'rechazada'
-            ? ev('rechazo', s.rechazo, `no aprobó la solicitud de ${lugar}`, `No se aprobó la solicitud de ${lugar}`,
+            ? ev('rechazo', s.rechazo, `no aprobó ${cual}`, `No se aprobó ${cual}`,
                 s.rechazo?.motivo?.trim() ? `${s.codigo} · «${s.rechazo.motivo.trim()}»` : s.codigo, 'rojo', 'rechazo')
-            : ev('aprobo', s.aprobacion, `aprobó la solicitud de ${lugar}`, `Se aprobó la solicitud de ${lugar}`,
+            : ev('aprobo', s.aprobacion, `aprobó ${cual}`, `Se aprobó ${cual}`,
                 origen ? `${s.codigo} · sale de ${origen}` : s.codigo, 'neutro', 'aprobo')),
         ...ev('despacho', s.despacho, `despachó a ${lugar}${desde}`, `Se despachó a ${lugar}${desde}`, s.codigo, 'azul', 'despacho'),
         ...(s.estado === 'recepcion_parcial'
@@ -511,6 +644,9 @@ export function porDia(eventos: readonly Evento[], hoy: string): DiaEventos[] {
     }
     return dias;
 }
+
+/** «Ver los 42»: lo que se dibuja abierto, a lo más `TOPE_ULTIMO` (el resto, en Inventario). */
+export const textoVerUltimo = (n: number): string => `Ver los ${Math.min(n, TOPE_ULTIMO)}`;
 
 // ─────────────────────────────── Lo del mes ───────────────────────────────
 
@@ -564,9 +700,10 @@ export function conteosMes(eventos: readonly Evento[], hoy: string, idsAprueban:
 }
 
 /**
- * Quiénes despachan desde un origen: el responsable de la bodega (si la app lo tiene) o quienes ya despacharon desde
- * ahí, si son uno o dos: «Jhoan o Héctor» (en el orden de quién despachó último en cualquier bodega, el mismo de «En
- * octubre Jhoan despachó 3 y Héctor 4»). null si no se sabe.
+ * Quiénes despachan desde un origen: el responsable de la bodega (si la app lo tiene) o, si no, quienes ya despacharon
+ * desde ahí (uno o dos): «antes despacharon Jhoan y Héctor» (no está registrado para ESTA solicitud: lo dice así), en el
+ * orden de quién despachó último en cualquier bodega (el mismo de «En octubre Jhoan despachó 3 y Héctor 4»). null si
+ * no se sabe.
  */
 export function despachanDesde(eventos: readonly Evento[], registros: readonly { s: SolicitudPerfil }[]) {
     const origenDe = new Map(registros.map(r => [r.s.id, r.s.origen]));
@@ -584,7 +721,8 @@ export function despachanDesde(eventos: readonly Evento[], registros: readonly {
         if (origen?.tipo === 'bodega' && origen.responsable?.trim()) return origen.responsable.trim();
         const deAhi = desde.get(clave(origen));
         const nombres = deAhi ? orden.filter(n => deAhi.has(n)) : [];
-        return nombres.length >= 1 && nombres.length <= 2 ? nombres.map(nombreCorto).join(' o ') : null;
+        if (nombres.length < 1 || nombres.length > 2) return null;
+        return `antes ${plural(nombres.length, 'despachó', 'despacharon')} ${enLista(nombresCortos(nombres))}`;
     };
 }
 
@@ -614,9 +752,13 @@ export interface PasoCircuitoSA {
 /** «hasta 9 días»; si la más antigua es de hoy, «de hoy». */
 export const textoHasta = (dias: number): string => (dias <= 0 ? 'de hoy' : `hasta ${textoDias(dias)}`);
 
-/** «Pedida: 6, esperan a Leonardo» (sin la flecha), para el `aria-label` de la etapa. */
+/**
+ * «Pedida: 6, esperan a Leonardo, hasta 9 días» (sin la flecha), para el `aria-label` de la etapa: lleva TODO lo que
+ * se ve (el `aria-label` reemplaza el texto visible para el lector de pantalla).
+ */
 export const etiquetaPaso = (p: PasoCircuitoSA): string =>
-    `${p.texto}: ${p.total}, ${p.bajada.replace(/\s*↓/, '')}${p.nota ? `, ${p.nota}` : ''}`;
+    [`${p.texto}: ${p.total}`, p.bajada.replace(/\s*↓/, ''), p.hasta !== null ? textoHasta(p.hasta) : '', p.nota ?? '']
+        .filter(Boolean).join(', ');
 
 export function circuitoSuperAdmin(c: CircuitoPerfil, hoy: string, aprueba: Pick<QuienApruebaSA, 'corto'>, recibidasAntes = 0): PasoCircuitoSA[] {
     const mes = mesDe(hoy);
@@ -652,15 +794,19 @@ export function circuitoSuperAdmin(c: CircuitoPerfil, hoy: string, aprueba: Pick
     ];
 }
 
-/** Las diferencias, APARTE del circuito (cuenta ítems, como la vista de jefatura). null sin ninguna. */
+/**
+ * Las diferencias, APARTE del circuito. Cuentan SOLICITUDES (`total`), como la tarjeta del Inicio, la pestaña
+ * Diferencias, VistaLeonardo y VistaJefatura; si son más ítems, la bajada lo dice («… en 3 ítems»). null sin ninguna.
+ */
 export function avisoDiferencias(d: CircuitoPerfil['diferencias']): { n: number; titulo: string; bajada: string } | null {
-    const n = d.items || 0;
+    const items = d.items || 0;
+    const n = d.total || (items > 0 ? 1 : 0);
     if (n <= 0) return null;
     const cuando = d.dias == null ? '' : d.dias <= 0 ? ' · la más antigua es de hoy' : ` · la más antigua, hace ${textoDias(d.dias)}`;
     return {
         n,
         titulo: `${n} ${plural(n, 'diferencia sin aclarar', 'diferencias sin aclarar')}`,
-        bajada: `Lo que llegó no calza con lo enviado${cuando}`,
+        bajada: `Lo que llegó no calza con lo enviado${items > n ? ` en ${items} ítems` : ''}${cuando}`,
     };
 }
 
@@ -682,23 +828,36 @@ export interface Responsable {
     ademas?: { texto: string; ir: Destino };
 }
 
+/** Lo que dice la caja de una persona, también para el lector de pantalla (su `aria-label` reemplaza lo visible). */
+export const etiquetaResponsable = (r: Pick<Responsable, 'nombre' | 'cifra' | 'linea' | 'nota'>): string =>
+    `${r.nombre}: ${r.cifra}, ${r.linea}. ${r.nota} Ver en la secuencia`;
+
 const laMasAntigua = (dias: number | null, { hace = false, prefijo = '' }: { hace?: boolean; prefijo?: string } = {}) =>
     (dias == null ? '' : dias <= 0 ? `la más antigua es de hoy` : `la más antigua, ${prefijo}${hace ? 'hace ' : ''}${textoDias(dias)}`);
 const conLinea = (...partes: string[]) => partes.filter(Boolean).join(' · ');
 
 export function responsablesDe(
-    datos: Pick<InventarioPerfilApi, 'circuito' | 'diferencias'>,
+    datos: Pick<InventarioPerfilApi, 'circuito' | 'diferencias'> & { solicitudes?: readonly SolicitudPerfil[] },
     conteos: ConteosMes,
     aprueba: QuienApruebaSA,
     investiga: string = JEFATURA,
 ): Responsable[] {
     const { pedida, aprobada, despachada, recibida, diferencias } = datos.circuito;
     const enMes = conteos.mes ? `En ${conteos.mes}` : 'Este mes';
-    const difs = diferencias.items || 0;
+    // Solicitudes con diferencia (como la tarjeta y las otras vistas), no ítems.
+    const difs = diferencias.total || (diferencias.items > 0 ? 1 : 0);
     const lista = datos.diferencias ?? [];
-    const faltan = lista.filter(d => d.diferencia > 0).length;
-    const sobran = lista.filter(d => d.diferencia < 0).length;
-    const porRecibir = aprobada.total + despachada.total;
+    const solicitudesCon = (pred: (d: DiferenciaPerfil) => boolean) => new Set(lista.filter(pred).map(d => d.transferencia_id)).size;
+    const faltan = solicitudesCon(d => d.diferencia > 0);
+    const sobran = solicitudesCon(d => d.diferencia < 0);
+
+    // «Obras»: solo lo que va a una obra. Las cifras del circuito son exactas para todo; se les resta lo de la lista que
+    // va a una bodega (las devoluciones), que recibe la bodega.
+    const fuera = (pred: (s: SolicitudPerfil) => boolean) => (datos.solicitudes ?? []).filter(s => pred(s) && !vaAUnaObra(s)).length;
+    const aprobadasObra = Math.max(0, aprobada.total - fuera(s => s.estado === 'aprobada'));
+    const enCaminoObra = Math.max(0, despachada.total - fuera(s => s.estado === 'en_transito' || s.estado === 'recepcion_parcial'));
+    const recibidasObra = Math.max(0, recibida.total - fuera(s => s.estado === 'recibida' && s.del_mes));
+    const porRecibir = aprobadasObra + enCaminoObra;
 
     const notaAprueba = aprueba.cuantos === 1
         ? `${enMes} aprobó ${conteos.aprobo} y no aprobó ${conteos.rechazo}.`
@@ -707,18 +866,18 @@ export function responsablesDe(
             : `${enMes}: ${conteos.aprobo} ${plural(conteos.aprobo, 'aprobada', 'aprobadas')} y ${conteos.rechazo} no ${plural(conteos.rechazo, 'aprobada', 'aprobadas')}.`;
 
     const nombrados = conteos.despachos;
+    const cortos = nombresCortos(nombrados.map(d => d.nombre));
     const notaBodega = conteos.totalDespachos === 0
         ? `${enMes} no se registró ningún despacho.`
         : nombrados.length > 0 && nombrados.length <= 3 && nombrados.reduce((n, d) => n + d.n, 0) === conteos.totalDespachos
-            ? `${enMes} ${enLista(nombrados.map((d, i) => `${nombreCorto(d.nombre)}${i === 0 ? ' despachó' : ''} ${d.n}`))}.`
+            ? `${enMes} ${enLista(nombrados.map((d, i) => `${cortos[i]}${i === 0 ? ' despachó' : ''} ${d.n}`))}.`
             : `${enMes} se ${plural(conteos.totalDespachos, 'registró', 'registraron')} ${conteos.totalDespachos} ${plural(conteos.totalDespachos, 'despacho', 'despachos')}.`;
 
-    const enCamino = despachada.total;
     const lineaObras = porRecibir === 0
         ? 'nada por recibir'
         : `por recibir · ${enLista([
-            enCamino ? `${enCamino} en camino` : '',
-            aprobada.total ? `${aprobada.total} ${plural(aprobada.total, 'aprobada que ya puede', 'aprobadas que ya pueden')} recibir` : '',
+            enCaminoObra ? `${enCaminoObra} en camino` : '',
+            aprobadasObra ? `${aprobadasObra} ${plural(aprobadasObra, 'aprobada que ya puede', 'aprobadas que ya pueden')} recibir` : '',
         ].filter(Boolean))}`;
 
     const detalleDifs = [
@@ -745,8 +904,8 @@ export function responsablesDe(
         {
             key: 'obras', nombre: 'Obras', iniciales: null, cifra: porRecibir, tono: 'azul',
             linea: lineaObras,
-            nota: `${enMes} pidieron ${conteos.pidio} y recibieron ${recibida.total}.`,
-            ir: { filtro: 'todas', grupo: aprobada.total ? 'aprobada' : 'camino' },
+            nota: `${enMes} pidieron ${conteos.pidio} y recibieron ${recibidasObra}.`,
+            ir: { filtro: 'todas', grupo: aprobadasObra ? 'aprobada' : 'camino' },
         },
         {
             key: 'jefatura', nombre: investiga, iniciales: null, cifra: difs, tono: 'rojo',
@@ -759,6 +918,14 @@ export function responsablesDe(
     ];
 }
 
+/**
+ * Con una obra elegida en el selector de arriba («Todas las Obras»): este detalle no se filtra (es de todas), y lo dice
+ * (la misma nota de VistaJefatura). null sin obra elegida.
+ */
+export function notaObraElegida(obraElegida: string | null | undefined, lugar = 'todas las obras'): string | null {
+    return obraElegida?.trim() ? `Aquí van ${lugar}: el selector de obra de arriba no filtra este detalle.` : null;
+}
+
 // ─────────────────────────────── Todo junto ───────────────────────────────
 
 export interface OpcionFiltro { key: FiltroSec; texto: string; n: number }
@@ -769,27 +936,46 @@ export interface ModeloSuperAdmin {
     circuito: PasoCircuitoSA[];
     diferencias: ReturnType<typeof avisoDiferencias>;
     responsables: Responsable[];
+    /** Los seis pasos con su rótulo (el de «completas» cambia si alguna no se sabe si llegó completa). */
+    grupos: GrupoSec[];
     /** Las filas de cada paso, ya ordenadas (lo pendiente de resolver primero; después lo que se movió último). */
     porGrupo: Record<Grupo, FilaSec[]>;
     /** Pestañas con su cifra (de la lista). */
     filtros: OpcionFiltro[];
     /** Todo lo registrado, lo más nuevo arriba. */
     eventos: Evento[];
-    /** Alguna lista llegó a su tope (`limites`): lo que falta está en Inventario. */
+    /** Alguna lista vino cortada (el servidor la topó): lo que falta está en Inventario. */
     tope: { texto: string; ruta: string } | null;
 }
 
-const EN_CURSO: readonly EstadoSolicitudPerfil[] = ['pendiente', 'aprobada', 'en_transito', 'recepcion_parcial'];
+/**
+ * ¿El servidor cortó alguna lista? Se compara cada etapa con su cifra EXACTA del circuito (los topes, `limites`, son
+ * por etapa): así se detecta un corte de verdad y no se avisa por sumar etapas. Las rechazadas del mes no tienen cifra
+ * exacta: llegar a su tope cuenta como corte.
+ */
+export function listaCortada(datos: Pick<InventarioPerfilApi, 'circuito' | 'solicitudes' | 'diferencias' | 'limites'>): boolean {
+    const c = datos.circuito;
+    const cuenta = (pred: (s: SolicitudPerfil) => boolean) => datos.solicitudes.filter(pred).length;
+    const rechazadas = datos.limites?.rechazadas;
+    return c.pedida.total > cuenta(s => s.estado === 'pendiente')
+        || c.aprobada.total > cuenta(s => s.estado === 'aprobada')
+        || c.despachada.total > cuenta(s => s.estado === 'en_transito' || s.estado === 'recepcion_parcial')
+        || c.recibida.total > cuenta(s => s.estado === 'recibida' && s.del_mes)
+        || (!!rechazadas && cuenta(s => s.estado === 'rechazada') >= rechazadas)
+        || (datos.diferencias != null && (c.diferencias.items || 0) > datos.diferencias.length);
+}
 
 export function modeloSuperAdmin(datos: InventarioPerfilApi): ModeloSuperAdmin {
     const registros = registrosDe(datos);
-    const eventos = ordenarEventos(registros.flatMap(eventosDeRegistro));
+    // Se sabe si una diferencia ya no está pendiente solo con la lista completa (vino y no se cortó).
+    const conocidas = datos.diferencias != null && (datos.circuito.diferencias.items || 0) <= datos.diferencias.length;
+    const eventos = ordenarEventos(registros.flatMap(r => eventosDeRegistro(r, conocidas)));
     const aprueba = quienApruebaDe(datos.aprobadores);
     const ctx: Contexto = {
         aprueba: aprueba.nombre ?? QUIEN_APRUEBA,
         investiga: JEFATURA,
         despachan: despachanDesde(eventos, registros),
-        conocidas: datos.diferencias != null,
+        conocidas,
     };
     const ordenados = [...registros].sort((a, b) =>
         Number(b.difs.length > 0) - Number(a.difs.length > 0)
@@ -798,6 +984,8 @@ export function modeloSuperAdmin(datos: InventarioPerfilApi): ModeloSuperAdmin {
         || b.s.id - a.s.id);
     const filas = ordenados.map(r => filaSec(r, ctx));
     const porGrupo = Object.fromEntries(GRUPOS.map(g => [g.key, filas.filter(f => f.grupo === g.key)])) as Record<Grupo, FilaSec[]>;
+    const sinVerificar = porGrupo.completa.some(f => f.casillas.some(c => c.tipo === 'fin' && c.quien !== FIN_COMPLETA));
+    const grupos = GRUPOS.map(g => (g.key === 'completa' && sinVerificar ? { ...g, texto: TEXTO_SIN_DIFERENCIA } : g));
     const n = (...gs: Grupo[]) => gs.reduce((t, g) => t + porGrupo[g].length, 0);
     const recibidas = n('dif', 'completa');
     const filtros: OpcionFiltro[] = [
@@ -810,22 +998,15 @@ export function modeloSuperAdmin(datos: InventarioPerfilApi): ModeloSuperAdmin {
     ];
     // «Recibida» cuenta las de este mes (cifra exacta); la lista trae además las últimas de antes.
     const antes = registros.filter(r => r.s.estado === 'recibida' && !r.s.del_mes).length;
-    const l = datos.limites;
-    const llego = (cuantas: number, tope?: number) => !!tope && cuantas >= tope;
-    const cuenta = (pred: (s: SolicitudPerfil) => boolean) => datos.solicitudes.filter(pred).length;
-    const alTope = !!l && (
-        llego(cuenta(s => EN_CURSO.includes(s.estado)), l.en_curso)
-        || llego(cuenta(s => s.estado === 'recibida'), l.recibidas)
-        || llego(cuenta(s => s.estado === 'rechazada'), l.rechazadas)
-        || llego(datos.diferencias?.length ?? 0, l.diferencias));
     return {
         todas: datos.alcance.todas,
         circuito: circuitoSuperAdmin(datos.circuito, datos.hoy, aprueba, antes),
         diferencias: avisoDiferencias(datos.circuito.diferencias),
         responsables: responsablesDe(datos, conteosMes(eventos, datos.hoy, aprueba.ids), aprueba),
+        grupos,
         porGrupo,
         filtros,
         eventos,
-        tope: alTope ? { texto: 'La lista llegó a su tope: lo que no está aquí, en Inventario', ruta: rutaLista('todas') } : null,
+        tope: listaCortada(datos) ? { texto: 'La lista llegó a su tope: lo que no está aquí, en Inventario', ruta: rutaLista('todas') } : null,
     };
 }

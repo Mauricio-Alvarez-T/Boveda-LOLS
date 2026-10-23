@@ -4,6 +4,7 @@ import {
     ArrowDown, ArrowRight, Ban, Check, ChevronDown, HardHat, PackageCheck, PackagePlus, PackageX, Plus, Search,
     Truck, UserCheck, Warehouse,
 } from 'lucide-react';
+import { useObra } from '../../../../context/ObraContext';
 import { cn } from '../../../../utils/cn';
 import { FiltroFichas, Pildora } from '../FichaInicio';
 import { CIFRA, CUADRO, PILDORA, ROTULO_FICHAS } from '../fichasInicio';
@@ -11,8 +12,8 @@ import type { TonoTarjeta } from '../tarjetaActiva';
 import { TARJETA, plural, rutaLista } from './formato';
 import type { PropsVistaInventario } from './perfil';
 import {
-    GRUPOS, TOPE_GRUPO, TOPE_SEC_CEL, TOPE_ULTIMO, TOPE_ULTIMO_CERRADO, etiquetaPaso, filasDelGrupo, gruposDe, modeloSuperAdmin, porDia,
-    rotuloGrupo, textoHasta,
+    GRUPOS, TOPE_GRUPO, TOPE_SEC_CEL, TOPE_ULTIMO, TOPE_ULTIMO_CERRADO, etiquetaPaso, etiquetaResponsable, filasDelGrupo, gruposDe,
+    modeloSuperAdmin, notaObraElegida, porDia, rotuloGrupo, textoHasta, textoVerUltimo,
     type Casilla, type Destino, type Evento, type FilaSec, type FiltroSec, type Grupo, type IconoEvento, type PasoCircuitoSA,
     type Responsable,
 } from './superadmin.modelo';
@@ -33,7 +34,10 @@ import {
  * secuencia; «Ver» abre la solicitud (o su diferencia) en Inventario.
  */
 
-const FOCO = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40';
+/** Anillo de foco del sistema (`ring-ring`, verde sólido: se ve sobre la tarjeta blanca), como VistaLeonardo y VistaObra. */
+const FOCO = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+/** En un botón con fondo de color (el aviso rojo), el anillo va separado del fondo por un borde. */
+const FOCO_GRANDE = cn(FOCO, 'focus-visible:ring-offset-2 focus-visible:ring-offset-background');
 const ID_SEC = 'inv-sa-sec';
 const idGrupo = (g: Grupo) => `inv-sa-g-${g}`;
 
@@ -150,7 +154,7 @@ const DiferenciasAparte: React.FC<{ titulo: string; bajada: string; onClick: () 
     // eslint-disable-next-line no-restricted-syntax -- fila de aviso tocable: baja a la secuencia (misma vista)
     <button type="button" onClick={onClick}
         className={cn('flex min-h-11 w-full max-w-2xl items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors duration-200 hover:bg-red-100 dark:hover:bg-red-500/25',
-            PILDORA.rojo, FOCO, className)}>
+            PILDORA.rojo, FOCO_GRANDE, className)}>
         <PackageX className="h-5 w-5 shrink-0" aria-hidden />
         <span className="min-w-0 flex-1">
             <span className="block text-sm font-bold">{titulo}</span>
@@ -178,7 +182,7 @@ const PersonaPendiente: React.FC<{ r: Responsable; onIr: (d: Destino) => void }>
     return (
         <li className="min-w-0 rounded-2xl bg-muted/60 dark:bg-muted/40">
             {/* eslint-disable-next-line no-restricted-syntax -- caja de persona: baja a la secuencia con lo suyo (misma vista) */}
-            <button type="button" onClick={() => onIr(r.ir)} aria-label={`${r.nombre}: ${r.cifra}, ${r.linea}. Ver en la secuencia`}
+            <button type="button" onClick={() => onIr(r.ir)} aria-label={etiquetaResponsable(r)}
                 className={cn('block min-h-11 w-full px-3 py-2.5 text-left transition-colors duration-200 hover:bg-muted', ademas ? 'rounded-t-2xl' : 'rounded-2xl', FOCO)}>
                 <span className="flex items-center gap-2.5">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-label font-bold text-zinc-700 shadow-[var(--shadow-sm)] dark:text-zinc-300" aria-hidden>
@@ -226,36 +230,62 @@ const PuntoPaso: React.FC<{ c: Casilla }> = ({ c }) => {
     );
 };
 
-/** Un verbo corto no se parte («Ahora:» / «sale de bodega», no «… de» / «bodega»). */
+/**
+ * Lo que no conviene partir («sale de bodega», «hace 2 días») va junto en el celular y desde 1280 px, donde la columna
+ * le da el ancho. De 768 a 1279 px (iPad vertical, media ventana con el menú abierto) las cinco columnas son angostas y
+ * se corta normal: con espacios que no se cortan, «sale de bodega» se salía de la píldora y se montaba en la columna
+ * siguiente.
+ */
+const JUNTO = 'whitespace-nowrap md:max-xl:whitespace-normal';
 const NB = String.fromCharCode(160);
-const sinPartir = (verbo: string) => (verbo.length <= 15 ? verbo.replace(/ /g, NB) : verbo);
+const NB_TODOS = new RegExp(NB, 'g');
+
+/** Un verbo corto, junto («Ahora:» / «sale de bodega», no «… de» / «bodega»). */
+const VerboAhora: React.FC<{ verbo: string }> = ({ verbo }) =>
+    (verbo.length <= 15 ? <span className={JUNTO}>{verbo}</span> : <>{verbo}</>);
+
+/** Un texto del modelo: lo que viene unido con espacios que no se cortan («hace 2 días») va junto (salvo de 768 a 1279 px). */
+const TextoJunto: React.FC<{ texto: string }> = ({ texto }) => (
+    <>
+        {texto.split(' ').map((parte, i) => (
+            <React.Fragment key={i}>
+                {i > 0 && ' '}
+                {parte.includes(NB) ? <span className={JUNTO}>{parte.replace(NB_TODOS, ' ')}</span> : parte}
+            </React.Fragment>
+        ))}
+    </>
+);
 
 /**
- * Un paso. Desde 768 px, compacto: el punto arriba con la línea hacia el siguiente y debajo «Verbo · fecha», el nombre
- * y un dato chico (cinco columnas que calzan fila con fila). En el celular: en vertical, el punto a la izquierda y la
- * línea hacia abajo, «Pidió Carla Soto» en una línea; lo que falta no se dibuja (se nombra al final).
+ * Un paso. En cinco columnas que calzan fila con fila (desde 768 px Y con la lista de 32rem o más, abajo): el punto
+ * arriba con la línea hacia el siguiente y debajo «Verbo · fecha», el nombre y un dato chico. Si no: en vertical, el
+ * punto a la izquierda y la línea hacia abajo, «Pidió Carla Soto» en una línea; lo que falta no se dibuja (se nombra al
+ * final).
+ * Las cinco columnas piden las dos cosas (`md:@lg:`): con el menú lateral abierto, de 768 a ~850 px la tarjeta mide
+ * ~460 px y en columnas de ~80 px no cabían ni «Domeyko» ni «despacharon» (se salían o se partían). Ahí va en
+ * vertical, como VistaJefatura pasa a su tira cuando la columna no da. El `@container` es la lista (#inv-sa-s-lista).
  */
 const PasoSecuencia: React.FC<{ c: Casilla; sig?: Casilla }> = ({ c, sig }) => {
-    if (c.tipo === 'nada') return <li className="max-md:hidden" aria-hidden />;
+    if (c.tipo === 'nada') return <li className="max-md:hidden @max-lg:hidden" aria-hidden />;
     const linea = !!sig && sig.tipo !== 'nada';
     const rojo = c.punto === 'rojo' && !!c.motivo;
     const fecha = [c.verbo, c.fecha].filter(Boolean).join(' · ');
     return (
-        <li className={cn('flex min-w-0 gap-3 md:flex-col md:gap-1.5', c.tipo === 'falta' && 'max-md:hidden')}>
-            <div className="flex shrink-0 flex-col items-center max-md:pt-0.5 md:flex-row" aria-hidden>
+        <li className={cn('flex min-w-0 gap-3 md:@lg:flex-col md:@lg:gap-1.5', c.tipo === 'falta' && 'max-md:hidden @max-lg:hidden')}>
+            <div className="flex shrink-0 flex-col items-center max-md:pt-0.5 @max-lg:pt-0.5 md:@lg:flex-row" aria-hidden>
                 <PuntoPaso c={c} />
                 {linea && (
-                    <span className={cn('w-0.5 flex-1 md:h-0.5 md:w-auto',
-                        sig.tipo === 'falta' ? 'bg-border max-md:hidden' : 'bg-zinc-400 dark:bg-zinc-500')} />
+                    <span className={cn('w-0.5 flex-1 md:@lg:h-0.5 md:@lg:w-auto',
+                        sig.tipo === 'falta' ? 'bg-border max-md:hidden @max-lg:hidden' : 'bg-zinc-400 dark:bg-zinc-500')} />
                 )}
             </div>
-            <div className="min-w-0 flex-1 pb-3 md:pb-0 md:pr-2">
+            <div className="min-w-0 flex-1 pb-3 md:@lg:pb-0 md:@lg:pr-2">
                 {c.tipo === 'ahora' && (
-                    <div className={cn('rounded-xl px-2.5 py-1.5 max-md:-mt-1 md:px-2 md:py-1', PILDORA[c.tono ?? 'ambar'])}>
-                        <p className="text-xs font-bold">Ahora: {sinPartir(c.verbo)}</p>
+                    <div className={cn('rounded-xl px-2.5 py-1.5 [overflow-wrap:anywhere] max-md:-mt-1 @max-lg:-mt-1 md:@lg:px-2 md:@lg:py-1', PILDORA[c.tono ?? 'ambar'])}>
+                        <p className="text-xs font-bold">Ahora: <VerboAhora verbo={c.verbo} /></p>
                         {/* Desde 768 px en 13 px: «Leonardo López» cabe entero en la columna de 1280 px. */}
-                        <p className="text-sm font-semibold leading-snug md:text-section">{c.quien}</p>
-                        {c.detalle && <p className="text-xs">{c.detalle}</p>}
+                        <p className="text-sm font-semibold leading-snug md:@lg:text-section">{c.quien}</p>
+                        {c.detalle && <p className="text-xs"><TextoJunto texto={c.detalle} /></p>}
                         {c.nota && <p className="text-label">{c.nota}</p>}
                     </div>
                 )}
@@ -268,30 +298,30 @@ const PasoSecuencia: React.FC<{ c: Casilla; sig?: Casilla }> = ({ c, sig }) => {
                 {c.tipo === 'sin' && (
                     <>
                         {/* Celular: «Sin despacho · la obra recibió directo». */}
-                        <p className="text-sm leading-snug text-muted-foreground md:hidden">{[c.verbo, c.nota].filter(Boolean).join(' · ')}</p>
-                        <p className="text-xs text-muted-foreground max-md:hidden">{c.verbo}</p>
-                        {c.nota && <p className="text-label leading-snug text-muted-foreground max-md:hidden">{c.nota}</p>}
+                        <p className="text-sm leading-snug text-muted-foreground md:@lg:hidden">{[c.verbo, c.nota].filter(Boolean).join(' · ')}</p>
+                        <p className="text-xs text-muted-foreground max-md:hidden @max-lg:hidden">{c.verbo}</p>
+                        {c.nota && <p className="text-label leading-snug text-muted-foreground max-md:hidden @max-lg:hidden">{c.nota}</p>}
                     </>
                 )}
                 {c.tipo === 'fin' && (
                     <>
-                        <p className="text-sm font-semibold leading-snug text-zinc-700 dark:text-zinc-300 md:hidden">{c.verbo}: {c.quien?.toLowerCase()}</p>
-                        <p className="text-xs text-muted-foreground max-md:hidden">{c.verbo}</p>
-                        <p className="text-sm font-semibold leading-snug text-zinc-700 dark:text-zinc-300 max-md:hidden">{c.quien}</p>
+                        <p className="text-sm font-semibold leading-snug text-zinc-700 dark:text-zinc-300 md:@lg:hidden">{c.verbo}: {c.quien?.toLowerCase()}</p>
+                        <p className="text-xs text-muted-foreground max-md:hidden @max-lg:hidden">{c.verbo}</p>
+                        <p className="text-sm font-semibold leading-snug text-zinc-700 dark:text-zinc-300 max-md:hidden @max-lg:hidden">{c.quien}</p>
                     </>
                 )}
                 {c.tipo === 'hecho' && (
                     <>
                         {/* Celular: «Pidió Carla Soto» y debajo «13 oct · Prevencionista». */}
-                        <p className="text-sm leading-snug md:hidden">
+                        <p className="text-sm leading-snug md:@lg:hidden">
                             <span className={rojo ? 'font-semibold text-red-700 dark:text-red-300' : 'text-muted-foreground'}>{c.verbo}</span>
                             {c.quien && <>{' '}<span className="font-semibold">{c.quien}</span></>}
                         </p>
-                        {(c.fecha || c.extra) && <p className="text-xs text-muted-foreground md:hidden">{[c.fecha, c.extra].filter(Boolean).join(' · ')}</p>}
+                        {(c.fecha || c.extra) && <p className="text-xs text-muted-foreground md:@lg:hidden">{[c.fecha, c.extra].filter(Boolean).join(' · ')}</p>}
                         {/* Desde 768 px: «Pidió · 13 oct», el nombre y el dato chico. */}
-                        <p className={cn('text-xs max-md:hidden', rojo ? 'font-semibold text-red-700 dark:text-red-300' : 'text-muted-foreground')}>{fecha}</p>
-                        {c.quien && <p className="text-sm font-semibold leading-snug max-md:hidden">{c.quien}</p>}
-                        {c.extra && <p className="text-label leading-snug text-muted-foreground max-md:hidden">{c.extra}</p>}
+                        <p className={cn('text-xs max-md:hidden @max-lg:hidden', rojo ? 'font-semibold text-red-700 dark:text-red-300' : 'text-muted-foreground')}>{fecha}</p>
+                        {c.quien && <p className="text-sm font-semibold leading-snug max-md:hidden @max-lg:hidden">{c.quien}</p>}
+                        {c.extra && <p className="text-label leading-snug text-muted-foreground max-md:hidden @max-lg:hidden">{c.extra}</p>}
                         {c.motivo && <p className="mt-0.5 text-xs text-zinc-700 dark:text-zinc-300">«{c.motivo}»</p>}
                         {c.difs?.map(d => (
                             <div key={d.clave} className="mt-1 space-y-0.5">
@@ -329,10 +359,10 @@ const FilaSecuencia: React.FC<{ f: FilaSec; onIr: (ruta: string) => void; classN
             <p className="text-section leading-snug text-zinc-700 dark:text-zinc-300 xl:text-xs">{f.items}</p>
             <p className="mt-0.5 text-label text-muted-foreground">{f.tipo ? `${f.codigo} · ${f.tipo}` : f.codigo}</p>
         </div>
-        <ol aria-label={`Secuencia de la solicitud ${f.codigo}${f.ahora ? `. Ahora: ${f.ahora}` : ''}`} className="mt-3 md:grid md:grid-cols-5 xl:mt-0.5">
+        <ol aria-label={`Secuencia de la solicitud ${f.codigo}${f.ahora ? `. Ahora: ${f.ahora}` : ''}`} className="mt-3 md:@lg:grid md:@lg:grid-cols-5 xl:mt-0.5">
             {f.casillas.map((c, i) => <PasoSecuencia key={i} c={c} sig={f.casillas[i + 1]} />)}
         </ol>
-        {f.despues && <p className="pl-7 text-xs text-muted-foreground md:hidden">{f.despues}</p>}
+        {f.despues && <p className="pl-7 text-xs text-muted-foreground md:@lg:hidden">{f.despues}</p>}
     </li>
 );
 
@@ -408,7 +438,7 @@ const LoUltimo: React.FC<{ eventos: Evento[]; hoy: string; onIr: (ruta: string) 
                                 </div>
                                 {corta && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" aria-hidden />}
                             </div>
-                            <VerMas abierto={abierto} controla="inv-sa-u-lista" texto={`Ver los ${n}`} onClick={() => setAbierto(v => !v)} />
+                            <VerMas abierto={abierto} controla="inv-sa-u-lista" texto={textoVerUltimo(n)} onClick={() => setAbierto(v => !v)} />
                         </>
                     )}
                 </section>
@@ -422,6 +452,7 @@ const LoUltimo: React.FC<{ eventos: Evento[]; hoy: string; onIr: (ruta: string) 
 const VistaSuperAdmin: React.FC<PropsVistaInventario> = ({ datos }) => {
     const navigate = useNavigate();
     const irRuta = (ruta: string) => navigate(ruta);
+    const { selectedObra } = useObra();
     const m = useMemo(() => modeloSuperAdmin(datos), [datos]);
     const [filtro, setFiltro] = useState<FiltroSec>('todas');
     const [todas, setTodas] = useState(false);
@@ -431,12 +462,14 @@ const VistaSuperAdmin: React.FC<PropsVistaInventario> = ({ datos }) => {
         irA(grupo ? idGrupo(grupo) : ID_SEC);
     };
     const enTodas = filtro === 'todas';
-    const grupos = gruposDe(filtro);
+    const grupos = gruposDe(filtro, m.grupos);
     const total = grupos.reduce((a, g) => a + m.porGrupo[g.key].length, 0);
     const conRotulo = grupos.length > 1;
     // Filas anteriores a cada paso (en una pestaña, en el celular se ven las 3 primeras de toda la pestaña).
     const desde = grupos.map((_, i) => grupos.slice(0, i).reduce((a, g) => a + m.porGrupo[g.key].length, 0));
     const lugar = m.todas ? 'todas las obras' : 'lo que puedes ver';
+    // Con una obra elegida arriba, este detalle sigue con todas: lo dice (como VistaJefatura).
+    const notaObra = notaObraElegida(selectedObra?.nombre, lugar);
 
     return (
         // Computador: a la izquierda el circuito con lo pendiente de cada uno; a la derecha, lo último que pasó (del mismo
@@ -444,6 +477,7 @@ const VistaSuperAdmin: React.FC<PropsVistaInventario> = ({ datos }) => {
         <div data-vista="superadmin" className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem] 2xl:grid-cols-[minmax(0,1fr)_26rem]">
             <section className={cn(TARJETA, 'min-w-0 xl:col-start-1 xl:row-start-1')} aria-labelledby="inv-sa-c">
                 <Rotulo id="inv-sa-c" titulo={`Todo el circuito · ${lugar}`} nota="Toca una etapa para ver sus solicitudes" />
+                {notaObra && <p className="mt-1 text-xs text-muted-foreground">{notaObra}</p>}
                 <Circuito className="mt-4" etiqueta={`Circuito de la solicitud, ${lugar}`} pasos={m.circuito} onIr={ir} />
                 {m.diferencias && (
                     <DiferenciasAparte className="mt-3" titulo={m.diferencias.titulo} bajada={m.diferencias.bajada}
@@ -469,7 +503,7 @@ const VistaSuperAdmin: React.FC<PropsVistaInventario> = ({ datos }) => {
                 <div className={TARJETA}>
                     {total === 0 ? <Vacio>{enTodas ? 'Todavía no hay solicitudes.' : 'No hay solicitudes en este paso.'}</Vacio> : (
                         <>
-                            <div id="inv-sa-s-lista">
+                            <div id="inv-sa-s-lista" className="@container">
                                 {grupos.map((g, gi) => {
                                     const filas = m.porGrupo[g.key];
                                     const n = filas.length;

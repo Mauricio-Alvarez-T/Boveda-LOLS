@@ -1,7 +1,9 @@
 import {
-    JEFATURA, QUIEN_APRUEBA, TOPE_GRUPO, TOPE_GRUPO_ABIERTO, ahoraDe, avisoDiferencias, circuitoSuperAdmin, conteosMes,
-    despuesDe, etiquetaPaso, filasDelGrupo, gruposDe, mesDe, modeloSuperAdmin, porDia, quienApruebaDe, responsablesDe,
-    rotuloDia, rotuloGrupo, solicitudDesdeDiferencias, textoHasta,
+    FIN_COMPLETA, FIN_CON_DIFERENCIA, FIN_DISTINTO, FIN_RECIBIDA, FIN_REVISADA, GRUPOS, JEFATURA, NOTA_DESTINO, QUIEN_APRUEBA,
+    TEXTO_SIN_DIFERENCIA, TOPE_GRUPO, TOPE_GRUPO_ABIERTO, ahoraDe, avisoDiferencias, circuitoSuperAdmin, conteosMes, despuesDe,
+    etiquetaPaso, etiquetaResponsable, filasDelGrupo, gruposDe, listaCortada, mesDe, modeloSuperAdmin, nombresCortos,
+    notaObraElegida, porDia, quienApruebaDe, quienRecibe, responsablesDe, rotuloDia, rotuloGrupo, solicitudDesdeDiferencias,
+    textoHasta, textoVerUltimo, vaAUnaObra,
     type Casilla, type Evento,
 } from './superadmin.modelo';
 import type { CircuitoPerfil, DiferenciaPerfil, InventarioPerfilApi, LugarPerfil, SolicitudPerfil } from './tipos';
@@ -64,7 +66,8 @@ const CIRCUITO: CircuitoPerfil = {
     pedida: { total: 1, dias: 9 },
     aprobada: { total: 1, dias: 2 },
     despachada: { total: 1, dias: 1 },
-    recibida: { total: 3, ultima: '2026-10-21' },
+    // Las del mes que trae la lista (22 y 21): con la cifra exacta igual a la lista, ninguna vino cortada.
+    recibida: { total: 2, ultima: '2026-10-08' },
     diferencias: { total: 2, items: 2, dias: 40 },
 };
 
@@ -100,11 +103,11 @@ const SOLICITUDES: SolicitudPerfil[] = [
             { clave: 'p21b', personalizado: true, descripcion: 'Fierro 8 mm', unidad: 'BARRA', pedida: 40, enviada: 40, recibida: 40 },
         ],
     }),
-    // Recibida que llegó distinto, pero su diferencia ya se revisó (no está en `diferencias`). De septiembre.
+    // Recibida que llegó distinto (ítem del catálogo: dejó diferencia), pero ya se revisó (no está en `diferencias`). De septiembre.
     sol({
         id: 23, codigo: 'TRF-202609-0118', estado: 'recibida', etapa: 'recibida', del_mes: false, dias: 25, origen: CERRILLOS,
         fecha_solicitud: '2026-09-24', aprobacion: { por: LEO, fecha: '2026-09-25' }, recepcion: { por: { id: 20, nombre: 'Tomás Vera' }, fecha: '2026-09-27' },
-        items: [{ clave: 'p23', personalizado: true, descripcion: 'Arena fina', unidad: 'M3', pedida: 4, enviada: 4, recibida: 3 }],
+        items: [{ clave: 'c23', personalizado: false, descripcion: 'Arena fina', unidad: 'M3', pedida: 4, enviada: 4, recibida: 3 }],
     }),
     sol({
         id: 24, estado: 'rechazada', etapa: 'rechazada', del_mes: true, dias: 12, fecha_solicitud: '2026-10-09', tipo: 'herramientas',
@@ -210,12 +213,13 @@ describe('casillas de cada solicitud', () => {
         expect(f.tipo).toBe('Materiales');
     });
 
-    it('aprobada: «sale de bodega» con quienes despacharon desde ahí y hace cuánto; la obra ya puede recibir', () => {
+    it('aprobada: «sale de bodega» con quienes despacharon antes desde ahí y hace cuánto; la obra ya puede recibir', () => {
         const f = fila(m, 32);
         expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'ahora', 'falta', 'nada']);
         expect(f.casillas[1]).toMatchObject({ verbo: 'Aprobó', quien: 'Leonardo López', fecha: '20 oct' });
-        // Desde Cerrillos despacharon Jhoan y Héctor (Jhoan despachó último en cualquier bodega: va primero).
-        expect(f.casillas[2]).toMatchObject({ verbo: 'sale de bodega', quien: 'Bodega Cerrillos', detalle: `Jhoan o Héctor · hace${NB}2${NB}días` });
+        // Desde Cerrillos despacharon Jhoan y Héctor (Jhoan despachó último en cualquier bodega: va primero). No está
+        // registrado para ESTA solicitud: dice «antes».
+        expect(f.casillas[2]).toMatchObject({ verbo: 'sale de bodega', quien: 'Bodega Cerrillos', detalle: `antes despacharon Jhoan y Héctor · hace${NB}2${NB}días` });
         expect(f.casillas[3]).toMatchObject({ tipo: 'falta', verbo: 'Recibir', nota: 'la obra ya puede hacerlo' });
         expect(f.despues).toBe('Después: recibir (la obra ya puede hacerlo).');
     });
@@ -266,12 +270,58 @@ describe('casillas de cada solicitud', () => {
 
     it('diferencia ya revisada: cerrada, con lo que llegó distinto en gris', () => {
         const f = fila(m, 23);
-        expect(f.casillas[3].difs).toEqual([{ clave: 'p23', pildora: 'Faltó 1 m³', tono: 'neutro', texto: 'Salieron 4, llegaron 3.' }]);
+        expect(f.casillas[3].difs).toEqual([{ clave: 'c23', pildora: 'Faltó 1 m³', tono: 'neutro', texto: 'Salieron 4, llegaron 3.' }]);
         expect(f.casillas[3].punto).toBeUndefined();
-        expect(f.casillas[4]).toMatchObject({ tipo: 'fin', quien: 'Diferencia revisada' });
-        // Sin la lista de diferencias no se sabe si sigue pendiente.
+        expect(f.casillas[4]).toMatchObject({ tipo: 'fin', quien: FIN_REVISADA });
+        // Sin la lista de diferencias, o si vino cortada, no se sabe si sigue pendiente.
         const sinLista = modeloSuperAdmin(datos({ diferencias: null }));
-        expect(fila(sinLista, 23).casillas[4]).toMatchObject({ tipo: 'fin', quien: 'Llegó con diferencia' });
+        expect(fila(sinLista, 23).casillas[4]).toMatchObject({ tipo: 'fin', quien: FIN_CON_DIFERENCIA });
+        const cortada = modeloSuperAdmin(datos({ circuito: { ...CIRCUITO, diferencias: { total: 3, items: 3, dias: 40 } } }));
+        expect(fila(cortada, 23).casillas[4]).toMatchObject({ tipo: 'fin', quien: FIN_CON_DIFERENCIA });
+        expect(cortada.eventos.find(e => e.solicitudId === 23 && e.accion === 'recibio')?.pie).toBe('TRF-202609-0118 · Arena fina: faltó 1 m³');
+    });
+
+    it('un ítem fuera del catálogo que llegó distinto: «Llegó distinto», sin diferencia registrada (nadie la revisó)', () => {
+        const p = sol({
+            id: 70, estado: 'recibida', etapa: 'recibida', del_mes: true, origen: CERRILLOS, recepcion: { por: { id: 20, nombre: 'Tomás Vera' }, fecha: '2026-10-21' },
+            items: [{ clave: 'p70', personalizado: true, descripcion: 'Cemento', unidad: 'SACO', pedida: 50, enviada: 50, recibida: 48 }],
+        });
+        const m2 = modeloSuperAdmin(datos({ solicitudes: [...SOLICITUDES, p], circuito: { ...CIRCUITO, recibida: { total: 3, ultima: '2026-10-21' } } }));
+        const f = fila(m2, 70);
+        expect(f.grupo).toBe('dif');
+        expect(f.casillas[3].difs).toEqual([{ clave: 'p70', pildora: 'Faltaron 2 sacos', tono: 'neutro', texto: 'Salieron 50, llegaron 48. Sin diferencia registrada.' }]);
+        expect(f.casillas[4]).toMatchObject({ tipo: 'fin', quien: FIN_DISTINTO });
+        expect(f.casillas.some(c => c.quien === FIN_REVISADA)).toBe(false);
+        expect(m2.eventos.find(e => e.solicitudId === 70 && e.accion === 'recibio')).toMatchObject({
+            frase: 'recibió en Domeyko', pie: 'TRF-202610-0070 · Cemento: faltaron 2 sacos · sin diferencia registrada', tono: 'neutro', icono: 'recibio',
+        });
+    });
+
+    it('si la app no sabe cuánto llegó de un ítem, no dice «completa»: «Recibida» (y el paso no dice «llegaron completas»)', () => {
+        const recepcion = { por: { id: 20, nombre: 'Tomás Vera' }, fecha: '2026-10-21' };
+        // Fuera del catálogo en 0 con algo enviado: RecibirForm parte su contador en 0 (no es «no llegó nada»).
+        const cero = sol({
+            id: 71, estado: 'recibida', etapa: 'recibida', del_mes: true, recepcion,
+            items: [{ clave: 'p71', personalizado: true, descripcion: 'Arena', unidad: 'M3', pedida: 3, enviada: 3, recibida: 0 }],
+        });
+        const nulo = sol({
+            id: 72, estado: 'recibida', etapa: 'recibida', del_mes: true, recepcion,
+            items: [{ clave: 'c72', personalizado: false, descripcion: 'Andamio', unidad: 'UN', pedida: 3, enviada: 3, recibida: null }],
+        });
+        const m2 = modeloSuperAdmin(datos({ solicitudes: [cero, nulo], diferencias: [], circuito: { ...CIRCUITO, recibida: { total: 2, ultima: null } } }));
+        for (const id of [71, 72]) {
+            const f = fila(m2, id);
+            expect(f.grupo).toBe('completa');
+            expect(f.casillas[3].difs).toBeUndefined();
+            expect(f.casillas[4]).toMatchObject({ tipo: 'fin', quien: FIN_RECIBIDA });
+        }
+        expect(m2.grupos.find(g => g.key === 'completa')?.texto).toEqual(TEXTO_SIN_DIFERENCIA);
+        expect(m2.eventos.find(e => e.solicitudId === 71 && e.accion === 'recibio')?.pie).toBe('TRF-202610-0071');
+        // Con todas verificadas, el rótulo del lienzo.
+        expect(modeloSuperAdmin(datos()).grupos.find(g => g.key === 'completa')?.texto).toEqual(['Recibida · llegó completa', 'Recibidas · llegaron completas']);
+        expect(fila(modeloSuperAdmin(datos()), 22).casillas[4].quien).toBe(FIN_COMPLETA);
+        expect(gruposDe('recibidas', m2.grupos).map(g => g.texto[1])).toEqual(['Recibidas con diferencia', TEXTO_SIN_DIFERENCIA[1]]);
+        expect(gruposDe('todas')).toEqual([...GRUPOS]);
     });
 
     it('no aprobada: quién y cuándo (del rechazo), su motivo y cerrada', () => {
@@ -281,6 +331,50 @@ describe('casillas de cada solicitud', () => {
             verbo: 'No aprobó', quien: 'Leonardo López', fecha: '10 oct', punto: 'rojo', motivo: 'Ya hay stock en la obra (bodega de faena).',
         });
         expect(f.casillas[2]).toMatchObject({ quien: 'No pasó a bodega', completa: false });
+    });
+
+    it('no aprobada que había sido aprobada antes: el paso «Aprobó» registrado, sin fecha (el rechazo la pisa)', () => {
+        const r2 = sol({
+            id: 73, estado: 'rechazada', etapa: 'rechazada', del_mes: true, aprobacion: { por: LEO, fecha: null },
+            rechazo: { por: { id: 11, nombre: 'Ana Pérez' }, fecha: '2026-10-15', motivo: null },
+        });
+        const f = fila(modeloSuperAdmin(datos({ solicitudes: [r2], diferencias: [] })), 73);
+        expect(tipos(f.casillas)).toEqual(['hecho', 'hecho', 'hecho', 'fin', 'nada']);
+        expect(f.casillas[1]).toEqual({ tipo: 'hecho', verbo: 'Aprobó', quien: 'Leonardo López', fecha: undefined, extra: 'sin fecha' });
+        expect(f.casillas[2]).toMatchObject({ verbo: 'No aprobó', quien: 'Ana Pérez', fecha: '15 oct' });
+    });
+
+    it('devolución y traslado: los recibe el destino (no quien pidió), con sus frases', () => {
+        const DEV = sol({
+            id: 80, tipo_flujo: 'devolucion', tipo: 'herramientas', estado: 'aprobada', etapa: 'aprobada', dias: 3, origen: DOMEYKO, destino: CERRILLOS,
+            aprobacion: { por: LEO, fecha: '2026-10-19' }, fecha_solicitud: '2026-10-18',
+        });
+        const DEV_CAMINO = sol({
+            id: 81, tipo_flujo: 'devolucion', tipo: 'herramientas', estado: 'en_transito', etapa: 'despachada', dias: 1, origen: DOMEYKO,
+            destino: { ...CERRILLOS, responsable: 'Juan Pérez' }, aprobacion: { por: LEO, fecha: '2026-10-19' },
+        });
+        const TRAS = sol({
+            id: 82, tipo_flujo: 'intra_obra', tipo: 'herramientas', estado: 'en_transito', etapa: 'despachada', dias: 1, origen: DOMEYKO, destino: GORBEA,
+            aprobacion: { por: LEO, fecha: '2026-10-19' }, fecha_solicitud: '2026-10-19',
+        });
+        const m2 = modeloSuperAdmin(datos({ solicitudes: [DEV, DEV_CAMINO, TRAS], diferencias: [] }));
+        const dev = fila(m2, 80);
+        expect(dev.lugar).toBe('Domeyko → Bodega Cerrillos');
+        expect(dev.tipo).toBe('Devolución');
+        expect(dev.casillas[2]).toMatchObject({ tipo: 'ahora', verbo: 'sale de la obra', quien: 'Domeyko' });
+        expect(dev.casillas[3]).toMatchObject({ tipo: 'falta', verbo: 'Recibir', nota: NOTA_DESTINO });
+        expect(fila(m2, 81).casillas[3]).toMatchObject({ tipo: 'ahora', verbo: 'recibir', quien: 'Bodega Cerrillos (Juan Pérez)' });
+        expect(fila(m2, 82).casillas[3]).toMatchObject({ tipo: 'ahora', verbo: 'recibir', quien: 'Gorbea 3082' });
+        expect(fila(m2, 82).tipo).toBe('Traslado');
+        const ev = (id: number, a: string) => m2.eventos.find(e => e.solicitudId === id && e.accion === a);
+        expect(ev(80, 'pidio')?.frase).toBe('pidió devolver a Bodega Cerrillos desde Domeyko');
+        expect(ev(80, 'aprobo')?.frase).toBe('aprobó la devolución de Domeyko a Bodega Cerrillos');
+        expect(ev(82, 'pidio')?.frase).toBe('pidió trasladar herramientas de Domeyko a Gorbea 3082');
+        expect(ev(82, 'aprobo')?.frase).toBe('aprobó el traslado de Domeyko a Gorbea 3082');
+        // Un pedido normal lo recibe quien pidió.
+        expect(quienRecibe(SOLICITUDES[2])).toBe('Tomás Vera');
+        expect(vaAUnaObra(DEV)).toBe(false);
+        expect(vaAUnaObra(TRAS)).toBe(true);
     });
 
     it('la que solo vino en «diferencias»: se arma con lo de la diferencia; quién pidió, «sin datos aquí»', () => {
@@ -408,7 +502,7 @@ describe('quién tiene qué', () => {
             nota: 'En octubre Jhoan despachó 2 y Héctor 1.', ir: { filtro: 'aprobada' },
         });
         expect(obras).toMatchObject({
-            cifra: 2, linea: 'por recibir · 1 en camino y 1 aprobada que ya puede recibir', nota: 'En octubre pidieron 7 y recibieron 3.',
+            cifra: 2, linea: 'por recibir · 1 en camino y 1 aprobada que ya puede recibir', nota: 'En octubre pidieron 7 y recibieron 2.',
             ir: { filtro: 'todas', grupo: 'aprobada' },
         });
         // La respuesta no trae quién tiene `diferencias_ver`: el rótulo, no un nombre fijo.
@@ -439,6 +533,48 @@ describe('quién tiene qué', () => {
         expect(aprueba.nota).toBe('En octubre aprobaron 0 y no aprobaron 0.');
     });
 
+    it('«Obras» cuenta solo lo que va a una obra: una devolución la recibe la bodega', () => {
+        const dev = sol({ id: 90, tipo_flujo: 'devolucion', estado: 'aprobada', etapa: 'aprobada', origen: DOMEYKO, destino: CERRILLOS });
+        const devRecibida = sol({ id: 91, tipo_flujo: 'devolucion', estado: 'recibida', etapa: 'recibida', del_mes: true, origen: DOMEYKO, destino: CERRILLOS });
+        const c: CircuitoPerfil = { ...CIRCUITO, aprobada: { total: 2, dias: 2 }, recibida: { total: 3, ultima: null } };
+        const [, bodega, obras] = responsablesDe({ circuito: c, diferencias: [], solicitudes: [...SOLICITUDES, dev, devRecibida] },
+            conteosMes([], HOY, []), quienApruebaDe([LEO]));
+        expect(bodega.cifra).toBe(2);
+        expect(obras).toMatchObject({ cifra: 2, linea: 'por recibir · 1 en camino y 1 aprobada que ya puede recibir' });
+        expect(obras.nota).toBe('En octubre pidieron 0 y recibieron 2.');
+    });
+
+    it('las diferencias cuentan solicitudes (como la tarjeta y las otras vistas), no ítems', () => {
+        const dos = [
+            dif({ id: 5, transferencia_id: 21, descripcion: 'Cemento', diferencia: 2 }),
+            dif({ id: 6, transferencia_id: 21, descripcion: 'Fierro 8 mm', diferencia: -1 }),
+        ];
+        const c: CircuitoPerfil = { ...CIRCUITO, diferencias: { total: 1, items: 2, dias: 14 } };
+        const [aprueba, , , jefatura] = responsablesDe({ circuito: c, diferencias: dos }, conteosMes([], HOY, []), quienApruebaDe([LEO]));
+        expect(aprueba.ademas?.texto).toBe('Además, 1 diferencia por resolver');
+        expect(jefatura).toMatchObject({ cifra: 1, linea: 'diferencia por investigar · la más antigua, hace 14 días' });
+        expect(jefatura.nota).toBe('1 con faltante y 1 con sobrante. Sus WhatsApp no quedan guardados.');
+        expect(avisoDiferencias(c.diferencias)).toEqual({
+            n: 1, titulo: '1 diferencia sin aclarar', bajada: 'Lo que llegó no calza con lo enviado en 2 ítems · la más antigua, hace 14 días',
+        });
+    });
+
+    it('dos nombres cortos iguales: van completos («Juan Pérez o Juan Soto», no «Juan o Juan»)', () => {
+        expect(nombresCortos(['Juan Pérez', 'Juan Soto', 'Ana Rojas'])).toEqual(['Juan Pérez', 'Juan Soto', 'Ana']);
+        const ev = (id: number, quien: string): Evento => ({
+            clave: `${id}`, fecha: '2026-10-10', accion: 'despacho', solicitudId: id, porId: id, quien, frase: '', pie: '', tono: 'azul', icono: 'despacho',
+        });
+        const c = conteosMes([ev(1, 'Juan Pérez'), ev(2, 'Juan Soto'), ev(3, 'Juan Soto')], HOY);
+        const [, bodega] = responsablesDe({ circuito: CIRCUITO, diferencias: [] }, c, quienApruebaDe([LEO]));
+        expect(bodega.nota).toBe('En octubre Juan Soto despachó 2 y Juan Pérez 1.');
+        expect(quienApruebaDe([LEO, { id: 13, nombre: 'Leonardo Soto' }]).corto).toBe('Leonardo López o Leonardo Soto');
+    });
+
+    it('la etiqueta de la caja lleva lo que se ve (también la línea del mes)', () => {
+        const [aprueba] = modeloSuperAdmin(datos()).responsables;
+        expect(etiquetaResponsable(aprueba)).toBe('Leonardo López: 1, por aprobar · la más antigua, 9 días. En octubre aprobó 5 y no aprobó 1. Ver en la secuencia');
+    });
+
     it('muchos despachadores: solo el total', () => {
         const ev = (id: number, quien: string): Evento => ({
             clave: `${id}`, fecha: '2026-10-10', accion: 'despacho', solicitudId: id, porId: id, quien, frase: '', pie: '', tono: 'azul', icono: 'despacho',
@@ -460,9 +596,11 @@ describe('circuito de todas las obras', () => {
         });
         expect(aprobada).toMatchObject({ total: 1, bajada: `aún sin salir${NB}↓`, bajadaCorta: `sin salir${NB}↓` });
         expect(despachada).toMatchObject({ key: 'despachada', texto: 'Despachada', total: 0, hasta: null, resaltar: false, tono: 'neutro', bajada: 'sin despacho' });
-        expect(recibida).toMatchObject({ total: 3, resaltar: false, bajada: `en octubre${NB}↓`, bajadaCorta: `en oct.${NB}↓`, nota: 'y 1 de antes', ir: { filtro: 'recibidas' } });
-        expect(etiquetaPaso(pedida)).toBe('Pedida: 1, espera a Leonardo');
-        expect(etiquetaPaso(recibida)).toBe('Recibida: 3, en octubre, y 1 de antes');
+        expect(recibida).toMatchObject({ total: 2, resaltar: false, bajada: `en octubre${NB}↓`, bajadaCorta: `en oct.${NB}↓`, nota: 'y 1 de antes', ir: { filtro: 'recibidas' } });
+        // La etiqueta lleva todo lo que se ve (también «hasta 9 días»).
+        expect(etiquetaPaso(pedida)).toBe('Pedida: 1, espera a Leonardo, hasta 9 días');
+        expect(etiquetaPaso(despachada)).toBe('Despachada: 0, sin despacho');
+        expect(etiquetaPaso(recibida)).toBe('Recibida: 2, en octubre, y 1 de antes');
     });
 
     it('sin nadie que apruebe ni pendientes', () => {
@@ -479,20 +617,52 @@ describe('circuito de todas las obras', () => {
         expect(modeloSuperAdmin(datos()).circuito[3].nota).toBe('y 2 de antes');
     });
 
-    it('las diferencias, aparte (cuenta ítems)', () => {
+    it('las diferencias, aparte (cuenta solicitudes)', () => {
         expect(avisoDiferencias(CIRCUITO.diferencias)).toEqual({
             n: 2, titulo: '2 diferencias sin aclarar', bajada: 'Lo que llegó no calza con lo enviado · la más antigua, hace 40 días',
         });
+        expect(avisoDiferencias({ total: 2, items: 3, dias: 5 })?.bajada).toBe('Lo que llegó no calza con lo enviado en 3 ítems · la más antigua, hace 5 días');
         expect(avisoDiferencias({ total: 1, items: 1, dias: 0 })?.titulo).toBe('1 diferencia sin aclarar');
         expect(avisoDiferencias({ total: 0, items: 0, dias: null })).toBeNull();
     });
 });
 
 describe('topes de la respuesta', () => {
-    it('sin llegar a ningún tope, nada; si una lista llega, el aviso lleva a Inventario', () => {
+    it('sin ninguna lista cortada, nada; si el circuito cuenta más que la lista, el aviso lleva a Inventario', () => {
         expect(modeloSuperAdmin(datos()).tope).toBeNull();
-        const alTope = modeloSuperAdmin(datos({ limites: { en_curso: 4, recibidas: 100, recibidas_recientes: 10, rechazadas: 50, diferencias: 100, aprobadores: 10 } }));
-        expect(alTope.tope).toEqual({ texto: 'La lista llegó a su tope: lo que no está aquí, en Inventario', ruta: '/inventario?tab=transferencias&estado=todas' });
+        const cortada = modeloSuperAdmin(datos({ circuito: { ...CIRCUITO, pedida: { total: 250, dias: 40 } } }));
+        expect(cortada.tope).toEqual({ texto: 'La lista llegó a su tope: lo que no está aquí, en Inventario', ruta: '/inventario?tab=transferencias&estado=todas' });
+    });
+
+    it('el tope es por etapa: 90 pendientes y 120 aprobadas (210 en curso) con tope 200 no están cortadas', () => {
+        const muchas = [
+            ...Array.from({ length: 90 }, (_, i) => sol({ id: 1000 + i })),
+            ...Array.from({ length: 120 }, (_, i) => sol({ id: 2000 + i, estado: 'aprobada', etapa: 'aprobada', origen: CERRILLOS })),
+        ];
+        const base = {
+            solicitudes: muchas, diferencias: [],
+            circuito: { ...CIRCUITO, pedida: { total: 90, dias: 9 }, aprobada: { total: 120, dias: 30 }, despachada: { total: 0, dias: null },
+                recibida: { total: 0, ultima: null }, diferencias: { total: 0, items: 0, dias: null } },
+            limites: { en_curso: 200, recibidas: 100, recibidas_recientes: 10, rechazadas: 50, diferencias: 100, aprobadores: 10 },
+        };
+        expect(listaCortada(base)).toBe(false);
+        expect(listaCortada({ ...base, circuito: { ...base.circuito, aprobada: { total: 230, dias: 30 } } })).toBe(true);
+        // Diferencias: el circuito cuenta más ítems que la lista.
+        expect(listaCortada({ ...base, circuito: { ...base.circuito, diferencias: { total: 1, items: 1, dias: 2 } } })).toBe(true);
+        // Rechazadas del mes (sin cifra exacta): llegar a su tope cuenta como corte.
+        const rechazadas = Array.from({ length: 50 }, (_, i) => sol({ id: 3000 + i, estado: 'rechazada', etapa: 'rechazada', del_mes: true }));
+        expect(listaCortada({ ...base, solicitudes: [...muchas, ...rechazadas] })).toBe(true);
+    });
+
+    it('«Ver los N» dice lo que se dibuja abierto (a lo más 150)', () => {
+        expect(textoVerUltimo(42)).toBe('Ver los 42');
+        expect(textoVerUltimo(600)).toBe('Ver los 150');
+    });
+
+    it('con una obra elegida arriba, la nota de que este detalle no se filtra', () => {
+        expect(notaObraElegida('Domeyko')).toBe('Aquí van todas las obras: el selector de obra de arriba no filtra este detalle.');
+        expect(notaObraElegida(null)).toBeNull();
+        expect(notaObraElegida('  ')).toBeNull();
     });
 
     it('respuesta vacía: todo en cero, sin filas ni eventos', () => {

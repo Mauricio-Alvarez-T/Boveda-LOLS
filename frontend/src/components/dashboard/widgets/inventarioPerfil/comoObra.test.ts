@@ -1,4 +1,4 @@
-import { PUEDE_JEFE_OBRA, circuitoDe, comoObra, obraPorDefecto, obrasVerComo, type ObraVerComo } from './comoObra';
+import { PUEDE_JEFE_OBRA, circuitoDe, comoObra, deLaObra, obraPorDefecto, obrasVerComo, type ObraVerComo } from './comoObra';
 import type { DiferenciaPerfil, EstadoSolicitudPerfil, EtapaPerfil, InventarioPerfilApi, LugarPerfil, SolicitudPerfil } from './tipos';
 
 const obra = (id: number, nombre: string): LugarPerfil => ({ tipo: 'obra', id, nombre, responsable: null });
@@ -89,7 +89,7 @@ describe('comoObra: la respuesta del Super Administrador «como la vería esa ob
 
     test('sin la lista de diferencias, pero con su conteo en el circuito', () => {
         expect(r.diferencias).toBeNull();
-        expect(r.circuito.diferencias).toEqual({ total: 1, items: 2, dias: 14 });
+        expect(r.circuito.diferencias).toEqual({ total: 1, items: 2, dias: 14, mas_antigua_id: D_REC_MES.id });
     });
 
     test('el circuito, contado desde las solicitudes de esa obra', () => {
@@ -114,12 +114,12 @@ describe('comoObra: la respuesta del Super Administrador «como la vería esa ob
     test('una obra con recepción parcial cuenta como despachada; una sin nada da todo en cero', () => {
         const abate = comoObra(DATOS, { id: 4, nombre: 'Abate 80' });
         expect(abate.circuito.despachada).toEqual({ total: 1, dias: 2 });
-        expect(abate.circuito.diferencias).toEqual({ total: 0, items: 0, dias: null });
+        expect(abate.circuito.diferencias).toEqual({ total: 0, items: 0, dias: null, mas_antigua_id: null });
         const vacia = comoObra(DATOS, { id: 99, nombre: 'Bascuñán 661' });
         expect(vacia.solicitudes).toEqual([]);
         expect(vacia.circuito).toEqual({
             pedida: { total: 0, dias: null }, aprobada: { total: 0, dias: null }, despachada: { total: 0, dias: null },
-            recibida: { total: 0, ultima: null }, diferencias: { total: 0, items: 0, dias: null },
+            recibida: { total: 0, ultima: null }, diferencias: { total: 0, items: 0, dias: null, mas_antigua_id: null },
         });
     });
 
@@ -131,15 +131,55 @@ describe('comoObra: la respuesta del Super Administrador «como la vería esa ob
 
     test('una diferencia cuenta si va a esa obra o es de una de sus solicitudes', () => {
         const sinDestino = { ...DATOS, diferencias: [dif(9, D_REC_MES, 3, null)] };
-        expect(comoObra(sinDestino, { id: 1, nombre: 'Domeyko' }).circuito.diferencias).toEqual({ total: 1, items: 1, dias: 3 });
+        expect(comoObra(sinDestino, { id: 1, nombre: 'Domeyko' }).circuito.diferencias)
+            .toEqual({ total: 1, items: 1, dias: 3, mas_antigua_id: D_REC_MES.id });
         const sinLista = { ...DATOS, diferencias: null };
-        expect(comoObra(sinLista, { id: 1, nombre: 'Domeyko' }).circuito.diferencias).toEqual({ total: 0, items: 0, dias: null });
+        expect(comoObra(sinLista, { id: 1, nombre: 'Domeyko' }).circuito.diferencias)
+            .toEqual({ total: 0, items: 0, dias: null, mas_antigua_id: null });
+    });
+
+    // Como el perfil real de obra (TRF-0037 / 0038 del banco): lo que pidió su jefe y SALE de la obra también es suyo.
+    const DEVOLUCION = sol(BODEGA, 'aprobada', 3, { tipo_flujo: 'devolucion', origen: DOMEYKO });
+    const TRASLADO = sol(GORBEA, 'aprobada', 2, { tipo_flujo: 'intra_obra', origen: DOMEYKO });
+    // Un pedido normal de Gorbea que saca stock de Domeyko: lo pide (y lo ve) el jefe de Gorbea.
+    const DE_GORBEA = sol(GORBEA, 'aprobada', 1, { origen: DOMEYKO });
+    const CON_SALIDAS = { ...DATOS, solicitudes: [...DATOS.solicitudes, DEVOLUCION, TRASLADO, DE_GORBEA] };
+
+    test('las devoluciones y traslados que salen de esa obra también van (VistaObra los pone en «Va a otro lugar»)', () => {
+        const d = comoObra(CON_SALIDAS, { id: 1, nombre: 'Domeyko' });
+        expect(d.solicitudes.map(s => s.id)).toContain(DEVOLUCION.id);
+        expect(d.solicitudes.map(s => s.id)).toContain(TRASLADO.id);
+        expect(d.solicitudes.map(s => s.id)).not.toContain(DE_GORBEA.id);
+        // Cuentan en su circuito (como el servidor, que cuenta todo lo que pidió).
+        expect(d.circuito.aprobada).toEqual({ total: 3, dias: 4 });
+        // El traslado también es de la obra de destino; la devolución, de ninguna otra obra.
+        const g = comoObra(CON_SALIDAS, { id: 2, nombre: 'Gorbea 3082' });
+        expect(g.solicitudes.map(s => s.id)).toEqual(expect.arrayContaining([TRASLADO.id, DE_GORBEA.id]));
+        expect(g.solicitudes.map(s => s.id)).not.toContain(DEVOLUCION.id);
+    });
+
+    test('deLaObra: va a ella, o es devolución o traslado que sale de ella', () => {
+        expect(deLaObra(DEVOLUCION, 1)).toBe(true);
+        expect(deLaObra(TRASLADO, 1)).toBe(true);
+        expect(deLaObra(TRASLADO, 2)).toBe(true);
+        expect(deLaObra(DE_GORBEA, 1)).toBe(false);
+        expect(deLaObra(A_BODEGA, 1)).toBe(false);
+    });
+
+    test('con una sola diferencia, `mas_antigua_id` es esa solicitud (el aviso de VistaObra la abre)', () => {
+        const g = comoObra(DATOS, { id: 2, nombre: 'Gorbea 3082' });
+        expect(g.circuito.diferencias).toEqual({ total: 1, items: 1, dias: 12, mas_antigua_id: G_REC.id });
     });
 });
 
 describe('circuitoDe', () => {
     test('una recibida sin fecha de recepción no da «última»', () => {
         expect(circuitoDe([sol(DOMEYKO, 'recibida', 0, { del_mes: true })], []).recibida).toEqual({ total: 1, ultima: null });
+    });
+
+    test('`mas_antigua_id`: la solicitud de la diferencia con más días', () => {
+        const difs = [dif(1, D_REC_MES, 14), dif(3, G_REC, 20), dif(4, G_REC, 2)];
+        expect(circuitoDe([], difs).diferencias).toEqual({ total: 2, items: 3, dias: 20, mas_antigua_id: G_REC.id });
     });
 });
 
@@ -163,6 +203,16 @@ describe('obrasVerComo: las obras para elegir', () => {
         ];
         expect(obrasVerComo(DATOS, globales).map(o => [o.nombre, o.solicitudes])).toEqual([
             ['Abate 80', 1], ['Bascuñán 661', 0], ['Domeyko', 7], ['Gorbea 3082', 2],
+        ]);
+    });
+
+    test('una devolución o un traslado cuenta también en la obra de donde sale', () => {
+        const devolucion = sol(BODEGA, 'aprobada', 3, { tipo_flujo: 'devolucion', origen: ABATE });
+        const traslado = sol(GORBEA, 'aprobada', 2, { tipo_flujo: 'intra_obra', origen: ABATE });
+        const normal = sol(GORBEA, 'aprobada', 2, { origen: ABATE });
+        const conSalidas = { ...DATOS, solicitudes: [...DATOS.solicitudes, devolucion, traslado, normal] };
+        expect(obrasVerComo(conSalidas).map(o => [o.nombre, o.solicitudes])).toEqual([
+            ['Abate 80', 3], ['Domeyko', 7], ['Gorbea 3082', 4],
         ]);
     });
 

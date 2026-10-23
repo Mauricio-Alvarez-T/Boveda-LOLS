@@ -1,4 +1,6 @@
+import type { ModeloInventarioInicio } from '../resumenInventarioInicio';
 import { comoObra } from './comoObra';
+import { quienAprueba } from './formato';
 import { DESCRIPCION_RESPALDO, descripcionInventario, type VistaInventario } from './perfil';
 import type { InventarioPerfilApi, PersonaPerfil, PuedePerfil, SolicitudPerfil } from './tipos';
 
@@ -7,22 +9,38 @@ import type { InventarioPerfilApi, PersonaPerfil, PuedePerfil, SolicitudPerfil }
  * tengamos una vista propia como super administradores pero que a la vez igual podamos ver los formatos de otros
  * trabajadores ya que somos los programadores»). Con UNA sola carga (la suya, de todas las obras) muestra:
  *   - «Super Admin» → VistaSuperAdmin (lo de siempre, por defecto).
- *   - «Leonardo» → VistaLeonardo con sus mismos datos (Leonardo también aprueba y ve todas las obras).
- *   - «Daphne» → VistaJefatura con lo que puede Daphne (`comoJefatura`: ve diferencias, no aprueba ni las resuelve).
- *   - «Jefe de obra» → VistaObra con lo que va a una obra (`comoObra` de comoObra.ts) y un selector de obra.
- *   - «El resto» → lo de producción (RespaldoInventario: Paula, Rodrigo, Matías, Luis, bodegueros) con sus cifras.
- * La elección se recuerda por persona en localStorage (comodidad: si falla o no hay, vuelve a «Super Admin»).
+ *   - quien aprueba (su nombre, de `aprobadores`) → VistaLeonardo como la ve él (`comoAprobador`).
+ *   - «Jefatura» → VistaJefatura con lo que puede quien ve diferencias sin aprobar (`comoJefatura`).
+ *   - «Jefe de obra» → VistaObra con lo de una obra (`comoObra` de comoObra.ts) y un selector de obra.
+ *   - «Otros perfiles» → lo de producción (RespaldoInventario) como lo ve un Administrador sin aprobar
+ *     (`modeloComoElResto`: sin aprobar, diferencias, despachar ni recibir).
+ * Nunca un nombre fijo: las etiquetas son roles, y quien aprueba sale de la respuesta. Cada opción que no es la propia
+ * lleva una nota chica que dice qué se está viendo. La elección se recuerda por persona en localStorage (comodidad: si
+ * falla o no hay, vuelve a «Super Admin»).
  * Lógica PURA, con test en `verComo.modelo.test.ts`; el control está en VerComo.tsx.
  */
 
-/** Las opciones, en orden; `key` = la vista que se muestra (la regla de perfil.ts). */
-export const OPCIONES_VER_COMO: readonly { key: VistaInventario; texto: string }[] = [
-    { key: 'superadmin', texto: 'Super Admin' },
-    { key: 'leonardo', texto: 'Leonardo' },
-    { key: 'jefatura', texto: 'Daphne' },
-    { key: 'obra', texto: 'Jefe de obra' },
-    { key: 'otro', texto: 'El resto' },
-];
+export interface OpcionVerComo { key: VistaInventario; texto: string }
+
+/** Sin nombre en la respuesta (nadie aprueba, o más de dos): el rol. */
+export const TEXTO_QUIEN_APRUEBA = 'Quien aprueba';
+
+/**
+ * Las opciones, en orden; `key` = la vista que se muestra (la regla de perfil.ts). La de quien aprueba lleva su primer
+ * nombre (`aprobadores`: «Leonardo», «Leonardo o Ana»); sin él, «Quien aprueba».
+ */
+export function opcionesVerComo(aprobadores?: readonly PersonaPerfil[] | null): OpcionVerComo[] {
+    return [
+        { key: 'superadmin', texto: 'Super Admin' },
+        { key: 'leonardo', texto: quienAprueba(aprobadores) ?? TEXTO_QUIEN_APRUEBA },
+        { key: 'jefatura', texto: 'Jefatura' },
+        { key: 'obra', texto: 'Jefe de obra' },
+        { key: 'otro', texto: 'Otros perfiles' },
+    ];
+}
+
+/** Las opciones sin datos aún (las claves sirven igual para leer lo guardado). */
+export const OPCIONES_VER_COMO: readonly OpcionVerComo[] = opcionesVerComo();
 
 /** Lo que se ve al entrar (y si lo guardado no sirve). */
 export const VER_COMO_INICIAL: VistaInventario = 'superadmin';
@@ -74,22 +92,54 @@ export function descripcionVerComo(
     return vista === 'otro' ? DESCRIPCION_RESPALDO : descripcionInventario(vista, { obra, aprobadores });
 }
 
-/** La nota chica bajo el selector: qué se está viendo en verdad. null si no hace falta. */
-export function notaVerComo(vista: VistaInventario, { obra }: { obra?: string | null } = {}): string | null {
+/**
+ * La nota chica bajo el selector: qué se está viendo de verdad. En todas las opciones que no son la propia (al otro
+ * día puede abrir directo en otra: lo recordado no vence), así no se confunde con su vista. null en «Super Admin».
+ */
+export function notaVerComo(
+    vista: VistaInventario,
+    { obra, aprobadores }: { obra?: string | null; aprobadores?: readonly PersonaPerfil[] | null } = {},
+): string | null {
     switch (vista) {
+        case 'leonardo': {
+            const quien = quienAprueba(aprobadores);
+            return `Así lo ve ${quien ?? 'quien aprueba'}, con los mismos datos.`;
+        }
+        case 'jefatura':
+            return 'Así lo ve jefatura (ve las diferencias, no aprueba), con los mismos datos.';
         case 'obra': {
             const nombre = obra?.trim();
-            return `${nombre ? `Lo que va a ${nombre}` : 'Lo que va a esa obra'}: todas las solicitudes con ese destino. `
-                + 'Un jefe de obra real ve solo las que pidió él.';
+            return `${nombre ? `Lo de ${nombre}` : 'Lo de esa obra'}: lo que va a ella y las devoluciones y traslados que salen de ahí. `
+                + 'Un jefe de obra real ve solo lo que pidió él.';
         }
         case 'otro':
-            return 'Así lo ven Paula, Rodrigo, Matías, Luis y los bodegueros, pero con tus cifras: cada uno ve las suyas.';
+            return 'Así lo ve un Administrador que no aprueba: «Tus solicitudes en curso» (aquí, las tuyas) y las alertas, que '
+                + 'son las mismas para todos. Un bodeguero ve además lo que tiene por despachar y por recibir.';
         default:
             return null;
     }
 }
 
-/** Lo que puede Daphne (rol Administrador + «Ver diferencias», mig 131): ve todo y las diferencias, sin aprobar. */
+/**
+ * «Otros perfiles»: la tarjeta «Solicitudes» de producción (RespaldoInventario) como la ve un Administrador sin aprobar,
+ * desde el modelo del Super Administrador (`resumenInventarioInicio` de GET /transferencias/inicio). El servidor le
+ * manda null en por aprobar, diferencias, por despachar y por recibir (no tiene esos permisos): queda solo «Tus
+ * solicitudes en curso» y la tarjeta va neutra (o verde sin ninguna), igual que `resumenInventarioInicio` con esos null.
+ * Mientras carga (`cifra` null), igual.
+ */
+export function modeloComoElResto(m: ModeloInventarioInicio): ModeloInventarioInicio {
+    if (m.cifra === null) return m;
+    const filas = m.filas.filter(f => f.clave === 'mis_solicitudes');
+    const mias = filas[0]?.total ?? 0;
+    return {
+        tono: mias > 0 ? 'neutro' : 'verde',
+        cifra: mias,
+        etiqueta: mias === 1 ? 'solicitud tuya en curso' : 'solicitudes tuyas en curso',
+        filas,
+    };
+}
+
+/** Lo que puede jefatura (rol Administrador + «Ver diferencias», mig 131): ve todo y las diferencias, sin aprobar. */
 export const PUEDE_JEFATURA: PuedePerfil = {
     aprobar: false,
     ver_diferencias: true,
@@ -100,8 +150,8 @@ export const PUEDE_JEFATURA: PuedePerfil = {
 };
 
 /**
- * La respuesta del Super Administrador como la recibe Daphne: el mismo alcance (las dos ven todas las obras) y la lista
- * de diferencias, pero con lo que ella puede: no aprueba (`puede_aprobar` null) ni pidió nada (`propia` false).
+ * La respuesta del Super Administrador como la recibe jefatura: el mismo alcance (las dos ven todas las obras) y la lista
+ * de diferencias, pero con lo que puede: no aprueba (`puede_aprobar` null) ni pidió nada (`propia` false).
  * No cambia `datos`.
  */
 export function comoJefatura(datos: InventarioPerfilApi): InventarioPerfilApi {
@@ -115,8 +165,29 @@ export function comoJefatura(datos: InventarioPerfilApi): InventarioPerfilApi {
 }
 
 /**
- * Los datos para la vista elegida: los del Super Administrador tal cual (su vista y la de Leonardo), como Daphne, o
- * como la obra `obra` (null si no hay ninguna obra para elegir). «El resto» no usa estos datos: null.
+ * La respuesta del Super Administrador como la recibe quien aprueba (mismo alcance: los dos ven todas las obras). Lo que
+ * se calculó para el Super Administrador se recalcula para él: con UN solo aprobador, es «propia» lo que pidió él y no
+ * la puede aprobar (SoD: solicitante ≠ aprobador, sin `sod_bypass`: «la pediste tú: la aprueba otra persona»); lo demás
+ * pendiente sí. Con cero o varios no se sabe quién mira: nada es propia. Sin `sod_bypass` ni `super_admin`.
+ * No cambia `datos`.
+ */
+export function comoAprobador(datos: InventarioPerfilApi): InventarioPerfilApi {
+    const unico = datos.aprobadores.length === 1 ? datos.aprobadores[0].id : null;
+    return {
+        ...datos,
+        super_admin: false,
+        puede: { ...datos.puede, sod_bypass: false },
+        solicitudes: datos.solicitudes.map((s): SolicitudPerfil => {
+            const propia = unico != null && s.solicitante?.id === unico;
+            if (s.estado !== 'pendiente') return { ...s, propia, puede_aprobar: null, bloqueo_aprobar: null };
+            return { ...s, propia, puede_aprobar: !propia, bloqueo_aprobar: propia ? 'sod_solicitante' : null };
+        }),
+    };
+}
+
+/**
+ * Los datos para la vista elegida: los del Super Administrador tal cual (su vista), como quien aprueba, como jefatura,
+ * o como la obra `obra` (null si no hay ninguna obra para elegir). «Otros perfiles» no usa estos datos: null.
  */
 export function datosVerComo(
     vista: VistaInventario,
@@ -125,8 +196,9 @@ export function datosVerComo(
 ): InventarioPerfilApi | null {
     switch (vista) {
         case 'superadmin':
-        case 'leonardo':
             return datos;
+        case 'leonardo':
+            return comoAprobador(datos);
         case 'jefatura':
             return comoJefatura(datos);
         case 'obra':

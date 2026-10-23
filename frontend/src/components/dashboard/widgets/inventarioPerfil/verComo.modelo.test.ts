@@ -1,8 +1,9 @@
+import { resumenInventarioInicio, type ResumenInventarioApi } from '../resumenInventarioInicio';
 import { DESCRIPCION_RESPALDO, DESCRIPCION_SUPER_ADMIN } from './perfil';
 import type { InventarioPerfilApi, SolicitudPerfil } from './tipos';
 import {
-    OPCIONES_VER_COMO, PUEDE_JEFATURA, VER_COMO_INICIAL, claveVerComo, comoJefatura, datosVerComo, descripcionVerComo,
-    guardarVerComo, leerVerComo, notaVerComo, verComoGuardado,
+    OPCIONES_VER_COMO, PUEDE_JEFATURA, VER_COMO_INICIAL, claveVerComo, comoAprobador, comoJefatura, datosVerComo,
+    descripcionVerComo, guardarVerComo, leerVerComo, modeloComoElResto, notaVerComo, opcionesVerComo, verComoGuardado,
 } from './verComo.modelo';
 
 const PENDIENTE: SolicitudPerfil = {
@@ -45,10 +46,14 @@ const ROTO = {
 };
 
 describe('opciones de «Ver como»', () => {
-    test('en orden, con los nombres pedidos, y parte en «Super Admin»', () => {
-        expect(OPCIONES_VER_COMO.map(o => [o.key, o.texto])).toEqual([
-            ['superadmin', 'Super Admin'], ['leonardo', 'Leonardo'], ['jefatura', 'Daphne'], ['obra', 'Jefe de obra'], ['otro', 'El resto'],
+    test('en orden, por rol (nunca un nombre fijo); quien aprueba, con el nombre de la respuesta; parte en «Super Admin»', () => {
+        expect(opcionesVerComo(DATOS.aprobadores).map(o => [o.key, o.texto])).toEqual([
+            ['superadmin', 'Super Admin'], ['leonardo', 'Leonardo'], ['jefatura', 'Jefatura'], ['obra', 'Jefe de obra'], ['otro', 'Otros perfiles'],
         ]);
+        expect(opcionesVerComo([{ id: 10, nombre: 'Leonardo López' }, { id: 12, nombre: 'Ana Pérez' }])[1].texto).toBe('Leonardo o Ana');
+        // Sin nadie (o sin datos aún): el rol.
+        expect(opcionesVerComo([])[1].texto).toBe('Quien aprueba');
+        expect(OPCIONES_VER_COMO[1].texto).toBe('Quien aprueba');
         expect(VER_COMO_INICIAL).toBe('superadmin');
     });
 
@@ -95,21 +100,70 @@ describe('descripción y nota', () => {
         expect(descripcionVerComo('otro')).toBe(DESCRIPCION_RESPALDO);
     });
 
-    test('nota chica solo en «Jefe de obra» y «El resto»', () => {
-        expect(notaVerComo('obra', { obra: 'Domeyko' }))
-            .toBe('Lo que va a Domeyko: todas las solicitudes con ese destino. Un jefe de obra real ve solo las que pidió él.');
-        expect(notaVerComo('obra')).toBe('Lo que va a esa obra: todas las solicitudes con ese destino. Un jefe de obra real ve solo las que pidió él.');
-        expect(notaVerComo('otro')).toBe('Así lo ven Paula, Rodrigo, Matías, Luis y los bodegueros, pero con tus cifras: cada uno ve las suyas.');
+    test('nota chica en todas las que no son la propia (dice qué se ve), sin nombres fijos', () => {
+        expect(notaVerComo('obra', { obra: 'Domeyko' })).toBe('Lo de Domeyko: lo que va a ella y las devoluciones y traslados que salen de ahí. '
+            + 'Un jefe de obra real ve solo lo que pidió él.');
+        expect(notaVerComo('obra')).toMatch(/^Lo de esa obra: /);
+        expect(notaVerComo('otro')).toBe('Así lo ve un Administrador que no aprueba: «Tus solicitudes en curso» (aquí, las tuyas) y las '
+            + 'alertas, que son las mismas para todos. Un bodeguero ve además lo que tiene por despachar y por recibir.');
+        expect(notaVerComo('leonardo', { aprobadores: DATOS.aprobadores })).toBe('Así lo ve Leonardo, con los mismos datos.');
+        expect(notaVerComo('leonardo')).toBe('Así lo ve quien aprueba, con los mismos datos.');
+        expect(notaVerComo('jefatura')).toBe('Así lo ve jefatura (ve las diferencias, no aprueba), con los mismos datos.');
         expect(notaVerComo('superadmin')).toBeNull();
-        expect(notaVerComo('leonardo')).toBeNull();
-        expect(notaVerComo('jefatura')).toBeNull();
+        for (const o of OPCIONES_VER_COMO) {
+            expect(notaVerComo(o.key, { obra: 'Domeyko' }) ?? '').not.toMatch(/Paula|Rodrigo|Matías|Luis|Daphne/);
+        }
+    });
+});
+
+describe('«Otros perfiles»: la tarjeta como la ve un Administrador sin aprobar', () => {
+    const R: ResumenInventarioApi = {
+        por_aprobar: { total: 6, dias: 9 }, discrepancias: { total: 4, dias: 14 }, por_despachar: { total: 2, dias: 4 },
+        por_recibir: { total: 2, dias: 2 }, mis_solicitudes: { total: 1, dias: 3 },
+    };
+    const SIN_PERMISOS = { por_aprobar: null, discrepancias: null, por_despachar: null, por_recibir: null };
+
+    test('lo mismo que arma `resumenInventarioInicio` con por aprobar, diferencias, despachar y recibir en null', () => {
+        for (const mias of [{ total: 1, dias: 3 }, { total: 0, dias: null }, { total: 2, dias: 5 }, null]) {
+            const r = { ...R, mis_solicitudes: mias };
+            expect(modeloComoElResto(resumenInventarioInicio(r))).toEqual(resumenInventarioInicio({ ...r, ...SIN_PERMISOS }));
+        }
+    });
+
+    test('solo queda «Tus solicitudes en curso», neutra (o verde sin ninguna); cargando, igual', () => {
+        const m = modeloComoElResto(resumenInventarioInicio(R));
+        expect(m.filas.map(f => f.clave)).toEqual(['mis_solicitudes']);
+        expect(m.tono).toBe('neutro');
+        const cargando = resumenInventarioInicio(null);
+        expect(modeloComoElResto(cargando)).toBe(cargando);
     });
 });
 
 describe('datos de cada vista', () => {
-    test('Super Admin y Leonardo: los mismos datos', () => {
+    test('Super Admin: los mismos datos', () => {
         expect(datosVerComo('superadmin', DATOS)).toBe(DATOS);
-        expect(datosVerComo('leonardo', DATOS)).toBe(DATOS);
+    });
+
+    test('quien aprueba: lo calculado para el Super Admin se recalcula para él (sin sod_bypass ni super_admin)', () => {
+        const d = datosVerComo('leonardo', DATOS)!;
+        expect(d).toEqual(comoAprobador(DATOS));
+        expect(d.super_admin).toBe(false);
+        expect(d.puede).toEqual({ ...DATOS.puede, sod_bypass: false });
+        // La 41 la pidió Marcos: para Leonardo no es propia y la puede aprobar.
+        expect(d.solicitudes[0]).toMatchObject({ id: 41, propia: false, puede_aprobar: true, bloqueo_aprobar: null });
+        // Una que pidió Leonardo: propia y bloqueada (SoD), como la vería él.
+        const leo = { id: 10, nombre: 'Leonardo López', rol: 'Administrador' };
+        const suya: SolicitudPerfil = { ...PENDIENTE, id: 42, solicitante: leo };
+        const recibida: SolicitudPerfil = { ...PENDIENTE, id: 43, estado: 'recibida', etapa: 'recibida', puede_aprobar: null, solicitante: leo };
+        const c = comoAprobador({ ...DATOS, solicitudes: [PENDIENTE, suya, recibida] });
+        expect(c.solicitudes[1]).toMatchObject({ id: 42, propia: true, puede_aprobar: false, bloqueo_aprobar: 'sod_solicitante' });
+        expect(c.solicitudes[2]).toMatchObject({ id: 43, propia: true, puede_aprobar: null, bloqueo_aprobar: null });
+        // Con varios que aprueban no se sabe quién mira: nada es propia.
+        const varios = comoAprobador({ ...DATOS, aprobadores: [{ id: 10, nombre: 'Leonardo López' }, { id: 12, nombre: 'Ana' }], solicitudes: [suya] });
+        expect(varios.solicitudes[0]).toMatchObject({ propia: false, puede_aprobar: true });
+        // No cambia la respuesta original.
+        expect(DATOS.solicitudes[0]).toMatchObject({ propia: true, puede_aprobar: true });
+        expect(DATOS.puede.sod_bypass).toBe(true);
     });
 
     test('Daphne: lo que puede ella (ve diferencias, no aprueba ni pidió nada), sin cambiar la respuesta', () => {
@@ -132,7 +186,7 @@ describe('datos de cada vista', () => {
         expect(datosVerComo('obra', DATOS, null)).toBeNull();
     });
 
-    test('El resto: no usa estos datos', () => {
+    test('Otros perfiles: no usa estos datos', () => {
         expect(datosVerComo('otro', DATOS)).toBeNull();
     });
 });

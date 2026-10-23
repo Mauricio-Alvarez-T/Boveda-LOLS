@@ -1,6 +1,8 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import {
     RUTA_RECIBIR_VACIO, TOPE_ESPERANDO, TOPE_FUERA, TOPE_HISTORIAL, TOPE_RECHAZADAS, TOPE_RECIBIR, adondeVa, avisoDiferencias,
-    botonRecibir, conTope, datosCircuito, estadoPorRecibir, itemsPedidos, itemsQueLlegan, lineaEsperando, lineaFuera,
+    botonRecibir, botonesGrandes, conTope, datosCircuito, estadoPorRecibir, itemsPedidos, itemsQueLlegan, lineaEsperando, lineaFuera,
     lineaHistorial, lineaPorRecibir, llegaASuObra, mesDe, modeloObra, pasosCircuito, pildoraEsperando, pildoraHistorial,
     rotulosCircuito, saleDeSuObra, textoAprobo, textoOrigen, textoPedida, textoRechazo, textoRecibir,
 } from './obra.modelo';
@@ -335,6 +337,49 @@ describe('botón «Recibir»', () => {
     test('sin nada en camino abre lo último que llegó (las aprobadas estarían vacías)', () => {
         expect(botonRecibir(0, 'Domeyko', true).etiqueta).toBe('Recibir: nada en camino. Abre lo que ya llegó');
         expect(RUTA_RECIBIR_VACIO).toBe('/inventario?tab=transferencias&estado=recibida');
+    });
+});
+
+describe('botones grandes: «Pedir materiales» solo si puede pedir; nunca uno de aprobar', () => {
+    const PUEDE = DATOS().puede;
+
+    test('con permiso de pedir: «Pedir materiales» y «Recibir»', () => {
+        expect(botonesGrandes(PUEDE)).toEqual(['pedir', 'recibir']);
+        expect(botonesGrandes({ ...PUEDE, recibir: false })).toEqual(['pedir', 'recibir']);
+    });
+
+    test('sin permiso de pedir (un prevencionista que solo recibe): solo «Recibir», sin «Pedir materiales»', () => {
+        expect(botonesGrandes({ ...PUEDE, solicitar: false })).toEqual(['recibir']);
+        // Sin recibir tampoco: «Recibir» queda como «Lo que llega», neutro (no se quita: muestra lo que viene).
+        expect(botonesGrandes({ ...PUEDE, solicitar: false, recibir: false })).toEqual(['recibir']);
+        expect(botonRecibir(1, 'Domeyko', false).accion).toBe(false);
+    });
+
+    test('con aprobar (un rol de obra hecho a mano, sin ver_todas): ni botón ni fila de aprobar', () => {
+        const conAprobar = { ...PUEDE, aprobar: true, ver_diferencias: true, resolver_diferencias: true, sod_bypass: true };
+        expect(botonesGrandes(conAprobar)).toEqual(['pedir', 'recibir']);
+        expect(botonesGrandes({ ...conAprobar, solicitar: false })).toEqual(['recibir']);
+        // La acción de cada fila por recibir es «Recibir» o «Ver»; nunca «Aprobar».
+        expect([botonRecibir(2, 'Domeyko', true).accionFila, botonRecibir(2, 'Domeyko', false).accionFila]).toEqual(['Recibir', 'Ver']);
+        // Y el modelo no cambia con aprobar: lo pendiente va en «Esperando a Leonardo», que solo abre la solicitud.
+        const pendientes = [sol({ id: 42, estado: 'pendiente', dias: 6 }), sol({ id: 45, estado: 'pendiente', dias: 1, propia: false })];
+        const sin = modeloObra(DATOS({ solicitudes: pendientes }));
+        const con = modeloObra(DATOS({
+            puede: conAprobar,
+            solicitudes: pendientes.map(s => ({ ...s, puede_aprobar: !s.propia, bloqueo_aprobar: s.propia ? 'sod_solicitante' as const : null })),
+        }));
+        expect(con.esperando.todas.map(s => s.id)).toEqual(sin.esperando.todas.map(s => s.id));
+        expect({ ...con, esperando: null }).toEqual({ ...sin, esperando: null });
+    });
+
+    test('VistaObra.tsx: «Pedir materiales» sale de `botonesGrandes` y no lee nada de aprobar', () => {
+        const fuente = fs.readFileSync(path.join(__dirname, 'VistaObra.tsx'), 'utf8')
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/\/\/.*$/gm, '');
+        expect(fuente).toMatch(/botones=\{botonesGrandes\(datos\.puede\)\}/);
+        expect(fuente).toMatch(/botones\.includes\('pedir'\) && \(/);
+        expect(fuente).not.toMatch(/puede\.aprobar|puede_aprobar|bloqueo_aprobar|resolver_diferencias|sod_bypass/);
+        expect(fuente).not.toMatch(/\bAprobar\b|\bRechazar\b/);
     });
 });
 

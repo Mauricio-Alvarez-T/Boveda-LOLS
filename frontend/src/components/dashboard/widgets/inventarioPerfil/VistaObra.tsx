@@ -7,9 +7,9 @@ import { CIFRA, PILDORA, ROTULO_FICHAS } from '../fichasInicio';
 import type { TonoTarjeta } from '../tarjetaActiva';
 import { RUTA_PEDIR, TARJETA, fechaCorta, plural, rutaLista, rutaSolicitud, textoDias } from './formato';
 import {
-    RUTA_RECIBIR_VACIO, TOPE_HISTORIAL, botonRecibir, estadoPorRecibir, itemsPedidos, itemsQueLlegan, lineaEsperando, lineaFuera,
-    lineaHistorial, lineaPorRecibir, modeloObra, pasosCircuito, pildoraEsperando, pildoraHistorial, textoRechazo,
-    type AvisoDiferencias, type BotonRecibir, type DatosCircuito, type MarcaCircuito, type Paso, type PieLista,
+    RUTA_RECIBIR_VACIO, TOPE_HISTORIAL, botonRecibir, botonesGrandes, estadoPorRecibir, itemsPedidos, itemsQueLlegan, lineaEsperando,
+    lineaFuera, lineaHistorial, lineaPorRecibir, modeloObra, pasosCircuito, pildoraEsperando, pildoraHistorial, textoRechazo,
+    type AvisoDiferencias, type BotonGrande, type BotonRecibir, type DatosCircuito, type MarcaCircuito, type Paso, type PieLista,
 } from './obra.modelo';
 import type { PropsVistaInventario } from './perfil';
 import type { SolicitudPerfil } from './tipos';
@@ -17,12 +17,14 @@ import type { SolicitudPerfil } from './tipos';
 /**
  * Detalle «Inventario» del Inicio para quien pide y recibe materiales para su obra (jefes de obra y prevencionistas):
  * opción A «Lo tuyo primero» del lienzo (VistaObra de boveda-diseno/frontend/src/preview/inventario/opcionA.tsx, Marcos
- * 2026-10-22). De arriba abajo: los dos botones grandes («Pedir materiales» y «Recibir»), lo que llega a su obra (y,
+ * 2026-10-22). De arriba abajo: los botones grandes («Pedir materiales», solo con permiso de pedir, y «Recibir»:
+ * `botonesGrandes`), lo que llega a su obra (y,
  * aparte y sin «Recibir», lo suyo que va a otro lugar: devoluciones, traslados, lo pedido para otra obra), el historial de
  * lo que ya llegó junto a lo que espera aprobación (y lo no aprobado del mes), y sus solicitudes en el circuito con el
  * aviso de diferencias aparte, en rojo. Una acción por fila: la fila entera se toca.
  *
- * Todo NAVEGA a Inventario (desde el Inicio no se aprueba ni se recibe): cada fila abre su solicitud
+ * Todo NAVEGA a Inventario (desde el Inicio no se aprueba ni se recibe; aunque quien mira tenga `aprobar`, aquí no hay
+ * ningún botón de aprobar ni se lee `puede.aprobar` / `puede_aprobar`): cada fila abre su solicitud
  * (`rutaSolicitud`), «Pedir materiales» abre el asistente de pedir (`RUTA_PEDIR`). Recibe `datos`
  * (GET /transferencias/inicio/perfil, contrato en tipos.ts) ya cargados: la espera, el error y la descripción bajo el
  * título los pone DetalleInventario. Orden, topes y textos: `obra.modelo.ts` (con test); lo común, `formato.ts`.
@@ -186,53 +188,62 @@ const DiferenciasAparte: React.FC<{ aviso: AvisoDiferencias; onClick: () => void
 // ─────────────── Botones grandes ───────────────
 
 /**
- * «+ Pedir materiales» (verde lleno) y «Recibir» (contorno verde). El número de lo que llega a su obra vive SOLO en la
- * burbuja azul de «Recibir». Con una sola por recibir la abre directo; con varias, baja a la lista de abajo; sin nada,
- * abre lo último que llegó. Sin el permiso de recibir el botón dice «Lo que llega» y va neutro (sin verde de acción).
+ * «+ Pedir materiales» (verde lleno) y «Recibir» (contorno verde), los que diga `botonesGrandes`. El número de lo que
+ * llega a su obra vive SOLO en la burbuja azul de «Recibir». Con una sola por recibir la abre directo; con varias, baja
+ * a la lista de abajo; sin nada, abre lo último que llegó. Sin el permiso de recibir el botón dice «Lo que llega» y va
+ * neutro (sin verde de acción). Sin permiso de pedir no hay «Pedir materiales»: «Recibir» va solo, a todo el ancho y en
+ * una fila también en el celular (no un cuadro alto casi vacío). Nunca hay botón de aprobar.
  */
-const BotonesGrandes: React.FC<{ porRecibir: SolicitudPerfil[]; boton: BotonRecibir; onAbrir: (ruta: string) => void }> = ({
-    porRecibir, boton, onAbrir,
-}) => {
+const BotonesGrandes: React.FC<{
+    botones: readonly BotonGrande[]; porRecibir: SolicitudPerfil[]; boton: BotonRecibir; onAbrir: (ruta: string) => void;
+}> = ({ botones, porRecibir, boton, onAbrir }) => {
     const n = porRecibir.length;
+    const solo = botones.length === 1;
     const recibir = () => {
         if (n === 1) onAbrir(rutaSolicitud(porRecibir[0]));
         else if (n > 1) bajarA(ID_RECIBIR);
         else onAbrir(RUTA_RECIBIR_VACIO);
     };
     return (
-        <div className="grid grid-cols-2 gap-3 sm:gap-6">
-            {/* eslint-disable-next-line no-restricted-syntax -- botón grande del Inicio de obra (tile de 112 px, navega) */}
-            <button type="button" onClick={() => onAbrir(RUTA_PEDIR)}
-                className={cn('flex min-h-28 flex-col items-start justify-between gap-3 rounded-3xl bg-brand-primary p-4 text-left text-white shadow-[var(--shadow-md)] transition duration-200 hover:brightness-95 active:brightness-90 sm:flex-row sm:items-center sm:justify-start sm:gap-4 sm:p-6', FOCO_GRANDE)}>
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20" aria-hidden>
-                    <Plus className="h-6 w-6" strokeWidth={2.5} />
-                </span>
-                <span className="min-w-0">
-                    <span className="block text-lg font-bold leading-tight sm:text-title-sm">Pedir materiales</span>
-                    <span className="mt-0.5 block text-xs sm:text-sm">Nueva solicitud a bodega</span>
-                </span>
-            </button>
-            {/* eslint-disable-next-line no-restricted-syntax -- botón grande del Inicio de obra (tile de 112 px; abre o baja a la lista) */}
-            <button type="button" onClick={recibir} aria-label={boton.etiqueta}
-                className={cn('relative flex min-h-28 flex-col items-start justify-between gap-3 rounded-3xl bg-card p-4 text-left text-foreground shadow-[var(--shadow-md)] transition-colors duration-200 sm:flex-row sm:items-center sm:justify-start sm:gap-4 sm:p-6',
-                    boton.accion ? 'ring-2 ring-brand-primary hover:bg-green-50 dark:hover:bg-green-500/10' : 'ring-1 ring-border hover:bg-muted/60',
-                    FOCO_GRANDE)}>
-                <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
-                    boton.accion ? 'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300' : 'bg-muted text-muted-foreground')} aria-hidden>
-                    <PackageCheck className="h-6 w-6" />
-                </span>
-                <span className="min-w-0">
-                    <span className={cn('block text-lg font-bold leading-tight sm:text-title-sm', boton.accion ? 'text-green-700 dark:text-green-300' : 'text-foreground')}>
-                        {boton.titulo}
+        <div className={cn('grid gap-3 sm:gap-6', solo ? 'grid-cols-1' : 'grid-cols-2')}>
+            {botones.includes('pedir') && (
+                // eslint-disable-next-line no-restricted-syntax -- botón grande del Inicio de obra (tile de 112 px, navega)
+                <button type="button" onClick={() => onAbrir(RUTA_PEDIR)}
+                    className={cn('flex min-h-28 flex-col items-start justify-between gap-3 rounded-3xl bg-brand-primary p-4 text-left text-white shadow-[var(--shadow-md)] transition duration-200 hover:brightness-95 active:brightness-90 sm:flex-row sm:items-center sm:justify-start sm:gap-4 sm:p-6', FOCO_GRANDE)}>
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20" aria-hidden>
+                        <Plus className="h-6 w-6" strokeWidth={2.5} />
                     </span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground sm:text-sm">{boton.texto}</span>
-                </span>
-                {n > 0 && (
-                    <span className="absolute right-3 top-3 flex h-7 min-w-7 items-center justify-center rounded-full bg-blue-600 px-2 text-sm font-bold tabular-nums text-white sm:right-5 sm:top-1/2 sm:-translate-y-1/2" aria-hidden>
-                        {n}
+                    <span className="min-w-0">
+                        <span className="block text-lg font-bold leading-tight sm:text-title-sm">Pedir materiales</span>
+                        <span className="mt-0.5 block text-xs sm:text-sm">Nueva solicitud a bodega</span>
                     </span>
-                )}
-            </button>
+                </button>
+            )}
+            {botones.includes('recibir') && (
+                // eslint-disable-next-line no-restricted-syntax -- botón grande del Inicio de obra (tile de 112 px; abre o baja a la lista)
+                <button type="button" onClick={recibir} aria-label={boton.etiqueta}
+                    className={cn('relative flex min-h-28 rounded-3xl bg-card p-4 text-left text-foreground shadow-[var(--shadow-md)] transition-colors duration-200 sm:p-6',
+                        solo ? 'flex-row items-center gap-4' : 'flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:justify-start sm:gap-4',
+                        boton.accion ? 'ring-2 ring-brand-primary hover:bg-green-50 dark:hover:bg-green-500/10' : 'ring-1 ring-border hover:bg-muted/60',
+                        FOCO_GRANDE)}>
+                    <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
+                        boton.accion ? 'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300' : 'bg-muted text-muted-foreground')} aria-hidden>
+                        <PackageCheck className="h-6 w-6" />
+                    </span>
+                    <span className={cn('min-w-0', solo && n > 0 && 'pr-10')}>
+                        <span className={cn('block text-lg font-bold leading-tight sm:text-title-sm', boton.accion ? 'text-green-700 dark:text-green-300' : 'text-foreground')}>
+                            {boton.titulo}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground sm:text-sm">{boton.texto}</span>
+                    </span>
+                    {n > 0 && (
+                        <span className={cn('absolute flex h-7 min-w-7 items-center justify-center rounded-full bg-blue-600 px-2 text-sm font-bold tabular-nums text-white',
+                            solo ? 'right-4 top-1/2 -translate-y-1/2 sm:right-5' : 'right-3 top-3 sm:right-5 sm:top-1/2 sm:-translate-y-1/2')} aria-hidden>
+                            {n}
+                        </span>
+                    )}
+                </button>
+            )}
         </div>
     );
 };
@@ -307,7 +318,7 @@ const VistaObra: React.FC<PropsVistaInventario> = ({ datos }) => {
     const boton = botonRecibir(porRecibir.todas.length, enObra, datos.puede.recibir);
     return (
         <div data-vista="obra" className="space-y-6">
-            <BotonesGrandes porRecibir={porRecibir.todas} boton={boton} onAbrir={navigate} />
+            <BotonesGrandes botones={botonesGrandes(datos.puede)} porRecibir={porRecibir.todas} boton={boton} onAbrir={navigate} />
 
             {/* Sin cifra ni frase grande: el número vive solo en la burbuja de «Recibir». */}
             <section id={ID_RECIBIR} className={cn(TARJETA, 'scroll-mt-20')} aria-labelledby="inv-obra-r">
