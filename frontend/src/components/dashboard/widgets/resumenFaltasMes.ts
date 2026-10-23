@@ -146,3 +146,35 @@ export function ariaFaltas(fechas: string[] | undefined): string {
     const texto = dias.length === 1 ? dias[0] : `${dias.slice(0, -1).join(', ')} y ${dias[dias.length - 1]}`;
     return `Faltas: ${texto}`;
 }
+
+/** «a», «a y b», «a, b y c». */
+const enumerar = (partes: string[]) =>
+    partes.length <= 1 ? (partes[0] ?? '') : `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`;
+
+/**
+ * Mensaje de «Preguntar al grupo» de la ficha (dueño 2026-10-23: la acción va donde se ve el problema): se
+ * manda al grupo de asistencia para saber qué pasó con el trabajador. «Hola, consulta por *Carla Simulado*
+ * (Obra Demo Sur): lleva 2 faltas sin justificar en octubre, el jueves 15 y hoy viernes 16 (2 días seguidos).
+ * ¿Alguien sabe qué pasó? …». Sin RUT: va a un grupo.
+ */
+export function mensajeGrupoFaltas(
+    t: Pick<TrabajadorFaltas, 'nombres' | 'apellido_paterno' | 'obra_nombre' | 'total_faltas' | 'fechas' | 'alertas'>,
+    hoyIso: string,
+): string {
+    const nombre = [t.nombres, t.apellido_paterno].map(s => String(s ?? '').trim()).filter(Boolean).join(' ');
+    const obra = t.obra_nombre?.trim() ? ` (${t.obra_nombre.trim()})` : '';
+    const fechas = (t.fechas ?? []).map(f => f.slice(0, 10));
+    const mes = MESES_LARGOS[Number((fechas[0] ?? hoyIso).slice(5, 7)) - 1] ?? '';
+    const dias = fechas.map(f => {
+        const [y, m, d] = f.split('-').map(Number);
+        const dia = `${DIAS_SEMANA[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${d}`;
+        return f === hoyIso ? `hoy ${dia}` : dia;
+    });
+    const cuando = dias.length > 0 ? `, ${dias[0].startsWith('hoy') ? '' : 'el '}${enumerar(dias)}` : '';
+    const reglas = reglasDe(t).map(r => REGLA_FALTA[r].texto);
+    const uno = t.total_faltas === 1;
+    return `Hola, consulta por *${nombre}*${obra}: lleva ${t.total_faltas} ${uno ? 'falta' : 'faltas'} sin justificar en ${mes}`
+        + `${cuando}${reglas.length > 0 ? ` (${enumerar(reglas)})` : ''}. ¿Alguien sabe qué pasó? `
+        + `Si tuvo licencia o permiso, por favor envíen el respaldo para ${uno ? 'justificarla' : 'justificarlas'}.`
+        + '\n\n_Mensaje generado desde Bóveda LOLS_';
+}

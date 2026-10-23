@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
-import { ArrowRight } from 'lucide-react';
 import { cn } from '../../../utils/cn';
-import { ariaFaltas, fraseFaltas, reglasDe, REGLA_FALTA, semanasDelMes, type CeldaCalendario, type TrabajadorFaltas } from './resumenFaltasMes';
+import { shareViaWhatsApp } from '../../../utils/whatsappShare';
+import WhatsAppIcon from '../../ui/WhatsAppIcon';
+import { EnlaceFicha, PieFicha } from './FichaInicio';
+import { ariaFaltas, fraseFaltas, mensajeGrupoFaltas, reglasDe, REGLA_FALTA, semanasDelMes, type CeldaCalendario, type TrabajadorFaltas } from './resumenFaltasMes';
 
 interface FechaMes {
     anio: number;
@@ -91,13 +93,15 @@ export const FichasReiterados: React.FC<{ lista: TrabajadorFaltas[]; onTrabajado
                         </div>
                         <MiniCalendario fechas={t.fechas} anio={anio} mes={mes} hoyDia={hoyDia} />
                     </div>
-                    <div className="mt-auto flex justify-end border-t border-border pt-2.5">
-                        {/* eslint-disable-next-line no-restricted-syntax -- enlace de la ficha */}
-                        <button type="button" onClick={() => onTrabajador(t.rut)}
-                            className="inline-flex min-h-9 items-center gap-1 rounded-lg px-1 text-section font-semibold text-green-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 dark:text-green-300">
-                            Ver en asistencia<ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                        </button>
-                    </div>
+                    {/* La acción va donde se ve el problema (dueño 2026-10-23): preguntar al grupo de asistencia
+                        qué pasó, con el mensaje ya escrito; WhatsApp se abre sin número y se elige el grupo. */}
+                    <PieFicha>
+                        <EnlaceFicha apagado onClick={() => { void shareViaWhatsApp(mensajeGrupoFaltas(t, hoyIso)); }}
+                            icono={<WhatsAppIcon className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" />}>
+                            Preguntar al grupo
+                        </EnlaceFicha>
+                        <EnlaceFicha onClick={() => onTrabajador(t.rut)}>Ver en asistencia</EnlaceFicha>
+                    </PieFicha>
                 </li>
             );
         })}

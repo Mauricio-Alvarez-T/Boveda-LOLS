@@ -1,4 +1,35 @@
-import { ariaFaltas, diasFaltas, fraseFaltas, nombreMes, ordenarReiterados, reglasDe, REGLA_FALTA, semanasDelMes } from './resumenFaltasMes';
+import { ariaFaltas, diasFaltas, fraseFaltas, mensajeGrupoFaltas, nombreMes, ordenarReiterados, reglasDe, REGLA_FALTA, semanasDelMes } from './resumenFaltasMes';
+
+describe('mensaje «Preguntar al grupo»', () => {
+    const carla = {
+        nombres: 'Carla', apellido_paterno: 'Simulado', obra_nombre: 'Obra Demo Sur', total_faltas: 2,
+        fechas: ['2026-10-15', '2026-10-16'], alertas: [{ tipo: 'consecutivas' as const, mensaje: '' }],
+    };
+    const PIE = '\n\n_Mensaje generado desde Bóveda LOLS_';
+
+    test('nombre en negrita, obra, días con «hoy» y la regla', () => {
+        expect(mensajeGrupoFaltas(carla, '2026-10-16')).toBe(
+            'Hola, consulta por *Carla Simulado* (Obra Demo Sur): lleva 2 faltas sin justificar en octubre, '
+            + 'el jueves 15 y hoy viernes 16 (2 días seguidos). ¿Alguien sabe qué pasó? '
+            + `Si tuvo licencia o permiso, por favor envíen el respaldo para justificarlas.${PIE}`);
+    });
+
+    test('días pasados con «el» al comienzo y varias reglas en orden', () => {
+        const t = {
+            ...carla, total_faltas: 3, fechas: ['2026-10-05', '2026-10-12', '2026-10-13'],
+            alertas: [{ tipo: 'acumuladas' as const, mensaje: '' }, { tipo: 'lunes' as const, mensaje: '' }, { tipo: 'consecutivas' as const, mensaje: '' }],
+        };
+        expect(mensajeGrupoFaltas(t, '2026-10-23')).toContain(
+            'lleva 3 faltas sin justificar en octubre, el lunes 5, lunes 12 y martes 13 (2 días seguidos, 2 lunes y 3 o más días).');
+    });
+
+    test('sin obra ni fechas no deja huecos; una falta en singular', () => {
+        const t = { ...carla, obra_nombre: null, total_faltas: 1, fechas: [], alertas: [] };
+        expect(mensajeGrupoFaltas(t, '2026-10-23')).toBe(
+            'Hola, consulta por *Carla Simulado*: lleva 1 falta sin justificar en octubre. ¿Alguien sabe qué pasó? '
+            + `Si tuvo licencia o permiso, por favor envíen el respaldo para justificarla.${PIE}`);
+    });
+});
 
 describe('faltasMes', () => {
     test('reglas en orden fijo (seguidas, lunes, 3 o más) y sin repetir', () => {
