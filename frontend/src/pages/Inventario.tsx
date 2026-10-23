@@ -129,7 +129,9 @@ const InventarioPage: React.FC = () => {
     const { hasPermission } = useAuth();
     // Enlaces desde el Inicio (tarjeta «Inventario», 2026-10-20): ?tab=transferencias&estado=pendiente abre
     // esa pestaña con ese filtro. Solo se lee al entrar; si la pestaña no está permitida, manda el primer tab.
-    const [searchParams] = useSearchParams();
+    // Desde el 2026-10-23 la pestaña, el filtro y la solicitud abierta también se ESCRIBEN en la URL al
+    // cambiar (efecto «La vista actual en la URL», más abajo): F5 vuelve al mismo lugar (Marcos).
+    const [searchParams, setSearchParams] = useSearchParams();
     const { obras, selectedObra } = useObra();
     // Modo Bodega Virtual (por usuario): ocultar → mostrar → sumar. Afecta
     // Ejecutivo, Resumen, Obra/Bod. y Facturas.
@@ -166,6 +168,28 @@ const InventarioPage: React.FC = () => {
     // `&nuevo=pedir` («Pedir materiales» del Inicio, 2026-10-22) abre el asistente de pedir al entrar, UNA vez: el
     // panel avisa que lo usó y, si se vuelve a la pestaña, ya no se abre solo. El permiso lo revisa el panel.
     const [pedirAlEntrar, setPedirAlEntrar] = useState(() => searchParams.get('nuevo') === 'pedir');
+    // Lo que Solicitudes muestra ahora (filtro y solicitud abierta), para la URL.
+    const [vistaTrf, setVistaTrf] = useState<{ estado?: string; id: number | null }>(
+        () => ({ estado: searchParams.get('estado') ?? undefined, id: Number(searchParams.get('id')) || null }));
+
+    // La vista actual en la URL (Marcos 2026-10-23: con F5 volvía a «Ejecutivo»): `?tab=` siempre y, en
+    // Solicitudes, `&estado=` (si no es «Todas») y `&id=` de la solicitud abierta. `replace` para no llenar el
+    // «atrás» con cada clic. `nuevo=pedir` se borra: ya se usó al entrar y con F5 no debe volver a abrirse.
+    // También corre si la URL pierde `tab` (p. ej. clic en «Inventario» del menú estando ya aquí: la página no
+    // se remonta y sigue en la misma pestaña, así que se vuelve a escribir).
+    const tabEnUrl = searchParams.get('tab');
+    useEffect(() => {
+        setSearchParams(prev => {
+            const p = new URLSearchParams(prev);
+            p.set('tab', activeTab);
+            p.delete('nuevo');
+            if (activeTab === 'transferencias' && vistaTrf.estado && vistaTrf.estado !== 'todas') p.set('estado', vistaTrf.estado);
+            else p.delete('estado');
+            if (activeTab === 'transferencias' && vistaTrf.id) p.set('id', String(vistaTrf.id));
+            else p.delete('id');
+            return p;
+        }, { replace: true });
+    }, [activeTab, vistaTrf, tabEnUrl, setSearchParams]);
 
     // El subtítulo del header muestra el tab activo como breadcrumb (→ Tab)
     // para que el usuario sepa dónde está sin mirar las pestañas.
@@ -497,6 +521,7 @@ const InventarioPage: React.FC = () => {
                         initialSelectedId={trfNavIntent.id ?? null}
                         initialPedir={pedirAlEntrar}
                         onInitialPedirUsado={() => setPedirAlEntrar(false)}
+                        onVistaCambia={setVistaTrf}
                     />
                 )}
 

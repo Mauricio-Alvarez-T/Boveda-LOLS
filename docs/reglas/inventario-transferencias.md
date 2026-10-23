@@ -479,6 +479,12 @@ tarjeta y, en el detalle por perfil, `inventarioPerfil/formato.ts` (`rutaSolicit
   `solicitud_materiales` y fuera de «Diferencias» / «Histórico» (sin permiso, no pasa nada). Se usa **una vez**: el
   panel avisa a Inventario y, si se vuelve a la pestaña Solicitudes, ya no se abre solo.
 Desde el Inicio no se aprueba ni se recibe: aprobar, recibir y resolver piden formulario y validan todo al ejecutarse.
+**La vista actual también se ESCRIBE en la URL (Marcos 2026-10-23: con F5 volvía a «Ejecutivo»).** `Inventario.tsx`
+deja siempre `?tab=<pestaña>` y, en Solicitudes, `&estado=` (si no es «Todas») y `&id=` de la solicitud abierta, con
+`replace` (no llena el «atrás»). `TransferenciasPanel` avisa el cambio por `onVistaCambia`; en «Diferencias» no avisa la
+solicitud (al volver solo se abriría si sigue pendiente, y si no, saldría el aviso). `nuevo=pedir` se borra de la URL
+apenas se entra: con F5 el asistente no vuelve a abrirse. Así F5, el «atrás» del navegador y un enlace copiado llevan al
+mismo lugar.
 **Al subir a producción** (por SHA, lista de verificación): la lectura de `id` en `Inventario.tsx` (`trfNavIntent`) y la
 apertura de la diferencia por id en `TransferenciasPanel.tsx` (`setSelectedDiscrepancia`) llegaron con 1a232c02 (las
 «fichas», solo en develop) y las usan las vistas por perfil: sin ellas, tocar una solicitud abre solo el filtro (y en el

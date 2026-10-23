@@ -40,9 +40,15 @@ interface Props {
     initialPedir?: boolean;
     /** Avisa al montar que se usó `initialPedir`, para que el parent no lo vuelva a abrir si el panel se remonta. */
     onInitialPedirUsado?: () => void;
+    /**
+     * Avisa el filtro y la solicitud abierta cada vez que cambian, para que el parent los deje en la URL
+     * (`?estado=…&id=…`): así F5 vuelve al mismo lugar (Marcos 2026-10-23). En «Diferencias» no se avisa la
+     * solicitud: al volver a entrar solo se abre si sigue pendiente, y si no, saldría un aviso que confunde.
+     */
+    onVistaCambia?: (vista: { estado: string; id: number | null }) => void;
 }
 
-const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialStatusFilter, initialSelectedId, initialPedir, onInitialPedirUsado }) => {
+const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialStatusFilter, initialSelectedId, initialPedir, onInitialPedirUsado, onVistaCambia }) => {
     const { user } = useAuth();
     const trfHook = useTransferencias();
 
@@ -172,6 +178,13 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         trfHook.setSelectedDiscrepancia(null);
         setStatusFilter(v);
     }, [trfHook]);
+
+    // La vista actual hacia la URL del parent (F5 vuelve aquí).
+    const idEnUrl = isDiscrepanciasMode ? null : selectedId;
+    useEffect(() => {
+        onVistaCambia?.({ estado: statusFilter, id: idEnUrl });
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando cambia la vista, no el callback
+    }, [statusFilter, idEnUrl]);
 
     // Auto-selección del primer movimiento en desktop (como Vehículos), para que el
     // panel de detalle no quede vacío al entrar. Respeta initialSelectedId y discrepancias.
