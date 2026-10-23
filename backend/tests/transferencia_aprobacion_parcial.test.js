@@ -210,8 +210,8 @@ describe('transferenciaService.crearFaltante', () => {
         db.query.mockResolvedValueOnce([[]]); // no hay códigos previos → seq=1
 
         conn.query
-            // SELECT destino (FOR UPDATE)
-            .mockResolvedValueOnce([[{ destino_obra_id: 10, destino_bodega_id: null }]])
+            // SELECT destino + solicitante original (FOR UPDATE)
+            .mockResolvedValueOnce([[{ destino_obra_id: 10, destino_bodega_id: null, solicitante_id: 55 }]])
             // SELECT faltante existente (idempotencia) → ninguno
             .mockResolvedValueOnce([[]])
             // SELECT items originales
@@ -237,9 +237,12 @@ describe('transferenciaService.crearFaltante', () => {
             /INSERT INTO transferencias/.test(c[0])
         );
         expect(trfInsert).toBeDefined();
-        // params: codigo, destino_obra, destino_bodega, solicitante, observaciones, es_faltante_de_id
+        // params: codigo, destino_obra, destino_bodega, solicitante, observaciones, es_faltante_de_id, creado_por
         expect(trfInsert[1][5]).toBe(123);
-        expect(trfInsert[1][3]).toBe(77); // solicitante
+        // A nombre del solicitante ORIGINAL (no del aprobador que la dispara)
+        expect(trfInsert[1][3]).toBe(55);
+        // El aprobador queda en creado_por (audit)
+        expect(trfInsert[1][6]).toBe(77);
 
         // Items insertados: solo los 2 con faltante
         const itemInserts = conn.query.mock.calls.filter(c =>
@@ -252,6 +255,25 @@ describe('transferenciaService.crearFaltante', () => {
         expect(itemInserts[1][1]).toEqual([500, 3, 3]);
 
         expect(conn.commit).toHaveBeenCalled();
+    });
+
+    test('si la original no tiene solicitante (legacy), cae en quien la dispara', async () => {
+        const conn = makeConn();
+        db.getConnection.mockResolvedValue(conn);
+        db.query.mockResolvedValueOnce([[]]);
+
+        conn.query
+            .mockResolvedValueOnce([[{ destino_obra_id: 10, destino_bodega_id: null, solicitante_id: null }]])
+            .mockResolvedValueOnce([[]])
+            .mockResolvedValueOnce([[{ item_id: 1, cantidad_solicitada: 5, cantidad_enviada: 2 }]])
+            .mockResolvedValueOnce([{ insertId: 501 }])
+            .mockResolvedValueOnce([{ insertId: 1003 }]);
+
+        await transferenciaService.crearFaltante(123, 77);
+
+        const trfInsert = conn.query.mock.calls.find(c => /INSERT INTO transferencias/.test(c[0]));
+        expect(trfInsert[1][3]).toBe(77);
+        expect(trfInsert[1][6]).toBe(77);
     });
 
     test('si no hay faltante (todo fue enviado), retorna null sin crear nada', async () => {

@@ -856,17 +856,21 @@ const transferenciaService = {
      * - Crea una nueva transferencia en estado 'pendiente' apuntando con es_faltante_de_id.
      * - Retorna el id/código de la nueva solicitud.
      * - Se usa normalmente DESPUÉS de aprobar() con cantidades parciales.
+     * - La nueva solicitud queda a nombre del SOLICITANTE ORIGINAL (es su pedido:
+     *   la ve en "mis solicitudes" y otro aprobador —o el mismo— puede aprobarla
+     *   sin chocar con SoD). Quien la dispara (el aprobador) queda en creado_por.
      */
-    async crearFaltante(transferenciaOriginalId, solicitanteId) {
+    async crearFaltante(transferenciaOriginalId, creadoPorId) {
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
 
             const [[origRow]] = await conn.query(
-                'SELECT destino_obra_id, destino_bodega_id FROM transferencias WHERE id = ? FOR UPDATE',
+                'SELECT destino_obra_id, destino_bodega_id, solicitante_id FROM transferencias WHERE id = ? FOR UPDATE',
                 [transferenciaOriginalId]
             );
             if (!origRow) throw new Error('Transferencia original no encontrada');
+            const solicitanteId = origRow.solicitante_id ?? creadoPorId;
 
             // Idempotencia: si ya existe una solicitud de faltante para esta
             // original (doble click / doble submit con red lenta), devolver la
@@ -913,7 +917,7 @@ const transferenciaService = {
                     solicitanteId,
                     `Faltante de transferencia #${transferenciaOriginalId} (auto-generada)`,
                     transferenciaOriginalId,
-                    solicitanteId, // audit creado_por
+                    creadoPorId, // audit creado_por (el aprobador que la generó)
                 ]
             );
             const newId = result.insertId;

@@ -354,8 +354,10 @@ router.put('/:id/rechazar-recepcion', auth, checkPermission('inventario.transfer
 
 // POST /api/transferencias/:id/crear-faltante
 // Crea una nueva solicitud de transferencia por las cantidades faltantes (solicitadas - enviadas)
-// de una transferencia aprobada parcialmente.
-router.post('/:id/crear-faltante', auth, checkPermission('inventario.transferencias.solicitar'), async (req, res, next) => {
+// de una transferencia aprobada parcialmente. La dispara el APROBADOR desde el modal de
+// faltante → se gatea con aprobar (no solicitar: un aprobador sin ese permiso aprobaba OK
+// pero el faltante fallaba con 403). La nueva queda a nombre del solicitante original.
+router.post('/:id/crear-faltante', auth, checkPermission('inventario.transferencias.aprobar'), async (req, res, next) => {
     try {
         const result = await transferenciaService.crearFaltante(req.params.id, req.user.id);
         res.status(201).json({ data: result });

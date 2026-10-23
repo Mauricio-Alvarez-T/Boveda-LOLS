@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertTriangle, PackagePlus, XCircle } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { cn } from '../../utils/cn';
-import { faltanteReason, type FaltanteItemRow } from './faltanteReason';
+import {
+    faltanteReason, defaultFaltanteDecision, faltanteEsSoloManual,
+    type FaltanteItemRow, type FaltanteDecision,
+} from './faltanteReason';
 
-export type FaltanteDecision = 'crear_nueva' | 'ninguna';
-
-export type { FaltanteItemRow, FaltanteReasonKind } from './faltanteReason';
+export type { FaltanteItemRow, FaltanteReasonKind, FaltanteDecision } from './faltanteReason';
 export { faltanteReason } from './faltanteReason';
 
 interface Props {
@@ -25,22 +26,39 @@ interface Props {
  *
  * Usa frases de usuario final: "queda pendiente cuando llegue stock" en vez
  * de jerga técnica ("crear orden complementaria", etc).
+ *
+ * Si TODO el faltante es "Ajuste manual" (había stock y el aprobador decidió
+ * enviar menos) el modal no habla de "no se pudo" ni de "cuando llegue stock",
+ * y preselecciona "No hacer nada" (ver defaultFaltanteDecision).
  */
 const FaltanteDecisionModal: React.FC<Props> = ({
     isOpen, onClose, onConfirm, loading, faltantes,
 }) => {
-    const [decision, setDecision] = useState<FaltanteDecision>('crear_nueva');
+    const [decision, setDecision] = useState<FaltanteDecision>(() => defaultFaltanteDecision(faltantes));
+
+    // El modal vive montado (solo cambia isOpen): re-calcular la opción por
+    // defecto en cada apertura, o quedaría la del primer render / la anterior.
+    useEffect(() => {
+        if (isOpen) setDecision(defaultFaltanteDecision(faltantes));
+    }, [isOpen, faltantes]);
 
     const totalFaltantes = faltantes.reduce((s, f) => s + f.cantidad_faltante, 0);
+    const soloManual = faltanteEsSoloManual(faltantes);
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Hay cantidades que no se pudieron enviar">
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={soloManual ? 'Vas a enviar menos de lo pedido' : 'Hay cantidades que no se pudieron enviar'}
+        >
             <div className="space-y-5">
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
                     <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-foreground">
                         <p className="font-medium mb-1">
-                            {totalFaltantes} {totalFaltantes === 1 ? 'unidad no alcanzó' : 'unidades no alcanzaron'} a despacharse
+                            {soloManual
+                                ? `${totalFaltantes} ${totalFaltantes === 1 ? 'unidad queda' : 'unidades quedan'} sin enviar, aunque hay stock`
+                                : `${totalFaltantes} ${totalFaltantes === 1 ? 'unidad no alcanzó' : 'unidades no alcanzaron'} a despacharse`}
                         </p>
                         <p className="text-muted-foreground">
                             ¿Qué hago con {totalFaltantes === 1 ? 'ella' : 'ellas'}?
@@ -100,10 +118,14 @@ const FaltanteDecisionModal: React.FC<Props> = ({
                         <div className="flex-1">
                             <div className="flex items-center gap-2">
                                 <PackagePlus className="w-4 h-4 text-primary" />
-                                <span className="font-medium text-foreground">Crear nueva solicitud automáticamente</span>
+                                <span className="font-medium text-foreground">
+                                    {soloManual ? 'Dejar el resto pendiente igual' : 'Crear nueva solicitud automáticamente'}
+                                </span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                                Queda pendiente para cuando llegue stock. El solicitante no tiene que volver a pedirlo.
+                                {soloManual
+                                    ? 'Se crea una solicitud nueva por el resto, a nombre del solicitante, para aprobarla después.'
+                                    : 'Queda pendiente para cuando llegue stock, a nombre del solicitante. No tiene que volver a pedirlo.'}
                             </p>
                         </div>
                     </label>
@@ -130,7 +152,9 @@ const FaltanteDecisionModal: React.FC<Props> = ({
                                 <span className="font-medium text-foreground">No hacer nada</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                                El solicitante tendrá que pedirlo de nuevo si lo necesita.
+                                {soloManual
+                                    ? 'Lo que no envías se descarta. El solicitante puede volver a pedirlo si lo necesita.'
+                                    : 'El solicitante tendrá que pedirlo de nuevo si lo necesita.'}
                             </p>
                         </div>
                     </label>

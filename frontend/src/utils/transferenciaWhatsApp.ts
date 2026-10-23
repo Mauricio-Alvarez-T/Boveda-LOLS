@@ -100,6 +100,16 @@ export function buildTransferenciaWhatsappText({
             const unidad = it.unidad ? ` ${it.unidad}` : '';
             const desc = it.item_descripcion || `Item #${it.item_id}`;
             lines.push(`• ${cant}${unidad} · ${desc}`);
+            // Aprobación parcial: el aprobador envió menos de lo pedido → dejarlo explícito
+            // (si no, el receptor/transportista ve "10" y no sabe que se pidieron 50).
+            if (
+                (t.estado === 'aprobada' || t.estado === 'en_transito') &&
+                it.cantidad_enviada != null &&
+                Number(it.cantidad_enviada) < Number(it.cantidad_solicitada)
+            ) {
+                const sol = Number(it.cantidad_solicitada);
+                lines.push(`   _Solicitadas: ${sol} · Sin enviar: ${sol - Number(it.cantidad_enviada)}_`);
+            }
             if (t.estado === 'recepcion_parcial' && it.cantidad_enviada != null) {
                 const recibida = num(it.cantidad_recibida);
                 lines.push(`   _Recibidas: ${recibida} · Faltan: ${Number(it.cantidad_enviada) - recibida}_`);

@@ -759,6 +759,17 @@ de la diferencia trae todo lo que muestra desde `GET /discrepancias`.
 
 - Al aprobar con stock insuficiente: modal de decisión → opción de crear una TRF nueva por el
   faltante (`onCrearFaltante`).
+- **La decisión es del APROBADOR, no del receptor**: el faltante de aprobación (pedido − enviado)
+  nunca sale físicamente; el receptor solo ve lo enviado. El faltante de RECEPCIÓN (enviado −
+  recibido) es otra cosa → merma/discrepancia (ver "Recepción parcial").
+- La TRF nueva queda a nombre del **solicitante original** (`solicitante_id` de la original → la ve
+  en sus solicitudes y no choca con SoD al aprobarla); el aprobador queda en `creado_por` (audit).
+  Endpoint `POST /:id/crear-faltante` gateado con `transferencias.aprobar` (antes `solicitar`: un
+  aprobador sin ese permiso aprobaba OK pero el faltante fallaba con 403). Idempotente.
+- **Opción por defecto según motivo** (`defaultFaltanteDecision` en `faltanteReason.ts`): si TODO el
+  faltante es "Ajuste manual" (había stock y el aprobador envió menos a propósito) → preselecciona
+  "No hacer nada" y el texto no dice "no se pudo"/"cuando llegue stock". Si algún ítem quedó corto
+  por stock (Sin stock / Solo N disponible) → preselecciona "Crear nueva solicitud".
 
 ## Respaldo por WhatsApp (`utils/transferenciaWhatsApp.ts`)
 
@@ -784,7 +795,7 @@ cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea
 | Estado | Ítem catálogo | Ítem custom |
 |---|---|---|
 | pendiente | `cantidad_solicitada` | `cantidad` (pedida) |
-| aprobada / en_transito | `cantidad_enviada ?? solicitada` | `cantidad_aprobada ?? cantidad` |
+| aprobada / en_transito | `cantidad_enviada ?? solicitada` + línea "Solicitadas: X · Sin enviar: Y" si enviada < solicitada | `cantidad_aprobada ?? cantidad` |
 | recepcion_parcial | enviada + línea "Recibidas/Faltan" | aprobada + "Recibidas/Faltan" |
 | recibida | `cantidad_recibida ?? enviada ?? solicitada` + discrepancia si difiere de enviada | `cantidad_recibida ?? aprobada` + discrepancia si difiere de aprobada |
 | rechazada / cancelada | última conocida (`enviada ?? solicitada`) | `aprobada ?? cantidad` |

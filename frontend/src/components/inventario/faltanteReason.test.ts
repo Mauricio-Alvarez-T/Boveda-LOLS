@@ -1,4 +1,4 @@
-import { faltanteReason } from './faltanteReason';
+import { faltanteReason, defaultFaltanteDecision, faltanteEsSoloManual } from './faltanteReason';
 
 describe('faltanteReason', () => {
     it('sin stock disponible → "Sin stock"', () => {
@@ -24,5 +24,27 @@ describe('faltanteReason', () => {
 
     it('stock negativo (defensivo) → "Sin stock"', () => {
         expect(faltanteReason({ cantidad_solicitada: 3, stock_disponible: -1 }).kind).toBe('sin_stock');
+    });
+});
+
+describe('defaultFaltanteDecision', () => {
+    const manual = { cantidad_solicitada: 50, stock_disponible: 80 };
+    const sinStock = { cantidad_solicitada: 5, stock_disponible: 0 };
+    const parcial = { cantidad_solicitada: 5, stock_disponible: 2 };
+
+    it('todo "Ajuste manual" → no hacer nada (el aprobador recortó a propósito)', () => {
+        expect(defaultFaltanteDecision([manual])).toBe('ninguna');
+        expect(faltanteEsSoloManual([manual, manual])).toBe(true);
+    });
+
+    it('algún ítem corto por stock → crear nueva solicitud', () => {
+        expect(defaultFaltanteDecision([sinStock])).toBe('crear_nueva');
+        expect(defaultFaltanteDecision([parcial])).toBe('crear_nueva');
+        expect(defaultFaltanteDecision([manual, sinStock])).toBe('crear_nueva');
+    });
+
+    it('lista vacía → crear nueva (comportamiento previo)', () => {
+        expect(defaultFaltanteDecision([])).toBe('crear_nueva');
+        expect(faltanteEsSoloManual([])).toBe(false);
     });
 });

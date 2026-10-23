@@ -40,6 +40,19 @@ describe('buildTransferenciaWhatsappText', () => {
         expect(msg).not.toContain('• 5 · Cemento');
     });
 
+    it('aprobada con envío PARCIAL: aclara lo solicitado y lo que quedó sin enviar', () => {
+        const msg = build('aprobada', [cat({ cantidad_solicitada: 50, cantidad_enviada: 10, unidad: 'U' })]);
+        expect(msg).toContain('• 10 U · Cemento');
+        expect(msg).toContain('Solicitadas: 50 · Sin enviar: 40');
+    });
+
+    it('en_transito con envío parcial también lo aclara; envío completo NO agrega la línea', () => {
+        expect(build('en_transito', [cat({ cantidad_solicitada: 5, cantidad_enviada: 2 })]))
+            .toContain('Solicitadas: 5 · Sin enviar: 3');
+        expect(build('aprobada', [cat({ cantidad_solicitada: 5, cantidad_enviada: 5 })]))
+            .not.toContain('Sin enviar');
+    });
+
     it('recepcion_parcial: muestra enviada + recibidas/faltan', () => {
         const msg = build('recepcion_parcial', [cat({ cantidad_solicitada: 10, cantidad_enviada: 10, cantidad_recibida: 4 })]);
         expect(msg).toContain('• 10 · Cemento');

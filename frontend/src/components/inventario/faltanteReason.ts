@@ -34,3 +34,28 @@ export function faltanteReason(
     }
     return { kind: 'manual', label: 'Ajuste manual' };
 }
+
+export type FaltanteDecision = 'crear_nueva' | 'ninguna';
+
+/**
+ * ¿El faltante fue 100% decisión del aprobador? (todos los ítems son "Ajuste
+ * manual": había stock para lo pedido y aun así envió menos). Función PURA.
+ */
+export function faltanteEsSoloManual(
+    rows: Pick<FaltanteItemRow, 'cantidad_solicitada' | 'stock_disponible'>[]
+): boolean {
+    return rows.length > 0 && rows.every(r => faltanteReason(r).kind === 'manual');
+}
+
+/**
+ * Opción preseleccionada del modal de faltante (función PURA):
+ *  - Todo "Ajuste manual" → 'ninguna': el aprobador recortó a propósito; crear
+ *    una solicitud por lo que acaba de descartar sería contradictorio.
+ *  - Algún ítem corto por stock (sin_stock / parcial) → 'crear_nueva': queda
+ *    pendiente para cuando llegue stock.
+ */
+export function defaultFaltanteDecision(
+    rows: Pick<FaltanteItemRow, 'cantidad_solicitada' | 'stock_disponible'>[]
+): FaltanteDecision {
+    return faltanteEsSoloManual(rows) ? 'ninguna' : 'crear_nueva';
+}
