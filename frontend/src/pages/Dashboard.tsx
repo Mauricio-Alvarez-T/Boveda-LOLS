@@ -28,6 +28,7 @@ import ObraRanking from '../components/dashboard/widgets/ObraRanking';
 import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
 import DocumentosInicio from '../components/dashboard/widgets/DocumentosInicio';
 import { resumenDocumentosInicio } from '../components/dashboard/widgets/resumenDocumentosInicio';
+import type { PasoFlujo } from '../components/dashboard/widgets/pasosFlujoDocumentos';
 import AsistenciaInicio from '../components/dashboard/widgets/AsistenciaInicio';
 import DetalleAsistencia from '../components/dashboard/widgets/DetalleAsistencia';
 import type { AusentesHoy } from '../components/dashboard/widgets/resumenAsistenciaHoy';
@@ -466,11 +467,20 @@ const Dashboard: React.FC = () => {
     const activo: Modulo | null = elegido && visibles.includes(elegido) ? elegido : esCelular ? (visibles[0] ?? null) : null;
     // Abrir el detalle NO mueve la pantalla (dueño 2026-10-20: el salto repentino desorienta). El detalle
     // aparece bajo las tarjetas y la tarjeta elegida se pinta verde; el usuario baja cuando quiere.
+    // Paso del flujo de documentos en el detalle de Gestiones (RRHH): null = el automático (el primero con
+    // algo fuera de plazo). Abrir o cerrar por la tarjeta lo devuelve al automático.
+    const [pasoGestiones, setPasoGestiones] = useState<PasoFlujo['key'] | null>(null);
     const verMas = useCallback((m: Modulo) => {
         setElegido(actual => (actual === m ? null : m));
+        setPasoGestiones(null);
     }, []);
     // Las cifras de la tarjeta abren el detalle (sin cerrarlo si ya estaba abierto) y tampoco mueven la pantalla.
     const abrirSeccion = useCallback(() => setElegido('asistencia'), []);
+    // Las píldoras de etapa de la tarjeta Gestiones abren el detalle directo en su paso (dueño 2026-10-23).
+    const abrirEtapa = useCallback((paso: PasoFlujo['key']) => {
+        setPasoGestiones(paso);
+        setElegido('gestiones');
+    }, []);
     // Detalle de Asistencia, fase 2: se pide SOLO al abrirlo (no pesa en el resumen) y al cambiar de obra o
     // pulsar «Actualizar» con el detalle abierto.
     const [mesAsistencia, setMesAsistencia] = useState<DetalleAsistenciaApi | null>(null);
@@ -593,7 +603,7 @@ const Dashboard: React.FC = () => {
                                 ? <TusSolicitudesInicio resumen={resumenSol} activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')}
                                     onNuevo={() => navigate('/consultas?tab=solicitudes')} />
                                 : canRegistrarEntregas
-                                ? <DocumentosInicio resumen={resumenDocs} activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')} />
+                                ? <DocumentosInicio resumen={resumenDocs} activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')} onEtapa={abrirEtapa} />
                                 : ready
                                     ? <TarjetaPendientes icon={SearchCheck} titulo="Gestiones" subtitulo="Trabajadores, solicitudes y documentos"
                                         items={gestionesItems} total={totalGestiones} onNavigate={(r) => navigate(r)}
@@ -696,7 +706,8 @@ const Dashboard: React.FC = () => {
                             <Panel>
                                 <EncabezadoTarjeta icon={FileWarning} tono={resumenDocs.tono} titulo="Documentos físicos"
                                     subtitulo="Elige una etapa del flujo para ver qué hay en ella" />
-                                <FlujoDocumentos alertas={alertasDocs.alertas} onIr={() => navigate('/consultas?tab=fisicos')} onCambio={refreshDocumentos} />
+                                <FlujoDocumentos alertas={alertasDocs.alertas} onIr={() => navigate('/consultas?tab=fisicos')} onCambio={refreshDocumentos}
+                                    paso={pasoGestiones} onPaso={setPasoGestiones} />
                             </Panel>
                         )}
                         <Panel>

@@ -35,14 +35,26 @@ const ICONO = 'h-4 w-4 shrink-0';
  * Cada fila trae su acción (dueño 2026-10-23: la acción va donde se ve el problema): imprimir lo que está sin
  * imprimir, armar el lote de lo impreso, recordarle al portador por WhatsApp y abrir el lote (ver o anular
  * en oficina, registrar la devolución en terreno). Los modales son los de Documentos físicos.
+ *
+ * El paso elegido lo puede llevar el Inicio (`paso` + `onPaso`): así las píldoras de etapa de la tarjeta
+ * abren el detalle directo en su paso (dueño 2026-10-23). null = el automático (`pasoInicial`).
  */
-const FlujoDocumentos: React.FC<{ alertas: AlertasDocumentos | null; onIr: () => void; onCambio?: () => void }> = ({ alertas, onIr, onCambio }) => {
+interface Props {
+    alertas: AlertasDocumentos | null;
+    onIr: () => void;
+    onCambio?: () => void;
+    paso?: PasoFlujo['key'] | null;
+    onPaso?: (paso: PasoFlujo['key']) => void;
+}
+
+const FlujoDocumentos: React.FC<Props> = ({ alertas, onIr, onCambio, paso: pasoPedido, onPaso }) => {
     const { hasPermission } = useAuth();
     const puedeImprimir = hasPermission('documentos.laborales.descargar');
     const [flujo, setFlujo] = useState<FlujoRespuesta | null>(null);
     const [error, setError] = useState(false);
-    const [elegido, setElegido] = useState<number | null>(null);
-    const [todos, setTodos] = useState(false);
+    const [propio, setPropio] = useState<PasoFlujo['key'] | null>(null);
+    // «Ver los N» queda abierto solo en el paso donde se pidió (cambiar de paso lo cierra sin un efecto).
+    const [todosEn, setTodosEn] = useState<PasoFlujo['key'] | null>(null);
     const [version, setVersion] = useState(0);
     const [loteAbierto, setLoteAbierto] = useState<number | null>(null);
     const [nuevoLote, setNuevoLote] = useState(false);
@@ -75,8 +87,12 @@ const FlujoDocumentos: React.FC<{ alertas: AlertasDocumentos | null; onIr: () =>
     if (error && !flujo) return <p className="text-sm text-muted-foreground">No se pudo cargar el flujo de documentos.</p>;
     if (!flujo) return <SkeletonText lines={6} />;
 
-    const activo = elegido ?? pasoInicial(pasos);
+    const elegidoKey = pasoPedido !== undefined ? pasoPedido : propio;
+    const elegir = (k: PasoFlujo['key']) => (onPaso ? onPaso(k) : setPropio(k));
+    const indiceElegido = elegidoKey ? pasos.findIndex(p => p.key === elegidoKey) : -1;
+    const activo = indiceElegido >= 0 ? indiceElegido : pasoInicial(pasos);
     const paso = pasos[activo];
+    const todos = todosEn === paso.key;
     const filas = todos ? paso.filas : paso.filas.slice(0, VISIBLES);
     const fueraDeLista = paso.n - paso.filas.length;
 
@@ -116,7 +132,7 @@ const FlujoDocumentos: React.FC<{ alertas: AlertasDocumentos | null; onIr: () =>
                     return (
                         // eslint-disable-next-line no-restricted-syntax -- pestaña del flujo (tarjeta completa)
                         <button key={p.key} type="button" role="tab" aria-selected={sel}
-                            onClick={() => { setElegido(i); setTodos(false); }}
+                            onClick={() => elegir(p.key)}
                             className={cn('flex flex-col items-start gap-1 rounded-2xl border p-3 text-left transition-colors duration-200 motion-reduce:transition-none',
                                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40',
                                 sel ? 'border-green-700 bg-green-700 text-white dark:border-green-600 dark:bg-green-600' : 'border-border bg-card hover:bg-muted/60')}>
@@ -174,7 +190,7 @@ const FlujoDocumentos: React.FC<{ alertas: AlertasDocumentos | null; onIr: () =>
                 {(paso.filas.length > VISIBLES || fueraDeLista > 0) && (
                     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2">
                         {paso.filas.length > VISIBLES ? (
-                            <Button variant="ghost" size="sm" onClick={() => setTodos(v => !v)}
+                            <Button variant="ghost" size="sm" onClick={() => setTodosEn(todos ? null : paso.key)}
                                 rightIcon={<ChevronDown className={cn('h-4 w-4 transition-transform duration-200 motion-reduce:transition-none', todos && 'rotate-180')} />}>
                                 {todos ? 'Ver menos' : `Ver los ${paso.filas.length}`}
                             </Button>

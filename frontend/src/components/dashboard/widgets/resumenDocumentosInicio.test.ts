@@ -28,8 +28,8 @@ describe('resumenDocumentosInicio', () => {
         );
         expect(r).toMatchObject({ tono: 'rojo', fueraDePlazo: 41, criticos: 12, impresosSinAsignar: 57, lotesEnOficina: 0, lotesEnTerreno: 1 });
         expect(r.etapas).toEqual([
-            { clave: 'sin_imprimir', texto: 'Sin imprimir', total: 1, critico: false },
-            { clave: 'por_retirar', texto: 'Impreso, sin portador', total: 40, critico: true },
+            { clave: 'sin_imprimir', texto: 'Sin imprimir', total: 1, critico: false, paso: 'sin_imprimir' },
+            { clave: 'por_retirar', texto: 'Impreso, sin portador', total: 40, critico: true, paso: 'impresos' },
         ]);
     });
 
@@ -43,7 +43,17 @@ describe('resumenDocumentosInicio', () => {
         );
         expect(r.tono).toBe('rojo');
         expect(r.criticos).toBe(1);
-        expect(r.etapas).toEqual([{ clave: 'lotes', texto: 'Lotes atascados', total: 3, critico: true }]);
+        // El crítico está en terreno (el de oficina solo avisa): la píldora abre «En terreno».
+        expect(r.etapas).toEqual([{ clave: 'lotes', texto: 'Lotes atascados', total: 3, critico: true, paso: 'en_terreno' }]);
+    });
+
+    test('cada etapa abre su paso del flujo', () => {
+        const r = resumenDocumentosInicio(
+            alertas({ por_etapa: { sin_imprimir: conteo(), por_retirar: conteo(), por_confirmar: conteo(2, 0), en_terreno: conteo(1, 1) } }),
+            null,
+            null,
+        );
+        expect(r.etapas.map(e => [e.clave, e.paso])).toEqual([['por_confirmar', 'en_oficina'], ['en_terreno', 'en_terreno']]);
     });
 
     test('solo avisos (sin críticos) → ámbar; singular del lote', () => {
@@ -53,7 +63,7 @@ describe('resumenDocumentosInicio', () => {
             null,
         );
         expect(r.tono).toBe('ambar');
-        expect(r.etapas[0].texto).toBe('Lote atascado');
+        expect(r.etapas[0]).toMatchObject({ texto: 'Lote atascado', paso: 'en_oficina' });
     });
 
     test('nada fuera de plazo → verde, sin etapas', () => {

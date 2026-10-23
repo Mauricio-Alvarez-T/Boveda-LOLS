@@ -638,7 +638,9 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       (`FlujoDocumentos`): «Imprimir» (marca impreso) en sin imprimir, «Armar lote» en impreso sin portador,
       «Recordar» al portador + «Ver lote» (oficina) o «Recibir» (terreno) por lote, con los modales de
       Documentos físicos. Portador: «Confirmar retiro» en cada lote que lo espera. Tras cada acción el Inicio
-      vuelve a pedir sus cifras.
+      vuelve a pedir sus cifras. Las **píldoras de etapa** de la tarjeta Gestiones (RRHH) abren el detalle
+      directo en su paso (`EtapaAtrasada.paso`; «Lotes atascados» va donde haya críticos, oficina primero);
+      abrir por la tarjeta o «Ver más» vuelve al paso automático.
     - **Franja de marca** (`InicioMarca`, propuesta C del lienzo, dueño 2026-10-21): sin detalle abierto, bajo
       las tarjetas, el logo LOLS en grande con saludo por hora («Buenos días, Mauricio») y hasta 4 accesos
       directos según permiso (Marcar asistencia · Nuevo ingreso · Nuevo lote · Pedir materiales). Desde 640 px.

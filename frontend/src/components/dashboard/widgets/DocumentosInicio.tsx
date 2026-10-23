@@ -1,10 +1,11 @@
 import React from 'react';
-import { FileCheck2, FileWarning } from 'lucide-react';
+import { ChevronRight, FileCheck2, FileWarning } from 'lucide-react';
 import { NumeroRodante } from '../../ui/NumeroRodante';
 import { cn } from '../../../utils/cn';
 import { EncabezadoTarjeta, CifraTarjeta } from './EncabezadoTarjeta';
 import { useTarjetaActiva } from './tarjetaActiva';
 import { BotonVerMas } from './BotonVerMas';
+import type { PasoFlujo } from './pasosFlujoDocumentos';
 import type { ResumenDocumentosInicio } from './resumenDocumentosInicio';
 
 /**
@@ -12,12 +13,13 @@ import type { ResumenDocumentosInicio } from './resumenDocumentosInicio';
  * (dueño 2026-10-20): lo que RRHH mira primero en Gestiones → Documentos físicos. Arriba lo atrasado
  * (cifra + etapas donde se atasca, rojo si hay críticos); abajo, dónde están los papeles ahora, con los
  * mismos puntos de color que los carriles del tablero (ámbar = en oficina, azul = en terreno). «Ver más»
- * abre debajo el detalle de Gestiones.
+ * abre debajo el detalle de Gestiones; cada píldora de etapa lo abre directo en su paso (dueño 2026-10-23).
  */
 interface Props {
     resumen: ResumenDocumentosInicio;
     activo: boolean;
     onVerMas: () => void;
+    onEtapa: (paso: PasoFlujo['key']) => void;
 }
 
 const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
@@ -35,7 +37,7 @@ const Lugar: React.FC<{ punto: string; titulo: string; valor: number | null; uni
     </div>
 );
 
-const DocumentosInicio: React.FC<Props> = ({ resumen: r, activo, onVerMas }) => {
+const DocumentosInicio: React.FC<Props> = ({ resumen: r, activo, onVerMas, onEtapa }) => {
     const n = r.fueraDePlazo;
     const sobreVerde = useTarjetaActiva();
     return (
@@ -60,13 +62,19 @@ const DocumentosInicio: React.FC<Props> = ({ resumen: r, activo, onVerMas }) => 
             {r.etapas.length > 0 ? (
                 <ul className="flex flex-wrap gap-1.5" aria-label="Dónde se atrasan">
                     {r.etapas.map(e => (
-                        <li key={e.clave}
-                            className={cn('flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium',
-                                e.critico
-                                    ? 'bg-red-50 text-red-800 dark:bg-red-500/15 dark:text-red-200'
-                                    : 'bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200')}>
-                            {e.texto}
-                            <span className="font-bold tabular-nums">{e.total}</span>
+                        <li key={e.clave}>
+                            {/* eslint-disable-next-line no-restricted-syntax -- píldora de etapa: abre el detalle en su paso */}
+                            <button type="button" onClick={() => onEtapa(e.paso)}
+                                aria-label={`${e.texto}: ${e.total}. Ver en el detalle`}
+                                className={cn('flex min-h-8 items-center gap-1.5 rounded-lg py-1 pl-2.5 pr-1.5 text-xs font-medium transition-colors',
+                                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40',
+                                    e.critico
+                                        ? 'bg-red-50 text-red-800 hover:bg-red-100 dark:bg-red-500/15 dark:text-red-200 dark:hover:bg-red-500/25'
+                                        : 'bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-200 dark:hover:bg-amber-500/25')}>
+                                {e.texto}
+                                <span className="font-bold tabular-nums">{e.total}</span>
+                                <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+                            </button>
                         </li>
                     ))}
                 </ul>
