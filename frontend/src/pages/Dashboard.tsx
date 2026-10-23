@@ -715,7 +715,8 @@ const Dashboard: React.FC = () => {
             {activo === 'inventario' && (
                 // Una vista por perfil (Marcos 2026-10-22): DetalleInventario elige la vista y su descripción; a los
                 // demás perfiles les deja lo de antes (`respaldo`: «Solicitudes» + «Alertas de inventario»).
-                <DetalleInventario version={lastUpdated} onIr={() => navigate('/inventario?tab=transferencias')}
+                // `onCambio`: al aprobar o rechazar ahí mismo (VistaLeonardo, 2026-10-23), la tarjeta de arriba se pone al día.
+                <DetalleInventario version={lastUpdated} onIr={() => navigate('/inventario?tab=transferencias')} onCambio={fetchResumenInv}
                     respaldo={<RespaldoInventario Tarjeta={Panel} modelo={modeloInv} cargado={resumenInv !== null}
                         onFila={irAFilaInventario} alertas={invItems} onNavigate={(route) => navigate(route)} />} />
             )}

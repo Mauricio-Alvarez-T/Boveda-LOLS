@@ -242,7 +242,27 @@ caía en la bandeja de todas las obras sin tener `ver_todas` (el servidor no le 
     en las cuatro vistas (Leonardo, jefatura, obra y Super Admin). El pie dice «Ver todas en
      Inventario», sin cifra (Pendientes pagina de a 20). Cada etapa dice en su `aria-label` / `title` qué lista abre
      (Aprobada con alguna en tránsito → «Todas»; Recibidas = todos los meses). Circuito de tres pasos (2026-10-23).
-   - Cada fila abre `estado=pendiente&id=N`: **necesita que `Inventario.tsx` lea `id`** (`trfNavIntent`), que llegó a
+   - **«Aprobar o rechazar» se resuelve ahí mismo (el dueño 2026-10-23: «te abra en el mismo lugar como un despliegue
+     sobre ese pendiente para resolver enseguida y no me lleve hasta Inventario»).** Tocar la fila ya no navega: despliega
+     DEBAJO de ella (acordeón, una abierta a la vez; `aria-expanded`, la flecha gira) el detalle REAL de Inventario de esa
+     solicitud, a todo el ancho de la tarjeta (en el celular, una columna). `inventarioPerfil/ResolverSolicitud.tsx` es un
+     envoltorio chico: carga la solicitud con `useTransferencias().fetchById` (GET `/:id`) y monta `TransferenciaDetail`
+     tal cual («Revisar y aprobar» → `AprobarForm` con origen por ítem, stock, auto-completar y faltante; «Rechazar» con
+     motivo; en «Solicitud de materiales», su modal), con los mismos callbacks que `TransferenciasPanel` (mismos avisos,
+     mismas validaciones de permisos y SoD del hook; el servidor revalida). Inventario no cambió. Al salir bien: se cierra,
+     queda el aviso de Inventario («Transferencia aprobada» / «rechazada»), al aprobar se abre el mismo resumen con
+     WhatsApp (`ResumenAccionModal`, con la solicitud fresca) y se vuelven a pedir el detalle y la tarjeta de arriba
+     (`onCambio` de las vistas → `reintentar` + `fetchResumenInv` de Dashboard): la fila sale. Si después de aprobar se
+     elige «crear solicitud por el faltante», el Inicio se pide de nuevo al crearla. Arriba del despliegue: «Abrir en
+     Inventario» (la ruta de abajo) y la X (en «Solicitud de materiales» la X es la del propio detalle). Lógica pura
+     (`resuelveAqui`, `resumenTrasAccion`, `abiertaVigente`) en `leonardo.modelo.ts`, con test; otro test lee los
+     archivos para que no se reescriba aprobar ni rechazar. Si la solicitud cambió mientras tanto, el detalle muestra lo
+     que corresponde a su estado (como en Inventario).
+   - **Propia (SoD)**: no se ofrece aprobar (nota apagada, como antes) y la fila abre la solicitud en Inventario.
+   - **«Ver como → quien aprueba»** del Super Administrador también despliega y aprueba de verdad, con SUS permisos y a
+     SU nombre: el despliegue lo dice («Es de verdad: lo que apruebes o rechaces aquí queda a tu nombre.»).
+   - El aviso «N diferencias sin aclarar» sigue llevando a Inventario → Diferencias.
+   - «Abrir en Inventario» y las propias abren `estado=pendiente&id=N`: **necesita que `Inventario.tsx` lea `id`** (`trfNavIntent`), que llegó a
      develop con las fichas (1a232c02) y no está en producción. Va con esta vista al promoverla (lo cuida un test de
      `leonardo.modelo.test.ts`); sin eso el panel abre la primera de la lista, la más nueva.
 3. **`ver_todas` + `diferencias_ver`** (sin `aprobar`) → **`VistaJefatura`** (Daphne Lazcano, mig 131): el circuito y
@@ -327,7 +347,9 @@ Lógica pura en `inventarioPerfil/superadmin.modelo.ts` (con test). Solo usa la 
   devolver a Bodega Cerrillos desde Domeyko», «aprobó el traslado de Domeyko a Gorbea 3082»). Se dibujan 30 cerrada (el
   alto las corta) y hasta 150 abierta («Ver los N», con N a lo más 150: en el computador se desliza por dentro); lo
   anterior, en Inventario.
-- **Secuencia completa · cada solicitud**, en cinco pasos que no se pisan: Por aprobar, Aprobadas · por recibir (también
+- **Secuencia completa · cada solicitud** (desde 2026-10-23 vive en `inventarioPerfil/SecuenciaCompleta.tsx`, con su
+  estado en `useSecuencia.ts` y su lógica en `modeloSecuencia` / `modeloSuperAdmin`, porque también va en VistaJefatura;
+  aquí se ve igual, con los mismos ids), en cinco pasos que no se pisan: Por aprobar, Aprobadas · por recibir (también
   las en tránsito y con recepción parcial: sin grupo «En camino» desde 2026-10-23), Recibidas con diferencia, Recibidas ·
   llegaron completas y No aprobadas. Pestañas Todas · Por aprobar · Aprobadas · Recibidas · No aprobada. Cada fila:
   Pidió → Aprobó → Recibió → (con diferencia pendiente) resolverla, con quién y cuándo, y «Ahora: … · a quién le toca»
@@ -445,6 +467,12 @@ Opción B «El circuito» del lienzo para quien ve diferencias sin aprobar (Daph
 - **«Preguntar»** a quien aprobó o a quien recibió («Quién lo hizo» = Aprobó + Recibió desde 2026-10-23; nunca quien
   despachó): WhatsApp sin número con el mensaje listo; a quien recibió cierra «¿Me cuentas qué pasó?» y a quien aprobó,
   «¿La puedes revisar?».
+- **Secuencia completa · cada solicitud** (el dueño 2026-10-23: «le interesa tener el detalle en lo que va cada
+  solicitud»): DEBAJO de todo lo anterior, que no cambia, la misma sección de VistaSuperAdmin (`SecuenciaCompleta.tsx`
+  con `modeloSecuencia`): pestañas Todas · Por aprobar · Aprobadas · Recibidas · No aprobadas, grupos por paso, cada fila
+  Pidió → Aprobó → Recibió → «Ahora: … · a quién le toca» y «Ver las N». Ella no aprueba ni resuelve: «Ahora: aprobar ·
+  Leonardo» le dice a quién apurar, y «Ver» abre la solicitud (o su diferencia, en solo lectura), como el resto de su
+  vista. Lo cuida un test de `jefatura.modelo.test.ts` que lee los archivos.
 - Pendiente de decidir con Marcos: la tarjeta de arriba (de Mauricio) dice «4 · por resolver» para Daphne
   (`por_aprobar` es null y solo suma diferencias); el lienzo aprobado decía «10 · pendientes y diferencias».
 
@@ -478,7 +506,9 @@ tarjeta y, en el detalle por perfil, `inventarioPerfil/formato.ts` (`rutaSolicit
 - `nuevo=pedir`: abre el asistente «Pedir» (el botón «Pedir materiales» de la vista de obra). Solo con `solicitar` o
   `solicitud_materiales` y fuera de «Diferencias» / «Histórico» (sin permiso, no pasa nada). Se usa **una vez**: el
   panel avisa a Inventario y, si se vuelve a la pestaña Solicitudes, ya no se abre solo.
-Desde el Inicio no se aprueba ni se recibe: aprobar, recibir y resolver piden formulario y validan todo al ejecutarse.
+Desde el Inicio no se recibe ni se resuelven diferencias: piden formulario y validan todo al ejecutarse. Aprobar o
+rechazar, sí, pero con el formulario REAL de Inventario desplegado bajo la fila de VistaLeonardo (2026-10-23, § «Qué vista
+ve cada uno», punto 2), no con un botón suelto.
 **La vista actual también se ESCRIBE en la URL (Marcos 2026-10-23: con F5 volvía a «Ejecutivo»).** `Inventario.tsx`
 deja siempre `?tab=<pestaña>` y, en Solicitudes, `&estado=` (si no es «Todas») y `&id=` de la solicitud abierta, con
 `replace` (no llena el «atrás»). `TransferenciasPanel` avisa el cambio por `onVistaCambia`; en «Diferencias» no avisa la

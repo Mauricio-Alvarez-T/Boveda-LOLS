@@ -2,11 +2,13 @@ import {
     FIN_COMPLETA, FIN_CON_DIFERENCIA, FIN_DISTINTO, FIN_RECIBIDA, FIN_REVISADA, GRUPOS, JEFATURA, NOTA_DESTINO, QUIEN_APRUEBA,
     TEXTO_SIN_DIFERENCIA, TOPE_GRUPO, TOPE_GRUPO_ABIERTO, ahoraDe, avisoDiferencias, circuitoSuperAdmin, conteosMes, despuesDe,
     etiquetaPaso, etiquetaResponsable, filasDelGrupo, gruposDe, listaCortada, mesDe, modeloSuperAdmin, nombresCortos,
-    notaObraElegida, porDia, quienApruebaDe, quienRecibe, responsablesDe, rotuloDia, rotuloGrupo, solicitudDesdeDiferencias,
-    textoHasta, textoVerUltimo, vaAUnaObra,
+    modeloSecuencia, notaObraElegida, porDia, quienApruebaDe, quienRecibe, responsablesDe, rotuloDia, rotuloGrupo,
+    solicitudDesdeDiferencias, textoHasta, textoVerUltimo, vaAUnaObra,
     type Casilla, type Evento,
 } from './superadmin.modelo';
 import type { CircuitoPerfil, DiferenciaPerfil, InventarioPerfilApi, LugarPerfil, SolicitudPerfil } from './tipos';
+import { idsSecuencia } from './useSecuencia';
+import { comoJefatura } from './verComo.modelo';
 
 const NB = String.fromCharCode(160);
 const HOY = '2026-10-22';
@@ -670,5 +672,33 @@ describe('topes de la respuesta', () => {
         expect(vacio.filtros[0].n).toBe(0);
         expect(vacio.eventos).toEqual([]);
         expect(vacio.responsables[0].nombre).toBe(QUIEN_APRUEBA);
+    });
+});
+
+// ─────────────────────────────── La secuencia, también en VistaJefatura ───────────────────────────────
+
+describe('modeloSecuencia (SecuenciaCompleta: Super Administrador y jefatura, 2026-10-23)', () => {
+    const secuenciaDe = ({ grupos, porGrupo, filtros, tope }: ReturnType<typeof modeloSuperAdmin>) => ({ grupos, porGrupo, filtros, tope });
+
+    test('es la MISMA secuencia que arma modeloSuperAdmin (la vista del Super Administrador no cambia)', () => {
+        expect(modeloSecuencia(datos())).toEqual(secuenciaDe(modeloSuperAdmin(datos())));
+        const cortada = datos({ circuito: { ...CIRCUITO, diferencias: { total: 3, items: 3, dias: 40 } } });
+        expect(modeloSecuencia(cortada)).toEqual(secuenciaDe(modeloSuperAdmin(cortada)));
+        expect(modeloSecuencia(datos({ diferencias: null }))).toEqual(secuenciaDe(modeloSuperAdmin(datos({ diferencias: null }))));
+    });
+
+    test('con lo que ve jefatura (Ver como): las mismas filas; «Ahora: aprobar» le dice a quién apurar', () => {
+        const jefatura = modeloSecuencia(comoJefatura(datos()));
+        expect(jefatura).toEqual(modeloSecuencia(datos()));
+        const aprobar = jefatura.porGrupo.aprobar[0];
+        expect(aprobar.ahora).toBe('aprobar · Leonardo López');
+        // «Ver» abre la solicitud (o su diferencia, que jefatura ve en solo lectura): nunca una acción.
+        for (const f of Object.values(jefatura.porGrupo).flat()) expect(f.ruta).toMatch(/^\/inventario\?tab=transferencias&estado=/);
+    });
+
+    test('los ids de la secuencia del Super Administrador son los de siempre; los de jefatura, otros', () => {
+        const sa = idsSecuencia('inv-sa');
+        expect([sa.seccion, sa.rotulo, sa.lista, sa.grupo('aprobar')]).toEqual(['inv-sa-sec', 'inv-sa-s', 'inv-sa-s-lista', 'inv-sa-g-aprobar']);
+        expect(idsSecuencia('inv-jf').seccion).toBe('inv-jf-sec');
     });
 });

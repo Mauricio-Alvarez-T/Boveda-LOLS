@@ -7,6 +7,8 @@ import {
     textoVerLista, textoVerResumen, tituloAprobadas, tituloDiferencias, tituloFila, tituloPedidas, tituloRecibidas,
     tonoCirculo,
 } from './jefatura.modelo';
+import * as fs from 'fs';
+import * as path from 'path';
 import type { CircuitoPerfil, DiferenciaPerfil, ItemPerfil, LugarPerfil, SolicitudPerfil } from './tipos';
 
 // ─── Ayudas ───
@@ -497,5 +499,28 @@ describe('mensajes de WhatsApp', () => {
     test('nunca hay dinero en los mensajes', () => {
         const texto = mensajeApurar(pedidas, { aprobadores: LEONARDO }) + mensajeDiferencia(dif(), 'Tomás');
         expect(texto).not.toMatch(/\$|valor|costo|precio/i);
+    });
+});
+
+describe('VistaJefatura suma la secuencia de cada solicitud (el dueño 2026-10-23)', () => {
+    const leer = (archivo: string) => fs.readFileSync(path.join(__dirname, archivo), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/\/.*$/gm, '');
+
+    test('va DEBAJO de lo suyo (circuito y paneles), con la misma sección del Super Administrador', () => {
+        const fuente = leer('VistaJefatura.tsx');
+        expect(fuente).toMatch(/modeloSecuencia\(datos\)/);
+        const paneles = fuente.indexOf('<PanelEtapa ');
+        const secuencia = fuente.indexOf('<SecuenciaCompleta ');
+        expect(paneles).toBeGreaterThan(-1);
+        expect(secuencia).toBeGreaterThan(paneles);
+        expect(leer('VistaSuperAdmin.tsx')).toMatch(/<SecuenciaCompleta /);
+    });
+
+    test('la secuencia no aprueba ni resuelve nada: Daphne solo mira y abre', () => {
+        const fuente = leer('SecuenciaCompleta.tsx');
+        expect(fuente).not.toMatch(/puede\.aprobar|puede_aprobar|bloqueo_aprobar|resolver_diferencias|sod_bypass/);
+        expect(fuente).not.toMatch(/\bapi\./);
+        expect(fuente).not.toMatch(/>\s*(Aprobar|Rechazar|Resolver)\b/);
     });
 });

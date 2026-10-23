@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-    NOTA_PROPIA, RUTA_DIFERENCIAS, RUTA_POR_APROBAR, TEXTO_FUERA_DE_LISTA, TOPE_LEO, avisoDiferencias, bajadaPorAprobar, cargoDe,
-    esPropiaBloqueada, etiquetaCircuito, etiquetaPaso, filaPorAprobar, marcaPedida, mesLargo, pasosCircuito, porAprobar,
-    textoCifra, textoEspera, textoHasta, textoPie, textoVacio,
+    NOTA_PROPIA, RUTA_DIFERENCIAS, RUTA_POR_APROBAR, TEXTO_FUERA_DE_LISTA, TOPE_LEO, abiertaVigente, avisoDiferencias,
+    bajadaPorAprobar, cargoDe, esPropiaBloqueada, etiquetaCircuito, etiquetaPaso, filaPorAprobar, marcaPedida, mesLargo,
+    pasosCircuito, porAprobar, resumenTrasAccion, textoCifra, textoEspera, textoHasta, textoPie, textoVacio,
 } from './leonardo.modelo';
 import type { CircuitoPerfil, SolicitudPerfil } from './tipos';
 
@@ -341,5 +341,58 @@ describe('contrato con Inventario: el enlace de la fila abre ESA solicitud', () 
 
     it('TransferenciasPanel abre la solicitud pedida por id al entrar', () => {
         expect(fuente('components', 'inventario', 'TransferenciasPanel.tsx')).toMatch(/fetchById\(initialSelectedId\)/);
+    });
+});
+
+/**
+ * «Aprobar o rechazar» se resuelve ahí mismo (el dueño 2026-10-23): bajo la fila se despliega el detalle REAL de
+ * Inventario. Lo que decide la fila y lo que pasa al terminar es lógica pura; que se reúse Inventario tal cual (sin
+ * reescribir aprobar ni rechazar) lo cuida la lectura de los archivos, abajo.
+ */
+describe('aprobar o rechazar aquí', () => {
+    it('se despliega bajo la fila salvo la propia (SoD): esa abre Inventario, como antes', () => {
+        expect(filaPorAprobar(sol({ id: 1 }), 0, 2).resuelveAqui).toBe(true);
+        const propia = filaPorAprobar(sol({ id: 2, propia: true, puede_aprobar: false, bloqueo_aprobar: 'sod_solicitante' }), 0, 1);
+        expect(propia.resuelveAqui).toBe(false);
+        expect(propia.ruta).toBe('/inventario?tab=transferencias&estado=pendiente&id=2');
+        // Con sod_bypass el servidor la deja aprobar: se resuelve aquí.
+        expect(filaPorAprobar(sol({ id: 3, propia: true, puede_aprobar: true }), 0, 1).resuelveAqui).toBe(true);
+    });
+
+    it('el resumen con WhatsApp sale como en Inventario: al aprobar y al recibir, no al rechazar', () => {
+        expect(resumenTrasAccion('aprobar')).toBe('aprobar');
+        expect(resumenTrasAccion('recibir_total')).toBe('recibir_total');
+        expect(resumenTrasAccion('recibir_parcial')).toBe('recibir_parcial');
+        for (const a of ['rechazar', 'rechazar_recepcion', 'cancelar', 'eliminar'] as const) expect(resumenTrasAccion(a)).toBeNull();
+    });
+
+    it('una abierta a la vez, y solo si sigue en la bandeja', () => {
+        expect(abiertaVigente(7, [5, 7, 9])).toBe(7);
+        expect(abiertaVigente(7, [5, 9])).toBeNull();
+        expect(abiertaVigente(null, [5])).toBeNull();
+        expect(abiertaVigente(undefined, [5])).toBeNull();
+    });
+
+    const leer = (archivo: string) => fs.readFileSync(path.join(__dirname, archivo), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/\/.*$/gm, '');
+
+    it('ResolverSolicitud monta el detalle de Inventario y sus acciones, sin reescribirlas', () => {
+        const fuente = leer('ResolverSolicitud.tsx');
+        expect(fuente).toMatch(/import TransferenciaDetail from '\.\.\/\.\.\/\.\.\/inventario\/TransferenciaDetail'/);
+        expect(fuente).toMatch(/useTransferencias\(\)/);
+        expect(fuente).toMatch(/trf\.aprobar\(id, data\)/);
+        expect(fuente).toMatch(/trf\.rechazar\(id, motivo\)/);
+        expect(fuente).toMatch(/onFetchStock=\{trf\.fetchStockPorItems\}/);
+        // Nada de llamar al servidor por su cuenta ni de armar su propio formulario.
+        expect(fuente).not.toMatch(/\bapi\.(get|put|post|delete)\b/);
+        expect(fuente).not.toMatch(/AprobarForm|RechazarForm/);
+    });
+
+    it('VistaLeonardo despliega ResolverSolicitud y el aviso de diferencias sigue llevando a Inventario', () => {
+        const fuente = leer('VistaLeonardo.tsx');
+        expect(fuente).toMatch(/<ResolverSolicitud /);
+        expect(fuente).toMatch(/onClick=\{\(\) => ir\(diferencias\.ruta\)\}/);
+        expect(fuente).toMatch(/<ResumenAccionModal /);
     });
 });

@@ -16,6 +16,11 @@ export type VistaInventario = 'superadmin' | 'leonardo' | 'jefatura' | 'obra' | 
 /** Props de las vistas: la respuesta de GET /transferencias/inicio/perfil (contrato en `tipos.ts`). */
 export interface PropsVistaInventario {
     datos: InventarioPerfilApi;
+    /**
+     * Algo cambió desde el mismo Inicio (VistaLeonardo aprueba o rechaza ahí mismo, 2026-10-23): DetalleInventario vuelve
+     * a pedir estos datos y la tarjeta de arriba.
+     */
+    onCambio?: () => void;
 }
 
 /**

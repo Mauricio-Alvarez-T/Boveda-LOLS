@@ -23,7 +23,10 @@ import {
     type PersonaDiferencia, type PildoraFila,
 } from './jefatura.modelo';
 import type { PropsVistaInventario } from './perfil';
+import SecuenciaCompleta from './SecuenciaCompleta';
+import { modeloSecuencia } from './superadmin.modelo';
 import type { DiferenciaPerfil, InventarioPerfilApi, SolicitudPerfil } from './tipos';
+import { useSecuencia } from './useSecuencia';
 
 /**
  * Detalle «Inventario» del Inicio para JEFATURA (Daphne Lazcano: «Ver diferencias» sin aprobar; Marcos 2026-10-22):
@@ -44,6 +47,9 @@ import type { DiferenciaPerfil, InventarioPerfilApi, SolicitudPerfil } from './t
  * recibió, con el mensaje listo. Las solicitudes aprobadas (también las en tránsito) y recibidas abren Inventario → Solicitudes con ella
  * a la vista y cada diferencia abre «Diferencias» (en solo lectura para ella); las pendientes no se tocan (como el
  * lienzo: ella no actúa sobre cada una). Solo se muestra lo que la app registra.
+ * Debajo de todo (el dueño 2026-10-23: «le interesa tener el detalle en lo que va cada solicitud»), la «Secuencia completa ·
+ * cada solicitud» del Super Administrador (SecuenciaCompleta.tsx, `modeloSecuencia`): Pidió → Aprobó → Recibió → «Ahora: …
+ * · a quién le toca», sin botones de aprobar ni de resolver; «Ver» abre la solicitud (o su diferencia, en solo lectura).
  * Lógica pura (orden, topes, textos, medidas y mensajes): `jefatura.modelo.ts`. La espera, el error y la línea bajo el
  * título los pone DetalleInventario.
  */
@@ -707,6 +713,10 @@ const VistaJefatura: React.FC<PropsVistaInventario> = ({ datos }) => {
     const grande = ancho >= ANCHO_DOS;
     const medidas = useMemo(() => ({ ancho, movil }), [ancho, movil]);
 
+    // «Secuencia completa · cada solicitud» (la de VistaSuperAdmin): cada solicitud con quién hizo cada paso y a quién le
+    // toca ahora. Daphne no aprueba ni resuelve: «Ahora: aprobar · Leonardo» le dice a quién apurar; «Ver» abre la solicitud.
+    const secuencia = useMemo(() => modeloSecuencia(datos), [datos]);
+    const sec = useSecuencia('inv-jf');
     const etapas = etapasJefatura(datos.circuito);
     const listas = listasJefatura(datos);
     const pendientes = diferenciasPendientes(datos);
@@ -773,6 +783,8 @@ const VistaJefatura: React.FC<PropsVistaInventario> = ({ datos }) => {
                             ctx={ctx(!sel)} />
                     ))}
                 </div>
+                {/* Debajo, en qué va cada solicitud (el dueño 2026-10-23): la misma secuencia del Super Administrador. */}
+                <SecuenciaCompleta className="pt-1" m={secuencia} sec={sec} onIrRuta={ir} />
             </div>
         </MedidasVista.Provider>
     );

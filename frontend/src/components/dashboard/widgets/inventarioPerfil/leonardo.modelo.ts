@@ -122,6 +122,11 @@ export interface FilaPorAprobarModelo {
     masAntigua: boolean;
     /** La pidió quien mira (SoD): nota apagada en vez del botón. */
     propia: boolean;
+    /**
+     * Al tocarla se resuelve AQUÍ (el dueño 2026-10-23): se despliega bajo la fila el detalle real de Inventario para
+     * aprobarla o rechazarla. Una propia (SoD) no: no se ofrece aprobar y la fila abre la solicitud en Inventario, como antes.
+     */
+    resuelveAqui: boolean;
     /** Abre Inventario → Solicitudes con esta solicitud (para aprobarla o rechazarla, o solo verla). */
     ruta: string;
 }
@@ -148,9 +153,40 @@ export function filaPorAprobar(s: SolicitudPerfil, i: number, total: number): Fi
         textoEspera: textoEspera(s.dias),
         masAntigua: i === 0 && total > 1,
         propia: esPropiaBloqueada(s),
+        resuelveAqui: !esPropiaBloqueada(s),
         ruta: rutaSolicitud(s),
     };
 }
+
+// ─────────────────────────────── Aprobar o rechazar aquí (2026-10-23) ───────────────────────────────
+
+/**
+ * El dueño (2026-10-23): «cuando haga clic en el botón de aprobar o rechazar te abra en el mismo lugar como un despliegue
+ * sobre ese pendiente para resolver enseguida y no me lleve hasta Inventario». Bajo la fila tocada (una abierta a la
+ * vez) va el detalle REAL de Inventario (TransferenciaDetail, con su «Revisar y aprobar» y «Rechazar», sus validaciones
+ * de stock, origen y SoD), envuelto por ResolverSolicitud.tsx.
+ */
+export const ROTULO_RESOLVER = 'Aprobar o rechazar aquí';
+
+/**
+ * Nota del despliegue cuando el Super Administrador mira «Ver como → quien aprueba»: lo que haga ahí es de verdad y
+ * queda a SU nombre (no al de quien aprueba).
+ */
+export const NOTA_RESOLVER_VER_COMO = 'Es de verdad: lo que apruebes o rechaces aquí queda a tu nombre.';
+
+/** Lo que, hecho en el despliegue y con éxito, lo cierra y vuelve a pedir el Inicio (la fila sale de la lista). */
+export type AccionResuelta = 'aprobar' | 'rechazar' | 'recibir_total' | 'recibir_parcial' | 'rechazar_recepcion' | 'cancelar' | 'eliminar';
+
+/** El modal-resumen con WhatsApp que Inventario abre tras la acción (TransferenciasPanel): solo al aprobar y al recibir. */
+export type ResumenTrasAccion = 'aprobar' | 'recibir_total' | 'recibir_parcial';
+
+/** Qué resumen abre cada acción (null: solo el aviso que ya da Inventario, p. ej. «Transferencia rechazada»). */
+export const resumenTrasAccion = (a: AccionResuelta): ResumenTrasAccion | null =>
+    (a === 'aprobar' || a === 'recibir_total' || a === 'recibir_parcial' ? a : null);
+
+/** La fila abierta, solo si sigue en la bandeja (tras «Actualizar» o lo que resolvió otra persona, puede haber salido). */
+export const abiertaVigente = (abierta: number | null | undefined, ids: readonly number[]): number | null =>
+    (abierta != null && ids.includes(abierta) ? abierta : null);
 
 // ─────────────────────────────── Franja del circuito ───────────────────────────────
 

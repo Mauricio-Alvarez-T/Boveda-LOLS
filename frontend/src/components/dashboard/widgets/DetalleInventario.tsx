@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Package, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useObra } from '../../../context/ObraContext';
@@ -44,6 +44,11 @@ interface Props {
      * datos de quien mira).
      */
     respaldo: React.ReactNode;
+    /**
+     * Se aprobó o rechazó algo aquí mismo (VistaLeonardo, 2026-10-23): además de volver a pedir el detalle, Dashboard
+     * vuelve a pedir la tarjeta «Inventario» de arriba (sus cifras).
+     */
+    onCambio?: () => void;
 }
 
 /**
@@ -57,7 +62,7 @@ interface Props {
  *   - cualquier otro perfil (y todo el que no tenga la pestaña «Solicitudes») → `respaldo` (lo de producción), sin
  *     pedir nada más.
  */
-const DetalleInventario: React.FC<Props> = ({ version, onIr, respaldo }) => {
+const DetalleInventario: React.FC<Props> = ({ version, onIr, respaldo, onCambio }) => {
     const { user, hasPermission } = useAuth();
     const vista = vistaInventario(hasPermission, user);
     const accion: Accion = { texto: 'Ir a Inventario', onClick: onIr };
@@ -70,10 +75,17 @@ const DetalleInventario: React.FC<Props> = ({ version, onIr, respaldo }) => {
     }
     // `key`: si cambia el perfil o la persona (otra sesión), la carga y lo elegido parten de cero.
     if (vista === 'superadmin') {
-        return <DetalleSuperAdmin key={`superadmin-${user?.id ?? ''}`} version={version} accion={accion} respaldo={respaldo} />;
+        return <DetalleSuperAdmin key={`superadmin-${user?.id ?? ''}`} version={version} accion={accion} respaldo={respaldo} onCambio={onCambio} />;
     }
-    return <DetalleConDatos key={vista} vista={vista} version={version} accion={accion} />;
+    return <DetalleConDatos key={vista} vista={vista} version={version} accion={accion} onCambio={onCambio} />;
 };
+
+/**
+ * Lo que reciben las vistas como `onCambio`: vuelve a pedir el detalle (se sigue viendo lo de antes hasta que llega) y
+ * avisa a Dashboard para la tarjeta de arriba.
+ */
+const useAlCambiar = (reintentar: () => void, onCambio?: () => void) =>
+    useCallback(() => { reintentar(); onCambio?.(); }, [reintentar, onCambio]);
 
 /** La espera o el error mientras no hay datos; con datos, `children` (y mientras recarga, se queda lo que se veía). */
 const ConCarga: React.FC<{
@@ -102,11 +114,14 @@ const ConCarga: React.FC<{
 };
 
 /** Las vistas propias de cada perfil (Leonardo, jefatura, obra): cargan GET /transferencias/inicio/perfil. */
-const DetalleConDatos: React.FC<{ vista: Exclude<VistaConDatos, 'superadmin'>; version?: unknown; accion: Accion }> = ({ vista, version, accion }) => {
+const DetalleConDatos: React.FC<{
+    vista: Exclude<VistaConDatos, 'superadmin'>; version?: unknown; accion: Accion; onCambio?: () => void;
+}> = ({ vista, version, accion, onCambio }) => {
     const { user, hasPermission } = useAuth();
     const { obras } = useObra();
     const carga = useInventarioPerfil(version);
     const { datos } = carga;
+    const alCambiar = useAlCambiar(carga.reintentar, onCambio);
     // El nombre de su obra: el de la respuesta; mientras llega, el del selector de obras (así el texto no salta).
     const obra = datos?.obra?.nombre ?? obras.find(o => o.id === user?.obra_id)?.nombre ?? null;
     // Si puede pedir: lo que dice la respuesta (lo mismo que mira VistaObra); mientras llega, los permisos del token.
@@ -116,7 +131,7 @@ const DetalleConDatos: React.FC<{ vista: Exclude<VistaConDatos, 'superadmin'>; v
 
     return (
         <DetalleModulo icon={Package} titulo="Inventario" descripcion={descripcion} accion={accion}>
-            <ConCarga carga={carga}>{d => <Vista datos={d} />}</ConCarga>
+            <ConCarga carga={carga}>{d => <Vista datos={d} onCambio={alCambiar} />}</ConCarga>
         </DetalleModulo>
     );
 };
@@ -128,11 +143,15 @@ const DetalleConDatos: React.FC<{ vista: Exclude<VistaConDatos, 'superadmin'>; v
  * la suya, de todas las obras. La elección se recuerda por persona en localStorage; la descripción bajo el título es la
  * de la vista elegida.
  */
-const DetalleSuperAdmin: React.FC<{ version?: unknown; accion: Accion; respaldo: React.ReactNode }> = ({ version, accion, respaldo }) => {
+const DetalleSuperAdmin: React.FC<{ version?: unknown; accion: Accion; respaldo: React.ReactNode; onCambio?: () => void }> = ({
+    version, accion, respaldo, onCambio,
+}) => {
     const { user } = useAuth();
     const { obras: globales, selectedObra } = useObra();
     const carga = useInventarioPerfil(version);
     const { datos } = carga;
+    // «Ver como → quien aprueba» también aprueba y rechaza ahí mismo (con los permisos reales del Super Administrador).
+    const alCambiar = useAlCambiar(carga.reintentar, onCambio);
     const userId = user?.id;
 
     // Lo elegido en la barra «Ver como» de arriba del Inicio (VerComoInicio, Marcos 2026-10-23), compartido.
@@ -172,7 +191,7 @@ const DetalleSuperAdmin: React.FC<{ version?: unknown; accion: Accion; respaldo:
                 }
                 const Vista = VISTAS[como];
                 // `key`: otra obra (o volver a una vista) parte limpia, sin filtros ni listas abiertas de la anterior.
-                return <Vista key={como === 'obra' ? `obra-${obraId}` : como} datos={datosVista} />;
+                return <Vista key={como === 'obra' ? `obra-${obraId}` : como} datos={datosVista} onCambio={alCambiar} />;
             }}</ConCarga>
         </DetalleModulo>
     );
