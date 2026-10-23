@@ -61,7 +61,7 @@ export const FichasReiterados: React.FC<{ lista: TrabajadorFaltas[]; onTrabajado
             const grave = reglas.includes('consecutivas');
             return (
                 <li key={t.trabajador_id}
-                    className="flex flex-col gap-3.5 rounded-[20px] bg-card p-5 text-foreground shadow-[var(--shadow-sm)]">
+                    className="@container flex flex-col gap-3.5 rounded-[20px] bg-card p-5 text-foreground shadow-[var(--shadow-sm)]">
                     <div className="flex items-center gap-3">
                         <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-section font-bold',
                             grave ? 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300' : 'bg-muted text-zinc-700 dark:text-zinc-300')}
@@ -94,11 +94,13 @@ export const FichasReiterados: React.FC<{ lista: TrabajadorFaltas[]; onTrabajado
                         <MiniCalendario fechas={t.fechas} anio={anio} mes={mes} hoyDia={hoyDia} />
                     </div>
                     {/* La acción va donde se ve el problema (dueño 2026-10-23): preguntar al grupo de asistencia
-                        qué pasó, con el mensaje ya escrito; WhatsApp se abre sin número y se elige el grupo. */}
+                        qué pasó, con el mensaje ya escrito; WhatsApp se abre sin número y se elige el grupo.
+                        En la ficha angosta (3 columnas a 1280 px, celular de 360) «al grupo» queda solo para
+                        lectores: así los dos enlaces caben en una línea. */}
                     <PieFicha>
                         <EnlaceFicha apagado onClick={() => { void shareViaWhatsApp(mensajeGrupoFaltas(t, hoyIso)); }}
                             icono={<WhatsAppIcon className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" />}>
-                            Preguntar al grupo
+                            Preguntar<span className="sr-only @[18.5rem]:not-sr-only"> al grupo</span>
                         </EnlaceFicha>
                         <EnlaceFicha onClick={() => onTrabajador(t.rut)}>Ver en asistencia</EnlaceFicha>
                     </PieFicha>
