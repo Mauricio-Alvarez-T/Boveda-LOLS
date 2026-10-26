@@ -6,6 +6,7 @@ import { AlertaAtrasosAlEntrar } from '../documentos-fisicos/AlertaAtrasosAlEntr
 import { IconButton } from '../ui/IconButton';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { EntornoBanner } from './EntornoBanner';
+import { FranjaVerComo } from './FranjaVerComo';
 import { Menu, Smartphone } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import { useAuth } from '../../context/AuthContext';
@@ -16,7 +17,7 @@ import { precargarSecciones } from '../../paginas';
  * (Marcos 2026-10-21: «acá no es necesario su uso»), así la barra respira. En el computador sigue visible.
  * Las demás páginas pueden ocultarlo igual con `useSetCentroMovil(…, { ocultarObra: true })`.
  */
-const SIN_OBRA_EN_CELULAR = ['/configuracion', '/ideas', '/ayuda', '/costos', '/obras-finalizadas', '/vehiculos'];
+const SIN_OBRA_EN_CELULAR = ['/configuracion', '/ideas', '/ayuda', '/costos', '/obras-finalizadas', '/vehiculos', '/soporte'];
 
 export const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -37,7 +38,9 @@ export const MainLayout: React.FC = () => {
     }, []);
 
     return (
-        <div className="flex min-h-[100dvh] bg-background">
+        // Columna: arriba la franja de «ver como» (si se está mirando como otra persona: sobre el menú y el contenido),
+        // abajo la fila menú + contenido, que ocupa el resto de la pantalla.
+        <div className="flex h-[100dvh] flex-col bg-background">
             {/* Mobile Orientation Lock Overlay — superficie oscura constante (independiente del tema) */}
             <div className="fixed inset-0 z-[9999] bg-neutral-900 flex-col items-center justify-center p-8 text-center overflow-hidden hidden max-md:landscape:flex">
                 {/* Giro en CSS (`.gira-telefono`, index.css): no corre mientras el overlay está oculto.
@@ -57,6 +60,10 @@ export const MainLayout: React.FC = () => {
                 </div>
             </div>
 
+            {/* «Ver como» (Soporte · usuarios): con quién, solo lectura, cuánto queda y «Volver a mi cuenta». */}
+            <FranjaVerComo />
+
+            <div className="flex min-h-0 flex-1">
             {/* Sidebar */}
             <Sidebar
                 isCollapsed={isCollapsed}
@@ -66,7 +73,7 @@ export const MainLayout: React.FC = () => {
             />
 
             {/* Main Content Area */}
-            <main className="flex-1 flex flex-col min-w-0 h-[100dvh]">
+            <main className="flex-1 flex flex-col min-w-0 h-full">
                 {/* Franja de entorno: solo en staging (VITE_ENTORNO), encima de todo. */}
                 <EntornoBanner />
                 {/* Al iniciar sesión: documentos en terreno pasados de 4 días hábiles (jefatura 2026-10-21). */}
@@ -132,6 +139,7 @@ export const MainLayout: React.FC = () => {
                     </div>
                 </div>
             </main>
+            </div>
         </div>
     );
 };

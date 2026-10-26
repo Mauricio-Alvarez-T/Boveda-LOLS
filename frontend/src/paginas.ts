@@ -16,6 +16,7 @@ export const cargarPagina = {
     configuracion: () => import('./pages/Settings'),
     ideas: () => import('./pages/Ideas'),
     costos: () => import('./pages/Costos'),
+    soporte: () => import('./pages/Soporte'),
 };
 
 /** Baja el código de todas las secciones (menos Login) sin bloquear: errores se ignoran, el `lazy` reintenta. */

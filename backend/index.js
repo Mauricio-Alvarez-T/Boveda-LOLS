@@ -502,6 +502,7 @@ safeRoute('/api/vehiculos', './src/routes/vehiculos.routes', 'Vehículos');
 safeRoute('/api/tutoriales-progreso', './src/routes/tutoriales.routes', 'Tutoriales (progreso Centro de ayuda)');
 safeRoute('/api/ideas', './src/routes/ideas.routes', 'Ideas para Bóveda (buzón de mejoras, mig 120)');
 safeRoute('/api/costos', './src/routes/costos.routes', 'Costos de obra (presupuesto, gastos e historial, mig 122)');
+safeRoute('/api/soporte', './src/routes/soporte.routes', 'Soporte · usuarios (ficha y «ver como», solo Super Administrador)');
 
 // ============================================
 // Health Check & Dashboard

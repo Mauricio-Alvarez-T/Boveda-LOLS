@@ -81,6 +81,8 @@ const moduloLabels: Record<string, string> = {
     'facturas-inventario': 'Facturas',
     // Sin esta entrada el Historial mostraba «Documentos lotes» (prettify del slug).
     'documentos-lotes': 'Documentos físicos',
+    // «<Super Admin> vio como <usuario>» (Soporte · usuarios, 2026-10-23; va con accion LOGIN: la columna es un ENUM).
+    soporte: 'Soporte · ver como',
 };
 
 /** Verbo legible por acción (para encabezados del detalle). */

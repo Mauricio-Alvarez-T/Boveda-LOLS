@@ -263,9 +263,14 @@ const activityLogger = async (req, res, next) => {
             // genérico (item_id 'discrepancias' o vacío, sin TRF ni ajustes), y la simulación (?simular=1) que no
             // escribe nada también. La ruta loguea manualmente solo lo REAL, con la TRF, el ítem y los ajustes.
             if (/^\/api\/transferencias\/discrepancias\/[^/]+\/(rehacer|resolver)$/.test(req.originalUrl.split('?')[0])) return;
+            // Soporte · usuarios: el «ver como» (POST) lo registra el service («<Super Admin> vio como <usuario>»);
+            // el genérico solo duplicaría un CREATE vacío.
+            if (/^\/api\/soporte(\/|$)/.test(req.originalUrl.split('?')[0])) return;
 
             try {
-                const usuario_id = req.user ? req.user.id : null;
+                // «Ver como» (token con `imp`) es solo lectura y auth.js corta antes todo POST/PUT/DELETE; si
+                // algo llegara igual, queda a nombre de quien mira, nunca del usuario mirado.
+                const usuario_id = req.user ? (req.user.imp ?? req.user.id) : null;
                 const ip = req.ip || req.connection.remoteAddress;
                 const item_id = extractedId || null;
 
@@ -323,11 +328,33 @@ const activityLogger = async (req, res, next) => {
     next();
 };
 
+/**
+ * «Ver como» (soporte, token con `imp`): lo que se registre durante la sesión prestada (p. ej. abrir un documento
+ * laboral, que es un GET con log) queda a nombre del Super Administrador que mira y marcado como «viendo como»,
+ * nunca a nombre del usuario mirado como si lo hubiera hecho él. Devuelve [usuario_id, detalle].
+ */
+function atribuirVerComo(usuario_id, detalle, req) {
+    const imp = req && req.user ? req.user.imp : undefined;
+    if (imp === undefined || imp === null) return [usuario_id, detalle];
+    const mirado = req.user.id;
+    const nota = `viendo como usuario #${mirado}`;
+    try {
+        const obj = typeof detalle === 'string' ? JSON.parse(detalle) : null;
+        if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+            obj.ver_como_usuario_id = mirado;
+            obj.resumen = obj.resumen ? `${obj.resumen} (${nota})` : `(${nota})`;
+            return [imp, JSON.stringify(obj)];
+        }
+    } catch { /* detalle de texto plano */ }
+    return [imp, detalle ? `${detalle} (${nota})` : `(${nota})`];
+}
+
 const logManualActivity = async (
     usuario_id, modulo, accion, item_id, detalle, req,
     extras = {}
 ) => {
     try {
+        [usuario_id, detalle] = atribuirVerComo(usuario_id, detalle, req);
         const ip = req ? (req.ip || req.connection.remoteAddress) : null;
         const user_agent = req ? req.get('User-Agent') : null;
 
@@ -349,4 +376,4 @@ const logManualActivity = async (
     }
 };
 
-module.exports = { activityLogger, logManualActivity, resolveEntidad };
+module.exports = { activityLogger, logManualActivity, resolveEntidad, atribuirVerComo };

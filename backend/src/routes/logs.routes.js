@@ -29,13 +29,15 @@ function buildLogsFilter(query) {
         desde, hasta, incluir_logins,
     } = query;
 
-    // LOGIN excluido por default — es ruido en el panel.
+    // LOGIN excluido por default — es ruido en el panel. Salvo los de `soporte` («<Super Admin> vio como
+    // <usuario>», soporte.service): van con accion LOGIN porque la columna es un ENUM cerrado (sin migración),
+    // y deben verse siempre en el historial.
     const showLogins = incluir_logins === 'true' || incluir_logins === true;
     if (!showLogins) {
         const noisy = [...NOISY_ACCIONES];
         if (noisy.length > 0) {
-            conds.push(`l.accion NOT IN (${noisy.map(() => '?').join(',')})`);
-            params.push(...noisy);
+            conds.push(`(l.accion NOT IN (${noisy.map(() => '?').join(',')}) OR l.modulo = ?)`);
+            params.push(...noisy, 'soporte');
         }
     }
 

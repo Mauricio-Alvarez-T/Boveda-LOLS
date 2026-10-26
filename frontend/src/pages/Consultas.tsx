@@ -56,7 +56,7 @@ import { useLotesPendientes } from '../hooks/useLotesPendientes';
 import { useDocumentosAlertas } from '../hooks/useDocumentosAlertas';
 import { useSeccionGestiones } from '../hooks/consultas/useSeccionGestiones';
 import { GestionesInicio } from '../components/consultas/GestionesInicio';
-import { SECCION_LABEL, type SeccionGestiones } from '../components/consultas/gestionesNav';
+import { SECCION_LABEL, permisosGestiones, type SeccionGestiones } from '../components/consultas/gestionesNav';
 import { TrabajadoresGrilla } from '../components/consultas/TrabajadoresGrilla';
 import { BuscadorTrabajadores } from '../components/consultas/BuscadorTrabajadores';
 import { ObraSelector } from '../components/layout/ObraSelector';
@@ -126,15 +126,15 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     const { hasPermission, user } = useAuth();
     // Ficha de ingreso digital: terreno solicita, oficina aprueba. Gestiones es visible con cualquiera de
     // estos permisos (ver Sidebar), así que puede no haber grilla: la sección la decide useSeccionGestiones.
-    const puedeVerTrabajadores = hasPermission('trabajadores.ver');
-    const verSolicitudes = hasPermission('trabajadores.solicitud.crear') || hasPermission('trabajadores.solicitud.aprobar');
     // Documentos físicos (plan Gestiones B6): RRHH arma lotes; el portador (encargado de obra) confirma los suyos.
-    const verFisicos = hasPermission('documentos.entrega.registrar') || hasPermission('documentos.entrega.portar');
+    // La regla de qué sección abre cada permiso vive en `permisosGestiones` (gestionesNav.ts; la usa también la
+    // ficha de Soporte · usuarios).
+    const { trabajadores: puedeVerTrabajadores, solicitudes: verSolicitudes, fisicos: verFisicos } = permisosGestiones(hasPermission);
     // Sección actual (plan Gestiones B8): portada con tarjetas, o trabajadores | solicitudes | fisicos.
     // La URL (?tab=) es la fuente de verdad; sin tab se abre lo último que usó esta persona (o la portada).
-    const permisosGestiones = useMemo(() => ({ trabajadores: puedeVerTrabajadores, solicitudes: verSolicitudes, fisicos: verFisicos }),
+    const permisosSecciones = useMemo(() => ({ trabajadores: puedeVerTrabajadores, solicitudes: verSolicitudes, fisicos: verFisicos }),
         [puedeVerTrabajadores, verSolicitudes, verFisicos]);
-    const { seccion, irA, disponibles } = useSeccionGestiones({ permisos: permisosGestiones, userId: user?.id, seccionFija });
+    const { seccion, irA, disponibles } = useSeccionGestiones({ permisos: permisosSecciones, userId: user?.id, seccionFija });
     const esGrilla = seccion === 'trabajadores';
     // Con una sola sección no hay portada ni switcher (se entra directo, como antes).
     // Con ≥2 secciones el título «Gestiones» es la casa (vuelve a la portada); el cambio de sección se hace desde ahí.
@@ -667,7 +667,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
             {/* Vista por sección (B8). Al aprobar una solicitud el trabajador ya existe → recargar la grilla. */}
             {seccion === 'inicio' ? (
                 <GestionesInicio
-                    permisos={permisosGestiones}
+                    permisos={permisosSecciones}
                     hasPermission={hasPermission}
                     solicitudesPendientes={solicitudes.cargado ? solicitudes.pendientes : null}
                     lotes={lotes.pendientes}

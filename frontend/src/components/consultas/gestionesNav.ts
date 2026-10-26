@@ -49,6 +49,19 @@ export function seccionesDisponibles(p: PermisosGestiones): SeccionTrabajo[] {
     return ORDEN.filter(s => p[s]);
 }
 
+/**
+ * Qué secciones de Gestiones abre cada permiso (Consultas.tsx y la ficha de «Soporte · usuarios» usan esta misma
+ * regla): la grilla con `trabajadores.ver`; Solicitudes de ingreso con crear o aprobar fichas (terreno solicita,
+ * oficina aprueba); Documentos físicos con registrar entregas (RRHH arma lotes) o portarlas (el encargado de obra).
+ */
+export function permisosGestiones(tiene: (permiso: string) => boolean): PermisosGestiones {
+    return {
+        trabajadores: tiene('trabajadores.ver'),
+        solicitudes: tiene('trabajadores.solicitud.crear') || tiene('trabajadores.solicitud.aprobar'),
+        fisicos: tiene('documentos.entrega.registrar') || tiene('documentos.entrega.portar'),
+    };
+}
+
 export interface EntradaResolucion {
     /** `searchParams.get('tab')`. */
     tab: string | null | undefined;
