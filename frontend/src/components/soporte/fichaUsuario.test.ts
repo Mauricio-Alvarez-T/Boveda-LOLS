@@ -1,6 +1,6 @@
 import {
-    avisosFicha, cambioDespuesDeIngresar, filtrarUsuarios, gruposPermisos, lugarUsuario, resumenFicha, rolesDeLista,
-    type FichaSoporte, type PermisoFicha, type UsuarioSoporte,
+    avisosFicha, cambioDespuesDeIngresar, entroHoy, filtrarUsuarios, gruposPermisos, lugarUsuario, resumenFicha, rolesDeLista,
+    textoIngreso, type FichaSoporte, type PermisoFicha, type UsuarioSoporte,
 } from './fichaUsuario';
 
 const usuario = (u: Partial<UsuarioSoporte> = {}): FichaSoporte['usuario'] => ({
@@ -167,5 +167,36 @@ describe('grupos, lista y buscador', () => {
         expect(lugarUsuario(LISTA[2])).toBe('Bodega Cerrillos');
         expect(lugarUsuario({ obra_nombre: 'Gorbea 3082', bodega_nombre: 'Central' })).toBe('Obra Gorbea 3082 · Bodega Central');
         expect(lugarUsuario(LISTA[0])).toBe('');
+    });
+});
+
+describe('último ingreso (textoIngreso, entroHoy)', () => {
+    // Fechas armadas en hora local: el resultado no depende de la zona horaria de la máquina.
+    const ahora = new Date(2026, 9, 26, 16, 5);
+    const iso = (...p: [number, number, number, number, number]) => new Date(...p).toISOString();
+
+    it('hoy y ayer con la hora; antes, el día; otro año, con el año', () => {
+        expect(textoIngreso(iso(2026, 9, 26, 14, 32), ahora)).toBe('hoy 14:32');
+        expect(textoIngreso(iso(2026, 9, 26, 0, 5), ahora)).toBe('hoy 00:05');
+        expect(textoIngreso(iso(2026, 9, 25, 9, 10), ahora)).toBe('ayer 09:10');
+        expect(textoIngreso(iso(2026, 9, 12, 8, 0), ahora)).toBe('12 oct');
+        expect(textoIngreso(iso(2026, 0, 3, 8, 0), ahora)).toBe('3 ene');
+        expect(textoIngreso(iso(2025, 11, 30, 8, 0), ahora)).toBe('30 dic 2025');
+    });
+
+    it('ayer también cruzando el mes', () => {
+        expect(textoIngreso(iso(2026, 9, 31, 22, 0), new Date(2026, 10, 1, 8, 0))).toBe('ayer 22:00');
+    });
+
+    it('sin dato o dato malo → «Sin ingresos»', () => {
+        expect(textoIngreso(null, ahora)).toBe('Sin ingresos');
+        expect(textoIngreso(undefined, ahora)).toBe('Sin ingresos');
+        expect(textoIngreso('no es fecha', ahora)).toBe('Sin ingresos');
+    });
+
+    it('entroHoy: solo el mismo día local', () => {
+        expect(entroHoy(iso(2026, 9, 26, 0, 1), ahora)).toBe(true);
+        expect(entroHoy(iso(2026, 9, 25, 23, 59), ahora)).toBe(false);
+        expect(entroHoy(null, ahora)).toBe(false);
     });
 });

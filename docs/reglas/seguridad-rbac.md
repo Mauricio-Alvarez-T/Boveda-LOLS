@@ -277,6 +277,14 @@ de `menuLateral.ts`, con su ícono) más «Comparte tu idea»: ✓ donde la ve, 
 mismo buscador y filtro por rol de la lista. Tocar a una persona abre su ficha (con historia: «atrás» vuelve al
 Panorama). Lógica pura y test: `components/soporte/panorama.ts`; tabla: `PanoramaPermisos.tsx`.
 
+**Último ingreso (Marcos 2026-10-26):** la lista de Personas («Entró hoy 14:32») y el Panorama (columna después de
+«Persona», y arriba «N hoy») muestran cuándo inició sesión cada uno por última vez. Es el mismo dato de la ficha: el
+`LOGIN` de `modulo = 'acceso'` más reciente de `logs_actividad` (lo escribe `auth.controller` al iniciar sesión), en una
+sola consulta agrupada (`ingresosPorUsuario` de `soporte.service.js`); el «ver como» se anota con `modulo = 'soporte'` a
+nombre del Super Administrador y **no cuenta**. Solo la fecha: no se guarda qué hizo la persona. Si el historial falla,
+la lista sigue y dice «Sin ingresos». Formato: `textoIngreso` (`fichaUsuario.ts`): «hoy 14:32», «ayer 09:10», «12 oct»,
+«30 dic 2025».
+
 **«Lo que puede usar <Nombre> (<rol>)» (Marcos 2026-10-26):** recuadro del Inicio **solo con «ver como» activo**: una
 tarjeta por sección de su menú (`menuVisible`, mismo orden) con lo que puede hacer ahí (pestañas, secciones, vista de
 Inventario del Inicio, permisos con «propio»/«quitado»/«$»; los de una sección que no ve van a «Otros permisos»). La ficha
