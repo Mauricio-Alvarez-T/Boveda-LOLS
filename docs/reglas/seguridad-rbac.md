@@ -76,6 +76,30 @@
 - `permisos_usuario_override`: grant/deny/default por usuario individual, con precedencia sobre el
   rol (UI: Settings → Usuarios → Permisos personalizados).
 
+## Matriz de roles (Configuración › Roles, 2026-10-26)
+
+- Los permisos de los roles se editan en una **matriz**: filas = pantallas de Bóveda agrupadas por
+  módulo, columnas = roles activos (con «N personas» = `usuarios_count`, subquery de `GET /usuarios/roles`),
+  celda = nivel **Nada · Mira · Trabaja · Todo**. Reemplazó la tabla de roles + el modal de casillas
+  (`PermisosRolPanel`, borrado). Los overrides por persona siguen en Usuarios.
+- **Los niveles son solo UI** (`frontend/src/config/permisosPantallas.ts`): cada nivel = un conjunto
+  exacto de claves; el backend sigue guardando la lista plana (`POST /usuarios/roles/:id/permisos`, que
+  sube `roles.version` → quien tenga el rol vuelve a entrar). Una mezcla que no calza = **«A medida»**,
+  editable en el ajuste fino de la celda.
+- **`$` y delicados nunca los da un nivel**: se marcan a mano en el ajuste fino. Delicados = borrar para
+  siempre, saltarse aprobaciones (push directo, intra-bodega, orden de gerencia, bypass SoD, cancelar en
+  tránsito), tocar usuarios/roles/permisos, correo del sistema, estados de asistencia, imprimir contratos.
+- Reglas automáticas: `inventario.ver` se pone/saca solo según las pantallas de Inventario; en
+  Asistencia y Gestiones la fila puerta (`asistencia.ver`, `reportes.ver`) se enciende al subir otra fila
+  del módulo y apagarla apaga el módulo (salvo filas libres: Ingresos de trabajadores, Documentos
+  físicos, Sistema); quitar el «ver» de una pantalla la apaga entera. Claves que la matriz no conoce se
+  conservan al guardar.
+- **Permiso nuevo ⇒ además de catálogo + `permisosHierarchy.ts` (panel de overrides), darle fila o
+  marca en `permisosPantallas.ts`.** `permisosPantallas.test.ts` lee el catálogo del backend y falla si
+  una clave no está en la matriz exactamente una vez.
+- Super Administrador (rol 1) se muestra bloqueado en «Todo». Sin `usuarios.permisos.gestionar` la
+  matriz es de solo lectura.
+
 ## Roles: Super Administrador vs Administrador (2026-10-21)
 
 - **Super Administrador** = quienes programan y prueban (Marcos, Mauricio): todo el catálogo. Se reconoce por el

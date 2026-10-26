@@ -946,7 +946,8 @@ Si necesitas un tipo de acción nuevo (ej. `EXPORT`, `APPROVAL`):
 > relacionada con dinero. Implementado en migración 043 + módulo `Financiero`
 > del catálogo de permisos. Política **deny-by-default**: sólo Super Admin
 > recibe estos permisos automáticamente; admin asigna manualmente al resto
-> vía `PermisosRolPanel` o `PermisosUsuarioPanel` (Overrides).
+> vía la matriz de roles (Configuración › Roles, ajuste fino de la celda) o
+> `PermisosUsuarioPanel` (Overrides).
 
 ### 15.1 Lista de permisos $
 
