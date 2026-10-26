@@ -57,6 +57,7 @@ import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
 import { NovedadesModal } from '../components/novedades/NovedadesModal';
 import InicioGerencia from '../components/dashboard/widgets/gerencia/InicioGerencia';
 import { esSuperAdmin } from '../components/dashboard/widgets/inventarioPerfil/perfil';
+import { AccesosVerComoInicio } from '../components/soporte/AccesosVerComoInicio';
 
 // ─── Types ───
 interface DocExpiryItem {
@@ -609,6 +610,10 @@ const Dashboard: React.FC = () => {
                     )}
                 </div>
             )}
+
+            {/* «Ver como» de Soporte (Marcos 2026-10-26): lo que puede usar esta persona, parte por parte de su menú. Solo con la
+                sesión prestada (sin ella no dibuja nada); en el celular va sobre el detalle abierto. */}
+            {(activo === null || esCelular) && <AccesosVerComoInicio />}
 
             {/* ─── Detalle del módulo elegido (se irá sumando más información y gráficos) ─── */}
             {/* Sin detalle abierto, el espacio bajo las tarjetas lleva la marca y accesos directos (propuesta C,

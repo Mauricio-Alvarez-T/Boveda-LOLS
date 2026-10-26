@@ -15,6 +15,7 @@ import { cn } from '../utils/cn';
 import { esSuperAdmin } from '../components/dashboard/widgets/inventarioPerfil/perfil';
 import { FichaPersona } from '../components/soporte/FichaPersona';
 import { filtrarUsuarios, lugarUsuario, rolesDeLista, type FichaSoporte, type UsuarioSoporte } from '../components/soporte/fichaUsuario';
+import { fichaParaVerComo } from '../components/soporte/accesosPerfil';
 import type { RespuestaVerComo } from '../context/verComoSesion';
 
 /**
@@ -95,13 +96,16 @@ const SoportePage: React.FC = () => {
         setAbriendo(true);
         try {
             const res = await api.post<{ data: RespuestaVerComo }>(`/soporte/usuarios/${idElegido}/ver-como`);
-            entrarVerComo(res.data.data); // recarga la app como esa persona
+            // Con su ficha (nombres y origen de sus permisos): el recuadro «Lo que puede usar…» de su Inicio la usa, porque
+            // mientras se ve como ella no se puede pedir. Recarga la app como esa persona.
+            const fichaElegida = fichas[idElegido];
+            entrarVerComo(res.data.data, fichaElegida ? fichaParaVerComo(fichaElegida) : null);
         } catch (e) {
             // El 403 ya lo avisa el interceptor (api.ts); el resto, aquí.
             if (!(isAxiosError(e) && e.response?.status === 403)) toast.error(mensajeError(e, 'No se pudo abrir «ver como»'));
             setAbriendo(false);
         }
-    }, [idElegido, entrarVerComo]);
+    }, [idElegido, entrarVerComo, fichas]);
 
     if (!superAdmin) {
         return <EmptyState icon={UserSearch} title="Solo para el Super Administrador" description="Esta sección es para revisar las cuentas de los demás cuando preguntan por un problema." />;

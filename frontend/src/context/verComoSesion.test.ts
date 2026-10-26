@@ -1,7 +1,7 @@
 import {
-    CLAVE_AVISO_VER_COMO, CLAVE_VER_COMO, borrarSesionVerComo, esErrorSoloLectura, guardarAvisoVerComo, guardarSesionVerComo,
-    leerSesionVerComo, minutosRestantes, rutaAlSalir, sesionDesdeRespuesta, textoVence, tokenVerComoGuardado, tomarAvisoVerComo,
-    type Almacen, type RespuestaVerComo,
+    CLAVE_AVISO_VER_COMO, CLAVE_VER_COMO, borrarSesionVerComo, esErrorSoloLectura, fichaVerComoValida, guardarAvisoVerComo,
+    guardarSesionVerComo, leerSesionVerComo, minutosRestantes, rutaAlSalir, sesionDesdeRespuesta, textoVence, tokenVerComoGuardado,
+    tomarAvisoVerComo, type Almacen, type FichaVerComo, type RespuestaVerComo,
 } from './verComoSesion';
 
 /** Un sessionStorage falso. */
@@ -77,6 +77,44 @@ describe('sesión prestada', () => {
         expect(a.datos[CLAVE_AVISO_VER_COMO]).toBe('Volviste a tu cuenta.');
         expect(tomarAvisoVerComo(a)).toBe('Volviste a tu cuenta.');
         expect(tomarAvisoVerComo(a)).toBeNull();
+    });
+});
+
+describe('la ficha de Soporte guardada con la sesión (recuadro «Lo que puede usar…» del Inicio)', () => {
+    const FICHA: FichaVerComo = {
+        usuarioId: 7, nombre: 'Leonardo López', rol: 'Administrador',
+        permisos: [
+            { clave: 'inventario.ver', modulo: 'Inventario', nombre: 'Ver Inventario', descripcion: null, orden: 1, origen: 'rol' },
+            { clave: 'inventario.transferencias.aprobar', modulo: 'Inventario', nombre: 'Aprobar Transferencia', orden: 15, origen: 'propio' },
+        ],
+    };
+
+    test('se guarda y se lee con la sesión, y se borra con ella', () => {
+        const a = almacenFalso();
+        guardarSesionVerComo(a, sesionDesdeRespuesta(RESPUESTA, FICHA)!);
+        expect(leerSesionVerComo(a, AHORA)?.ficha).toEqual(FICHA);
+        borrarSesionVerComo(a);
+        expect(a.datos[CLAVE_VER_COMO]).toBeUndefined();
+    });
+
+    test('sin ficha, o con la de otra persona, la sesión vale igual (sin ficha)', () => {
+        expect(sesionDesdeRespuesta(RESPUESTA)?.ficha).toBeUndefined();
+        expect(sesionDesdeRespuesta(RESPUESTA, null)?.ficha).toBeUndefined();
+        const otra = sesionDesdeRespuesta(RESPUESTA, { ...FICHA, usuarioId: 8 });
+        expect(otra).not.toBeNull();
+        expect(otra?.ficha).toBeUndefined();
+    });
+
+    test('una ficha guardada rota no tumba la sesión: se lee sin ella; los permisos incompletos se descartan', () => {
+        const s = sesionDesdeRespuesta(RESPUESTA)!;
+        const a = almacenFalso({ [CLAVE_VER_COMO]: JSON.stringify({ ...s, ficha: { usuarioId: 7, permisos: 'no' } }) });
+        const leida = leerSesionVerComo(a, AHORA);
+        expect(leida?.token).toBe('tok.prestado');
+        expect(leida?.ficha).toBeUndefined();
+        const mezcla = fichaVerComoValida({ ...FICHA, permisos: [...FICHA.permisos, { clave: 'x' }, { clave: 'y', modulo: 'M', nombre: 'Y', origen: 'otro' }] }, 7);
+        expect(mezcla?.permisos.map(p => p.clave)).toEqual(['inventario.ver', 'inventario.transferencias.aprobar']);
+        expect(fichaVerComoValida(null, 7)).toBeNull();
+        expect(fichaVerComoValida({ usuarioId: 7, permisos: [] }, 7)).toEqual({ usuarioId: 7, nombre: '', rol: '', permisos: [] });
     });
 });
 

@@ -4,7 +4,7 @@ import type { User, AuthResponse } from '../types';
 import {
     AVISOS_VER_COMO, almacenSesion, borrarSesionVerComo, guardarAvisoVerComo, guardarSesionVerComo,
     leerSesionVerComo, rutaAlSalir, sesionDesdeRespuesta, tokenVerComoGuardado, tomarAvisoVerComo,
-    type RespuestaVerComo, type SesionVerComo,
+    type FichaVerComo, type RespuestaVerComo, type SesionVerComo,
 } from './verComoSesion';
 
 interface AuthContextType {
@@ -21,8 +21,11 @@ interface AuthContextType {
      * cual la ve ella) y el servidor rechaza todo lo que no sea lectura. Opcional: los sandbox de Ayuda no lo traen.
      */
     verComo?: SesionVerComo | null;
-    /** Entra a «ver como» con la respuesta del servidor y abre el Inicio de esa persona (recarga la app). */
-    entrarVerComo?: (r: RespuestaVerComo) => void;
+    /**
+     * Entra a «ver como» con la respuesta del servidor y abre el Inicio de esa persona (recarga la app). `ficha` = lo de su
+     * ficha de Soporte (nombres y origen de sus permisos), para el recuadro «Lo que puede usar…» del Inicio.
+     */
+    entrarVerComo?: (r: RespuestaVerComo, ficha?: FichaVerComo | null) => void;
     /** Vuelve a la cuenta propia (recarga en Soporte). `aviso`: qué decir al volver (venció, etc.). */
     salirVerComo?: (aviso?: string) => void;
 }
@@ -102,8 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         recargarEn(volverA);
     }, []);
 
-    const entrarVerComo = useCallback((r: RespuestaVerComo) => {
-        const s = sesionDesdeRespuesta(r);
+    const entrarVerComo = useCallback((r: RespuestaVerComo, ficha?: FichaVerComo | null) => {
+        const s = sesionDesdeRespuesta(r, ficha);
         if (!s || !guardarSesionVerComo(almacenSesion(), s)) {
             toast.error('No se pudo abrir «ver como»: este navegador no deja guardar la sesión de la pestaña.');
             return;
