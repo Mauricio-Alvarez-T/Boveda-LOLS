@@ -130,7 +130,8 @@ Implementación: `backend/src/services/transferencia.service.js`.
 Detalle «Inventario» del Inicio, lo que se abre bajo la tarjeta (sus cifras: § Tarjeta «Inventario» del Inicio, abajo).
 El dueño eligió del lienzo: **Leonardo** (quien aprueba) → opción A, **Daphne** (jefatura, «Ver diferencias» sin
 aprobar) → opción B, **jefes de obra y prevencionistas** → opción A, y **Marcos y Mauricio** (Super Administrador) →
-la vista «Super Administrador» de la opción A, con «Ver como» para mirar también las de los demás (§ «Ver como», abajo).
+la vista «Super Administrador» de la opción A (sin «Ver como» desde 2026-10-26: las vistas de los demás se revisan en
+Soporte · usuarios, seguridad-rbac.md § Ver como usuario).
 `transferenciaService.inicioPerfil(user)` (`inventario.ver`, ruta ANTES de `/:id`) devuelve `{ data }` con todo lo que
 necesitan las tres vistas. Solo usa columnas y reglas que ya están en producción. Contrato (tipos) y carga:
 `frontend/src/components/dashboard/widgets/inventarioPerfil/` (`tipos.ts`, `useInventarioPerfil.ts`). Test:
@@ -222,8 +223,7 @@ pide la **combinación** de permisos con que funciona, no un permiso suelto. Ant
 caía en la bandeja de todas las obras sin tener `ver_todas` (el servidor no le manda las pendientes ajenas) y perdía su
 «Pedir materiales» y «Recibir»; un prevencionista que solo recibe caía en lo de producción.
 0. **Super Administrador** (rol 1: Marcos y Mauricio) → **`VistaSuperAdmin`** (diseño «Super Administrador» de la
-   opción A del lienzo; circuito de tres pasos, sin «Despachada»: § Circuito de tres pasos, arriba), con el selector
-   **«Ver como»** arriba (abajo). Va primero porque tiene `aprobar` y todo lo demás. Mismo
+   opción A del lienzo; circuito de tres pasos, sin «Despachada»: § Circuito de tres pasos, arriba). Va primero porque tiene `aprobar` y todo lo demás. Mismo
    criterio que el servidor (`super_admin: Number(user.rol_id) === 1`) y que `TransferenciasPanel` (`rol_id === 1`):
    `esSuperAdmin` de `perfil.ts`.
 1. **Sin la pestaña «Solicitudes»** (`inventario.tab.transferencias`) → lo de producción (punto 5), tenga lo que tenga.
@@ -257,8 +257,6 @@ caía en la bandeja de todas las obras sin tener `ver_todas` (el servidor no le 
      archivos para que no se reescriba aprobar ni rechazar. Si la solicitud cambió mientras tanto, el detalle muestra lo
      que corresponde a su estado (como en Inventario).
    - **Propia (SoD)**: no se ofrece aprobar (nota apagada, como antes) y la fila abre la solicitud en Inventario.
-   - **«Ver como → quien aprueba»** del Super Administrador también despliega y aprueba de verdad, con SUS permisos y a
-     SU nombre: el despliegue lo dice («Es de verdad: lo que apruebes o rechaces aquí queda a tu nombre.»).
    - El aviso «N diferencias sin aclarar» sigue llevando a Inventario → Diferencias.
    - «Abrir en Inventario» y las propias abren `estado=pendiente&id=N`: **necesita que `Inventario.tsx` lea `id`** (`trfNavIntent`), que llegó a
      develop con las fichas (1a232c02) y no está en producción. Va con esta vista al promoverla (lo cuida un test de
@@ -286,36 +284,12 @@ para `perfil`). Las vistas reciben `{ datos }` (`PropsVistaInventario`) y compar
 `inventarioPerfil/formato.ts` (fechas, cantidades con su unidad, frases de ítems y diferencias, nombres, enlaces; con
 test).
 
-#### «Ver como» (solo Super Administrador, 2026-10-22)
+#### «Ver como» del Inicio — QUITADO (2026-10-26)
 
-Marcos: «con Mauricio tengamos una vista propia como super administradores pero que a la vez igual podamos ver los
-formatos de otros trabajadores ya que somos los programadores». Selector `inventarioPerfil/VerComo.tsx` (lógica pura en
-`verComo.modelo.ts` y `comoObra.ts`, con test) arriba del contenido, con **una sola carga**: la del Super Administrador
-(alcance de todas las obras, con la lista de diferencias). No pide nada más ni da permisos: solo cambia cómo se muestra
-lo que él ya puede ver, **recalculado para cada perfil** (lo que el servidor calculó para el Super Administrador —SoD,
-`propia`, `sod_bypass`, los grupos de la tarjeta— no se arrastra). Las etiquetas son roles, **nunca un nombre fijo**:
-- **Super Admin** (por defecto) → `VistaSuperAdmin`.
-- **Quien aprueba** (su primer nombre, de `aprobadores`: «Leonardo», «Leonardo o Ana»; sin nadie, «Quien aprueba») →
-  `VistaLeonardo` con `comoAprobador`: mismo alcance, sin `sod_bypass` ni `super_admin`; con un solo aprobador, lo que
-  pidió él es `propia` y no lo puede aprobar (`bloqueo_aprobar: 'sod_solicitante'`), como lo vería él.
-- **Jefatura** → `VistaJefatura` con lo que puede quien ve diferencias sin aprobar (`comoJefatura`): no aprueba ni las
-  resuelve (`puede_aprobar` null, `propia` false).
-- **Jefe de obra** → `VistaObra` con `comoObra`: las solicitudes de esa obra (`deLaObra`: las que van a ella y las
-  devoluciones y traslados que **salen** de ella, que pide su jefe de obra, mig 080; VistaObra las pone en «Va a otro
-  lugar»; un pedido normal que saca stock de esa obra para otra no cuenta), todas como propias y sin nada de aprobar,
-  `obra` = esa obra, `puede` de un jefe de obra (pide y recibe; sin aprobar, sin ver diferencias, sin `sod_bypass`),
-  `diferencias` null pero con el **conteo** de las de esa obra en el circuito (y `mas_antigua_id`, para que el aviso
-  abra esa solicitud), y el circuito recalculado desde esas listas (con sus topes; la «última recibida» solo si está
-  entre las que llegaron). Un selector de obra al lado: por defecto la del selector global de arriba (`ObraContext`) si
-  tiene alguna elegida; si no, la de más solicitudes. Las obras a elegir: las de la respuesta + las del selector global
-  (sin prueba, finalizadas, inactivas ni las que no participan en transferencias).
-- Sin «Otros perfiles» (Marcos 2026-10-23: «en los que ya creamos están las personas que van a trabajar los apartados
-  de Inicio; el resto simplemente mira o presiona para que el ciclo de inventario se cumpla»).
-
-Cada opción que no es la propia lleva una **nota chica** que dice qué se ve («Así lo ve Leonardo, con los mismos datos»;
-en «Jefe de obra», que un jefe real ve solo lo que pidió él). La descripción bajo «Inventario» es la de la vista elegida.
-La elección se recuerda por persona en `localStorage` (`boveda-inicio-inventario-ver-como:<id>`, comodidad: si falla o
-no hay, vuelve a «Super Admin»); como no vence, la nota evita confundir otra vista con la propia.
+Existió del 22 al 26-10: una barra arriba del Inicio del Super Administrador para mirar el formato de las vistas de
+los demás con sus propios datos. Marcos la sacó: su Inicio queda solo con su vista (sin el tablero de gerencia), y para
+revisar la experiencia de otra persona se usa **Soporte · usuarios** («Ver como esta persona», con los datos y permisos
+reales de esa persona, en solo lectura: seguridad-rbac.md § Ver como usuario (soporte)).
 
 #### Vista del Super Administrador (`VistaSuperAdmin`, 2026-10-22)
 

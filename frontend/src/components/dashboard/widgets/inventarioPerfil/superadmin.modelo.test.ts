@@ -8,7 +8,6 @@ import {
 } from './superadmin.modelo';
 import type { CircuitoPerfil, DiferenciaPerfil, InventarioPerfilApi, LugarPerfil, SolicitudPerfil } from './tipos';
 import { idsSecuencia } from './useSecuencia';
-import { comoJefatura } from './verComo.modelo';
 
 const NB = String.fromCharCode(160);
 const HOY = '2026-10-22';
@@ -687,8 +686,8 @@ describe('modeloSecuencia (SecuenciaCompleta: Super Administrador y jefatura, 20
         expect(modeloSecuencia(datos({ diferencias: null }))).toEqual(secuenciaDe(modeloSuperAdmin(datos({ diferencias: null }))));
     });
 
-    test('con lo que ve jefatura (Ver como): las mismas filas; «Ahora: aprobar» le dice a quién apurar', () => {
-        const jefatura = modeloSecuencia(comoJefatura(datos()));
+    test('con lo que ve jefatura: las mismas filas; «Ahora: aprobar» le dice a quién apurar', () => {
+        const jefatura = modeloSecuencia(datos({ perfil: 'jefatura', super_admin: false }));
         expect(jefatura).toEqual(modeloSecuencia(datos()));
         const aprobar = jefatura.porGrupo.aprobar[0];
         expect(aprobar.ahora).toBe('aprobar · Leonardo López');

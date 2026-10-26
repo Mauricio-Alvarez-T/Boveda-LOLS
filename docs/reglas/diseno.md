@@ -644,13 +644,8 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       quien aprueba · Obras · Jefatura— en una tarjeta, «Lo último que pasó» al lado del mismo alto —se desliza por
       dentro— y abajo, a todo el ancho, la «Secuencia completa» por paso con pestañas; un paso que la app no registró va
       en gris, «Pidió · sin datos aquí»; los cuatro pasos en columnas solo si la lista mide 32rem o más, con
-      `@container`: si no, en vertical) con **«Ver como»** arriba (`VerComo.tsx`): Super Admin · quien
-      aprueba (su nombre, de la respuesta) · Jefatura · Jefe de obra (+ selector de obra de 44 px) (sin «Otros perfiles», Marcos 2026-10-23), con
-      los mismos datos recalculados para cada perfil (etiquetas por rol, nunca un nombre fijo). Es un control segmentado como `FiltroFichas`
-      (marco `bg-card` con sombra chica, indicador verde de ítem elegido de `PestanasElasticas`, sin cifras) dentro de
-      `BarraPaginada` (en el celular va de a páginas, §9.6); opciones de 44 px de alto en el celular; rótulo «VER COMO»
-      (`ROTULO_FICHAS`) y una nota chica `text-xs` en cada opción que no es la propia (qué se está viendo). La línea
-      bajo el título cambia con el perfil (y con lo elegido en «Ver como»; textos del lienzo). Regla de quién ve qué:
+      `@container`: si no, en vertical). Sin «Ver como» desde 2026-10-26 (las vistas de los demás se revisan en
+      Soporte · usuarios). La línea bajo el título cambia con el perfil (textos del lienzo). Regla de quién ve qué:
       inventario-transferencias.md § Qué vista ve cada uno. Piezas en `widgets/inventarioPerfil/`.
       **Circuito de tres pasos (2026-10-23, don Luis: bodegueros y conductores fuera del ciclo de solicitud)**: en las
       cuatro vistas el circuito es Pedida → Aprobada · por recibir → Recibida (+ Diferencias aparte), sin «Despachada»:
@@ -700,10 +695,10 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     (`xl`), 2×2 en tablet y una bajo otra en celular (`COLUMNAS` según cuántas ve el perfil). Lógica pura
     con test: `resumenFaltasMes.ts`,
     `resumenDocumentosInicio.ts`, `resumenInventarioInicio.ts`, `inventarioPerfil/perfil.ts`,
-    `inventarioPerfil/formato.ts`, `inventarioPerfil/verComo.modelo.ts`, `inventarioPerfil/comoObra.ts`,
+    `inventarioPerfil/formato.ts`,
     `fichasVehiculosInicio.ts`.
 15. **Inicio de gerencia (don Luis Lazcano, dueño 2026-10-23: opción B «Tablero por tema» del lienzo).** Arriba de
-    las tarjetas de siempre, solo con `inicio.gerencia` (mig 134, seguridad-rbac.md; el Super Admin también lo ve).
+    las tarjetas de siempre, solo con `inicio.gerencia` (mig 134, seguridad-rbac.md; el Super Admin NO lo ve en su Inicio desde 2026-10-26: lo revisa en Soporte · usuarios).
     `InicioGerencia.tsx` + lógica pura `gerencia.modelo.ts` y textos de WhatsApp en `mensajes.ts` (los dos con test
     jest), en `components/dashboard/widgets/gerencia/`; datos de `GET /api/dashboard/gerencia`
     (`inicioGerencia.service.js`, una respuesta, consultas fijas y en secuencia, sin obras de prueba ni finalizadas;

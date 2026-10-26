@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback } from 'react';
 import { Package, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useObra } from '../../../context/ObraContext';
@@ -7,16 +7,12 @@ import { Button } from '../../ui/Button';
 import { SkeletonText } from '../../ui/Skeleton';
 import { DetalleModulo } from './DetalleModulo';
 import type { EstadoInventarioPerfil } from './inventarioPerfil/cargaInventarioPerfil';
-import { obraPorDefecto, obrasVerComo } from './inventarioPerfil/comoObra';
 import { TARJETA } from './inventarioPerfil/formato';
 import {
     DESCRIPCION_RESPALDO, PERMISOS_PEDIR, descripcionInventario, vistaInventario, type PropsVistaInventario, type VistaInventario,
 } from './inventarioPerfil/perfil';
 import type { InventarioPerfilApi } from './inventarioPerfil/tipos';
 import { useInventarioPerfil } from './inventarioPerfil/useInventarioPerfil';
-import { useVerComo } from './inventarioPerfil/useVerComo';
-import VerComo from './inventarioPerfil/VerComo';
-import { datosVerComo, descripcionVerComo } from './inventarioPerfil/verComo.modelo';
 import VistaJefatura from './inventarioPerfil/VistaJefatura';
 import VistaLeonardo from './inventarioPerfil/VistaLeonardo';
 import VistaObra from './inventarioPerfil/VistaObra';
@@ -54,8 +50,8 @@ interface Props {
 /**
  * Detalle «Inventario» del Inicio por perfil (Marcos 2026-10-22, del lienzo de diseño): elige la vista según el rol y
  * los permisos (`vistaInventario`) y pone la descripción bajo el título (`descripcionInventario`):
- *   - Super Administrador (rol 1) → VistaSuperAdmin, con el selector «Ver como» arriba para mirar también las vistas de
- *     los demás con los mismos datos, recalculados para cada perfil (DetalleSuperAdmin, abajo).
+ *   - Super Administrador (rol 1) → VistaSuperAdmin (su vista, sin «Ver como»: Marcos 2026-10-26; las vistas de los
+ *     demás se revisan en Soporte · usuarios).
  *   - ve todas las obras y aprueba → VistaLeonardo · ve todas y las diferencias sin aprobar → VistaJefatura · sin ver
  *     todas ni bodega, pide o recibe para su obra → VistaObra. Todas con GET /transferencias/inicio/perfil (se pide al
  *     abrirlo y con «Actualizar»).
@@ -73,10 +69,7 @@ const DetalleInventario: React.FC<Props> = ({ version, onIr, respaldo, onCambio 
             </DetalleModulo>
         );
     }
-    // `key`: si cambia el perfil o la persona (otra sesión), la carga y lo elegido parten de cero.
-    if (vista === 'superadmin') {
-        return <DetalleSuperAdmin key={`superadmin-${user?.id ?? ''}`} version={version} accion={accion} respaldo={respaldo} onCambio={onCambio} />;
-    }
+    // `key`: si cambia el perfil, la carga parte de cero.
     return <DetalleConDatos key={vista} vista={vista} version={version} accion={accion} onCambio={onCambio} />;
 };
 
@@ -115,7 +108,7 @@ const ConCarga: React.FC<{
 
 /** Las vistas propias de cada perfil (Leonardo, jefatura, obra): cargan GET /transferencias/inicio/perfil. */
 const DetalleConDatos: React.FC<{
-    vista: Exclude<VistaConDatos, 'superadmin'>; version?: unknown; accion: Accion; onCambio?: () => void;
+    vista: VistaConDatos; version?: unknown; accion: Accion; onCambio?: () => void;
 }> = ({ vista, version, accion, onCambio }) => {
     const { user, hasPermission } = useAuth();
     const { obras } = useObra();
@@ -132,67 +125,6 @@ const DetalleConDatos: React.FC<{
     return (
         <DetalleModulo icon={Package} titulo="Inventario" descripcion={descripcion} accion={accion}>
             <ConCarga carga={carga}>{d => <Vista datos={d} onCambio={alCambiar} />}</ConCarga>
-        </DetalleModulo>
-    );
-};
-
-/**
- * El Super Administrador (Marcos y Mauricio): su vista y, con «Ver como» (inventarioPerfil/VerComo.tsx y verComo.modelo.ts),
- * las de quien aprueba, jefatura, un jefe de obra (con selector de obra: por defecto la del selector global de arriba,
- * si no la de más movimiento). Sin «Otros perfiles» (Marcos 2026-10-23). Una sola carga:
- * la suya, de todas las obras. La elección se recuerda por persona en localStorage; la descripción bajo el título es la
- * de la vista elegida.
- */
-const DetalleSuperAdmin: React.FC<{ version?: unknown; accion: Accion; respaldo: React.ReactNode; onCambio?: () => void }> = ({
-    version, accion, respaldo, onCambio,
-}) => {
-    const { user } = useAuth();
-    const { obras: globales, selectedObra } = useObra();
-    const carga = useInventarioPerfil(version);
-    const { datos } = carga;
-    // «Ver como → quien aprueba» también aprueba y rechaza ahí mismo (con los permisos reales del Super Administrador).
-    const alCambiar = useAlCambiar(carga.reintentar, onCambio);
-    const userId = user?.id;
-
-    // Lo elegido en la barra «Ver como» de arriba del Inicio (VerComoInicio, Marcos 2026-10-23), compartido.
-    const [como] = useVerComo(userId);
-
-    // «Jefe de obra»: la obra que se tocó aquí; mientras no se toque ninguna, sigue a la de arriba (o la de más movimiento).
-    const [obraElegida, setObraElegida] = useState<number | null>(null);
-    const opciones = useMemo(() => (datos ? obrasVerComo(datos, globales) : []), [datos, globales]);
-    const obraId = obraPorDefecto(opciones, { elegida: obraElegida, global: selectedObra?.id ?? null });
-    const obra = opciones.find(o => o.id === obraId) ?? null;
-
-    const datosVista = useMemo(() => (datos ? datosVerComo(como, datos, obra) : null), [como, datos, obra]);
-    const descripcion = descripcionVerComo(como, { obra: obra?.nombre, aprobadores: datos?.aprobadores });
-
-    // «Gerencia»: en Inventario don Luis ve lo general (el respaldo, como el resto de los Administradores).
-    if (como === 'gerencia') {
-        return (
-            <DetalleModulo icon={Package} titulo="Inventario" descripcion={descripcion} accion={accion}>
-                {respaldo}
-            </DetalleModulo>
-        );
-    }
-
-    return (
-        <DetalleModulo icon={Package} titulo="Inventario" descripcion={descripcion} accion={accion}>
-            {como === 'obra' && (
-                <VerComo modo="obra" como={como} onComo={() => {}} aprobadores={datos?.aprobadores}
-                    obras={opciones} obra={obraId} onObra={setObraElegida} />
-            )}
-            <ConCarga carga={carga}>{() => {
-                if (!datosVista) {
-                    return (
-                        <div className={TARJETA}>
-                            <p className="text-sm text-muted-foreground">No hay obras con solicitudes para mostrar.</p>
-                        </div>
-                    );
-                }
-                const Vista = VISTAS[como];
-                // `key`: otra obra (o volver a una vista) parte limpia, sin filtros ni listas abiertas de la anterior.
-                return <Vista key={como === 'obra' ? `obra-${obraId}` : como} datos={datosVista} onCambio={alCambiar} />;
-            }}</ConCarga>
         </DetalleModulo>
     );
 };
