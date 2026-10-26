@@ -107,6 +107,8 @@ export interface Trabajador {
     carnet_frente_url: string | null;
     carnet_dorso_url: string | null;
     fecha_ingreso: string | null;
+    /** Fin del contrato a plazo fijo (mig 138); null = indefinido (o aún sin el dato). */
+    fecha_termino_contrato?: string | null;
     fecha_desvinculacion: string | null;
     /** Causal de la baja vigente (código del catálogo, mig 112); null si activo. */
     causal_desvinculacion?: string | null;

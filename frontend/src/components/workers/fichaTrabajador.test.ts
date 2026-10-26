@@ -1,4 +1,4 @@
-import { antiguedad, porcentajeDocs } from './fichaTrabajador';
+import { DIAS_AVISO_TERMINO, antiguedad, porcentajeDocs, terminoContrato } from './fichaTrabajador';
 
 describe('fichaTrabajador', () => {
     const hoy = new Date(2026, 8, 15); // 15-sep-2026
@@ -47,5 +47,21 @@ describe('fichaTrabajador', () => {
         expect(porcentajeDocs(3, 6)).toBe(50);
         expect(porcentajeDocs(7, 6)).toBe(100);
         expect(porcentajeDocs(-1, 6)).toBe(0);
+    });
+
+    it('terminoContrato (mig 138): vacía = indefinido; vencido, por vencer en 30 días o vigente', () => {
+        expect(terminoContrato(null, hoy)).toBeNull();
+        expect(terminoContrato('', hoy)).toBeNull();
+        expect(terminoContrato('no-es-fecha', hoy)).toBeNull();
+        expect(terminoContrato('2026-09-10', hoy)).toEqual({ fecha: '2026-09-10', dias: -5, estado: 'vencido', aviso: 'venció hace 5 días' });
+        expect(terminoContrato('2026-09-14', hoy)?.aviso).toBe('venció hace 1 día');
+        expect(terminoContrato('2026-09-15', hoy)).toMatchObject({ dias: 0, estado: 'por_vencer', aviso: 'vence hoy' });
+        expect(terminoContrato('2026-10-15', hoy)).toMatchObject({ dias: DIAS_AVISO_TERMINO, estado: 'por_vencer', aviso: 'vence en 30 días' });
+        expect(terminoContrato('2026-10-16', hoy)).toMatchObject({ dias: 31, estado: 'vigente', aviso: 'plazo fijo' });
+    });
+
+    it('terminoContrato toma solo AAAA-MM-DD (un DATE serializado en UTC no corre un día)', () => {
+        expect(terminoContrato('2026-09-20T00:00:00.000Z', hoy)).toMatchObject({ fecha: '2026-09-20', dias: 5 });
+        expect(terminoContrato('2026-09-20T03:00:00.000Z', hoy)).toMatchObject({ fecha: '2026-09-20', dias: 5 });
     });
 });

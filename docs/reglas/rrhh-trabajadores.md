@@ -203,6 +203,24 @@
   `consultas/solicitudIngresoSchema.ts`); el backend también convierte `''` → `NULL`. La misma
   migración formaliza el drift `fecha_desvinculacion DATE NULL` (hasta entonces solo la creaba el
   bootstrap de `scripts/migrate.js`).
+- **Fecha de término del contrato (mig 138, Marcos 2026-10-26)** — `trabajadores.fecha_termino_contrato DATE NULL`.
+  Hasta entonces la ficha solo tenía `fecha_ingreso` y la baja real (`fecha_desvinculacion`); no había tipo de
+  contrato ni fecha de término. **Regla: con fecha = contrato a plazo fijo que vence ese día; vacía = indefinido**
+  (o aún sin el dato: todas las fichas anteriores quedaron en NULL, nada se rellenó). No hay columna `tipo_contrato`:
+  la fecha basta para distinguir. Se edita en `WorkerForm` («Fecha de término del contrato», bajo la fecha de
+  ingreso, ayuda «Déjala vacía si el contrato es indefinido»; no puede ser anterior al ingreso) con
+  `trabajadores.editar`, como el resto de la ficha. Backend (`index.js`, `normalizarTerminoContrato` en el
+  `beforeCreate`/`beforeUpdate` del CRUD): `''` → `NULL`; solo `AAAA-MM-DD` de un día real (si no, 400); anterior al
+  ingreso cuando el body trae las dos → 400; si la mig 138 aún no corrió, el campo se descarta y el resto se guarda
+  (degradación D-I, `utils/schema.hasCols`). Al editar, el form la manda **solo si se tocó** (el CRUD escribe los
+  null: una ficha abierta desde una lista sin la columna no debe borrarla). Es una fecha de contrato **operativa**:
+  pasa la allow-list `CAMPOS_TRABAJADOR_OPERATIVOS` sin `trabajadores.ver`, como `fecha_ingreso`. Se ve en
+  `WorkerQuickView` → Resumen → Contrato → **Término**: la fecha y debajo «venció hace N días» (rojo), «vence hoy» /
+  «vence en N días» (ámbar, 30 días o menos) o «plazo fijo» (gris); sin fecha, «Vigente · sin fecha de término»;
+  desvinculado, la fecha de la baja como antes (`terminoContrato` en `workers/fichaTrabajador.ts`, con test). La usa
+  el tema «Contratos por vencer» del Inicio de gerencia (diseno.md § 15). **No reemplaza** el aviso de Gestiones
+  «cumple 10 meses — revisar renovación» (`dashboard.service.js`, por antigüedad desde el ingreso): son señales
+  distintas y conviven. Emitir un contrato en Documentos laborales **no** la guarda (ver § Documentos laborales).
 - **RUT duplicado = 409 limpio, nunca un borrado** (blindaje 2026-09-07, `crud.service.js create`).
   `trabajadores` tiene `UNIQUE(rut)`. Antes, ante `ER_DUP_ENTRY` el CRUD genérico intentaba
   "reciclar" la fila inactiva homónima y, como `trabajadores` no tiene `nombre`/`razon_social`,
@@ -545,6 +563,9 @@ ficha del trabajador y su descarga o impresión es "solo oficina".
   y pago el día 05 como texto fijo; el **sueldo base se imprime en cifras y en letras**
   (`utils/numeroALetras.js`) tomado de `cargo_sueldos` (mig 111) y queda congelado en `metadata`.
   Sin representante legal de la empresa o sin sueldo del cargo → 409 con el dato que falta.
+  **Emitirlo no guarda `trabajadores.fecha_termino_contrato`** (mig 138, decisión 2026-10-26): la cláusula 9 dice
+  «duración de N días» y cita la fecha de INGRESO, que en una renovación es la del primer contrato; emitir tampoco es
+  firmar. Calcular «ingreso + N días» daría fechas falsas, así que RRHH la anota a mano en la ficha → Editar.
 - **Datos personales del trabajador: obligatorios para el contrato (B2b, tras QA del dueño 2026-09-11)**.
   Antes, un trabajador con la ficha incompleta producía un contrato con **líneas de guiones** en
   nacionalidad, estado civil, fecha de nacimiento y domicilio, y el hueco aparecía recién en el papel

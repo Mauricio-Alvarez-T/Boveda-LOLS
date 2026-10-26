@@ -88,6 +88,29 @@ export interface SolicitudTrabadaApi {
 
 export interface SolicitudesGerenciaApi { dias_limite: number; total: number; lista: SolicitudTrabadaApi[] }
 
+/** 7.º tema (Marcos 2026-10-26): un trabajador activo con contrato a plazo fijo vencido o por vencer (mig 138). */
+export interface ContratoPorVencerApi {
+    trabajador_id: number;
+    rut: string | null;
+    nombre: string;
+    obra: string | null;
+    cargo: string | null;
+    /** Fecha de ingreso 'YYYY-MM-DD' (null si la ficha no la tiene). */
+    ingreso: string | null;
+    /** `fecha_termino_contrato`, 'YYYY-MM-DD'. */
+    fecha: string;
+    /** Días hasta el término: negativo = ya venció; 0 = vence hoy. */
+    dias: number;
+}
+
+export interface ContratosGerenciaApi {
+    /** Ventana de «por vencer» (30). */
+    dias: number;
+    vencidos: number;
+    por_vencer: number;
+    lista: ContratoPorVencerApi[];
+}
+
 export interface GerenciaApi {
     hoy: string;
     faltas: FaltasGerenciaApi | null;
@@ -96,6 +119,8 @@ export interface GerenciaApi {
     documentos: DocumentosGerenciaApi | null;
     papeles: PapelesGerenciaApi | null;
     solicitudes: SolicitudesGerenciaApi | null;
+    /** Sin `trabajadores.ver` (o con un backend anterior al 2026-10-26) no viene o viene null. */
+    contratos?: ContratosGerenciaApi | null;
     aprobadores: { id: number; nombre: string | null }[];
 }
 

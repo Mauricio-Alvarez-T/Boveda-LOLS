@@ -11,6 +11,8 @@ import {
 import type {
     CausalFalta, DocumentosGerenciaApi, FaltasGerenciaApi, GerenciaApi, PapelLaboralApi, PapelesGerenciaApi, PerdidasApi, SolicitudesGerenciaApi,
 } from './tipos';
+import { mensajeContratos } from './mensajes';
+import type { ContratoPorVencerApi, ContratosGerenciaApi } from './tipos';
 
 export type * from './tipos';
 
@@ -25,7 +27,8 @@ export type * from './tipos';
  * docs/reglas/diseno.md § Inicio de gerencia.
  */
 
-export type TemaKey = 'faltas' | 'vehiculos' | 'perdidas' | 'documentos' | 'papeles' | 'solicitudes';
+export type TemaKey = 'faltas' | 'vehiculos' | 'perdidas' | 'documentos' | 'papeles' | 'solicitudes'
+    | 'contratos'; // 7.º tema, 2026-10-26
 
 export interface FilaTema {
     id: string;
@@ -403,6 +406,69 @@ function temaSolicitudes(s: SolicitudesGerenciaApi, aprobadores: Aprobadores): T
     };
 }
 
+// ─────────────────────────────── 7. Contratos por vencer ───────────────────────────────
+
+/** '2026-09-01' → '1 sep 2026' (el ingreso puede ser de otro año). */
+const fechaConAnio = (iso: string) => `${fechaCorta(iso)} ${iso.slice(0, 4)}`;
+
+/** Lo que dice la fila bajo el nombre: «vence el 4 nov» / «vence hoy» / «venció hace 6 días». */
+export function textoTerminoContrato(c: Pick<ContratoPorVencerApi, 'fecha' | 'dias'>): string {
+    if (c.dias === 0) return 'vence hoy';
+    return c.dias < 0 ? `venció hace ${dias(-c.dias)}` : `vence el ${fechaCorta(c.fecha)}`;
+}
+
+/**
+ * Trabajadores activos con contrato a plazo fijo (`fecha_termino_contrato`, mig 138) vencido o que vence en 30 días.
+ * Mismo molde que «Documentos de trabajadores»: la cifra grande son los vencidos (si hay) o los por vencer.
+ */
+function temaContratos(c: ContratosGerenciaApi, hoy: string): TemaGerencia {
+    const filas = c.lista.map((x): FilaTema => ({
+        id: `c-${x.trabajador_id}`,
+        titulo: x.nombre || 'Trabajador sin nombre',
+        bajada: [x.obra, x.cargo, textoTerminoContrato(x)].filter(Boolean).join(' · '),
+        detalle: [
+            `Su contrato a plazo fijo ${venceConFecha(hoy, x.dias)}.`,
+            x.ingreso ? `Ingresó el ${fechaConAnio(x.ingreso)}.` : '',
+            x.rut ? `RUT ${x.rut}.` : '',
+        ].filter(Boolean).join(' '),
+        pildoras: [],
+        cifra: x.dias === 0 ? 'Hoy' : String(Math.abs(x.dias)),
+        nota: notaVence(x.dias),
+        tono: x.dias < 0 ? 'rojo' : 'ambar',
+        ruta: x.rut ? `/consultas?q=${encodeURIComponent(x.rut)}` : '/consultas?tab=trabajadores',
+    }));
+    const total = c.vencidos + c.por_vencer;
+    const conVencidos = c.vencidos > 0;
+    const n = conVencidos ? c.vencidos : c.por_vencer;
+    const ventana = `en los próximos ${c.dias} días`;
+    return {
+        key: 'contratos', titulo: 'Contratos por vencer',
+        tono: conVencidos ? 'rojo' : c.por_vencer > 0 ? 'ambar' : 'verde',
+        cifra: String(n), esMonto: false,
+        etiqueta: conVencidos || total === 0 ? plural(n, 'contrato vencido', 'contratos vencidos') : plural(n, 'contrato por vencer', 'contratos por vencer'),
+        resumen: total === 0
+            ? `Ningún contrato a plazo fijo vence ${ventana}`
+            : conVencidos
+                ? (c.por_vencer > 0 ? `y ${c.por_vencer} ${plural(c.por_vencer, 'vence', 'vencen')} ${ventana}` : `ninguno más vence ${ventana}`)
+                : `${ventana}; ninguno vencido`,
+        decision: 'Renovar, pasar a indefinido o terminar',
+        total, filas,
+        enlace: { texto: 'Ver en Gestiones', ruta: '/consultas?tab=trabajadores' },
+        whatsapp: total > 0 ? { texto: 'Consultar por WhatsApp', mensaje: mensajeContratos(c.lista, total) } : null,
+        franja: conVencidos
+            ? { cifra: String(c.vencidos), texto: plural(c.vencidos, 'contrato vencido', 'contratos vencidos') }
+            : { cifra: String(c.por_vencer), texto: plural(c.por_vencer, 'contrato por vencer', 'contratos por vencer') },
+    };
+}
+
+/**
+ * Cuántas columnas ocupa la ÚLTIMA tarjeta para que no quede sola en una esquina (7 temas desde 2026-10-26): si queda
+ * sola en su fila, va a lo ancho — en tableta (2 por fila) ocupa 2; en computador (3 por fila), 3. Las demás, 1.
+ */
+export function columnasUltima(n: number): { md: 1 | 2; xl: 1 | 3 } {
+    return { md: n % 2 === 1 ? 2 : 1, xl: n % 3 === 1 ? 3 : 1 };
+}
+
 // ─────────────────────────────── Todo junto ───────────────────────────────
 
 /** Rojo antes que ámbar; dentro de cada tono, el orden que ya traen (el del servidor o el del tema). */
@@ -423,6 +489,7 @@ export function temasGerencia(api: GerenciaApi | null, { registraEntregas = fals
     if (api.documentos) temas.push(temaDocumentos(api.documentos, api.hoy));
     if (api.papeles) temas.push(temaPapeles(api.papeles, registraEntregas, api.hoy));
     if (api.solicitudes) temas.push(temaSolicitudes(api.solicitudes, ap));
+    if (api.contratos) temas.push(temaContratos(api.contratos, api.hoy)); // 7.º, al final (2026-10-26)
     return temas.map(t => ({ ...t, filas: porTono(t.filas) }));
 }
 

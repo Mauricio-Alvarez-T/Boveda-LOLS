@@ -6,7 +6,7 @@ const vehiculosService = require('./vehiculos.service');
 const documentosAlertasService = require('./documentosAlertas.service');
 
 /**
- * «Inicio de gerencia» (don Luis Lazcano, opción B «Tablero por tema» del lienzo, 2026-10-23): los seis temas que
+ * «Inicio de gerencia» (don Luis Lazcano, opción B «Tablero por tema» del lienzo, 2026-10-23; el 7.º el 2026-10-26): los siete temas que
  * esperan una decisión de gerencia, en UNA respuesta. Gate de la ruta: `inicio.gerencia` (mig 134). Cada bloque pide
  * además el permiso de su módulo y llega `null` sin él o si su consulta falla (no tumba a los otros):
  *
@@ -24,6 +24,8 @@ const documentosAlertasService = require('./documentosAlertas.service');
  *                                 GET /documentos-alertas/pendientes (documentosAlertasService.pendientes). Solo se lee.
  *   solicitudes (inventario.ver + transferencias.ver_todas)  Solicitudes PENDIENTES estancadas: la regla del
  *                                 Resumen Ejecutivo (10 días desde la solicitud, o su prórroga).
+ *   contratos   (trabajadores.ver) 7.º tema (Marcos 2026-10-26): trabajadores activos con `fecha_termino_contrato`
+ *                                 (mig 138, plazo fijo) vencida o que vence en 30 días. Vacía = indefinido: no entra.
  *   aprobadores Quién aprueba hoy (permiso efectivo de `inventario.transferencias.aprobar`, sin el rol 1), para
  *               «Pedir a Leonardo» / «Apurar a Leonardo». Solo si va algún bloque de Inventario.
  *
@@ -35,6 +37,7 @@ const TOPE = 50;
 const DIAS_VEHICULOS = 30;
 const DIAS_DOCUMENTOS = 7;
 const DIAS_ESTANCADA = 10;
+const DIAS_CONTRATOS = 30;
 
 const tiene = (permisos, clave) => Array.isArray(permisos) && permisos.includes(clave);
 const num = (v) => Number(v) || 0;
@@ -262,6 +265,38 @@ async function solicitudes() {
     };
 }
 
+// ─────────────────────────── 7. Contratos por vencer ───────────────────────────
+
+// Trabajadores activos que no son de prueba, fuera de obras de prueba o finalizadas, cuyo contrato a plazo fijo
+// (`fecha_termino_contrato`, mig 138) ya venció o vence en DIAS_CONTRATOS. Vacía = indefinido: no entra. Del más
+// vencido al que vence más tarde. UNA consulta: son a lo más los trabajadores activos, así que los totales salen de
+// las mismas filas y solo la lista va con TOPE.
+async function contratos() {
+    const [filas] = await pool.query(`
+        SELECT t.id, t.rut, t.nombres, t.apellido_paterno, t.apellido_materno, o.nombre AS obra, c.nombre AS cargo,
+               DATE_FORMAT(t.fecha_ingreso, '%Y-%m-%d') AS ingreso,
+               DATE_FORMAT(t.fecha_termino_contrato, '%Y-%m-%d') AS fecha,
+               DATEDIFF(t.fecha_termino_contrato, CURDATE()) AS dias
+        FROM trabajadores t
+        LEFT JOIN obras o ON o.id = t.obra_id
+        LEFT JOIN cargos c ON c.id = t.cargo_id
+        WHERE t.activo = 1 AND t.es_prueba = 0
+          AND (o.id IS NULL OR (o.es_prueba = 0 AND o.finalizada = 0))
+          AND t.fecha_termino_contrato IS NOT NULL
+          AND t.fecha_termino_contrato <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+        ORDER BY t.fecha_termino_contrato ASC, t.apellido_paterno ASC, t.id ASC`, [DIAS_CONTRATOS]);
+    const lista = filas.map(f => ({
+        trabajador_id: f.id, rut: f.rut ?? null, nombre: nombreDe(f), obra: f.obra ?? null, cargo: f.cargo ?? null,
+        ingreso: f.ingreso ?? null, fecha: f.fecha, dias: Math.trunc(num(f.dias)),
+    }));
+    return {
+        dias: DIAS_CONTRATOS,
+        vencidos: lista.filter(c => c.dias < 0).length,
+        por_vencer: lista.filter(c => c.dias >= 0).length,
+        lista: lista.slice(0, TOPE),
+    };
+}
+
 // ─────────────────────────── Quién aprueba ───────────────────────────
 
 // Permiso efectivo (rol + grant − deny, como permisosService y transferencia.service inicioPerfil), sin el rol 1.
@@ -302,11 +337,12 @@ async function getGerencia(permisos = []) {
     out.documentos = tiene(permisos, 'documentos.ver') ? await seguro('documentos', documentos) : null;
     out.papeles = tiene(permisos, 'documentos.ver') ? await seguro('papeles', papeles) : null;
     out.solicitudes = verInventario ? await seguro('solicitudes', solicitudes) : null;
+    out.contratos = tiene(permisos, 'trabajadores.ver') ? await seguro('contratos', contratos) : null;
     out.aprobadores = verInventario ? (await seguro('aprobadores', aprobadores)) ?? [] : [];
     return out;
 }
 
 module.exports = {
     getGerencia,
-    _internal: { faltas, vehiculos, perdidas, documentos, papeles, solicitudes, aprobadores, sinValores, TOPE, DIAS_DOCUMENTOS },
+    _internal: { faltas, vehiculos, perdidas, documentos, papeles, solicitudes, contratos, aprobadores, sinValores, TOPE, DIAS_DOCUMENTOS, DIAS_CONTRATOS },
 };

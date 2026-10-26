@@ -344,6 +344,34 @@ try {
   });
   app.use('/api/trabajadores', trabajadoresGuardRouter);
 
+  // Fecha de término del contrato (mig 138): vacía = indefinido. '' → NULL; si no, solo 'AAAA-MM-DD' de un día real
+  // y nunca antes del ingreso cuando el body trae las dos (WorkerForm manda ambas). Degradación D-I, como
+  // representante_* de empresas: si la mig 138 aún no corrió, el campo se descarta y el resto del guardado sigue.
+  // Solo se paga la introspección cuando el body trae el campo.
+  const normalizarTerminoContrato = async (safeData) => {
+    if (safeData.fecha_termino_contrato === undefined) return;
+    if (!(await hasCols('trabajadores', 'fecha_termino_contrato'))) {
+      delete safeData.fecha_termino_contrato;
+      return;
+    }
+    const v = safeData.fecha_termino_contrato;
+    if (v === null || (typeof v === 'string' && v.trim() === '')) {
+      safeData.fecha_termino_contrato = null;
+      return;
+    }
+    const s = typeof v === 'string' ? v.trim() : '';
+    const [a, m, d] = s.split('-').map(Number);
+    const real = /^\d{4}-\d{2}-\d{2}$/.test(s) && new Date(Date.UTC(a, m - 1, d)).toISOString().slice(0, 10) === s;
+    if (!real) {
+      throw Object.assign(new Error('La fecha de término del contrato no es válida (usa el calendario o AAAA-MM-DD).'), { statusCode: 400 });
+    }
+    const ingreso = typeof safeData.fecha_ingreso === 'string' ? safeData.fecha_ingreso.slice(0, 10) : '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(ingreso) && s < ingreso) {
+      throw Object.assign(new Error('La fecha de término del contrato no puede ser anterior a la fecha de ingreso.'), { statusCode: 400 });
+    }
+    safeData.fecha_termino_contrato = s;
+  };
+
   app.use('/api/trabajadores', createCrudRoutes('trabajadores', 'trabajadores', {
     searchFields: ['rut', 'nombres', 'apellido_paterno'],
     joins: 'LEFT JOIN empresas e ON trabajadores.empresa_id = e.id LEFT JOIN obras o ON trabajadores.obra_id = o.id LEFT JOIN cargos c ON trabajadores.cargo_id = c.id',
@@ -354,6 +382,7 @@ try {
     allowedFields: [
       'rut', 'nombres', 'apellido_paterno', 'apellido_materno',
       'fecha_ingreso', 'email', 'telefono', // fecha_desvinculacion y activo: solo vía /:id/desvincular y /:id/reactivar (B4)
+      'fecha_termino_contrato', // mig 138: vacía = indefinido (normalizarTerminoContrato)
       'cargo_id', 'obra_id', 'empresa_id', 'categoria_reporte', 'es_prueba',
       'licencia_conducir', 'licencia_vencimiento',
       // Datos personales de la ficha de ingreso digital (mig 108) — editables en WorkerForm.
@@ -366,7 +395,9 @@ try {
     testFlagColumn: 'es_prueba',
     // Herencia: un trabajador nuevo asignado a una obra de prueba hereda el flag
     // (salvo que el body ya traiga es_prueba explícito).
+    beforeUpdate: (_id, safeData) => normalizarTerminoContrato(safeData),
     beforeCreate: async (safeData, dbConn) => {
+      await normalizarTerminoContrato(safeData);
       if (safeData.es_prueba === undefined && safeData.obra_id) {
         const [rows] = await dbConn.query('SELECT es_prueba FROM obras WHERE id = ?', [safeData.obra_id]);
         if (rows.length && (rows[0].es_prueba === 1 || rows[0].es_prueba === true)) {
