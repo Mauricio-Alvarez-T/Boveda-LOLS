@@ -78,7 +78,7 @@ export const NOTA_PROPIA_CORTA = 'La pediste tú';
  * Palabras que dicen un CARGO (lo que la persona hace en la obra), al comienzo de una palabra. `roles.nombre` es un rol
  * de ACCESO: muchos son genéricos («En Terreno», «Administrador») y no dicen quién es la persona.
  */
-const CARGO = /(^|[^a-záéíóúüñ])(jef[ae](?![a-záéíóúüñ])|prevenci|bodeguer|capataz|supervis|encargad|residente|administradora? de obra|ingenier|arquitect|t[eé]cnic|conductor|operador|maestr|gerente|inspector|top[oó]graf|dibujant)/;
+const CARGO = /(^|[^a-záéíóúüñ])(jef[ae](?![a-záéíóúüñ])|prevenci|bodeguer|capataz|supervis|encargad|coordinad|residente|administradora? de obra|ingenier|arquitect|t[eé]cnic|conductor|operador|maestr|gerente|inspector|top[oó]graf|dibujant)/;
 
 /**
  * El «cargo» que va junto al nombre (lienzo: «Carla Soto · Prevencionista»). La app no guarda cargo de los usuarios: lo

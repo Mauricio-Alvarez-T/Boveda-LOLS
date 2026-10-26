@@ -99,8 +99,11 @@
   **Supervisor de Obra** = Alfonso Castilla, Franco Gutiérrez, Felipe Escobar, Cristian Mancilla, Héctor Herrera;
   **Prevencionista** = Cristoffer Bolados, Héctor Gómez, Jhoan Vásquez. RR.HH, Supervisor y Gerente nacen como
   **copia del Administrador** (Gerente, más `inicio.gerencia`); Supervisor de Obra y Prevencionista, como copia de
-  **«En Terreno»** (queda sin gente). **Ojo:** un cambio de permisos «de oficina» que antes tocaba solo el rol
-  Administrador ahora debe tocar los cuatro (Administrador, RR.HH, Supervisor, Gerente), y uno «de terreno», los dos.
+  **«En Terreno»** (queda sin gente). **Mig 140:** el rol «Administrador» se renombró **«Coordinador de Obra»** (mismo
+  id y permisos; Leonardo hace las compras y aprueba las solicitudes). **Ojo:** un cambio de permisos «de oficina» que
+  antes tocaba solo el rol Administrador ahora debe tocar los cuatro (Coordinador de Obra, RR.HH, Supervisor,
+  Gerente), y uno «de terreno», los dos. Las migraciones viejas que dicen `r.nombre = 'Administrador'` ya corrieron:
+  una nueva debe usar «Coordinador de Obra».
 - Lo que una persona necesite de más se agrega de a poco como **permiso propio** (override `grant`), no al
   rol — preguntar a Marcos antes. Mig 127: Paula y Matías (RRHH) → emitir documentos laborales, registrar
   entregas físicas, crear y editar trabajadores (editar: el contrato pide completar la ficha); Leonardo →
@@ -182,6 +185,14 @@
     Probada dos veces sobre MySQL 5.7 con sql_mode estricto, de MariaDB 10.6 y vacío (68 verificaciones: roles,
     permisos por rol, persona por persona, versiones, permisos propios y efectivos). Test:
     `backend/tests/roles_por_cargo_139.test.js`.
+- **Mig 140 (2026-10-26, «Coordinador de Obra»)**: Marcos pidió que el rol de Leonardo se llame así, con los mismos
+  permisos. Se **renombra** el rol «Administrador» (mismo id: permisos y gente iguales; RR.HH, Supervisor y Gerente no
+  cambian). Si en ese entorno ya hubiera un «Coordinador de Obra» (nombre UNIQUE), `UPDATE IGNORE` salta el renombre y
+  ese rol queda con exactamente los permisos del Administrador y Leonardo (por correo, solo si está en
+  «Administrador») pasa a él. Re-login: `roles.version + 1` del Coordinador de Obra (el menú lateral muestra el nombre
+  del rol que viajó en el inicio de sesión) y, en el respaldo, del Administrador que deja; nunca el rol 1. «Coordinador»
+  se lee como cargo junto al nombre (`cargoDe` de `leonardo.modelo.ts`). Probada dos veces, normal y respaldo, sobre
+  MySQL 5.7 con los tres sql_mode. Test: `backend/tests/rol_coordinador_de_obra_140.test.js`.
 
 ## Ver como usuario (soporte)
 

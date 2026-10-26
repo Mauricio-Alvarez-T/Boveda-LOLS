@@ -121,7 +121,8 @@ describe('pie y tope', () => {
 describe('cargoDe (el rol solo si se lee como un cargo)', () => {
     it('muestra los roles que dicen qué hace la persona', () => {
         ['Prevencionista', 'Jefe de Obra', 'Jefe Obra', 'Jefa de bodega', 'Bodeguero', 'Supervisor de cuadrilla', 'Capataz',
-            'Administrador de obra', 'Encargado de bodega', 'Experto en Prevención de Riesgos', 'Técnico en construcción']
+            'Administrador de obra', 'Encargado de bodega', 'Experto en Prevención de Riesgos', 'Técnico en construcción',
+            'Coordinador de Obra', 'Supervisor de Obra', 'Gerente']
             .forEach(rol => expect(cargoDe(rol)).toBe(rol));
         expect(cargoDe('  Jefe de Obra ')).toBe('Jefe de Obra');
     });
