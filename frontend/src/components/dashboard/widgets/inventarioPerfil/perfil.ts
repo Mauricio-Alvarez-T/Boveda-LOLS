@@ -3,8 +3,8 @@ import type { InventarioPerfilApi, PersonaPerfil } from './tipos';
 
 /**
  * Qué vista del detalle «Inventario» del Inicio ve quien entra (Marcos 2026-10-22, del lienzo de diseño):
- *   - `superadmin` → VistaSuperAdmin (opción A, «Super Administrador»): Marcos y Mauricio (rol 1). Arriba llevan el
- *     selector «Ver como» (VerComo.tsx) para mirar también el formato de los demás: son los programadores.
+ *   - `superadmin` → VistaSuperAdmin (opción A, «Super Administrador»): Marcos y Mauricio (rol 1). Sin «Ver como» en el
+ *     Inicio (Marcos 2026-10-26): las vistas de los demás se revisan en Soporte · usuarios.
  *   - `leonardo` → VistaLeonardo (opción A «Lo tuyo primero»): quien aprueba y ve todas las obras.
  *   - `jefatura` → VistaJefatura (opción B «El circuito»): ve todas las obras y las diferencias, sin aprobar (Daphne).
  *   - `obra` → VistaObra (opción A): pide o recibe materiales para su obra (jefes de obra y prevencionistas).
