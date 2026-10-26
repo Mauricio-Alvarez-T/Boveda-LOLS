@@ -29,6 +29,16 @@ Cada estado tiene 2 flags con semántica DISTINTA:
 
 - Único por `(trabajador_id, obra_id, fecha)` — UK en `asistencias` (mig 004/006).
 - **Feriados** (`feriados.activo=1`) bloquean el registro masivo (`asistencia.service.js`, validación bulk).
+- **Sincronizar feriados nacionales** (Configuración → Feriados, permiso `asistencia.feriado.gestionar`;
+  `POST /api/feriados/sync {year}`, año actual o siguiente). Desde 2026-10-26 prueba fuentes en orden y usa
+  la primera con una lista creíble (≥12 feriados del año, sin regionales): **Gobierno Digital**
+  (`apis.digital.gob.cl`, hoy caída) → **boostr.cl** (gratis, sin llave; trae los adicionales por ley y los
+  irrenunciables) → **tabla verificada** `backend/src/config/feriadosChile.js` → **Nager.Date** (último
+  recurso, **parcial**: no conoce los adicionales chilenos —omitió el 17-09-2027 de la Ley 20.983— y la
+  pantalla lo advierte). Guardar = agrega los que faltan y actualiza nombre/irrenunciable de los
+  **nacionales**; un feriado de obra/patronal en la misma fecha se respeta; no borra nada. Elecciones y
+  feriados por ley especial **no** vienen de ninguna fuente fija: se cargan a mano. **Cada año** conviene
+  agregar el año siguiente a la tabla, contrastando dos fuentes (ante diferencias manda la ley).
 - Bulk valida fines de semana (sáb/dom lanzan error) y futuro máximo 30 días (`MAX_DIAS_FUTURO`).
 - Modo "Reporte Global": sin obra seleccionada (`selectedObra=null`), consolidado de todas las obras.
 - Obras con `participa_asistencia=0` no aparecen en el selector de obra en /asistencia
