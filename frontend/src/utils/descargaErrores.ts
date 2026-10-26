@@ -58,6 +58,19 @@ export function mimePorExtension(nombre: string | null | undefined, fallback = '
     return MIME_POR_EXT[extensionDe(nombre)] || fallback;
 }
 
+/**
+ * Nombre con que se guarda: el que pidió la pantalla, pero con la EXTENSIÓN que mandó el servidor. Los
+ * Word generados se guardan como .doc (HTML) y se descargan convertidos a .docx (2026-10-26): con el
+ * nombre viejo el celular recibía un .docx llamado .doc y no lo abría.
+ */
+export function nombreConExtensionDelServidor(pedido: string | null | undefined, delServidor: string | null | undefined): string | null {
+    if (!pedido) return delServidor || null;
+    const extServidor = extensionDe(delServidor);
+    if (!extServidor || extServidor === extensionDe(pedido)) return pedido;
+    const base = extensionDe(pedido) ? pedido.replace(/\.[^.]+$/, '') : pedido;
+    return `${base}.${extServidor}`;
+}
+
 /** Nombre de archivo desde `Content-Disposition: attachment; filename="x.doc"` (o filename*=UTF-8''). */
 export function nombreDesdeDisposition(header: string | null | undefined): string | null {
     if (!header) return null;

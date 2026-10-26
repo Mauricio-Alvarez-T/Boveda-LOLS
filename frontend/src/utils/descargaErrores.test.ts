@@ -1,4 +1,4 @@
-import { parseErrorBlob, mensajeDescargaDenegada, modoApertura, mimePorExtension, nombreDesdeDisposition, extensionDe } from './descargaErrores';
+import { parseErrorBlob, mensajeDescargaDenegada, modoApertura, mimePorExtension, nombreDesdeDisposition, extensionDe, nombreConExtensionDelServidor } from './descargaErrores';
 
 describe('descargaErrores (plan Gestiones B2)', () => {
     it('parseErrorBlob: JSON del backend con required; texto plano; basura larga → fallback', () => {
@@ -31,6 +31,15 @@ describe('descargaErrores (plan Gestiones B2)', () => {
         expect(mimePorExtension('a.pdf')).toBe('application/pdf');
         expect(mimePorExtension('a.doc')).toBe('application/msword');
         expect(mimePorExtension('a.bin')).toBe('application/octet-stream');
+    });
+
+    it('nombreConExtensionDelServidor: el Word generado .doc se guarda .docx si el servidor lo convirtió', () => {
+        expect(nombreConExtensionDelServidor('Contrato_Perez_20260911.doc', 'Contrato_Perez_20260911.docx')).toBe('Contrato_Perez_20260911.docx');
+        expect(nombreConExtensionDelServidor('Contrato.doc', 'Contrato.doc')).toBe('Contrato.doc');
+        expect(nombreConExtensionDelServidor('foto.pdf', null)).toBe('foto.pdf');
+        expect(nombreConExtensionDelServidor('Documentos_Ana', 'Documentos_Ana.zip')).toBe('Documentos_Ana.zip');
+        expect(nombreConExtensionDelServidor(undefined, 'x.docx')).toBe('x.docx');
+        expect(nombreConExtensionDelServidor(undefined, null)).toBeNull();
     });
 
     it('nombreDesdeDisposition: simple, con comillas y UTF-8', () => {

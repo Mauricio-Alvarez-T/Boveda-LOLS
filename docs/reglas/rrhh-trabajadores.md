@@ -553,6 +553,19 @@ ficha del trabajador y su descarga o impresión es "solo oficina".
   una hoja** (Word COM: vista de impresión + `Repaginate()` antes de `ComputeStatistics(2)` — sin repaginar
   miente — o exportar a PDF y contar páginas). La generación en el navegador (`utils/downloadWord.ts`, `ConstanciaModal.tsx`) se eliminó;
   queda `utils/printHtml.ts` solo para imprimir lo que manda el servidor.
+- **Descarga = Word REAL `.docx`** (jefatura 2026-10-26: el `.doc`-HTML no se veía en el celular — Word
+  móvil, Google Docs y la vista previa del iPhone/WhatsApp esperan un Word de verdad). El HTML sigue siendo
+  la FUENTE: se guarda igual (`.doc` en `uploads/`) y la impresión no cambia; **al descargar** se convierte
+  (`services/docxExport.service.js`, `@turbodocx/html-to-docx` fijado en 1.23.1), así que también los
+  emitidos antes salen `.docx`. Cubre `/documentos-laborales/:id/download`, `/documentos/download/:id`,
+  `/solicitudes-ingreso/:id/doc` y los ZIP (ficha y fiscalización). Solo se convierte un `.doc` que sea
+  HTML (`esDocGenerado`); un Word binario subido sale tal cual, y si la conversión falla se entrega el
+  `.doc` (log de error). El front guarda con la extensión que manda el servidor
+  (`nombreConExtensionDelServidor`). El conversor solo lee estilos en línea y tiene vacíos que el módulo
+  corrige y documenta (estilos del `<style>` → en línea, % → pt, margin-top → separador, línea de firma →
+  celda con borde superior, div anidado → párrafos, interlineado CSS → puntos EXACTOS, `<br>` en párrafo
+  justificado → párrafos). **Si se cambia una plantilla, revisar el .docx en Word** (exportar a PDF y
+  contar páginas: el ODI debe seguir en UNA hoja); `tests/docx_export.test.js` cubre lo estructural.
 - **Plantillas** (`backend/src/plantillas/documentos/`, mapa blanco `codigo → plantilla`): cada una
   expone `codigo, version, titulo, requiere(ctx), nombreBase(ctx), build(ctx), metadata(ctx)`. Los textos
   legales son DATO: RRHH los corrige ahí sin tocar lógica. Kit de ingreso = `CONTRATO`, `ODI_D40`,
@@ -613,7 +626,7 @@ ficha del trabajador y su descarga o impresión es "solo oficina".
 - **API** (`/api/documentos-laborales`, `safeRoute`):
   `GET /catalogo` (auth) · `GET /trabajador/:id` [documentos.ver] · `POST /emitir/:tid` y
   `POST /kit-ingreso/:tid` [laborales.emitir] · `GET /:id/download` y `GET /:id/html` [laborales.descargar].
-  `GET /solicitudes-ingreso/:id/doc` [laborales.descargar]: solicitud **pendiente** → `.doc` al vuelo sin
+  `GET /solicitudes-ingreso/:id/doc` [laborales.descargar]: solicitud **pendiente** → `.docx` al vuelo sin
   persistir; **aprobada** → el documento guardado en la ficha del trabajador (se emite si faltara).
   Al aprobar una solicitud la ficha se emite sola **post-commit**: si falla, se registra un `warn` y la
   aprobación igual se completa (`solicitud_documento_id` en la respuesta).

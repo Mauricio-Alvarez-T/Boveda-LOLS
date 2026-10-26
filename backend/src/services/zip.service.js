@@ -2,6 +2,7 @@ const archiver = require('archiver');
 const fs = require('fs');
 const path = require('path');
 const db = require('../config/db');
+const docxExport = require('./docxExport.service');
 
 const zipService = {
     /**
@@ -69,7 +70,8 @@ const zipService = {
                         const ext = path.extname(doc.nombre_archivo) || '.pdf';
                         // Add ID to guarantee no overlapping names inside the ZIP
                         const uniqueName = `${safeTipoNombre}_${doc.id}${ext}`;
-                        archive.file(filePath, { name: `${folderName}/${uniqueName}` });
+                        // Los Word generados entran como .docx real (se abren en el celular).
+                        await docxExport.agregarAZip(archive, filePath, `${folderName}/${uniqueName}`, { titulo: doc.tipo_nombre });
                     }
                 }
             }

@@ -3,6 +3,7 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const upload = require('../middleware/upload');
 const documentoService = require('../services/documento.service');
+const docxExport = require('../services/docxExport.service');
 const createCrudService = require('../services/crud.service');
 const createCrudController = require('../controllers/crud.controller');
 const path = require('path');
@@ -89,12 +90,13 @@ router.get('/trabajador/:trabajadorId', auth, checkPermission('documentos.ver'),
 // Download individual document
 router.get('/download/:id', auth, checkPermission('documentos.descargar'), async (req, res, next) => {
     try {
-        const { fullPath, fileName, restringido } = await documentoService.getFilePath(req.params.id);
+        const { fullPath, fileName, restringido, tipo_nombre } = await documentoService.getFilePath(req.params.id);
         // Tipo restringido (mig 110): contratos, finiquitos y anexos laborales solo desde oficina.
         if (restringido && !(req.user?.p || []).includes('documentos.laborales.descargar')) {
             return res.status(403).json({ error: 'Documento laboral: descarga solo desde oficina', required: ['documentos.laborales.descargar'] });
         }
-        res.download(fullPath, fileName);
+        // Un Word generado por Bóveda (kit de ingreso) sale como .docx real; lo subido, tal cual.
+        await docxExport.enviarDescarga(res, { fullPath, fileName, titulo: tipo_nombre });
     } catch (err) { next(err); }
 });
 
