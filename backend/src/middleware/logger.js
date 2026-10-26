@@ -263,6 +263,9 @@ const activityLogger = async (req, res, next) => {
             // genérico (item_id 'discrepancias' o vacío, sin TRF ni ajustes), y la simulación (?simular=1) que no
             // escribe nada también. La ruta loguea manualmente solo lo REAL, con la TRF, el ítem y los ajustes.
             if (/^\/api\/transferencias\/discrepancias\/[^/]+\/(rehacer|resolver)$/.test(req.originalUrl.split('?')[0])) return;
+            // Borrado definitivo de una lista de actividades sugeridas (2026-10-26): la ruta loguea qué se borró
+            // (semana, obra, conteos); el genérico ya no podría resolver la entidad borrada.
+            if (/^\/api\/actividades-sugeridas\/\d+\/definitivo$/.test(req.originalUrl.split('?')[0])) return;
             // Soporte · usuarios: el «ver como» (POST) lo registra el service («<Super Admin> vio como <usuario>»);
             // el genérico solo duplicaría un CREATE vacío.
             if (/^\/api\/soporte(\/|$)/.test(req.originalUrl.split('?')[0])) return;

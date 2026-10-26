@@ -2,6 +2,8 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const actividadesSugeridasService = require('../services/actividadesSugeridas.service');
+const { logManualActivity } = require('../middleware/logger');
+const { labelSemana } = require('../utils/semana');
 
 /**
  * GET /api/actividades-sugeridas?obra_id&mes&anio
@@ -122,6 +124,29 @@ router.delete('/:id', auth, checkPermission('asistencia.actividades_sugeridas.ca
         if (!id) return res.status(400).json({ error: 'ID inválido' });
         const result = await actividadesSugeridasService.cancelar(id, req.user.id);
         res.json({ data: result });
+    } catch (err) {
+        if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+        next(err);
+    }
+});
+
+/**
+ * DELETE /api/actividades-sugeridas/:id/definitivo
+ * Borrado REAL (jefatura 2026-10-26): cabecera + trabajadores, en cualquier estado.
+ * Permiso propio. El log global excluye esta ruta (tras borrar ya no podría leer la
+ * semana ni la obra); se registra aquí con lo que se borró.
+ */
+router.delete('/:id/definitivo', auth, checkPermission('asistencia.actividades_sugeridas.eliminar'), async (req, res, next) => {
+    try {
+        const id = Number(req.params.id);
+        if (!id) return res.status(400).json({ error: 'ID inválido' });
+        const r = await actividadesSugeridasService.eliminar(id);
+        const label = [labelSemana(r.semana), r.obra_nombre].filter(Boolean).join(' · ') || `Lista #${id}`;
+        const resumen = `Eliminó definitivamente la lista ${label} (${r.estado}, ${r.trabajadores} trabajador${r.trabajadores === 1 ? '' : 'es'}, ${r.asistieron} asistieron)`;
+        await logManualActivity(req.user.id, 'actividades-sugeridas', 'DELETE', id,
+            JSON.stringify({ resumen, eliminada: r }), req,
+            { entidad_tipo: 'actividad_sugerida', entidad_label: label });
+        res.json({ data: r });
     } catch (err) {
         if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
         next(err);

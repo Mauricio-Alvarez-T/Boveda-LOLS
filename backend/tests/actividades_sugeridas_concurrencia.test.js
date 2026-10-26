@@ -144,12 +144,39 @@ describe('ActividadesSugeridas — RBAC granular', () => {
         expect(ROUTES_SRC).toMatch(/router\.post\('\/'[\s\S]*?asistencia\.actividades_sugeridas\.crear/);
     });
 
-    test('las 7 claves existen en permisos.config.js y ninguna vieja', () => {
+    test('las 8 claves existen en permisos.config.js y ninguna vieja', () => {
         const cfg = fs.readFileSync(path.resolve(__dirname, '../src/config/permisos.config.js'), 'utf8');
-        for (const k of ['ver', 'crear', 'editar', 'cancelar', 'registrar', 'enviar_whatsapp', 'informe']) {
+        for (const k of ['ver', 'crear', 'editar', 'cancelar', 'registrar', 'enviar_whatsapp', 'informe', 'eliminar']) {
             expect(cfg).toContain(`'asistencia.actividades_sugeridas.${k}'`);
         }
         expect(cfg).not.toMatch(/sabados_extra/);
+    });
+
+    test('DELETE /:id/definitivo exige el permiso eliminar (no cancelar) y loguea lo borrado', () => {
+        expect(ROUTES_SRC).toMatch(/router\.delete\('\/:id\/definitivo'[\s\S]*?asistencia\.actividades_sugeridas\.eliminar/);
+        const ruta = ROUTES_SRC.slice(ROUTES_SRC.indexOf("router.delete('/:id/definitivo'"));
+        expect(ruta).toMatch(/logManualActivity\(/);
+        // El log global la excluye: tras borrar ya no puede resolver la semana ni la obra.
+        const logger = fs.readFileSync(path.resolve(__dirname, '../src/middleware/logger.js'), 'utf8');
+        expect(logger).toContain(String.raw`actividades-sugeridas\/\d+\/definitivo`);
+    });
+
+    test('eliminar bloquea la fila y borra trabajadores antes que la cabecera', () => {
+        const body = getMethodBody('eliminar');
+        expect(body).toMatch(/FOR UPDATE/);
+        const iTrab = body.indexOf('DELETE FROM actividades_sugeridas_trabajadores');
+        const iCab = body.indexOf('DELETE FROM actividades_sugeridas WHERE');
+        expect(iTrab).toBeGreaterThan(-1);
+        expect(iCab).toBeGreaterThan(iTrab);
+    });
+
+    test('la migración 136 da de alta el permiso eliminar (catálogo antes que rol)', () => {
+        const sql = fs.readFileSync(path.resolve(__dirname, '../db/migrations/136_permiso_eliminar_actividades.sql'), 'utf8');
+        expect(sql).toContain("'asistencia.actividades_sugeridas.eliminar'");
+        const iCat = sql.indexOf('INSERT IGNORE INTO permisos_catalogo');
+        const iRol = sql.indexOf('INSERT IGNORE INTO permisos_rol_v2');
+        expect(iCat).toBeGreaterThan(-1);
+        expect(iRol).toBeGreaterThan(iCat);
     });
 
     test('el informe Excel exige su propio permiso, no el de ver', () => {
