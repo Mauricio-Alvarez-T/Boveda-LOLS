@@ -109,7 +109,7 @@
     ve la lista y el detalle de las diferencias en solo lectura y el Inicio se las cuenta y muestra, sin poder
     resolverlas. Por ahora es la única con ese permiso.
   - **Leonardo y Daphne** reciben `inventario.transferencias.cancelar` (cancelar solicitudes pendientes o
-    aprobadas; las que van en tránsito siguen pidiendo «Cancelar en Tránsito», que no se dio).
+    aprobadas; las que van en tránsito piden «Cancelar en Tránsito», que se les dio en la mig 137).
   - Los permisos propios se graban con `ON DUPLICATE KEY UPDATE tipo = 'grant'` (pisa un `deny` previo). Re-login:
     `roles.version + 1` del rol Administrador y del rol de Leonardo/Daphne si en ese entorno es otro (nunca del
     rol 1). Ojo: `versionService` guarda las versiones en memoria → el cierre de sesiones corre recién cuando el
@@ -133,6 +133,15 @@
   - Idempotente (la segunda pasada no sube versiones ni borra nada) y sin subconsultas sobre `roles` en el UPDATE
     (MySQL 1093). Probada dos veces sobre MySQL 5.7 con sql_mode estricto y de MariaDB 10.6. Test:
     `backend/tests/transferencias_aprobar_solo_leonardo.test.js`.
+- **Mig 137 (2026-10-26)**, dos decisiones del dueño:
+  - `cargos.sueldo.ver` («Ver Parámetros de Sueldo») **sale del rol Administrador**: solo se usa en Configuración →
+    Cargos, y Configuración aparece solo con `usuarios.ver`. Quien está en el rol y SÍ ve Configuración (`usuarios.ver`
+    propio o del rol, sin «deny»: Paula, Matías, Rodrigo, Luis, Daphne por la mig 128) lo **conserva como permiso
+    propio** (`INSERT IGNORE`, antes de borrarlo del rol); Leonardo y quien no ve Configuración lo pierden.
+  - `inventario.transferencias.cancelar_en_transito` («Cancelar en Tránsito») como permiso propio de **Leonardo López**
+    y **Daphne Lazcano** (por correo): ya cancelaban pendientes y aprobadas (mig 131); ahora también lo que va en
+    camino (envío directo, orden de gerencia).
+  - Re-login: `roles.version + 1` del rol Administrador y del rol de Leonardo/Daphne si es otro (nunca el rol 1).
 - **Mig 134 (2026-10-23, «Inicio de gerencia»)**, decisión del dueño (lienzo de gerencia, opción B): permiso NUEVO
   `inicio.gerencia` (módulo «Inicio», sección Dashboard del modal de permisos) que abre el tablero «N temas esperan una
   decisión» arriba del Inicio y su `GET /api/dashboard/gerencia` (diseno.md §9.15). Por ahora solo **Luis Lazcano**,

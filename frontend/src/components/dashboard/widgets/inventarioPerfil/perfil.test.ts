@@ -123,11 +123,11 @@ describe('descripcionInventario: la línea bajo el título', () => {
             .toBe('El camino completo de todas las obras: lo que espera a Leonardo y las diferencias por aclarar.');
     });
 
-    test('sin obra conocida o sin quien apruebe, un texto sin nombre', () => {
+    test('sin obra conocida, un texto sin nombre; sin quien apruebe, «Leonardo» (Marcos 2026-10-26)', () => {
         expect(descripcionInventario('obra')).toBe('Pide materiales, recibe lo que llega a tu obra y revisa tus aprobados.');
         expect(descripcionInventario('obra', { obra: '  ' })).toBe('Pide materiales, recibe lo que llega a tu obra y revisa tus aprobados.');
         expect(descripcionInventario('jefatura', { aprobadores: [] }))
-            .toBe('El camino completo de todas las obras: lo que espera aprobación y las diferencias por aclarar.');
+            .toBe('El camino completo de todas las obras: lo que espera a Leonardo y las diferencias por aclarar.');
     });
 
     test('obra sin permiso de pedir (un prevencionista que solo recibe): no lo invita a pedir', () => {

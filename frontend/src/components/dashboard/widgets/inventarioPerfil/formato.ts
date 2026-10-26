@@ -245,12 +245,18 @@ export function nombreCortoDe(p?: PersonaPerfil | null): string | null {
 }
 
 /**
- * Quién aprueba hoy (`datos.aprobadores`), para «Esperando a Leonardo» / «Apurar a Leonardo»: su primer nombre; con
- * dos, «Leonardo o Ana». null sin nadie o con más de dos (entonces, un texto sin nombre: «esperando aprobación»).
+ * Sin nadie (o con más de dos) en `aprobadores`, el nombre que se muestra (Marcos 2026-10-26: «cambiar por el nombre
+ * Leonardo» en vez de «Quien aprueba»; solo Leonardo aprueba, mig 131/133).
  */
-export function quienAprueba(aprobadores?: readonly PersonaPerfil[] | null): string | null {
+export const APROBADOR_POR_DEFECTO = 'Leonardo';
+
+/**
+ * Quién aprueba hoy (`datos.aprobadores`), para «Esperando a Leonardo» / «Apurar a Leonardo»: su primer nombre; con
+ * dos, «Leonardo o Ana»; sin nadie o con más de dos, `APROBADOR_POR_DEFECTO`.
+ */
+export function quienAprueba(aprobadores?: readonly PersonaPerfil[] | null): string {
     const nombres = (aprobadores ?? []).map(nombreCortoDe).filter((n): n is string => !!n);
-    if (nombres.length === 0 || nombres.length > 2) return null;
+    if (nombres.length === 0 || nombres.length > 2) return APROBADOR_POR_DEFECTO;
     return nombres.join(' o ');
 }
 
