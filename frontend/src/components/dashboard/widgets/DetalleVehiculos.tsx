@@ -154,17 +154,26 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
     const subirRef = useRef<HTMLDivElement>(null);
     // VehiculoDocumentos avisa `onCambio` también al cargar por primera vez: ese aviso no es un cambio.
     const cargasSubir = useRef(0);
+    // Llevar el recuadro arriba de la pantalla, entero (Marcos 2026-10-26: «que al cliquear te muestre en pantalla la
+    // vista completa»). Se llama al abrirlo y OTRA VEZ cuando el formulario ya cargó y se abrió: al tocar el botón el
+    // recuadro aún es bajo y la página no tiene hacia dónde bajar, así que el primer intento se queda corto. Dos cuadros
+    // de espera: el formulario se dibuja en el render siguiente a `onAbierto`.
+    const bajarAlFormulario = useCallback(() => {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            subirRef.current?.scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
+        }));
+    }, []);
     const alCambiarPapel = useCallback(() => {
         cargasSubir.current += 1;
-        if (cargasSubir.current > 1) setIntento(n => n + 1);
-    }, []);
+        // La primera vez es la carga del formulario: ahora sí tiene alto, se baja hasta él.
+        if (cargasSubir.current === 1) bajarAlFormulario();
+        else setIntento(n => n + 1);
+    }, [bajarAlFormulario]);
     const abrirSubir = (v: VehiculoPapelesApi, tipo: TipoDocumentoPapel) => {
         cargasSubir.current = 0;
         setSubir(s => ({ v, tipo, n: (s?.n ?? 0) + 1 }));
-        requestAnimationFrame(() => {
-            const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            subirRef.current?.scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
-        });
+        bajarAlFormulario();
     };
 
     useEffect(() => {
@@ -447,7 +456,7 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
                         </div>
                     </div>
                     <VehiculoDocumentos key={`${subir.v.vehiculo_id}-${subir.tipo}-${subir.n}`} vehiculoId={subir.v.vehiculo_id}
-                        abrir={subir.tipo} onCambio={alCambiarPapel} />
+                        abrir={subir.tipo} onCambio={alCambiarPapel} onAbierto={bajarAlFormulario} />
                 </div>
             )}
         </section>
