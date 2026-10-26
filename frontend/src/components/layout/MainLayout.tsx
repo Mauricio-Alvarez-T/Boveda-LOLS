@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
 import { AlertaAtrasosAlEntrar } from '../documentos-fisicos/AlertaAtrasosAlEntrar';
+import { AvisoSoporte } from '../soporte/AvisoSoporte';
 import { IconButton } from '../ui/IconButton';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { EntornoBanner } from './EntornoBanner';
@@ -78,6 +79,8 @@ export const MainLayout: React.FC = () => {
                 <EntornoBanner />
                 {/* Al iniciar sesión: documentos en terreno pasados de 4 días hábiles (jefatura 2026-10-21). */}
                 <AlertaAtrasosAlEntrar />
+                {/* «Le avisamos a soporte…» y «Contar qué pasó» (errores de Soporte, mig 141). */}
+                <AvisoSoporte />
 
                 {/* Top Navbar — fixed above scroll area. Sin marco (dueño 2026-10-20, idea de la propuesta L del
                     lienzo): mismo fondo que la página, sin borde ni sombra, alineado con el contenido (md:px-5). */}

@@ -244,6 +244,10 @@ const activityLogger = async (req, res, next) => {
             // Excluir queries de solo lectura que usan POST (ej. KPIs con arreglos grandes)
             if (req.originalUrl.match(/\/(kpi|exportar|enviar|download)/i)) return;
 
+            // Errores de Soporte (mig 141): los avisos los manda la app sola cuando a alguien le sale un error, y la
+            // foto viaja en el body (≤ 200 KB en base64): loguearlos llenaría el historial con ruido y fotos.
+            if (/^\/api\/soporte\/errores(\/|$)/.test(req.originalUrl.split('?')[0])) return;
+
             // Sueldos por cargo (mig 111): el body trae montos y este módulo no está en validModulos
             // (se volcaría el body completo al detalle). El service registra un log manual sin cifras.
             if (/^\/api\/cargo-sueldos(\/|$)/.test(req.originalUrl.split('?')[0])) return;

@@ -32,6 +32,7 @@ import { ThemeToggle } from '../ui/ThemeToggle';
 import { IconButton } from '../ui/IconButton';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { useMisIdeasResumen, useIdeasPendientes } from '../../hooks/useIdeas';
+import { useErroresSoporte } from '../../hooks/useErroresSoporte';
 import { ETIQUETA_BUZON_IDEAS } from '../ideas/ideasConfig';
 import { menuVisible, veBuzonIdeas, type ClaveMenu } from './menuLateral';
 
@@ -61,6 +62,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
     // que una idea propia cambió de estado. Los revisores ven además la bandeja con su número.
     const misIdeas = useMisIdeasResumen();
     const ideasPendientes = useIdeasPendientes();
+    // Errores de Soporte (mig 141): avisos por revisar (solo el Super Administrador; 0 para el resto).
+    const erroresSoporte = useErroresSoporte();
     const [showIdeas, setShowIdeas] = React.useState(false);
     // El buzón se baja recién la primera vez que se abre y queda montado (para su animación de cierre).
     const [ideasCargado, setIdeasCargado] = React.useState(false);
@@ -116,7 +119,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             badgeAriaLabel: 'Ver ideas por revisar',
             onBadgeClick: () => { setMobileOpen(false); navigate('/ideas'); },
         },
-        soporte: { icon: UserSearch },
+        soporte: {
+            icon: UserSearch,
+            // Por revisar = ÁMBAR (no es un error de quien mira). El clic lleva a la pestaña «Errores».
+            badge: erroresSoporte.pendientes,
+            badgeUrgente: false,
+            badgeTitle: `${erroresSoporte.pendientes} error${erroresSoporte.pendientes === 1 ? '' : 'es'} por revisar`,
+            badgeAriaLabel: 'Ver errores por revisar',
+            onBadgeClick: () => { setMobileOpen(false); navigate('/soporte?vista=errores'); },
+        },
         configuracion: { icon: Settings },
     };
     // Qué secciones ve: la regla pura de `menuLateral.ts` (la misma que muestra la ficha de Soporte · usuarios).

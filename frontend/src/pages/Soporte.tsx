@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Bug, Table2, UserSearch, Users } from 'lucide-react';
@@ -19,6 +19,8 @@ import { FichaPersona } from '../components/soporte/FichaPersona';
 import { filtrarUsuarios, lugarUsuario, rolesDeLista, textoIngreso, type FichaSoporte, type UsuarioSoporte } from '../components/soporte/fichaUsuario';
 import { fichaParaVerComo } from '../components/soporte/accesosPerfil';
 import { PanoramaPermisos } from '../components/soporte/PanoramaPermisos';
+import { ErroresSoporte } from '../components/soporte/ErroresSoporte';
+import { useErroresSoporte } from '../hooks/useErroresSoporte';
 import type { UsuarioPanorama } from '../components/soporte/panorama';
 import type { RespuestaVerComo } from '../context/verComoSesion';
 
@@ -35,23 +37,17 @@ import type { RespuestaVerComo } from '../context/verComoSesion';
 const mensajeError = (e: unknown, porDefecto: string): string =>
     (isAxiosError(e) && (e.response?.data as { error?: string } | undefined)?.error) || porDefecto;
 
-/**
- * «Errores (ejemplo)»: propuesta con datos inventados para conversarla con Mauricio (2026-10-26), solo en test. Import
- * diferido detrás de la constante (como «Lo que viene» de Presupuestos): en producción la rama queda muerta y la
- * propuesta ni siquiera entra al paquete.
- */
-const ES_STAGING = import.meta.env.VITE_ENTORNO === 'staging';
-const PropuestaErrores = ES_STAGING ? lazy(() => import('../components/soporte/propuestaErrores/PropuestaErrores')) : null;
-
 type Vista = 'personas' | 'panorama' | 'errores';
 const VISTAS: readonly { key: Vista; label: string; icono: React.ElementType }[] = [
     { key: 'personas', label: 'Personas', icono: Users },
     { key: 'panorama', label: 'Panorama', icono: Table2 },
-    ...(PropuestaErrores ? [{ key: 'errores' as const, label: 'Errores (ejemplo)', icono: Bug }] : []),
+    // Los avisos de error que manda la app de cada persona (mig 141).
+    { key: 'errores', label: 'Errores', icono: Bug },
 ];
 
 const SoportePage: React.FC = () => {
     const { user, entrarVerComo } = useAuth();
+    const errores = useErroresSoporte();
     const superAdmin = esSuperAdmin(user);
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -73,7 +69,7 @@ const SoportePage: React.FC = () => {
     const fichaRef = useRef<HTMLDivElement>(null);
     // La vista sale de la URL: así «atrás» desde una ficha abierta en el Panorama vuelve al Panorama.
     const pedida = searchParams.get('vista');
-    const vista: Vista = pedida === 'panorama' ? 'panorama' : pedida === 'errores' && PropuestaErrores ? 'errores' : 'personas';
+    const vista: Vista = pedida === 'panorama' ? 'panorama' : pedida === 'errores' ? 'errores' : 'personas';
     // El Panorama se pide la primera vez que se abre (y queda en memoria mientras la página está abierta).
     const [panorama, setPanorama] = useState<UsuarioPanorama[] | null>(null);
     const [panoramaFallo, setPanoramaFallo] = useState(false);
@@ -198,17 +194,25 @@ const SoportePage: React.FC = () => {
             <PestanasElasticas opciones={VISTAS} activa={vista} onCambiar={cambiarVista} aria-label="Cómo ver a las personas" claseFila="gap-1"
                 claseOpcion="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-sm font-medium whitespace-nowrap"
                 claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark"
-                render={o => { const Icono = o.icono; return <><Icono aria-hidden className="h-4 w-4" />{o.label}</>; }} />
+                render={o => {
+                    const Icono = o.icono;
+                    return (
+                        <>
+                            <Icono aria-hidden className="h-4 w-4" />{o.label}
+                            {o.key === 'errores' && errores.pendientes > 0 && (
+                                <span aria-label={`${errores.pendientes} por revisar`} className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-label font-bold tabular-nums text-white">{errores.pendientes}</span>
+                            )}
+                        </>
+                    );
+                }} />
         </div>
     );
 
-    if (vista === 'errores' && PropuestaErrores) {
+    if (vista === 'errores') {
         return (
             <div className="flex flex-col gap-4">
                 {selector}
-                <Suspense fallback={<div className="h-96 rounded-card border border-border bg-card" />}>
-                    <PropuestaErrores />
-                </Suspense>
+                <ErroresSoporte />
             </div>
         );
     }

@@ -1,8 +1,10 @@
-import axios from 'axios';
+import axios, { type InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'sonner';
 import {
     AVISOS_VER_COMO, almacenSesion, borrarSesionVerComo, esErrorSoloLectura, guardarAvisoVerComo, rutaAlSalir, tokenVerComoGuardado,
 } from '../context/verComoSesion';
+import { LENTO_MS, clasificarDemora, clasificarRespuesta } from './clasificarError';
+import { reportarError } from './reporteErrores';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -27,8 +29,13 @@ const api = axios.create({
 // más de un guardado automático a la vez).
 let _lastSoloLecturaTs = 0;
 
+// Errores de Soporte (mig 141): cuándo salió cada petición, para saber si tardó demasiado.
+type ConInicio = InternalAxiosRequestConfig & { _inicio?: number };
+const duracionDe = (config?: ConInicio) => (config?._inicio === undefined ? undefined : Date.now() - config._inicio);
+
 // Interceptor to add JWT token to requests
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: ConInicio) => {
+    config._inicio = Date.now();
     // Con «ver como» en esta pestaña va el token prestado (sessionStorage), aunque haya vencido: el 401 de abajo
     // devuelve a la cuenta propia. Sin él, el de la cuenta propia (localStorage).
     const token = tokenVerComoGuardado(almacenSesion()) ?? localStorage.getItem('sgdl_token');
@@ -40,9 +47,29 @@ api.interceptors.request.use((config) => {
 
 // Interceptor to handle global errors (like 401 Unauthorized, 403 Forbidden)
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        // Llegó bien pero tardó más de 15 s → «lento» (solo se cuenta; no molesta a la persona).
+        const d = duracionDe(response.config);
+        if (d !== undefined && d >= LENTO_MS) reportarError(clasificarDemora(response.config.method, response.config.url, d));
+        return response;
+    },
     (error) => {
         const status = error.response?.status;
+
+        // Errores de Soporte (mig 141): se clasifica por el código (clasificarError.ts) y se avisa si corresponde.
+        // Nunca cambia lo que sigue: el manejo de cada error queda igual.
+        try {
+            reportarError(clasificarRespuesta({
+                metodo: error.config?.method,
+                url: error.config?.url,
+                status,
+                data: error.response?.data,
+                cancelado: axios.isCancel(error) || error.code === 'ERR_CANCELED',
+                enLinea: typeof navigator === 'undefined' ? true : navigator.onLine,
+                duracionMs: duracionDe(error.config),
+                soloLectura: status === 403 && esErrorSoloLectura(error.response?.data),
+            }));
+        } catch { /* el aviso nunca rompe el manejo del error */ }
 
         // «Ver como»: el 401 es del token prestado (venció, o cambiaron los permisos de esa persona). Se vuelve a la
         // cuenta propia sin tocarla; si la propia tampoco sirve, su propio 401 llevará al login.
