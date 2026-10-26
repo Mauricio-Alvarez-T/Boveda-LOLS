@@ -16,7 +16,7 @@ import { useAparecer } from '../hooks/useAparecer';
 import { cn } from '../utils/cn';
 import { esSuperAdmin } from '../components/dashboard/widgets/inventarioPerfil/perfil';
 import { FichaPersona } from '../components/soporte/FichaPersona';
-import { filtrarUsuarios, lugarUsuario, rolesDeLista, type FichaSoporte, type UsuarioSoporte } from '../components/soporte/fichaUsuario';
+import { filtrarUsuarios, lugarUsuario, rolesDeLista, textoIngreso, type FichaSoporte, type UsuarioSoporte } from '../components/soporte/fichaUsuario';
 import { fichaParaVerComo } from '../components/soporte/accesosPerfil';
 import { PanoramaPermisos } from '../components/soporte/PanoramaPermisos';
 import type { UsuarioPanorama } from '../components/soporte/panorama';
@@ -234,7 +234,12 @@ const SoportePage: React.FC = () => {
                                                 {u.nombre?.charAt(0)?.toUpperCase() ?? '?'}
                                             </span>
                                             <span className="min-w-0 flex-1">
-                                                <span className="block truncate text-sm font-semibold text-brand-dark">{u.nombre}</span>
+                                                <span className="flex items-baseline gap-2">
+                                                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-brand-dark">{u.nombre}</span>
+                                                    <span title="Último ingreso" className="shrink-0 text-caption tabular-nums text-muted-foreground">
+                                                        {u.ultimo_ingreso ? `Entró ${textoIngreso(u.ultimo_ingreso)}` : 'Sin ingresos'}
+                                                    </span>
+                                                </span>
                                                 <span className="block truncate text-xs text-muted-foreground">{u.rol_nombre}{lugar ? ` · ${lugar}` : ''}</span>
                                                 <span className="block truncate text-caption text-muted-foreground">{u.email}</span>
                                             </span>

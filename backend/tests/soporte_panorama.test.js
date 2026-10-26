@@ -75,6 +75,7 @@ function datosBase() {
     };
 }
 
+let INGRESOS = {};
 const activos = () => USUARIOS.filter(u => u.activo === 1).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 const porId = (id) => USUARIOS.find(u => u.id === Number(id));
 
@@ -99,6 +100,10 @@ function bd() {
         }
         if (s.includes('FROM permisos_usuario_override WHERE usuario_id = ?')) return [OVERRIDES[params[0]] || []];
         if (s.startsWith('SELECT clave FROM permisos_catalogo')) return [CATALOGO.map(clave => ({ clave }))];
+        // Último ingreso, en lote (el LOGIN de «acceso» más reciente de cada persona).
+        if (s.includes('FROM logs_actividad') && s.includes('GROUP BY usuario_id')) {
+            return [Object.entries(INGRESOS).map(([usuario_id, t]) => ({ usuario_id: Number(usuario_id), t }))];
+        }
         return [[]];
     });
 }
@@ -113,7 +118,29 @@ const consultas = () => db.query.mock.calls.map(([sql]) => String(sql));
 beforeEach(() => {
     jest.clearAllMocks();
     datosBase();
+    INGRESOS = { 2: '2026-10-26T17:32:00.000Z', 7: '2026-10-20T12:00:00.000Z' };
     bd();
+});
+
+describe('último ingreso (lista y Panorama)', () => {
+    test('si el historial falla, la lista y el Panorama siguen, con ingreso null', async () => {
+        const normal = db.query.getMockImplementation();
+        db.query.mockImplementation(async (sql, params) => {
+            if (String(sql).includes('GROUP BY usuario_id')) throw new Error('logs caído');
+            return normal(sql, params);
+        });
+        const lista = await soporteService.listarUsuarios();
+        expect(lista.map(u => u.id)).toEqual(activos().map(u => u.id));
+        expect(lista.every(u => u.ultimo_ingreso === null)).toBe(true);
+        const filas = await soporteService.panorama();
+        expect(filas.every(u => u.ultimo_ingreso === null)).toBe(true);
+    });
+
+    test('el «ver como» (modulo soporte) no cuenta: solo LOGIN de «acceso»', async () => {
+        await soporteService.listarUsuarios();
+        const sql = consultas().find(s => s.includes('GROUP BY usuario_id'));
+        expect(sql).toMatch(/accion = 'LOGIN' AND modulo = 'acceso'/);
+    });
 });
 
 describe('GET /api/soporte/panorama: solo el Super Administrador (rol 1)', () => {
@@ -129,8 +156,13 @@ describe('GET /api/soporte/panorama: solo el Super Administrador (rol 1)', () =>
         for (const f of filas) {
             expect(Object.keys(f).sort()).toEqual([
                 'bodega_id', 'bodega_nombre', 'efectivos', 'email', 'id', 'nombre', 'obra_id', 'obra_nombre', 'rol_id', 'rol_nombre',
+                'ultimo_ingreso',
             ]);
         }
+        // Último ingreso: el del historial; quien no tiene ninguno, null.
+        expect(filas.find(u => u.id === 2).ultimo_ingreso).toBe('2026-10-26T17:32:00.000Z');
+        expect(filas.find(u => u.id === 7).ultimo_ingreso).toBe('2026-10-20T12:00:00.000Z');
+        expect(filas.find(u => u.id === 10).ultimo_ingreso).toBeNull();
         expect(filas.find(u => u.id === 7)).toMatchObject({ rol_id: 3, rol_nombre: 'Administrador', obra_id: 4, bodega_id: 2 });
     });
 
@@ -184,10 +216,10 @@ describe('Panorama: el mismo cálculo que el login, en lote', () => {
         expect(de(31)).toEqual(['inventario.ver']);
     });
 
-    test('un número fijo de consultas (4), tenga 6 personas o 60; ninguna por persona', async () => {
+    test('un número fijo de consultas (5), tenga 6 personas o 60; ninguna por persona', async () => {
         await soporteService.panorama();
         const pocas = consultas();
-        expect(pocas).toHaveLength(4);
+        expect(pocas).toHaveLength(5);
 
         jest.clearAllMocks();
         for (let i = 0; i < 54; i++) {
@@ -198,7 +230,7 @@ describe('Panorama: el mismo cálculo que el login, en lote', () => {
         const filas = await soporteService.panorama();
         expect(filas).toHaveLength(60);
         const muchas = consultas();
-        expect(muchas).toHaveLength(4);
+        expect(muchas).toHaveLength(5);
         expect(muchas.some(s => s.includes('WHERE usuario_id = ?') || s.includes('WHERE rol_id = ?'))).toBe(false);
         // Los roles presentes van una sola vez (sin el 1: su base es el catálogo).
         const llamadaRoles = db.query.mock.calls.find(([sql]) => String(sql).includes('WHERE rol_id IN (?)'));
@@ -209,7 +241,7 @@ describe('Panorama: el mismo cálculo que el login, en lote', () => {
         USUARIOS = USUARIOS.filter(u => u.rol_id !== 1);
         await soporteService.panorama();
         expect(consultas().some(s => s.includes('permisos_catalogo'))).toBe(false);
-        expect(consultas()).toHaveLength(3);
+        expect(consultas()).toHaveLength(4);
 
         jest.clearAllMocks();
         USUARIOS = [];

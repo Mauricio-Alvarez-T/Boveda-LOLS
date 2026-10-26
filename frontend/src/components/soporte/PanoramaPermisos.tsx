@@ -1,16 +1,17 @@
 import React, { useMemo } from 'react';
-import { Check } from 'lucide-react';
+import { Check, LogIn } from 'lucide-react';
 import { SkeletonFilas } from '../ui/Skeleton';
 import { useAparecer } from '../../hooks/useAparecer';
 import { ETIQUETA_BUZON_IDEAS } from '../ideas/ideasConfig';
-import { lugarUsuario } from './fichaUsuario';
+import { entroHoy, lugarUsuario, textoIngreso } from './fichaUsuario';
 import { ICONO_MENU } from './iconosMenu';
 import { armarPanorama, textoPersonas, type ColumnaPanorama, type FilaPanorama, type UsuarioPanorama } from './panorama';
 
 /**
  * «Panorama» de Soporte · usuarios (Marcos 2026-10-26): una fila por persona activa, agrupadas por rol, y una columna
  * por cada sección del menú lateral (con su ícono), con ✓ donde esa persona la ve. La columna Inicio dice qué Inicio le
- * toca. Arriba, cuántas de las mostradas ven cada sección. Tocar a una persona abre su ficha.
+ * toca. Arriba, cuántas de las mostradas ven cada sección. Tocar a una persona abre su ficha. Después de «Persona», su
+ * último ingreso (el historial de inicios de sesión; «ver como» no cuenta) y arriba cuántas entraron hoy.
  * Todo lo calcula `armarPanorama` (panorama.ts, puro y con test) con las reglas de la app (menuVisible…).
  * Encabezado y columna «Persona» fijos: la tabla se desplaza dentro de su caja (también en el teléfono).
  */
@@ -67,6 +68,11 @@ const Fila: React.FC<{ f: FilaPanorama; columnas: ColumnaPanorama[]; onElegir: (
                     {lugar && <span className="block w-28 truncate text-caption text-muted-foreground sm:w-40">{lugar}</span>}
                 </button>
             </th>
+            <td className={CELDA}>
+                <span className={`whitespace-nowrap text-xs tabular-nums ${u.ultimo_ingreso ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    {textoIngreso(u.ultimo_ingreso)}
+                </span>
+            </td>
             {columnas.map(c => (
                 <td key={c.clave} className={CELDA}>
                     {c.clave === 'inicio' ? (
@@ -87,6 +93,7 @@ export const PanoramaPermisos: React.FC<Props> = ({ datos, texto, rolId, filtros
     const p = useMemo(() => armarPanorama(datos ?? [], texto, rolId, ETIQUETA_BUZON_IDEAS), [datos, texto, rolId]);
     const aparece = useAparecer(datos === null);
     const total = datos?.length ?? 0;
+    const hoy = useMemo(() => p.grupos.reduce((n, g) => n + g.filas.filter(f => entroHoy(f.usuario.ultimo_ingreso)).length, 0), [p]);
 
     return (
         <section aria-label="Panorama" className="min-w-0 rounded-card border border-border bg-card">
@@ -111,12 +118,22 @@ export const PanoramaPermisos: React.FC<Props> = ({ datos, texto, rolId, filtros
                                 <th scope="col" className={`${TH_COLUMNA} sticky left-0 z-30 border-r px-3 text-left`}>
                                     <span className="text-xs">Persona</span>
                                 </th>
+                                <th scope="col" title="Cuándo inició sesión por última vez («ver como» no cuenta)" className={`${TH_COLUMNA} min-w-22`}>
+                                    <span className="flex flex-col items-center gap-1">
+                                        <LogIn aria-hidden className="h-4 w-4" />
+                                        <span className="text-xs leading-tight">Último ingreso</span>
+                                    </span>
+                                </th>
                                 {p.columnas.map(c => <Encabezado key={c.clave} c={c} />)}
                             </tr>
                             <tr>
                                 <th scope="row" className="sticky left-0 z-30 border-b border-r border-border bg-card px-3 py-1.5 text-left text-xs font-semibold text-muted-foreground">
                                     Personas que la ven
                                 </th>
+                                <td title={`${textoPersonas(hoy)} de ${p.personas} entraron hoy`}
+                                    className="whitespace-nowrap border-b border-border bg-card px-1 py-1.5 text-center text-xs font-semibold tabular-nums text-foreground">
+                                    {hoy} hoy
+                                </td>
                                 {p.columnas.map(c => (
                                     <td key={c.clave} title={`${textoPersonas(p.totales[c.clave])} de ${p.personas} ven ${c.label}`}
                                         className="border-b border-border bg-card px-1 py-1.5 text-center text-xs font-semibold tabular-nums text-foreground">
@@ -128,7 +145,7 @@ export const PanoramaPermisos: React.FC<Props> = ({ datos, texto, rolId, filtros
                         {p.grupos.map(g => (
                             <tbody key={g.rol_id}>
                                 <tr>
-                                    <th scope="rowgroup" colSpan={p.columnas.length + 1} className="border-b border-border bg-muted p-0 text-left">
+                                    <th scope="rowgroup" colSpan={p.columnas.length + 2} className="border-b border-border bg-muted p-0 text-left">
                                         <span className="sticky left-0 block w-fit px-3 py-1.5 text-caption font-bold uppercase tracking-widest text-foreground">
                                             {g.rol_nombre}
                                             <span className="ml-2 font-medium normal-case tracking-normal text-muted-foreground">{textoPersonas(g.filas.length)}</span>

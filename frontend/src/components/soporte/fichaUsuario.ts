@@ -31,6 +31,8 @@ export interface UsuarioSoporte {
     obra_nombre: string | null;
     bodega_id: number | null;
     bodega_nombre: string | null;
+    /** El inicio de sesión más reciente del historial (ISO); null si no tiene ninguno. «Ver como» no cuenta. */
+    ultimo_ingreso?: string | null;
 }
 
 export interface PermisoFicha {
@@ -288,6 +290,36 @@ export function rolesDeLista(lista: readonly UsuarioSoporte[]): { id: number; no
         else roles.set(u.rol_id, { id: u.rol_id, nombre: u.rol_nombre, n: 1 });
     }
     return [...roles.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+}
+
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const mismoDia = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+const fechaDe = (raw?: string | null): Date | null => {
+    if (!raw) return null;
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+};
+
+/** Si el último ingreso fue hoy (hora local). */
+export function entroHoy(raw: string | null | undefined, ahora: Date = new Date()): boolean {
+    const d = fechaDe(raw);
+    return !!d && mismoDia(d, ahora);
+}
+
+/**
+ * El último ingreso, corto: «hoy 14:32», «ayer 09:10», «12 oct», «12 oct 2025»; «Sin ingresos» si el historial no tiene
+ * ninguno. Hora local, sin depender del idioma del navegador.
+ */
+export function textoIngreso(raw: string | null | undefined, ahora: Date = new Date()): string {
+    const d = fechaDe(raw);
+    if (!d) return 'Sin ingresos';
+    const hora = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    if (mismoDia(d, ahora)) return `hoy ${hora}`;
+    const ayer = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - 1);
+    if (mismoDia(d, ayer)) return `ayer ${hora}`;
+    const dia = `${d.getDate()} ${MESES_CORTOS[d.getMonth()]}`;
+    return d.getFullYear() === ahora.getFullYear() ? dia : `${dia} ${d.getFullYear()}`;
 }
 
 /** «Obra Gorbea 3082 · Bodega Cerrillos», o '' si no tiene ninguna. */

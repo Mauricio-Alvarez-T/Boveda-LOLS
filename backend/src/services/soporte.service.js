@@ -84,6 +84,25 @@ async function sesionDe(u) {
     }
 }
 
+/**
+ * El último ingreso de cada persona, de una vez (la lista y el Panorama): el mismo dato de `sesionDe` (el LOGIN de
+ * «acceso» más reciente del historial). El «ver como» se anota a nombre del Super Administrador (modulo 'soporte'):
+ * no cuenta como ingreso de la persona. Si algo falla, Map vacío (se muestra «sin ingresos»), nunca rompe la lista.
+ */
+async function ingresosPorUsuario() {
+    try {
+        const [rows] = await db.query(
+            `SELECT usuario_id, MAX(created_at) AS t
+               FROM logs_actividad
+              WHERE accion = 'LOGIN' AND modulo = 'acceso' AND usuario_id IS NOT NULL
+              GROUP BY usuario_id`
+        );
+        return new Map((rows || []).map(r => [Number(r.usuario_id), r.t || null]));
+    } catch {
+        return new Map();
+    }
+}
+
 /** Los usuarios ACTIVOS, por nombre (la lista y el Panorama: las mismas personas). */
 const SQL_USUARIOS_ACTIVOS =
     `SELECT u.id, u.nombre, u.email, u.rol_id, r.nombre AS rol_nombre,
@@ -110,10 +129,12 @@ function agrupar(filas, campo) {
 const soporteService = {
     MINUTOS_VER_COMO,
 
-    /** Usuarios ACTIVOS, por nombre: lo que lista el buscador de la página. */
+    /** Usuarios ACTIVOS, por nombre: lo que lista el buscador de la página, con su último ingreso. */
     async listarUsuarios() {
         const [rows] = await db.query(SQL_USUARIOS_ACTIVOS);
-        return rows.map(filaUsuario);
+        if (!rows.length) return [];
+        const ingresos = await ingresosPorUsuario();
+        return rows.map(r => ({ ...filaUsuario(r), ultimo_ingreso: ingresos.get(Number(r.id)) ?? null }));
     },
 
     /**
@@ -121,13 +142,15 @@ const soporteService = {
      * llevaría su token), para que el frontend dibuje qué secciones del menú ve cada una (`menuVisible`, la regla del
      * Sidebar). Todo en lote, con un número FIJO de consultas (no una por persona):
      *   1. los usuarios activos;  2. los permisos de los roles presentes (menos el 1);
-     *   3. los overrides de todos;  4. las claves del catálogo (solo si hay algún rol 1: su base es todo el catálogo).
+     *   3. los overrides de todos;  4. las claves del catálogo (solo si hay algún rol 1: su base es todo el catálogo);
+     *   5. el último ingreso de cada uno (`ingresosPorUsuario`).
      * El cálculo es `permisosService.componerPermisos`, el mismo de `detallePermisos` (login y ficha).
      */
     async panorama() {
         const [rows] = await db.query(SQL_USUARIOS_ACTIVOS);
         const usuarios = rows.map(filaUsuario);
         if (!usuarios.length) return [];
+        const ingresos = await ingresosPorUsuario();
 
         const roles = [...new Set(usuarios.map(u => u.rol_id).filter(r => r !== ROL_SUPER_ADMIN))];
         const [permisosRol] = roles.length
@@ -149,7 +172,7 @@ const soporteService = {
                 ? clavesCatalogo
                 : (porRol.get(u.rol_id) || []).map(r => r.permiso_clave);
             const { efectivos } = permisosService.componerPermisos(u.rol_id, base, porUsuario.get(u.id) || []);
-            return { ...u, efectivos };
+            return { ...u, ultimo_ingreso: ingresos.get(u.id) ?? null, efectivos };
         });
     },
 
