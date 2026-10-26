@@ -133,18 +133,20 @@ const MatrizRoles: React.FC = () => {
                 </div>
             )}
 
-            <div className="overflow-x-auto rounded-card border border-border bg-card">
+            {/* Scroll propio en los dos ejes: así el encabezado de roles queda fijo arriba al bajar y la
+                columna «Pantalla» fija a la izquierda al correr a los lados. */}
+            <div className="max-h-[72dvh] overflow-auto overscroll-contain rounded-card border border-border bg-card">
                 <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
                     <thead>
                         <tr>
-                            <th scope="col" className="sticky left-0 z-20 w-40 min-w-40 bg-brand-primary px-4 py-3 text-left align-bottom font-semibold text-white sm:w-56 sm:min-w-56">
+                            <th scope="col" className="sticky left-0 top-0 z-30 w-40 min-w-40 border-r border-white/20 bg-brand-primary px-4 py-3 text-left align-bottom font-semibold text-white sm:w-56 sm:min-w-56">
                                 Pantalla
                             </th>
                             {state.roles.map(r => {
                                 const esSA = r.id === ROL_SUPER_ADMIN;
                                 const personas = r.usuarios_count ?? 0;
                                 return (
-                                    <th key={r.id} scope="col" className="min-w-28 border-l border-white/20 bg-brand-primary px-2 py-2 align-bottom font-semibold text-white">
+                                    <th key={r.id} scope="col" className="sticky top-0 z-20 min-w-28 border-l border-white/20 bg-brand-primary px-2 py-2 align-bottom font-semibold text-white">
                                         <div className="flex flex-col items-center gap-0.5 text-center">
                                             <span className="leading-tight">{r.nombre}</span>
                                             <span className="text-xs font-normal opacity-90">{personas} {personas === 1 ? 'persona' : 'personas'}</span>
@@ -179,14 +181,14 @@ const MatrizRoles: React.FC = () => {
                     {grupos.map(g => (
                         <tbody key={g.id}>
                             <tr>
-                                <th scope="rowgroup" className="sticky left-0 z-10 border-t border-border bg-muted px-4 py-2 text-left text-xs font-bold uppercase tracking-wide text-brand-dark">
+                                <th scope="rowgroup" className="sticky left-0 z-10 border-r border-t border-border bg-muted px-4 py-2 text-left text-xs font-bold uppercase tracking-wide text-brand-dark">
                                     {g.nombre}
                                 </th>
                                 <td colSpan={state.roles.length} className="border-t border-border bg-muted" />
                             </tr>
                             {g.pantallas.map(p => (
                                 <tr key={p.id}>
-                                    <th scope="row" className="sticky left-0 z-10 border-t border-border bg-card px-4 py-2 text-left font-normal text-brand-dark">
+                                    <th scope="row" className="sticky left-0 z-10 border-r border-t border-border bg-card px-4 py-2 text-left font-normal text-brand-dark">
                                         <span className="text-ui">{p.nombre}</span>
                                         {p.dinero && <span className="ml-1 font-bold text-amber-600 dark:text-amber-400" aria-label="montos">$</span>}
                                     </th>
