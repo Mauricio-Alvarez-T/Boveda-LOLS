@@ -3,6 +3,8 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Button } from './Button';
 import { isChunkLoadError, CHUNK_RELOAD_FLAG } from '../../utils/lazyWithRetry';
+import { clasificarPantallaRota } from '../../services/clasificarError';
+import { reportarError } from '../../services/reporteErrores';
 
 interface Props {
     children: React.ReactNode;
@@ -41,6 +43,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
     componentDidCatch(error: Error, info: React.ErrorInfo) {
         // eslint-disable-next-line no-console
         console.error('[ErrorBoundary] crash capturado:', error, info);
+        // Errores de Soporte (mig 141): la pantalla rota llega como aviso con foto (si es un chunk viejo, como «lento»).
+        reportarError(clasificarPantallaRota(error, info.componentStack));
         // "Chunk viejo tras deploy": recargar UNA vez para traer el build nuevo.
         if (isChunkLoadError(error) && !this.reloadedThisSession) {
             this.reloadedThisSession = true;

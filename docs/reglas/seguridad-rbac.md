@@ -309,13 +309,58 @@ nombre del Super Administrador y **no cuenta**. Solo la fecha: no se guarda qué
 la lista sigue y dice «Sin ingresos». Formato: `textoIngreso` (`fichaUsuario.ts`): «hoy 14:32», «ayer 09:10», «12 oct»,
 «30 dic 2025».
 
-**«Errores (ejemplo)» — SOLO test, propuesta sin decidir (Marcos 2026-10-26, para conversarla con Mauricio):** tercera
-pestaña de Soporte (`?vista=errores`), gateada con `VITE_ENTORNO === 'staging'` e import diferido (en producción ni
-entra al paquete; como «Lo que viene» de Presupuestos). Datos inventados (`components/soporte/propuestaErrores/`), no
-llama a la API. La idea: al salir un error, la app saca sola una foto de la pantalla **avisándole a la persona** («Le
-avisamos a soporte…», puede contar qué pasó, dictarlo o quitar la foto), el aviso llega a esta pestaña (sin revisar /
-revisado, con nota), fotos 30 días, errores repetidos agrupados, «sin señal» aparte y sin foto. Opciones A (lista y
-detalle) y B (tarjetas con foto). **No pasar a producción**; si se decide construirla, reemplaza este prototipo.
+## Errores (Soporte, mig 141)
+
+Marcos 2026-10-26: «que sepas discernir un problema real y no me mandes 100 pantallazos». Cuando a una persona le sale
+un error, su app le avisa a Soporte; si es una falla real, con una foto de su pantalla. **No hay nada corriendo todo el
+tiempo** (ni cron): se actúa solo cuando sale un error, en el teléfono o computador de esa persona.
+
+**Qué es cada error: por el CÓDIGO de la respuesta, no por el cartel rojo** (`frontend/src/services/clasificarError.ts`,
+con test). Lo llaman `api.ts` (cada respuesta del servidor) y el `ErrorBoundary` (pantalla rota):
+
+| Categoría | Cuándo | Qué se hace |
+|---|---|---|
+| `falla` | 500 y otros 5xx salvo 502/503/504, en cualquier petición | aviso + foto; le avisa a la persona |
+| `app` | la pantalla se rompió (ErrorBoundary), salvo «no cargó una parte» (chunk viejo tras deploy, señal) | aviso + foto; le avisa |
+| `permiso` | 403 con `required` (rbac.js dice qué permiso falta), solo al guardar/hacer algo (no en lecturas) | aviso sin foto, con el nombre del permiso; le avisa |
+| `lento` | sin respuesta con internet, >15 s esperando (aunque llegue), 408, 429, 502/503/504 (reinicio del deploy) | solo se cuenta |
+| `sin_senal` | sin respuesta y `navigator.onLine === false` | solo se cuenta |
+| `dato` | 400/404/409/413/422 y 403 sin `required` (regla de la app), solo al guardar/hacer algo | solo se cuenta |
+| (nada) | 401, cancelados, «ver como» (403 SOLO_LECTURA), 4xx en lecturas (GET), los propios avisos y `/auth/` | — |
+
+**El envío** (`services/reporteErrores.ts`): nada con «ver como» ni sin sesión propia; el mismo aviso en la misma
+pantalla a lo más una vez por minuto. Solo si el servidor la pide: ~0,7 s después del error (para que se vea el cartel)
+saca la foto de lo visible con `modern-screenshot` (respeta el desplazamiento de la pantalla; sin campos de contraseña
+ni lo marcado `data-sin-foto`; sin fuentes web), la achica a 1000 px y la comprime a ≤ 150 KB (WebP, si no JPEG); si
+tarda más de 6 s o falla, el aviso queda sin foto. A la persona (`components/soporte/AvisoSoporte.tsx`, en MainLayout):
+«Le avisamos a soporte con una foto de esta pantalla» (o sin foto, o «…que te falta un permiso») con «Contar qué pasó»:
+ver la foto, **Quitar** (la borra), escribir o dictar, Enviar. Lento, sin señal y datos no le muestran nada.
+
+**El servidor** (`soporteErrores.service.js`, rutas `/api/soporte/errores`, montadas antes de `/api/soporte`):
+- Mandar aviso / foto / «qué pasó» / quitar foto: cualquier persona con sesión, solo sobre SUS avisos. Un token de «ver
+  como» no llega (auth frena todo lo que no es GET).
+- Repetidos: misma persona + misma `firma` (sha1 de categoría|mensaje|acción|pantalla sin la consulta) en 10 min →
+  `veces + 1` en la misma fila, sin foto nueva.
+- **Topes de foto** (solo `falla`/`app`, una por fila, se acepta una sola vez y dentro de la hora): 5 por persona al
+  día, 40 al día en total, 40 MB guardados en total; ≤ 200 KB cada una, y que los bytes sean de verdad la imagen.
+  Además, más de 40 avisos de una persona en 10 minutos se ignoran sin tocar la BD (pantalla en bucle).
+- **Limpieza sin cron**: a lo más una vez por hora, al llegar un aviso o al abrir la bandeja: fotos de más de 30 días
+  se borran (`foto_borrada_en`); filas de lento/sin señal/dato de más de 30 días y revisadas de más de 180 se eliminan.
+- La foto vive en la fila (MEDIUMBLOB, como las de Ideas): entra al respaldo de la BD, acotada por los topes.
+- **Nada de esto entra al historial** (`logs_actividad`): `logger.js` excluye `/api/soporte/errores` (la foto viaja en
+  el body).
+- Bandeja (lista, resumen, foto, revisar): solo `soloSuperAdmin`. `GET /api/soporte/errores?vista=revisar|senal|datos|
+  revisados|todos` (sin el blob; los permisos con su nombre del catálogo); `GET /resumen` → `{ pendientes, lentos }`
+  (por revisar = falla/app/permiso pendientes; lentos = personas distintas con «lento» en la última hora).
+
+**La bandeja** (`components/soporte/ErroresSoporte.tsx`): tercera pestaña de Soporte («Errores», `?vista=errores`) con el
+número por revisar, también en el menú (Soporte, ámbar; `hooks/useErroresSoporte.ts`, cada 5 min, solo rol 1). Como
+«Personas»: lista y detalle. Cada aviso: qué es (y qué hacer), el mensaje, el permiso que faltó, la foto (o por qué no
+hay), lo que escribió, pantalla, cuándo (primera y última vez), veces, celular o computador; «Detalle técnico» con la
+acción, el código, la espera y el error. Nota + «Marcar revisado» / «Volver a sin revisar», «Ver su ficha». Si en la
+última hora 3 o más personas tuvieron respuestas lentas, una franja lo dice (suele ser el servidor o un deploy).
+Probado: backend `tests/soporte_errores.test.js`; frontend `clasificarError.test.ts`, `reporteErrores.test.ts`,
+`components/soporte/errores.test.ts`; migración y service sobre MySQL 5.7 (tres sql_mode).
 
 **«Lo que puede usar <Nombre> (<rol>)» (Marcos 2026-10-26):** recuadro del Inicio **solo con «ver como» activo**: una
 tarjeta por sección de su menú (`menuVisible`, mismo orden) con lo que puede hacer ahí (pestañas, secciones, vista de
