@@ -309,6 +309,14 @@ nombre del Super Administrador y **no cuenta**. Solo la fecha: no se guarda qué
 la lista sigue y dice «Sin ingresos». Formato: `textoIngreso` (`fichaUsuario.ts`): «hoy 14:32», «ayer 09:10», «12 oct»,
 «30 dic 2025».
 
+**«Errores (ejemplo)» — SOLO test, propuesta sin decidir (Marcos 2026-10-26, para conversarla con Mauricio):** tercera
+pestaña de Soporte (`?vista=errores`), gateada con `VITE_ENTORNO === 'staging'` e import diferido (en producción ni
+entra al paquete; como «Lo que viene» de Presupuestos). Datos inventados (`components/soporte/propuestaErrores/`), no
+llama a la API. La idea: al salir un error, la app saca sola una foto de la pantalla **avisándole a la persona** («Le
+avisamos a soporte…», puede contar qué pasó, dictarlo o quitar la foto), el aviso llega a esta pestaña (sin revisar /
+revisado, con nota), fotos 30 días, errores repetidos agrupados, «sin señal» aparte y sin foto. Opciones A (lista y
+detalle) y B (tarjetas con foto). **No pasar a producción**; si se decide construirla, reemplaza este prototipo.
+
 **«Lo que puede usar <Nombre> (<rol>)» (Marcos 2026-10-26):** recuadro del Inicio **solo con «ver como» activo**: una
 tarjeta por sección de su menú (`menuVisible`, mismo orden) con lo que puede hacer ahí (pestañas, secciones, vista de
 Inventario del Inicio, permisos con «propio»/«quitado»/«$»; los de una sección que no ve van a «Otros permisos»). La ficha
