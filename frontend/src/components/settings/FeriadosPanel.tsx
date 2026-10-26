@@ -2,14 +2,27 @@ import React, { useState } from 'react';
 import { CrudTable } from '../ui/CrudTable';
 import type { ColumnDef } from '../ui/CrudTable';
 import { FeriadosForm } from './FeriadosForm';
-import { CalendarDays, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
 import RequirePermission from '../auth/RequirePermission';
 import { Button } from '../ui/Button';
+import { Select } from '../ui/Select';
 import { useAuth } from '../../context/AuthContext';
+import { toast } from 'sonner';
+import { showApiError } from '../../utils/toastUtils';
+import { resumenSync, type ResultadoSync } from './feriadosSync';
 
-const feriadosCols: ColumnDef<any>[] = [
+interface FeriadoFila {
+    id: number;
+    activo?: boolean;
+    fecha: string;
+    nombre: string;
+    tipo: string;
+    irrenunciable: boolean | number;
+}
+
+const feriadosCols: ColumnDef<FeriadoFila>[] = [
     {
         key: 'fecha', label: 'Fecha', render: (v) => {
             const date = new Date(v);
@@ -38,17 +51,21 @@ export const FeriadosPanel: React.FC = () => {
     const [isSyncing, setIsSyncing] = useState(false);
     // Key que cambia para forzar el re-render de la tabla tras sincronizar
     const [tableKey, setTableKey] = useState(0);
+    // Año actual o el siguiente: desde octubre conviene dejar listo el año que viene.
+    const anioActual = new Date().getFullYear();
+    const [anio, setAnio] = useState(anioActual);
 
     const handleSync = async () => {
         setIsSyncing(true);
         try {
-            const currentYear = new Date().getFullYear();
-            await api.post('/feriados/sync', { year: currentYear });
+            const { data } = await api.post<ResultadoSync>('/feriados/sync', { year: anio });
+            const r = resumenSync(data);
+            if (r.tono === 'aviso') toast.warning(r.titulo, { description: r.detalle, duration: 12000 });
+            else toast.success(r.titulo, { description: r.detalle });
             // Incrementar la key hace que CrudTable se desmonte y vuelva a montar, recargando los datos
             setTableKey(prev => prev + 1);
         } catch (error) {
-            console.error('Error sincronizando feriados:', error);
-            alert('Error al sincronizar feriados nacionales.');
+            showApiError(error, `No se pudieron sincronizar los feriados de ${anio}.`);
         } finally {
             setIsSyncing(false);
         }
@@ -62,17 +79,24 @@ export const FeriadosPanel: React.FC = () => {
                     <p className="text-sm text-muted-foreground mt-1">Configura los días feriados o festivos de la obra y sincroniza los nacionales.</p>
                 </div>
                 <RequirePermission permiso="asistencia.feriado.gestionar">
-                    <Button
-                        onClick={handleSync}
-                        disabled={isSyncing}
-                        className={cn(
-                            "flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-semibold transition-all shadow-sm",
-                            isSyncing ? "opacity-50 cursor-not-allowed" : "hover:border-brand-primary hover:text-brand-primary"
-                        )}
-                    >
-                        <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
-                        <span>Sincronizar Año Actual</span>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Select
+                            aria-label="Año a sincronizar"
+                            className="h-10 w-28"
+                            value={anio}
+                            onChange={e => setAnio(Number(e.target.value))}
+                            disabled={isSyncing}
+                            options={[anioActual, anioActual + 1].map(y => ({ value: y, label: String(y) }))}
+                        />
+                        <Button
+                            variant="outline"
+                            onClick={handleSync}
+                            disabled={isSyncing}
+                            leftIcon={<RefreshCw className={cn('h-4 w-4', isSyncing && 'animate-spin')} />}
+                        >
+                            {isSyncing ? 'Sincronizando…' : 'Sincronizar feriados nacionales'}
+                        </Button>
+                    </div>
                 </RequirePermission>
             </div>
 
