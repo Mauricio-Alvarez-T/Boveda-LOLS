@@ -162,8 +162,13 @@ export const CeldaNivel: React.FC<Props> = ({
                             })}
                         </div>
 
-                        <p className="mb-1 mt-4 px-1 text-section font-semibold text-brand-dark">Ajuste fino</p>
-                        <ListaClaves items={base} perms={perms} soloLectura={soloLectura} onAlternar={onAlternar} />
+                        {/* Con un solo permiso base, el ajuste fino repetiría la opción de nivel. */}
+                        {base.length > 1 && (
+                            <>
+                                <p className="mb-1 mt-4 px-1 text-section font-semibold text-brand-dark">Ajuste fino</p>
+                                <ListaClaves items={base} perms={perms} soloLectura={soloLectura} onAlternar={onAlternar} />
+                            </>
+                        )}
                         {dinero.length > 0 && (
                             <>
                                 <p className="mb-1 mt-3 px-1 text-xs font-semibold text-amber-700 dark:text-amber-400">$ Montos · solo a mano</p>
