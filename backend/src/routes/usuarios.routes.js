@@ -24,9 +24,11 @@ const usuariosService = createCrudService('usuarios', {
 // mostrar badge ⚠️ "Sin permisos" en la tabla de roles + preview en
 // UsuarioForm. Subquery en lugar de JOIN porque cada rol puede tener N
 // permisos y GROUP BY rompería los demás campos del rol.
+// `usuarios_count` (activos) = el «N personas» de cada columna en la matriz de roles.
 const rolesService = createCrudService('roles', {
     searchFields: ['nombre'],
-    selectFields: 'roles.*, (SELECT COUNT(*) FROM permisos_rol_v2 WHERE rol_id = roles.id) AS permisos_count',
+    selectFields: 'roles.*, (SELECT COUNT(*) FROM permisos_rol_v2 WHERE rol_id = roles.id) AS permisos_count, '
+        + '(SELECT COUNT(*) FROM usuarios WHERE rol_id = roles.id AND activo = 1) AS usuarios_count',
     orderBy: 'nombre ASC',
     // El borrado de rol es soft-delete (activo=0). Sin esto el listado mostraría
     // también los roles dados de baja y "no se eliminarían" a ojos del usuario.

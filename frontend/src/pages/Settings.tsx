@@ -37,15 +37,6 @@ interface UserData {
     activo: boolean;
 }
 
-interface RoleData {
-    id: number;
-    nombre: string;
-    descripcion?: string;
-    activo: boolean;
-    /** Subquery del backend (usuarios.routes.js rolesService). Count de permisos
-        asignados al rol. Usado para badge ⚠️ "Sin permisos" en tabla. */
-    permisos_count?: number;
-}
 import { EmpresaForm } from '../components/settings/EmpresaForm';
 import { ObraForm } from '../components/settings/ObraForm';
 import { CargoForm } from '../components/settings/CargoForm';
@@ -53,7 +44,6 @@ import { ConductorForm } from '../components/settings/ConductorForm';
 import { formatoCelular } from '../utils/celular';
 import { TipoDocumentoForm } from '../components/settings/TipoDocumentoForm';
 import { UsuarioForm } from '../components/settings/UsuarioForm';
-import { RolForm } from '../components/settings/RolForm';
 import { EstadoAsistenciaForm } from '../components/settings/EstadoAsistenciaForm';
 import { TipoAusenciaForm } from '../components/settings/TipoAusenciaForm';
 import { HorariosConfigPanel } from '../components/settings/HorariosConfigPanel';
@@ -63,13 +53,13 @@ import ChangePasswordForm from '../components/settings/ChangePasswordForm';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
 import { FeriadosPanel } from '../components/settings/FeriadosPanel';
-import { ShieldCheck, UserCog, Package, Warehouse, Wrench, Archive, Bell, Banknote, Lock, FileWarning } from 'lucide-react';
+import { UserCog, Package, Warehouse, Wrench, Archive, Bell, Banknote, Lock, FileWarning } from 'lucide-react';
 import { FinalizarObraModal } from '../components/obras/FinalizarObraModal';
 import { ParticipaToggle } from '../components/settings/ParticipaToggle';
 import { CategoriaInventarioForm } from '../components/settings/CategoriaInventarioForm';
 import { BodegaForm } from '../components/settings/BodegaForm';
 import { ItemInventarioForm } from '../components/settings/ItemInventarioForm';
-import PermisosRolPanel from '../components/settings/PermisosRolPanel';
+import MatrizRoles from '../components/settings/matriz/MatrizRoles';
 import PermisosUsuarioPanel from '../components/settings/PermisosUsuarioPanel';
 import ReporteSuscriptoresPanel from '../components/settings/ReporteSuscriptoresPanel';
 import AvisosPanel from '../components/settings/AvisosPanel';
@@ -251,30 +241,6 @@ const usuarioCols: ColumnDef<UserData>[] = [
     },
 ];
 
-const rolCols: ColumnDef<RoleData>[] = [
-    { key: 'nombre', label: 'Nombre' },
-    { key: 'descripcion', label: 'Descripción', render: (v) => v || '—' },
-    {
-        key: 'permisos_count',
-        label: 'Permisos',
-        render: (v) => {
-            const count = typeof v === 'number' ? v : 0;
-            if (count === 0) {
-                return (
-                    <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400 text-xs font-semibold">
-                        <AlertTriangle className="h-3 w-3" /> Sin permisos
-                    </span>
-                );
-            }
-            return (
-                <span className="text-xs text-muted-foreground font-medium">
-                    {count} permiso{count === 1 ? '' : 's'}
-                </span>
-            );
-        },
-    },
-];
-
 const estadoAsistenciaCols: ColumnDef<EstadoAsistencia>[] = [
     { key: 'nombre', label: 'Nombre' },
     {
@@ -324,8 +290,6 @@ const SettingsPage: React.FC = () => {
     const { hasPermission } = useAuth();
     const [activeTab, setActiveTab] = useState<TabKey>('empresas');
     
-    // Estados para gestión de permisos
-    const [rolPermsModal, setRolPermsModal] = useState<{ open: boolean; rol: RoleData | null }>({ open: false, rol: null });
     // Finalizar obra: obra seleccionada para el modal + nonce para remontar la
     // CrudTable de obras tras finalizar (fuerza refetch).
     const [obraAFinalizar, setObraAFinalizar] = useState<Obra | null>(null);
@@ -626,28 +590,7 @@ const SettingsPage: React.FC = () => {
                             )}
                         />
                     )}
-                    {activeTab === 'roles' && (
-                        <CrudTable
-                            endpoint="/usuarios/roles"
-                            columns={rolCols}
-                            entityName="Rol"
-                            entityNamePlural="Roles"
-                            FormComponent={RolForm}
-                            canCreate={hasPermission('usuarios.roles.crear')}
-                            canEdit={hasPermission('usuarios.roles.editar')}
-                            canDelete={hasPermission('usuarios.roles.eliminar')}
-                            canExport={false}
-                            renderActions={(row) => (
-                                <IconButton
-                                    variant="ghost"
-                                    aria-label="Configurar permisos del rol"
-                                    title="Configurar Permisos del Rol"
-                                    onClick={() => setRolPermsModal({ open: true, rol: row })}
-                                    icon={<ShieldCheck className="h-4 w-4" />}
-                                />
-                            )}
-                        />
-                    )}
+                    {activeTab === 'roles' && <MatrizRoles />}
                     {activeTab === 'estados_asistencia' && (
                         <CrudTable
                             endpoint="/estados-asistencia"
@@ -827,23 +770,6 @@ const SettingsPage: React.FC = () => {
                 </motion.div>
                 </div>
             </div>
-
-            {/* Modales de Permisos */}
-            <Modal
-                isOpen={rolPermsModal.open}
-                onClose={() => setRolPermsModal({ open: false, rol: null })}
-                title="Configuración de Permisos de Rol"
-                size="full"
-                noBodyPadding
-            >
-                {rolPermsModal.rol && (
-                    <PermisosRolPanel 
-                        rolId={rolPermsModal.rol.id}
-                        rolNombre={rolPermsModal.rol.nombre}
-                        onClose={() => setRolPermsModal({ open: false, rol: null })}
-                    />
-                )}
-            </Modal>
 
             <CargoSueldoModal
                 isOpen={sueldoModal.open}
