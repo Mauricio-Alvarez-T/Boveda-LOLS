@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ChevronLeft, Save, Send, MessageCircle, Plus, Ban } from 'lucide-react';
+import { ChevronLeft, Save, Send, MessageCircle, Plus, Ban, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../ui/Button';
 import { StatusBadge } from '../../ui/StatusBadge';
@@ -13,6 +13,7 @@ import { useActividadesSugeridas } from '../../../hooks/attendance/useActividade
 import { prepareAndShareWithToast } from '../../../utils/whatsappShare';
 import { buildListaMessage, buildAsistenciaMessage } from './actividadesWhatsApp';
 import AddFromOtherObraModal from './AddFromOtherObraModal';
+import EliminarListaModal from './EliminarListaModal';
 import type { Trabajador } from '../../../types/entities';
 
 interface Props {
@@ -49,15 +50,17 @@ interface RowState {
 const ActividadSugeridaAsistencia: React.FC<Props> = ({ actividadId, onBack }) => {
     const { hasPermission } = useAuth();
     const { obras } = useObra();
-    const { fetchDetalle, registrarAsistencia, cancelar, current, loading } = useActividadesSugeridas();
+    const { fetchDetalle, registrarAsistencia, cancelar, eliminar, current, loading } = useActividadesSugeridas();
     const [rows, setRows] = useState<Record<number, RowState>>({});
     const [observacionesGlobales, setObservacionesGlobales] = useState('');
     const [showAddOther, setShowAddOther] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [showEliminar, setShowEliminar] = useState(false);
 
     const canRegistrar = hasPermission('asistencia.actividades_sugeridas.registrar');
     const canCrear = hasPermission('asistencia.actividades_sugeridas.crear');
     const canShare = hasPermission('asistencia.actividades_sugeridas.enviar_whatsapp');
+    const canEliminar = hasPermission('asistencia.actividades_sugeridas.eliminar');
 
     useEffect(() => {
         fetchDetalle(actividadId);
@@ -231,9 +234,30 @@ const ActividadSugeridaAsistencia: React.FC<Props> = ({ actividadId, onBack }) =
                             Obra {current.obra_nombre} · Solicitado por {current.creado_por_nombre || '—'}
                         </p>
                     </div>
-                    <StatusBadge domain="actividadEstado" status={current.estado} showIcon />
+                    <div className="flex items-center gap-2">
+                        <StatusBadge domain="actividadEstado" status={current.estado} showIcon />
+                        {canEliminar && (
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => setShowEliminar(true)}
+                                leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+                            >
+                                Eliminar
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
+
+            {showEliminar && (
+                <EliminarListaModal
+                    lista={current}
+                    onClose={() => setShowEliminar(false)}
+                    onEliminar={eliminar}
+                    onEliminada={onBack}
+                />
+            )}
 
             {/* Si está cancelada, no mostrar formulario de edición */}
             {isCancelada && (

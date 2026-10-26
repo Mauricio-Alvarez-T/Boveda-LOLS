@@ -165,10 +165,19 @@ claves de permiso, archivos) en la migración 116.
   (historial; la lista muestra ambas con su estado), no se borra.
 - Flujo/estados (ENUM interno intacto): `citada` (UI "Creada") → `realizada` (registro) →
   `cancelada` (soft-delete; detalle `cancelado`). Solo se edita en `citada`; la semana no se edita.
+- **Eliminar definitivamente (mig 136, jefatura 2026-10-26).** Para listas armadas por error,
+  en CUALQUIER estado (también `realizada`): `DELETE /:id/definitivo` borra la cabecera y sus
+  trabajadores (`SELECT … FOR UPDATE`; detalle antes que cabecera) y la lista **deja de contar en
+  el informe**. No se puede deshacer. Permiso propio `asistencia.actividades_sugeridas.eliminar`
+  (crítico; solo Super Admin por defecto — distinto de `…cancelar`, que tiene terreno). El log
+  global excluye la ruta; la ruta registra qué se borró (semana, obra, estado, trabajadores,
+  asistieron). UI: botón "Eliminar" junto al estado en el detalle, con ventana de confirmación;
+  en una `citada` sugiere "Cancelar lista" si solo no habrá actividad.
 - **SIN horas (jefatura 2026-08-17)**: solo asistió/no asistió + observación. Columnas
   `horas_default`/`horas_trabajadas` muertas en BD.
 - No se permite armar listas para obra inactiva ni con trabajadores finiquitados; 1..500.
 - Permisos: `asistencia.actividades_sugeridas.{ver,crear,editar,cancelar,registrar,enviar_whatsapp}`
+  (+ `informe` mig 117 y `eliminar` mig 136)
   (las claves `asistencia.sabados_extra.*` se repuntaron en la mig 116; **re-login general**
   vía `roles.version + 1`).
 - **WhatsApp (lista y asistencia)**: cabecera `*Lista de trabajadores en actividades sugeridas*` +

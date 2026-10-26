@@ -20,6 +20,7 @@ const { isoDe, esLunesIso, labelSemana } = require('../utils/semana');
  *   2. PUT    /actividades-sugeridas/:id/lista       → editarLista (estado 'citada')
  *   3. PUT    /actividades-sugeridas/:id/asistencia  → registrarAsistencia
  *   4. DELETE /actividades-sugeridas/:id             → cancelar (soft delete)
+ *   5. DELETE /actividades-sugeridas/:id/definitivo  → eliminar (borrado real, permiso propio)
  *
  * Auditoría (migración 040): todas las transiciones de estado usan
  * SELECT ... FOR UPDATE para prevenir race conditions, y la columna `estado`
@@ -463,6 +464,56 @@ const actividadesSugeridasService = {
 
             await conn.commit();
             return { id };
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
+        }
+    },
+
+    /**
+     * Borrado DEFINITIVO (jefatura 2026-10-26): quita la cabecera y sus trabajadores,
+     * en cualquier estado (también una «Realizada»). La lista deja de contar en el
+     * informe de asistencia. No se puede deshacer; la ruta deja en el historial de
+     * actividad lo que se borró (devuelto aquí, leído antes de borrar).
+     *
+     * Concurrencia: SELECT ... FOR UPDATE, igual que cancelar.
+     */
+    async eliminar(id) {
+        const conn = await db.getConnection();
+        try {
+            await conn.beginTransaction();
+
+            const [headers] = await conn.query(
+                `SELECT s.id, s.obra_id, s.semana, s.estado, o.nombre AS obra_nombre
+                 FROM actividades_sugeridas s
+                 LEFT JOIN obras o ON o.id = s.obra_id
+                 WHERE s.id = ? FOR UPDATE`,
+                [id]
+            );
+            if (headers.length === 0) throw err404('Lista no encontrada');
+            const h = headers[0];
+
+            const [conteo] = await conn.query(
+                `SELECT COUNT(*) AS trabajadores, COALESCE(SUM(estado = 'asistio'), 0) AS asistieron
+                 FROM actividades_sugeridas_trabajadores WHERE actividad_id = ?`,
+                [id]
+            );
+
+            await conn.query('DELETE FROM actividades_sugeridas_trabajadores WHERE actividad_id = ?', [id]);
+            await conn.query('DELETE FROM actividades_sugeridas WHERE id = ?', [id]);
+
+            await conn.commit();
+            return {
+                id,
+                obra_id: h.obra_id,
+                obra_nombre: h.obra_nombre || null,
+                semana: isoDe(h.semana),
+                estado: h.estado,
+                trabajadores: Number(conteo[0]?.trabajadores) || 0,
+                asistieron: Number(conteo[0]?.asistieron) || 0,
+            };
         } catch (err) {
             await conn.rollback();
             throw err;

@@ -340,4 +340,43 @@ describe('ActividadesSugeridas Service', () => {
             expect(updateTrbs[0]).toMatch(/UPDATE actividades_sugeridas_trabajadores[\s\S]*estado = 'cancelado'[\s\S]*WHERE actividad_id = \?/);
         });
     });
+
+    describe('eliminar (borrado definitivo, jefatura 2026-10-26)', () => {
+        test('404 si no existe, sin borrar nada y con rollback', async () => {
+            connQueryMock.mockResolvedValueOnce([[]]);
+            await expect(service.eliminar(999)).rejects.toMatchObject({ statusCode: 404 });
+            expect(connQueryMock.mock.calls.some(c => /DELETE/.test(c[0]))).toBe(false);
+            expect(rollbackMock).toHaveBeenCalled();
+            expect(commitMock).not.toHaveBeenCalled();
+        });
+
+        test('borra una lista REALIZADA: trabajadores y cabecera, devuelve lo borrado', async () => {
+            connQueryMock
+                .mockResolvedValueOnce([[{ id: 7, obra_id: 3, semana: new Date(2026, 9, 19), estado: 'realizada', obra_nombre: 'TOESCA 2770' }]])
+                .mockResolvedValueOnce([[{ trabajadores: 10, asistieron: '10' }]])
+                .mockResolvedValueOnce([{ affectedRows: 10 }])
+                .mockResolvedValueOnce([{ affectedRows: 1 }]);
+            const r = await service.eliminar(7);
+            expect(r).toEqual({
+                id: 7, obra_id: 3, obra_nombre: 'TOESCA 2770', semana: '2026-10-19',
+                estado: 'realizada', trabajadores: 10, asistieron: 10,
+            });
+            const sqls = connQueryMock.mock.calls.map(c => c[0]);
+            expect(sqls[0]).toMatch(/FROM actividades_sugeridas s[\s\S]*WHERE s\.id = \? FOR UPDATE/);
+            expect(sqls[2]).toMatch(/DELETE FROM actividades_sugeridas_trabajadores WHERE actividad_id = \?/);
+            expect(sqls[3]).toMatch(/DELETE FROM actividades_sugeridas WHERE id = \?/);
+            expect(connQueryMock.mock.calls[3][1]).toEqual([7]);
+            expect(commitMock).toHaveBeenCalled();
+        });
+
+        test('también borra una cancelada (sin trabajadores asistentes)', async () => {
+            connQueryMock
+                .mockResolvedValueOnce([[{ id: 8, obra_id: 3, semana: '2026-10-19', estado: 'cancelada', obra_nombre: null }]])
+                .mockResolvedValueOnce([[{ trabajadores: 0, asistieron: null }]])
+                .mockResolvedValueOnce([{ affectedRows: 0 }])
+                .mockResolvedValueOnce([{ affectedRows: 1 }]);
+            const r = await service.eliminar(8);
+            expect(r).toMatchObject({ estado: 'cancelada', trabajadores: 0, asistieron: 0, obra_nombre: null });
+        });
+    });
 });

@@ -129,6 +129,19 @@ export function useActividadesSugeridas() {
         }
     }, []);
 
+    /** Borrado DEFINITIVO (permiso propio): la lista y sus trabajadores desaparecen. */
+    const eliminar = useCallback(async (id: number): Promise<boolean> => {
+        try {
+            await api.delete(`/actividades-sugeridas/${id}/definitivo`);
+            toast.success('Lista eliminada');
+            return true;
+        } catch (err: any) {
+            const msg = err?.response?.data?.error || 'Error al eliminar la lista';
+            toast.error(msg);
+            return false;
+        }
+    }, []);
+
     return {
         list,
         current,
@@ -144,5 +157,6 @@ export function useActividadesSugeridas() {
         editarLista,
         registrarAsistencia,
         cancelar,
+        eliminar,
     };
 }
