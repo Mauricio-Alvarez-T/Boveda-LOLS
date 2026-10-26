@@ -6,6 +6,7 @@ const { ROL_SUPER_ADMIN } = require('./superAdmin');
 /**
  * Guarda de POST /api/soporte/ver-como/escritura (pasar de «ver como» en solo lectura a modo cambios, Marcos
  * 2026-10-26). NO es `soloSuperAdmin`: esa rechaza todo token con `imp`, y aquí SOLO sirve uno de «ver como».
+ * Reglas y límites del modo cambios: docs/reglas/seguridad-rbac.md § Ver como usuario (soporte).
  *
  * Barreras, en orden (va DESPUÉS de `auth`, que ya verificó firma, vencimiento, `typ` y la versión del rol):
  *   1. El token es de «ver como» en SOLO LECTURA: `typ: 'session'`, `imp` entero positivo distinto de la persona,
