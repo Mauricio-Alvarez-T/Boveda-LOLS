@@ -51,8 +51,9 @@ export function useMatrizRoles() {
             try {
                 const res = await api.get('/usuarios/roles', { params: { limit: 200 } });
                 const lista: RolMatriz[] = res.data?.data ?? [];
-                // Super Admin primero: es la referencia de «todo».
-                lista.sort((a, b) => (a.id === ROL_SUPER_ADMIN ? -1 : b.id === ROL_SUPER_ADMIN ? 1 : a.nombre.localeCompare(b.nombre, 'es')));
+                // Super Admin al final: siempre «Todo» y no se edita. Primero ocupaba la única columna que
+                // cabe al lado de «Pantalla» en un celular.
+                lista.sort((a, b) => (a.id === ROL_SUPER_ADMIN ? 1 : b.id === ROL_SUPER_ADMIN ? -1 : a.nombre.localeCompare(b.nombre, 'es')));
                 const permisos = await Promise.all(
                     lista.map(r => api.get(`/usuarios/roles/${r.id}/permisos`).then(x => (x.data ?? []) as string[])),
                 );
