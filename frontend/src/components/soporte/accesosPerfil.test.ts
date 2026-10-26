@@ -1,6 +1,6 @@
 import {
     MENU_DE_MODULO, MODULO_DE_PREFIJO, TEXTO_INICIO_GERENCIA, TEXTO_SIN_INVENTARIO, accesosPerfil, fichaParaVerComo,
-    limpiarNombre, menuDePermiso, nombreSinFicha, type AccesosPerfil, type EntradaAccesos, type JerarquiaPermiso,
+    limpiarNombre, menuDePermiso, nombreSinFicha, subtituloAccesos, type AccesosPerfil, type EntradaAccesos, type JerarquiaPermiso,
     type TarjetaAcceso,
 } from './accesosPerfil';
 import { TEXTO_VISTA_INVENTARIO, type FichaSoporte } from './fichaUsuario';
@@ -255,6 +255,12 @@ describe('textos', () => {
         expect(nombreSinFicha('vehiculos.crear', { subseccion: 'Vehículos' })).toBe('Vehículos: crear');
         expect(nombreSinFicha('asistencia.horas_extra.ver')).toBe('Horas extra ver');
         expect(nombreSinFicha('raro')).toBe('Raro');
+    });
+
+    test('el subtítulo dice el modo: solo lectura no guarda; en modo cambios lo guardado queda a su nombre y registrado', () => {
+        expect(subtituloAccesos(false)).toBe('Así es su menú y lo que puede hacer en cada parte. Es solo para revisar: no guarda nada.');
+        expect(subtituloAccesos(true)).toBe('Así es su menú y lo que puede hacer en cada parte. Estás en modo cambios: lo que guardes queda a su nombre y registrado.');
+        expect(subtituloAccesos(true)).not.toMatch(/no guarda nada/);
     });
 });
 

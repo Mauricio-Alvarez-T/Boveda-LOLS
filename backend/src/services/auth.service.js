@@ -35,25 +35,30 @@ const authService = {
      * Arma el JWT de sesión y el `user` que recibe el frontend. Lo usan el login y el «Ver como» de Soporte
      * (soporte.service: mismos claims, más `imp` y `ro`, y 30 min de vida). `user` = fila de `usuarios` con
      * `rol_nombre`. `extra` se agrega al payload sin pisar los claims de identidad (los de abajo ganan).
+     * `exp` (segundos desde 1970) fija la hora EXACTA de vencimiento en vez de `expiresIn`: el modo cambios de
+     * «ver como» (soporte.service.activarCambios) vence a la misma hora que el token de solo lectura que lo pidió.
      */
-    firmarSesion(user, permisosEfectivos, { extra = {}, expiresIn } = {}) {
+    firmarSesion(user, permisosEfectivos, { extra = {}, expiresIn, exp } = {}) {
         const rolVersion = versionService.get(user.rol_id);
 
-        const token = jwt.sign(
-            {
-                ...extra,
-                typ: 'session', // distingue el token de sesión de los de descarga pública (token confusion)
-                id: user.id,
-                email: user.email,
-                rol_id: user.rol_id,
-                obra_id: user.obra_id,
-                bodega_id: user.bodega_id ?? null, // bodeguero: scope por bodega destino (mig 097)
-                p: permisosEfectivos, // Permissions as array of strings
-                rv: rolVersion
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: expiresIn || process.env.JWT_EXPIRES_IN || '8h' }
-        );
+        const payload = {
+            ...extra,
+            typ: 'session', // distingue el token de sesión de los de descarga pública (token confusion)
+            id: user.id,
+            email: user.email,
+            rol_id: user.rol_id,
+            obra_id: user.obra_id,
+            bodega_id: user.bodega_id ?? null, // bodeguero: scope por bodega destino (mig 097)
+            p: permisosEfectivos, // Permissions as array of strings
+            rv: rolVersion
+        };
+        // jwt.sign no acepta `exp` en el payload junto con `expiresIn`: o uno o el otro (y nunca desde `extra`).
+        delete payload.exp;
+        const opciones = {};
+        if (Number.isInteger(exp)) payload.exp = exp;
+        else opciones.expiresIn = expiresIn || process.env.JWT_EXPIRES_IN || '8h';
+
+        const token = jwt.sign(payload, process.env.JWT_SECRET, opciones);
 
         return {
             token,

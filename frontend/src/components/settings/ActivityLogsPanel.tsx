@@ -848,7 +848,12 @@ const DetailModalContent: React.FC<{ log: Log }> = ({ log }) => {
 
 const getActionDisplay = (accion: string, modulo?: string | null) => {
     // «Ver como» de Soporte · usuarios: se guarda como LOGIN (ENUM cerrado) pero no es un inicio de sesión propio.
-    if (modulo === 'soporte') return { label: 'VER COMO', color: 'bg-warning/10 text-warning' };
+    // Lo demás de `soporte` (CREATE/UPDATE/DELETE) es una escritura hecha en modo cambios, como otra persona.
+    if (modulo === 'soporte') {
+        return accion === 'LOGIN'
+            ? { label: 'VER COMO', color: 'bg-warning/10 text-warning' }
+            : { label: 'CAMBIO COMO', color: 'bg-destructive/10 text-destructive' };
+    }
     switch (accion) {
         case 'CREATE': return { label: 'CREAR', color: 'bg-brand-accent/10 text-brand-accent' };
         case 'UPDATE': return { label: 'EDITAR', color: 'bg-warning/10 text-warning' };

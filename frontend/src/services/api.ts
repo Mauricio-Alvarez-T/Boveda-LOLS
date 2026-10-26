@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { toast } from 'sonner';
 import {
-    AVISOS_VER_COMO, almacenSesion, borrarSesionVerComo, esErrorSoloLectura, guardarAvisoVerComo, rutaAlSalir, tokenVerComoGuardado,
+    AVISOS_VER_COMO, almacenSesion, borrarSesionVerComo, esErrorCambiosInvalido, esErrorSoloLectura, guardarAvisoVerComo, rutaAlSalir,
+    tokenVerComoGuardado,
 } from '../context/verComoSesion';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -46,11 +47,14 @@ api.interceptors.response.use(
 
         // «Ver como»: el 401 es del token prestado (venció, o cambiaron los permisos de esa persona). Se vuelve a la
         // cuenta propia sin tocarla; si la propia tampoco sirve, su propio 401 llevará al login.
-        if (status === 401 && tokenVerComoGuardado(almacenSesion()) && !String(error.config?.url || '').includes('/auth/login')) {
+        // Lo mismo si el modo cambios dejó de valer (403 `VER_COMO_CAMBIOS_INVALIDO`: quien mira ya no es Super
+        // Administrador activo, o la persona quedó inactiva): se vuelve a la cuenta propia con el motivo del servidor.
+        const cambiosInvalido = status === 403 && esErrorCambiosInvalido(error.response?.data);
+        if ((status === 401 || cambiosInvalido) && tokenVerComoGuardado(almacenSesion()) && !String(error.config?.url || '').includes('/auth/login')) {
             const ses = almacenSesion();
             const volverA = rutaAlSalir(ses);
             borrarSesionVerComo(ses);
-            guardarAvisoVerComo(ses, AVISOS_VER_COMO.terminoServidor);
+            guardarAvisoVerComo(ses, (cambiosInvalido && error.response?.data?.error) || AVISOS_VER_COMO.terminoServidor);
             window.location.href = volverA;
             return Promise.reject(error);
         }

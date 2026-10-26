@@ -11,7 +11,8 @@ import { cn } from '../../utils/cn';
 import { PERMISO_HIERARCHY } from '../../config/permisosHierarchy';
 import { ETIQUETA_BUZON_IDEAS } from '../ideas/ideasConfig';
 import { TEXTO_ORIGEN, type OrigenPermiso } from './fichaUsuario';
-import { accesosPerfil, type ClaveTarjeta, type FilaAcceso, type PermisoAcceso, type TarjetaAcceso } from './accesosPerfil';
+import { accesosPerfil, subtituloAccesos, type ClaveTarjeta, type FilaAcceso, type PermisoAcceso, type TarjetaAcceso } from './accesosPerfil';
+import { enModoCambios } from '../../context/verComoSesion';
 
 /**
  * «Lo que puede usar <persona> (<rol>)» (Marcos 2026-10-26): en el Inicio, SOLO mientras el Super Administrador está en
@@ -202,7 +203,7 @@ export const AccesosVerComo: React.FC<{ className?: string }> = ({ className }) 
                             {r.rol && <span className="font-normal text-muted-foreground"> ({r.rol})</span>}
                         </h2>
                         <p className="mt-0.5 text-sm text-muted-foreground">
-                            Así es su menú y lo que puede hacer en cada parte. Es solo para revisar: no guarda nada.
+                            {subtituloAccesos(enModoCambios(verComo))}
                         </p>
                     </div>
                 </div>

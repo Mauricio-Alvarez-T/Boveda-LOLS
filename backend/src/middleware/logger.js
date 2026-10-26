@@ -271,8 +271,9 @@ const activityLogger = async (req, res, next) => {
             if (/^\/api\/soporte(\/|$)/.test(req.originalUrl.split('?')[0])) return;
 
             try {
-                // «Ver como» (token con `imp`) es solo lectura y auth.js corta antes todo POST/PUT/DELETE; si
-                // algo llegara igual, queda a nombre de quien mira, nunca del usuario mirado.
+                // «Ver como» (token con `imp`): en solo lectura auth.js corta antes todo POST/PUT/DELETE; en modo
+                // cambios (`rw`) sí llegan. Siempre a nombre de quien mira, nunca del usuario mirado, y con la marca
+                // «(cambios como usuario #N)» en el resumen (atribuirVerComo, al guardar).
                 const usuario_id = req.user ? (req.user.imp ?? req.user.id) : null;
                 const ip = req.ip || req.connection.remoteAddress;
                 const item_id = extractedId || null;
@@ -318,9 +319,12 @@ const activityLogger = async (req, res, next) => {
                 const { tipo: entidad_tipo, label: entidad_label } =
                     await resolveEntidad(modulo, item_id, req.body);
 
+                // «Ver como»: la marca de quién lo hizo de verdad (sin «ver como», no cambia nada).
+                const [quien, detalleFinal] = atribuirVerComo(usuario_id, detalle, req);
+
                 await db.query(
                     'INSERT INTO logs_actividad (usuario_id, modulo, accion, item_id, entidad_tipo, entidad_label, detalle, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                    [usuario_id, modulo, accion, item_id, entidad_tipo, entidad_label, detalle, ip, req.get('User-Agent')]
+                    [quien, modulo, accion, item_id, entidad_tipo, entidad_label, detalleFinal, ip, req.get('User-Agent')]
                 );
             } catch (err) {
                 logger.error('Error al guardar log de actividad', { err: err.message });
@@ -331,25 +335,87 @@ const activityLogger = async (req, res, next) => {
     next();
 };
 
+/** ¿El token de la petición es de «ver como» en modo cambios? (mismo criterio que middleware/auth). */
+const esModoCambios = (u) => !!u && u.imp !== undefined && u.imp !== null && u.rw === true && u.ro !== true;
+
 /**
  * «Ver como» (soporte, token con `imp`): lo que se registre durante la sesión prestada (p. ej. abrir un documento
- * laboral, que es un GET con log) queda a nombre del Super Administrador que mira y marcado como «viendo como»,
- * nunca a nombre del usuario mirado como si lo hubiera hecho él. Devuelve [usuario_id, detalle].
+ * laboral, que es un GET con log, o lo que se guarde en modo cambios) queda a nombre del Super Administrador que mira
+ * y marcado «(viendo como usuario #N)» o, en modo cambios, «(cambios como usuario #N)»: nunca a nombre del usuario
+ * mirado como si lo hubiera hecho él. Si el detalle ya trae `ver_como_usuario_id` (lo armó Soporte o
+ * `registrarCambioVerComo`, con el nombre), no se repite la marca. Devuelve [usuario_id, detalle].
  */
 function atribuirVerComo(usuario_id, detalle, req) {
     const imp = req && req.user ? req.user.imp : undefined;
     if (imp === undefined || imp === null) return [usuario_id, detalle];
     const mirado = req.user.id;
-    const nota = `viendo como usuario #${mirado}`;
+    const cambios = esModoCambios(req.user);
+    const nota = `${cambios ? 'cambios' : 'viendo'} como usuario #${mirado}`;
     try {
         const obj = typeof detalle === 'string' ? JSON.parse(detalle) : null;
         if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+            if (obj.ver_como_usuario_id !== undefined) return [imp, detalle];
             obj.ver_como_usuario_id = mirado;
+            if (cambios) obj.ver_como_modo = 'cambios';
             obj.resumen = obj.resumen ? `${obj.resumen} (${nota})` : `(${nota})`;
             return [imp, JSON.stringify(obj)];
         }
     } catch { /* detalle de texto plano */ }
     return [imp, detalle ? `${detalle} (${nota})` : `(${nota})`];
+}
+
+const ACCION_POR_METODO = { POST: 'CREATE', PUT: 'UPDATE', PATCH: 'UPDATE', DELETE: 'DELETE' };
+
+/**
+ * «Ver como» en modo cambios (middleware/auth, token con `imp` + `rw`): CADA escritura deja una fila mínima en el
+ * historial, a nombre del Super Administrador, además de lo que registre la ruta (el log genérico no cubre PATCH, ni
+ * las rutas que se loguean a mano, ni un UPDATE sin diferencias, ni los logs manuales que no reciben `req`). También
+ * las que auth corta (403) o fallan: queda el intento. Sin el body (puede traer claves, RUT, montos) ni la query
+ * (puede traer un token): método, ruta, respuesta, la persona y quién. Una sola fila por petición aunque `auth` corra
+ * dos veces (rutas con guarda propia + CRUD). Nunca falla la petición.
+ */
+function registrarCambioVerComo(req, res) {
+    try {
+        if (!req || !res || req._cambioVerComoRegistrado || !esModoCambios(req.user)) return;
+        req._cambioVerComoRegistrado = true;
+        const { id: personaId, imp } = req.user;
+        const metodo = req.method;
+        const ruta = String(req.originalUrl || '').split('?')[0].slice(0, 300);
+        let hecho = false;
+        const guardar = async () => {
+            if (hecho) return;
+            hecho = true;
+            try {
+                const { label } = await resolveEntidad('usuarios', personaId, null);
+                const persona = label || `usuario #${personaId}`;
+                const estado = res.statusCode;
+                const terminada = res.writableFinished !== false;
+                const resumen = `${metodo} ${ruta} → ${terminada ? estado : 'cortada'} (como ${label || 'usuario'} #${personaId})`;
+                const detalle = JSON.stringify({
+                    evento: 'cambio_como',
+                    metodo,
+                    ruta,
+                    estado: terminada ? estado : null,
+                    usuario_id: Number(personaId),
+                    usuario: persona,
+                    ver_como_usuario_id: Number(personaId),
+                    ver_como_modo: 'cambios',
+                    resumen,
+                });
+                const ip = req.ip || (req.connection && req.connection.remoteAddress) || null;
+                await db.query(
+                    'INSERT INTO logs_actividad (usuario_id, modulo, accion, item_id, entidad_tipo, entidad_label, detalle, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    [Number(imp), 'soporte', ACCION_POR_METODO[metodo] || 'UPDATE', String(personaId), 'usuario', label || null, detalle, ip, typeof req.get === 'function' ? req.get('User-Agent') : null]
+                );
+            } catch (err) {
+                logger.error('Error al guardar log de modo cambios', { err: err.message });
+            }
+        };
+        res.once('finish', guardar);
+        res.once('close', guardar);
+    } catch (err) {
+        logger.error('Error al preparar log de modo cambios', { err: err.message });
+    }
 }
 
 const logManualActivity = async (
@@ -379,4 +445,4 @@ const logManualActivity = async (
     }
 };
 
-module.exports = { activityLogger, logManualActivity, resolveEntidad, atribuirVerComo };
+module.exports = { activityLogger, logManualActivity, resolveEntidad, atribuirVerComo, registrarCambioVerComo };
