@@ -84,22 +84,73 @@ async function sesionDe(u) {
     }
 }
 
+/** Los usuarios ACTIVOS, por nombre (la lista y el Panorama: las mismas personas). */
+const SQL_USUARIOS_ACTIVOS =
+    `SELECT u.id, u.nombre, u.email, u.rol_id, r.nombre AS rol_nombre,
+            u.obra_id, o.nombre AS obra_nombre, u.bodega_id, b.nombre AS bodega_nombre
+       FROM usuarios u
+       JOIN roles r ON r.id = u.rol_id
+       LEFT JOIN obras o ON o.id = u.obra_id
+       LEFT JOIN bodegas b ON b.id = u.bodega_id
+      WHERE u.activo = 1
+      ORDER BY u.nombre ASC`;
+
+/** Agrupa filas por una columna numérica: Map<id, filas[]> (conserva el orden en que llegaron). */
+function agrupar(filas, campo) {
+    const m = new Map();
+    for (const f of filas || []) {
+        const k = Number(f[campo]);
+        const lista = m.get(k);
+        if (lista) lista.push(f);
+        else m.set(k, [f]);
+    }
+    return m;
+}
+
 const soporteService = {
     MINUTOS_VER_COMO,
 
     /** Usuarios ACTIVOS, por nombre: lo que lista el buscador de la página. */
     async listarUsuarios() {
-        const [rows] = await db.query(
-            `SELECT u.id, u.nombre, u.email, u.rol_id, r.nombre AS rol_nombre,
-                    u.obra_id, o.nombre AS obra_nombre, u.bodega_id, b.nombre AS bodega_nombre
-               FROM usuarios u
-               JOIN roles r ON r.id = u.rol_id
-               LEFT JOIN obras o ON o.id = u.obra_id
-               LEFT JOIN bodegas b ON b.id = u.bodega_id
-              WHERE u.activo = 1
-              ORDER BY u.nombre ASC`
-        );
+        const [rows] = await db.query(SQL_USUARIOS_ACTIVOS);
         return rows.map(filaUsuario);
+    },
+
+    /**
+     * El PANORAMA (Marcos 2026-10-26): las mismas personas de la lista, cada una con sus permisos efectivos (lo que
+     * llevaría su token), para que el frontend dibuje qué secciones del menú ve cada una (`menuVisible`, la regla del
+     * Sidebar). Todo en lote, con un número FIJO de consultas (no una por persona):
+     *   1. los usuarios activos;  2. los permisos de los roles presentes (menos el 1);
+     *   3. los overrides de todos;  4. las claves del catálogo (solo si hay algún rol 1: su base es todo el catálogo).
+     * El cálculo es `permisosService.componerPermisos`, el mismo de `detallePermisos` (login y ficha).
+     */
+    async panorama() {
+        const [rows] = await db.query(SQL_USUARIOS_ACTIVOS);
+        const usuarios = rows.map(filaUsuario);
+        if (!usuarios.length) return [];
+
+        const roles = [...new Set(usuarios.map(u => u.rol_id).filter(r => r !== ROL_SUPER_ADMIN))];
+        const [permisosRol] = roles.length
+            ? await db.query('SELECT rol_id, permiso_clave FROM permisos_rol_v2 WHERE rol_id IN (?)', [roles])
+            : [[]];
+        const [overrides] = await db.query(
+            'SELECT usuario_id, permiso_clave, tipo FROM permisos_usuario_override WHERE usuario_id IN (?)',
+            [usuarios.map(u => u.id)]
+        );
+        const [catalogo] = usuarios.some(u => u.rol_id === ROL_SUPER_ADMIN)
+            ? await db.query('SELECT clave FROM permisos_catalogo')
+            : [[]];
+
+        const clavesCatalogo = (catalogo || []).map(c => c.clave);
+        const porRol = agrupar(permisosRol, 'rol_id');
+        const porUsuario = agrupar(overrides, 'usuario_id');
+        return usuarios.map(u => {
+            const base = u.rol_id === ROL_SUPER_ADMIN
+                ? clavesCatalogo
+                : (porRol.get(u.rol_id) || []).map(r => r.permiso_clave);
+            const { efectivos } = permisosService.componerPermisos(u.rol_id, base, porUsuario.get(u.id) || []);
+            return { ...u, efectivos };
+        });
     },
 
     /**

@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { UserSearch } from 'lucide-react';
+import { Table2, UserSearch, Users } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useStandardHeader } from '../components/ui/PageHeader';
+import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
+import { PestanasElasticas } from '../components/ui/PestanasElasticas';
 import { SearchBar } from '../components/ui/SearchBar';
 import { Select } from '../components/ui/Select';
 import { Skeleton, SkeletonFilas } from '../components/ui/Skeleton';
@@ -16,6 +18,8 @@ import { esSuperAdmin } from '../components/dashboard/widgets/inventarioPerfil/p
 import { FichaPersona } from '../components/soporte/FichaPersona';
 import { filtrarUsuarios, lugarUsuario, rolesDeLista, type FichaSoporte, type UsuarioSoporte } from '../components/soporte/fichaUsuario';
 import { fichaParaVerComo } from '../components/soporte/accesosPerfil';
+import { PanoramaPermisos } from '../components/soporte/PanoramaPermisos';
+import type { UsuarioPanorama } from '../components/soporte/panorama';
 import type { RespuestaVerComo } from '../context/verComoSesion';
 
 /**
@@ -24,14 +28,24 @@ import type { RespuestaVerComo } from '../context/verComoSesion';
  * origen de cada uno) y, si hace falta, «Ver como esta persona» abre la app tal cual la ve ella, en solo lectura.
  * El servidor verifica el rol 1 en cada petición (/api/soporte); esta página solo evita mostrar algo inútil.
  * `?u=ID` abre la ficha de esa persona (así vuelve «Volver a mi cuenta»).
+ * Dos vistas (Marcos 2026-10-26): «Personas» (lista + ficha) y «Panorama» (`?vista=panorama`: qué secciones del menú ve
+ * cada persona, en una tabla; tocar a alguien abre su ficha y «atrás» vuelve al Panorama). El buscador y el filtro por
+ * rol son los mismos en las dos.
  */
 const mensajeError = (e: unknown, porDefecto: string): string =>
     (isAxiosError(e) && (e.response?.data as { error?: string } | undefined)?.error) || porDefecto;
+
+type Vista = 'personas' | 'panorama';
+const VISTAS: readonly { key: Vista; label: string; icono: React.ElementType }[] = [
+    { key: 'personas', label: 'Personas', icono: Users },
+    { key: 'panorama', label: 'Panorama', icono: Table2 },
+];
 
 const SoportePage: React.FC = () => {
     const { user, entrarVerComo } = useAuth();
     const superAdmin = esSuperAdmin(user);
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
 
     useStandardHeader({ title: 'Soporte · usuarios', icon: UserSearch });
 
@@ -48,6 +62,13 @@ const SoportePage: React.FC = () => {
     const [fallidas, setFallidas] = useState<Record<number, true>>({});
     const [abriendo, setAbriendo] = useState(false);
     const fichaRef = useRef<HTMLDivElement>(null);
+    // La vista sale de la URL: así «atrás» desde una ficha abierta en el Panorama vuelve al Panorama.
+    const vista: Vista = searchParams.get('vista') === 'panorama' ? 'panorama' : 'personas';
+    // El Panorama se pide la primera vez que se abre (y queda en memoria mientras la página está abierta).
+    const [panorama, setPanorama] = useState<UsuarioPanorama[] | null>(null);
+    const [panoramaFallo, setPanoramaFallo] = useState(false);
+    // La ficha abierta se tocó en el Panorama: en el celular, «Volver» regresa ahí (no a la lista).
+    const [desdePanorama, setDesdePanorama] = useState(false);
 
     useEffect(() => {
         if (!superAdmin) return;
@@ -65,9 +86,23 @@ const SoportePage: React.FC = () => {
     // En el computador siempre hay una elegida si la lista tiene algo: la tocada o, si no, la primera.
     const idElegido = seleccionId ?? (!cargando && visibles.length ? visibles[0].id : null);
 
-    // La ficha de la elegida (una vez por persona; queda en memoria mientras la página está abierta).
     useEffect(() => {
-        if (!superAdmin || idElegido === null || fichas[idElegido] || fallidas[idElegido]) return;
+        if (!superAdmin || vista !== 'panorama' || panorama || panoramaFallo) return;
+        let vivo = true;
+        api.get<{ data: UsuarioPanorama[] }>('/soporte/panorama')
+            .then(res => { if (vivo) setPanorama(res.data.data || []); })
+            .catch(e => {
+                if (!vivo) return;
+                toast.error(mensajeError(e, 'No se pudo cargar el panorama'));
+                setPanoramaFallo(true);
+            });
+        return () => { vivo = false; };
+    }, [superAdmin, vista, panorama, panoramaFallo]);
+
+    // La ficha de la elegida (una vez por persona; queda en memoria mientras la página está abierta). En el Panorama no
+    // hace falta: se pide al abrir la ficha.
+    useEffect(() => {
+        if (!superAdmin || vista !== 'personas' || idElegido === null || fichas[idElegido] || fallidas[idElegido]) return;
         let vivo = true;
         api.get<{ data: FichaSoporte }>(`/soporte/usuarios/${idElegido}`)
             .then(res => { if (vivo) setFichas(f => ({ ...f, [idElegido]: res.data.data })); })
@@ -77,7 +112,7 @@ const SoportePage: React.FC = () => {
                 setFallidas(f => ({ ...f, [idElegido]: true }));
             });
         return () => { vivo = false; };
-    }, [superAdmin, idElegido, fichas, fallidas]);
+    }, [superAdmin, vista, idElegido, fichas, fallidas]);
     const cargandoFicha = idElegido !== null && !fichas[idElegido] && !fallidas[idElegido];
 
     // Celular: al abrir una ficha, se ve desde arriba.
@@ -88,7 +123,28 @@ const SoportePage: React.FC = () => {
     const elegir = useCallback((id: number) => {
         setSeleccionId(id);
         setVerFichaMovil(true);
+        setDesdePanorama(false);
         setSearchParams(p => { const q = new URLSearchParams(p); q.set('u', String(id)); return q; }, { replace: true });
+    }, [setSearchParams]);
+
+    const cambiarVista = useCallback((v: Vista) => {
+        // En el celular, «Personas» muestra la lista (no la última ficha abierta).
+        if (v === 'personas') setVerFichaMovil(false);
+        setDesdePanorama(false);
+        setSearchParams(p => {
+            const q = new URLSearchParams(p);
+            if (v === 'panorama') q.set('vista', 'panorama');
+            else q.delete('vista');
+            return q;
+        }, { replace: true });
+    }, [setSearchParams]);
+
+    // Desde el Panorama: su ficha, la misma de «Personas». Sin `replace`: «atrás» (también el del teléfono) vuelve al Panorama.
+    const abrirFicha = useCallback((id: number) => {
+        setSeleccionId(id);
+        setVerFichaMovil(true);
+        setDesdePanorama(true);
+        setSearchParams(p => { const q = new URLSearchParams(p); q.delete('vista'); q.set('u', String(id)); return q; });
     }, [setSearchParams]);
 
     const verComo = useCallback(async () => {
@@ -113,65 +169,100 @@ const SoportePage: React.FC = () => {
 
     const ficha = idElegido !== null ? fichas[idElegido] : undefined;
 
-    return (
-        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
-            {/* Lista */}
-            <section aria-label="Usuarios" className={cn('rounded-card border border-border bg-card lg:sticky lg:top-2', verFichaMovil && 'hidden lg:block')}>
-                <div className="flex flex-col gap-2 border-b border-border p-3">
-                    <SearchBar value={texto} onChange={setTexto} placeholder="Buscar persona, correo, obra…" />
-                    <Select
-                        aria-label="Filtrar por rol"
-                        value={rolId ?? ''}
-                        onChange={e => setRolId(e.target.value ? Number(e.target.value) : null)}
-                        options={[{ value: '', label: `Todos los roles (${usuarios.length})` }, ...roles.map(r => ({ value: r.id, label: `${r.nombre} (${r.n})` }))]}
-                        className="h-[42px] text-sm"
-                    />
-                </div>
-                {cargando ? (
-                    <SkeletonFilas filas={8} />
-                ) : !visibles.length ? (
-                    <p className="px-4 py-8 text-center text-sm text-muted-foreground">Nadie con ese filtro.</p>
-                ) : (
-                    <ul className={cn('flex flex-col gap-1 p-2 lg:max-h-[calc(100dvh-14rem)] lg:overflow-y-auto overscroll-contain', aparece)}>
-                        {visibles.map(u => {
-                            const activa = u.id === idElegido;
-                            const lugar = lugarUsuario(u);
-                            return (
-                                <li key={u.id}>
-                                    {/* eslint-disable-next-line no-restricted-syntax -- fila de lista seleccionable (inicial, nombre y dos líneas); Button no soporta este layout */}
-                                    <button type="button" onClick={() => elegir(u.id)} aria-current={activa ? 'true' : undefined}
-                                        className={cn('flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40',
-                                            activa ? 'border-brand-primary bg-brand-primary/5' : 'border-transparent hover:bg-background')}>
-                                        <span aria-hidden className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">
-                                            {u.nombre?.charAt(0)?.toUpperCase() ?? '?'}
-                                        </span>
-                                        <span className="min-w-0 flex-1">
-                                            <span className="block truncate text-sm font-semibold text-brand-dark">{u.nombre}</span>
-                                            <span className="block truncate text-xs text-muted-foreground">{u.rol_nombre}{lugar ? ` · ${lugar}` : ''}</span>
-                                            <span className="block truncate text-caption text-muted-foreground">{u.email}</span>
-                                        </span>
-                                    </button>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                )}
-            </section>
+    // El buscador y el filtro por rol: los mismos en las dos vistas (y el mismo estado).
+    const filtros = (
+        <>
+            <SearchBar value={texto} onChange={setTexto} placeholder="Buscar persona, correo, obra…" />
+            <Select
+                aria-label="Filtrar por rol"
+                value={rolId ?? ''}
+                onChange={e => setRolId(e.target.value ? Number(e.target.value) : null)}
+                options={[{ value: '', label: `Todos los roles (${usuarios.length})` }, ...roles.map(r => ({ value: r.id, label: `${r.nombre} (${r.n})` }))]}
+                className="h-[42px] text-sm"
+            />
+        </>
+    );
 
-            {/* Ficha */}
-            <div ref={fichaRef} className={cn('scroll-mt-2 min-w-0', !verFichaMovil && 'hidden lg:block')}>
-                {ficha ? (
-                    <FichaPersona key={ficha.usuario.id} ficha={ficha} onVerComo={verComo} abriendo={abriendo} onVolver={() => setVerFichaMovil(false)} />
-                ) : cargando || cargandoFicha ? (
-                    <div className="flex flex-col gap-4" role="status">
-                        <span className="sr-only">Cargando…</span>
-                        <div className="rounded-card border border-border bg-card p-6"><Skeleton className="h-7 w-56" /><Skeleton className="mt-3 h-4 w-40" /></div>
-                        <div className="h-40 rounded-card border border-border bg-card" />
-                        <div className="h-72 rounded-card border border-border bg-card" />
-                    </div>
+    const selector = (
+        <div className="self-start rounded-2xl border border-border bg-card p-1">
+            <PestanasElasticas opciones={VISTAS} activa={vista} onCambiar={cambiarVista} aria-label="Cómo ver a las personas" claseFila="gap-1"
+                claseOpcion="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-sm font-medium whitespace-nowrap"
+                claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark"
+                render={o => { const Icono = o.icono; return <><Icono aria-hidden className="h-4 w-4" />{o.label}</>; }} />
+        </div>
+    );
+
+    if (vista === 'panorama') {
+        return (
+            <div className="flex flex-col gap-4">
+                {selector}
+                {panoramaFallo ? (
+                    <EmptyState icon={Table2} title="No se pudo cargar el panorama" description="Revisa la conexión y vuelve a intentarlo."
+                        action={<Button variant="secondary" onClick={() => setPanoramaFallo(false)}>Reintentar</Button>} />
                 ) : (
-                    <EmptyState icon={UserSearch} title="Elige a una persona" description="Su ficha muestra qué ve y por qué; desde ahí puedes ver la app como ella." />
+                    <PanoramaPermisos datos={panorama} texto={texto} rolId={rolId} filtros={filtros} onElegir={abrirFicha} />
                 )}
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-4">
+            {selector}
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+                {/* Lista */}
+                <section aria-label="Usuarios" className={cn('rounded-card border border-border bg-card lg:sticky lg:top-2', verFichaMovil && 'hidden lg:block')}>
+                    <div className="flex flex-col gap-2 border-b border-border p-3">
+                        {filtros}
+                    </div>
+                    {cargando ? (
+                        <SkeletonFilas filas={8} />
+                    ) : !visibles.length ? (
+                        <p className="px-4 py-8 text-center text-sm text-muted-foreground">Nadie con ese filtro.</p>
+                    ) : (
+                        <ul className={cn('flex flex-col gap-1 p-2 lg:max-h-[calc(100dvh-14rem)] lg:overflow-y-auto overscroll-contain', aparece)}>
+                            {visibles.map(u => {
+                                const activa = u.id === idElegido;
+                                const lugar = lugarUsuario(u);
+                                return (
+                                    <li key={u.id}>
+                                        {/* eslint-disable-next-line no-restricted-syntax -- fila de lista seleccionable (inicial, nombre y dos líneas); Button no soporta este layout */}
+                                        <button type="button" onClick={() => elegir(u.id)} aria-current={activa ? 'true' : undefined}
+                                            className={cn('flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40',
+                                                activa ? 'border-brand-primary bg-brand-primary/5' : 'border-transparent hover:bg-background')}>
+                                            <span aria-hidden className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">
+                                                {u.nombre?.charAt(0)?.toUpperCase() ?? '?'}
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate text-sm font-semibold text-brand-dark">{u.nombre}</span>
+                                                <span className="block truncate text-xs text-muted-foreground">{u.rol_nombre}{lugar ? ` · ${lugar}` : ''}</span>
+                                                <span className="block truncate text-caption text-muted-foreground">{u.email}</span>
+                                            </span>
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </section>
+    
+                {/* Ficha */}
+                <div ref={fichaRef} className={cn('scroll-mt-2 min-w-0', !verFichaMovil && 'hidden lg:block')}>
+                    {ficha ? (
+                        <FichaPersona key={ficha.usuario.id} ficha={ficha} onVerComo={verComo} abriendo={abriendo}
+                            onVolver={desdePanorama ? () => navigate(-1) : () => setVerFichaMovil(false)}
+                            textoVolver={desdePanorama ? 'Volver al panorama' : undefined} />
+                    ) : cargando || cargandoFicha ? (
+                        <div className="flex flex-col gap-4" role="status">
+                            <span className="sr-only">Cargando…</span>
+                            <div className="rounded-card border border-border bg-card p-6"><Skeleton className="h-7 w-56" /><Skeleton className="mt-3 h-4 w-40" /></div>
+                            <div className="h-40 rounded-card border border-border bg-card" />
+                            <div className="h-72 rounded-card border border-border bg-card" />
+                        </div>
+                    ) : (
+                        <EmptyState icon={UserSearch} title="Elige a una persona" description="Su ficha muestra qué ve y por qué; desde ahí puedes ver la app como ella." />
+                    )}
+                </div>
             </div>
         </div>
     );

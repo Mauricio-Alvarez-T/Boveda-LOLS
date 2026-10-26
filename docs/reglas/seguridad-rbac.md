@@ -182,7 +182,12 @@ endpoint de `/api/soporte` pasa por `auth` + `soloSuperAdmin`, que exige: (1) qu
   login** (`getPermisosEfectivos` = `detallePermisos().efectivos`; no hay un segundo cálculo). Más `sesion`: último
   ingreso y último cambio de sus permisos según `logs_actividad` (permisos de su rol, sus propios, su rol/obra/bodega
   desde la app; lo que cambia una migración no deja log).
-- `POST /api/soporte/usuarios/:id/ver-como` — el token prestado. Responde `Cache-Control: no-store`.
+- `GET /api/soporte/panorama` — los mismos usuarios activos (mismas columnas que la lista) + `efectivos` de cada uno,
+  **en lote** con un número fijo de consultas (usuarios, permisos de los roles presentes, overrides de todos y el
+  catálogo solo si hay rol 1), con la MISMA regla que el login: `permisosService.componerPermisos` (rol + grant − deny;
+  rol 1 = todo el catálogo menos sus deny, salvo `SAFE_KEYS_SUPER_ADMIN`), que es la que usa `detallePermisos`. Test:
+  `backend/tests/soporte_panorama.test.js`.
+- `POST /api/soporte/usuarios/:id/ver-como` — el token prestado. Responde `Cache-Control: no-store` (todo `/api/soporte`).
 
 **El token de «ver como»:** lo arma `authService.firmarSesion` (el mismo armado del login): `typ: 'session'`, `id`,
 `email`, `rol_id`, `obra_id`, `bodega_id`, `p` (sus permisos efectivos), `rv` (versión de SU rol) **más `imp`** (id del
@@ -226,6 +231,14 @@ de gerencia (`inicio.gerencia`) + `vistaInventario` (`perfil.ts`). Más avisos p
 pide/recibe sin la pestaña Solicitudes, aprueba o ve diferencias sin «Ver todas las obras», sin ningún permiso de
 Inventario, permisos de un módulo sin su «Ver …», obra finalizada/inactiva, bodega asignada, permisos quitados y
 «cambiaron sus permisos después de su último ingreso: debe volver a iniciar sesión».
+
+**Panorama (Marcos 2026-10-26):** selector «Personas | Panorama» arriba de Soporte (`?vista=panorama`). Tabla con una fila
+por persona activa, agrupadas por rol, y una columna por cada sección del menú lateral en su orden (`SECCIONES_MENU`
+de `menuLateral.ts`, con su ícono) más «Comparte tu idea»: ✓ donde la ve, según `menuVisible` / `veBuzonIdeas` con sus
+`efectivos` (las mismas reglas de la ficha). La columna Inicio dice qué Inicio le toca (Super Admin / Gerencia / Aprueba
+/ Jefatura / Obra / General: `inicio.gerencia` y `vistaInventario`). Arriba, cuántas de las mostradas ven cada sección;
+mismo buscador y filtro por rol de la lista. Tocar a una persona abre su ficha (con historia: «atrás» vuelve al
+Panorama). Lógica pura y test: `components/soporte/panorama.ts`; tabla: `PanoramaPermisos.tsx`.
 
 **«Lo que puede usar <Nombre> (<rol>)» (Marcos 2026-10-26):** recuadro del Inicio **solo con «ver como» activo**: una
 tarjeta por sección de su menú (`menuVisible`, mismo orden) con lo que puede hacer ahí (pestañas, secciones, vista de
