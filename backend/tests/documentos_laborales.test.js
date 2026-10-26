@@ -489,14 +489,15 @@ describe('tipos del sistema (codigo) protegidos en Settings', () => {
 describe('GET /solicitudes-ingreso/:id/doc', () => {
     const SOL = { id: 41, estado: 'pendiente', rut: '12.345.678-5', nombres: 'Ana', apellido_paterno: 'Soto', apellido_materno: null, fecha_solicitud: '2026-09-08 10:00:00', trabajador_id: null, solicitante_nombre: 'Terreno' };
 
-    test('pendiente → .doc al vuelo (application/msword, BOM), sin INSERT, log solicitud_descargada', async () => {
+    test('pendiente → .docx REAL al vuelo (se ve en el celular), sin INSERT, log solicitud_descargada', async () => {
         db.query.mockResolvedValueOnce([[SOL]]);
         const res = await request(app).get('/api/solicitudes-ingreso/41/doc').set('Authorization', `Bearer ${tokenDescargar}`).buffer(true).parse((r, cb) => { const chunks = []; r.on('data', c => chunks.push(c)); r.on('end', () => cb(null, Buffer.concat(chunks))); });
         expect(res.status).toBe(200);
-        expect(res.headers['content-type']).toMatch(/application\/msword/);
-        expect(res.headers['content-disposition']).toMatch(/attachment; filename="Solicitud_Ingreso_Soto_Ana_\d{8}-\d{6}\.doc"/);
-        expect([...res.body.slice(0, 3)]).toEqual([0xEF, 0xBB, 0xBF]);
-        expect(res.body.toString('utf8')).toContain('FICHA DE SOLICITUD DE INGRESO');
+        expect(res.headers['content-type']).toMatch(/application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document/);
+        expect(res.headers['content-disposition']).toMatch(/attachment; filename="Solicitud_Ingreso_Soto_Ana_\d{8}-\d{6}\.docx"/);
+        expect(res.body.slice(0, 2).toString()).toBe('PK'); // ZIP de Office Open XML, no HTML
+        const zip = await require('jszip').loadAsync(res.body);
+        expect(await zip.file('word/document.xml').async('string')).toContain('FICHA DE SOLICITUD DE INGRESO');
         expect(sqlCalls().some(s => /INSERT/i.test(s))).toBe(false);
         expect(JSON.parse(logManualActivity.mock.calls[0][4])).toMatchObject({ evento: 'solicitud_descargada', estado: 'pendiente' });
     });

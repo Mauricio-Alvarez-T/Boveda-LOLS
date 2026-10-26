@@ -11,6 +11,7 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const validateBody = require('../middleware/validateBody');
 const service = require('../services/documentosLaborales.service');
+const docxExport = require('../services/docxExport.service');
 const schema = require('../schemas/documentosLaborales.schema');
 
 const MIME_DOC = 'application/msword';
@@ -42,12 +43,15 @@ router.post('/kit-ingreso/:trabajadorId', auth, checkPermission('documentos.labo
     } catch (err) { next(err); }
 });
 
-// Descargar el archivo (Word editable). Marca estado=descargado (primera vez) + log.
+// Descargar el archivo (Word editable). Marca estado=descargado (primera vez) + log. Un Word generado sale
+// como .docx real (se ve en el celular); lo demás, tal cual.
 router.get('/:id/download', auth, checkPermission('documentos.laborales.descargar'), async (req, res, next) => {
     try {
         const info = await service.abrir(req.params.id, req.user.id, req, { modo: 'download' });
-        if (/\.doc$/i.test(info.fileName)) res.type(MIME_DOC);
-        res.download(info.fullPath, info.fileName);
+        await docxExport.enviarDescarga(res, {
+            fullPath: info.fullPath, fileName: info.fileName, titulo: info.tipo_nombre,
+            mimeOriginal: /\.doc$/i.test(info.fileName) ? MIME_DOC : null,
+        });
     } catch (err) { next(err); }
 });
 

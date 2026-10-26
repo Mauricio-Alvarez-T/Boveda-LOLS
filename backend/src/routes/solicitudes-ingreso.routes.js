@@ -72,10 +72,19 @@ router.get('/:id/doc', auth, checkPermission('documentos.laborales.descargar'), 
     try {
         const laborales = require('../services/documentosLaborales.service');
         const r = await laborales.solicitudDoc(req.params.id, req.user.id, req);
+        const docxExport = require('../services/docxExport.service');
         if (r.persistido) {
             const info = await laborales.abrir(r.documento_id, req.user.id, req, { modo: 'download' });
-            res.type('application/msword');
-            return res.download(info.fullPath, info.fileName);
+            return docxExport.enviarDescarga(res, {
+                fullPath: info.fullPath, fileName: info.fileName, titulo: info.tipo_nombre, mimeOriginal: 'application/msword',
+            });
+        }
+        // Al vuelo: .docx real (se ve en el celular); si la conversión fallara, el .doc de siempre.
+        const docx = await docxExport.docxDeHtml(r.html, r.nombre_archivo, { titulo: 'Solicitud de ingreso' });
+        if (docx) {
+            res.attachment(docx.fileName);
+            res.type(docx.mime);
+            return res.send(docx.buffer);
         }
         res.setHeader('Content-Type', 'application/msword');
         res.setHeader('Content-Disposition', `attachment; filename="${r.nombre_archivo}"`);

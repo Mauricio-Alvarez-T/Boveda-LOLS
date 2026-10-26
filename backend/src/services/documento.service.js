@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const logger = require('../utils/logger-structured');
 const g = require('./docGenerador.service');
+const docxExport = require('./docxExport.service');
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 const COL_INEXISTENTE = 1054;
@@ -338,7 +339,8 @@ const documentoService = {
                 const safeTipoNombre = doc.tipo_nombre ? doc.tipo_nombre.replace(/[^a-zA-Z0-9\-_]/g, '_') : 'Documento';
                 const ext = path.extname(doc.nombre_archivo) || '.pdf';
                 const uniqueName = `${safeTipoNombre}_${doc.id}${ext}`;
-                archive.file(filePath, { name: uniqueName });
+                // Los Word generados entran como .docx real (se abren en el celular).
+                await docxExport.agregarAZip(archive, filePath, uniqueName, { titulo: doc.tipo_nombre });
             }
         }
 

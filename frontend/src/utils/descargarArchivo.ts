@@ -10,10 +10,10 @@
  */
 import type { AxiosInstance, AxiosResponse } from 'axios';
 import { toast } from 'sonner';
-import { parseErrorBlob, mensajeDescargaDenegada, modoApertura, mimePorExtension, nombreDesdeDisposition } from './descargaErrores';
+import { parseErrorBlob, mensajeDescargaDenegada, modoApertura, mimePorExtension, nombreDesdeDisposition, nombreConExtensionDelServidor } from './descargaErrores';
 
 export interface DescargaOpts {
-    /** Nombre con que se guarda; si falta se toma de Content-Disposition. */
+    /** Nombre con que se guarda (con la extensión que mande el servidor); si falta se toma de Content-Disposition. */
     nombre?: string;
     /** Forzar modo; por defecto se decide por la extensión. */
     modo?: 'preview' | 'download';
@@ -60,7 +60,7 @@ export async function descargarArchivo(api: AxiosInstance, url: string, opts: De
         toast.error(info.error, { description: mensajeDescargaDenegada(info.required) });
         return false;
     }
-    const nombre = opts.nombre || nombreDesdeDisposition(res.headers?.['content-disposition']) || 'archivo';
+    const nombre = nombreConExtensionDelServidor(opts.nombre, nombreDesdeDisposition(res.headers?.['content-disposition'])) || 'archivo';
     const omitidos = Number(res.headers?.['x-documentos-omitidos'] || 0);
     if (omitidos > 0) {
         toast.warning(`${omitidos} documento(s) laboral(es) restringido(s) no van en el ZIP`, {
