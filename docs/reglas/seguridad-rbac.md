@@ -217,6 +217,14 @@
   del rol que viajó en el inicio de sesión) y, en el respaldo, del Administrador que deja; nunca el rol 1. «Coordinador»
   se lee como cargo junto al nombre (`cargoDe` de `leonardo.modelo.ts`). Probada dos veces, normal y respaldo, sobre
   MySQL 5.7 con los tres sql_mode. Test: `backend/tests/rol_coordinador_de_obra_140.test.js`.
+- **Mig 142 (2026-10-26, «vuelta por los perfiles»)**, decisiones de Marcos sobre permisos heredados al separar roles:
+  **Supervisor de Obra y Prevencionista** pierden `usuarios.ver` (venía de «En Terreno»: veían Configuración y la lista
+  de usuarios con correos); **Presupuestos** (`costos.gestionar`) queda solo para **Supervisor (Rodrigo) y Gerente (don
+  Luis)**: sale de RR.HH y de Coordinador de Obra; el **Coordinador de Obra** pierde `trabajadores.financiero.ver`
+  (sueldos). Del rol y del permiso propio «grant» de quien hoy está en ese rol (los «deny» y lo de otras personas, como
+  el arquitecto, no se tocan). Re-login de los cuatro roles. Ojo: el rol «En Terreno» (sin gente) conserva `usuarios.ver`;
+  si se vuelve a usar, quitárselo. Probada dos veces sobre MySQL 5.7 (tres sql_mode). Test:
+  `backend/tests/ajustes_permisos_por_cargo_142.test.js`.
 
 ## Ver como usuario (soporte)
 
