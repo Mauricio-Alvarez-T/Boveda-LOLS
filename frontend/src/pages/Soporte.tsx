@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Table2, UserSearch, Users } from 'lucide-react';
+import { Bug, Table2, UserSearch, Users } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -35,10 +35,19 @@ import type { RespuestaVerComo } from '../context/verComoSesion';
 const mensajeError = (e: unknown, porDefecto: string): string =>
     (isAxiosError(e) && (e.response?.data as { error?: string } | undefined)?.error) || porDefecto;
 
-type Vista = 'personas' | 'panorama';
+/**
+ * «Errores (ejemplo)»: propuesta con datos inventados para conversarla con Mauricio (2026-10-26), solo en test. Import
+ * diferido detrás de la constante (como «Lo que viene» de Presupuestos): en producción la rama queda muerta y la
+ * propuesta ni siquiera entra al paquete.
+ */
+const ES_STAGING = import.meta.env.VITE_ENTORNO === 'staging';
+const PropuestaErrores = ES_STAGING ? lazy(() => import('../components/soporte/propuestaErrores/PropuestaErrores')) : null;
+
+type Vista = 'personas' | 'panorama' | 'errores';
 const VISTAS: readonly { key: Vista; label: string; icono: React.ElementType }[] = [
     { key: 'personas', label: 'Personas', icono: Users },
     { key: 'panorama', label: 'Panorama', icono: Table2 },
+    ...(PropuestaErrores ? [{ key: 'errores' as const, label: 'Errores (ejemplo)', icono: Bug }] : []),
 ];
 
 const SoportePage: React.FC = () => {
@@ -63,7 +72,8 @@ const SoportePage: React.FC = () => {
     const [abriendo, setAbriendo] = useState(false);
     const fichaRef = useRef<HTMLDivElement>(null);
     // La vista sale de la URL: así «atrás» desde una ficha abierta en el Panorama vuelve al Panorama.
-    const vista: Vista = searchParams.get('vista') === 'panorama' ? 'panorama' : 'personas';
+    const pedida = searchParams.get('vista');
+    const vista: Vista = pedida === 'panorama' ? 'panorama' : pedida === 'errores' && PropuestaErrores ? 'errores' : 'personas';
     // El Panorama se pide la primera vez que se abre (y queda en memoria mientras la página está abierta).
     const [panorama, setPanorama] = useState<UsuarioPanorama[] | null>(null);
     const [panoramaFallo, setPanoramaFallo] = useState(false);
@@ -133,7 +143,7 @@ const SoportePage: React.FC = () => {
         setDesdePanorama(false);
         setSearchParams(p => {
             const q = new URLSearchParams(p);
-            if (v === 'panorama') q.set('vista', 'panorama');
+            if (v === 'panorama' || v === 'errores') q.set('vista', v);
             else q.delete('vista');
             return q;
         }, { replace: true });
@@ -191,6 +201,17 @@ const SoportePage: React.FC = () => {
                 render={o => { const Icono = o.icono; return <><Icono aria-hidden className="h-4 w-4" />{o.label}</>; }} />
         </div>
     );
+
+    if (vista === 'errores' && PropuestaErrores) {
+        return (
+            <div className="flex flex-col gap-4">
+                {selector}
+                <Suspense fallback={<div className="h-96 rounded-card border border-border bg-card" />}>
+                    <PropuestaErrores />
+                </Suspense>
+            </div>
+        );
+    }
 
     if (vista === 'panorama') {
         return (
