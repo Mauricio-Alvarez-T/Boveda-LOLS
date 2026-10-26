@@ -61,6 +61,9 @@ export function menuVisible(tiene: Tiene, user?: Quien): SeccionMenu[] {
     return SECCIONES.filter(s => s.visible(tiene, user)).map(({ clave, label, path }) => ({ clave, label, path }));
 }
 
+/** TODAS las secciones del menú, en su orden (sin la condición): las columnas del Panorama de Soporte. */
+export const SECCIONES_MENU: readonly SeccionMenu[] = SECCIONES.map(({ clave, label, path }) => ({ clave, label, path }));
+
 /**
  * El botón «Comparte tu idea» del pie del menú: para todos MENOS quien revisa (Marcos 20-10: él y Mauricio reciben las
  * ideas, no las mandan → un solo botón, «Revisar ideas»).

@@ -92,7 +92,8 @@ export interface ResumenFicha {
 
 /** Qué vista de Inventario del Inicio le toca, en palabras (perfil.ts). */
 export const TEXTO_VISTA_INVENTARIO: Record<VistaInventario, string> = {
-    superadmin: 'Super Administrador: todo lo que pasa, con «Ver como» arriba del Inicio',
+    // Sin «Ver como» en su Inicio desde el 2026-10-26 (perfil.ts): las vistas de los demás se miran en Soporte.
+    superadmin: 'Super Administrador: todo lo que pasa, qué tiene pendiente cada persona y quién hizo cada paso',
     leonardo: 'Quien aprueba: lo que espera su aprobación, de todas las obras',
     jefatura: 'Jefatura: el circuito de todas las obras y las diferencias, sin aprobar',
     obra: 'Jefe de obra: pide y recibe materiales para su obra',
@@ -266,9 +267,9 @@ export function resumenFicha(f: FichaSoporte): ResumenFicha {
 
 /**
  * Filtra la lista: por rol (`rolId`, null = todos) y por texto (cada palabra debe aparecer en el nombre, el correo, el
- * rol, la obra o la bodega; sin tildes ni mayúsculas).
+ * rol, la obra o la bodega; sin tildes ni mayúsculas). Sirve igual para la lista y para el Panorama (filas con más datos).
  */
-export function filtrarUsuarios(lista: readonly UsuarioSoporte[], texto: string, rolId: number | null): UsuarioSoporte[] {
+export function filtrarUsuarios<T extends UsuarioSoporte>(lista: readonly T[], texto: string, rolId: number | null): T[] {
     const palabras = normalizar(texto).split(/\s+/).filter(Boolean);
     return lista.filter(u => {
         if (rolId != null && u.rol_id !== rolId) return false;

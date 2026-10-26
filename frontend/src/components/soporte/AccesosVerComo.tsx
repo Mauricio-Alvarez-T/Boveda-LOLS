@@ -1,9 +1,6 @@
 import React, { useId, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    Archive, ArrowRight, BookOpen, Calculator, Check, CheckSquare, ChevronDown, ChevronUp, Inbox, KeyRound, LayoutDashboard,
-    Lightbulb, Minus, Package, ScanEye, SearchCheck, Settings, Truck, UserSearch,
-} from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ChevronUp, Minus, ScanEye, UserSearch } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/Button';
 import { Chip } from '../ui/Chip';
@@ -11,7 +8,8 @@ import { cn } from '../../utils/cn';
 import { PERMISO_HIERARCHY } from '../../config/permisosHierarchy';
 import { ETIQUETA_BUZON_IDEAS } from '../ideas/ideasConfig';
 import { TEXTO_ORIGEN, type OrigenPermiso } from './fichaUsuario';
-import { accesosPerfil, type ClaveTarjeta, type FilaAcceso, type PermisoAcceso, type TarjetaAcceso } from './accesosPerfil';
+import { accesosPerfil, type FilaAcceso, type PermisoAcceso, type TarjetaAcceso } from './accesosPerfil';
+import { ICONO_MENU } from './iconosMenu';
 
 /**
  * «Lo que puede usar <persona> (<rol>)» (Marcos 2026-10-26): en el Inicio, SOLO mientras el Super Administrador está en
@@ -19,23 +17,6 @@ import { accesosPerfil, type ClaveTarjeta, type FilaAcceso, type PermisoAcceso, 
  * lateral, en el mismo orden, con lo que puede hacer en cada una; todo lo calcula `accesosPerfil` (puro, con test).
  * Solo lectura: «Ir a…» navega como esa persona y «Ver ficha completa» vuelve a la cuenta propia, a su ficha en Soporte.
  */
-
-/** Los íconos del menú lateral (Sidebar.tsx, `extras`): si cambian allá, cambiarlos aquí. */
-const ICONO: Record<ClaveTarjeta, React.ElementType> = {
-    inicio: LayoutDashboard,
-    asistencia: CheckSquare,
-    gestiones: SearchCheck,
-    inventario: Package,
-    vehiculos: Truck,
-    obras_finalizadas: Archive,
-    presupuestos: Calculator,
-    ayuda: BookOpen,
-    revisar_ideas: Inbox,
-    soporte: UserSearch,
-    configuracion: Settings,
-    buzon_ideas: Lightbulb,
-    otros: KeyRound,
-};
 
 /** Los mismos tonos de la ficha de Soporte (FichaPersona): propio = info, quitado = ámbar. */
 const TONO_ORIGEN: Record<OrigenPermiso, 'neutral' | 'info' | 'warning'> = { rol: 'neutral', propio: 'info', quitado: 'warning' };
@@ -119,7 +100,8 @@ const Permiso: React.FC<{ p: PermisoAcceso; conModulo: boolean }> = ({ p, conMod
 };
 
 const Tarjeta: React.FC<{ t: TarjetaAcceso; onIr: (ruta: string) => void }> = ({ t, onIr }) => {
-    const Icono = ICONO[t.clave];
+    // Los íconos del menú lateral (iconosMenu.ts, los del Sidebar).
+    const Icono = ICONO_MENU[t.clave];
     const vacia = !t.filas.length && !t.permisos.length;
     return (
         <article aria-label={t.titulo} className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-4">

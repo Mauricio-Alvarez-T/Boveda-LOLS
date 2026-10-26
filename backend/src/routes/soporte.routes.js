@@ -10,13 +10,23 @@ const soporteService = require('../services/soporte.service');
 
 router.use(auth, soloSuperAdmin);
 
-// La ficha y el token no se guardan en ninguna caché (el token es una credencial).
+// La ficha, el panorama y el token no se guardan en ninguna caché (el token es una credencial).
 router.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
 /** GET /api/soporte/usuarios — usuarios activos (nombre, correo, rol, obra, bodega). */
 router.get('/usuarios', async (req, res, next) => {
     try {
         res.json({ data: await soporteService.listarUsuarios() });
+    } catch (err) { next(err); }
+});
+
+/**
+ * GET /api/soporte/panorama — los mismos usuarios activos, cada uno con sus permisos efectivos (`efectivos`), para la
+ * tabla «Panorama» (qué secciones del menú ve cada uno). En lote: un número fijo de consultas.
+ */
+router.get('/panorama', async (req, res, next) => {
+    try {
+        res.json({ data: await soporteService.panorama() });
     } catch (err) { next(err); }
 });
 

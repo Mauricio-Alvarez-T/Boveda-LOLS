@@ -18,8 +18,10 @@ interface Props {
     ficha: FichaSoporte;
     onVerComo: () => void;
     abriendo: boolean;
-    /** Celular: vuelve a la lista. */
+    /** Celular: vuelve a la lista (o al Panorama, si se abrió desde ahí). */
     onVolver?: () => void;
+    /** El texto del botón de volver (por defecto «Volver a la lista»). */
+    textoVolver?: string;
 }
 
 const TONO_ORIGEN: Record<OrigenPermiso, 'neutral' | 'info' | 'warning'> = {
@@ -47,7 +49,7 @@ const Etiquetas: React.FC<{ items: string[]; vacio: string }> = ({ items, vacio 
     ) : <span className="text-muted-foreground">{vacio}</span>
 );
 
-export const FichaPersona: React.FC<Props> = ({ ficha, onVerComo, abriendo, onVolver }) => {
+export const FichaPersona: React.FC<Props> = ({ ficha, onVerComo, abriendo, onVolver, textoVolver = 'Volver a la lista' }) => {
     const r = useMemo(() => resumenFicha(ficha), [ficha]);
     const [soloCambios, setSoloCambios] = useState(false);
     const u = ficha.usuario;
@@ -64,7 +66,7 @@ export const FichaPersona: React.FC<Props> = ({ ficha, onVerComo, abriendo, onVo
         <div className="flex flex-col gap-4">
             {onVolver && (
                 <Button variant="ghost" size="sm" onClick={onVolver} leftIcon={<ChevronLeft className="h-4 w-4" />} className="self-start lg:hidden -ml-2">
-                    Volver a la lista
+                    {textoVolver}
                 </Button>
             )}
 
