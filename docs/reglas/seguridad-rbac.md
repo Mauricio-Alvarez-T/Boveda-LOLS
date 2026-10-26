@@ -93,6 +93,14 @@
   gerencia, Vehículos y Presupuestos (`costos.gestionar`, único permiso del módulo). **Aprobar solicitudes de
   inventario ya NO es del rol** (mig 131) **ni de ningún otro rol salvo Super Administrador** (mig 133): solo
   Leonardo, como permiso propio (abajo).
+- **Un rol por cargo (mig 139, 2026-10-26).** La app no guarda el cargo de los usuarios: el nombre del rol es lo que se
+  ve junto al nombre (Inventario, Soporte → Panorama). Desde la 139: **Administrador** = Leonardo López; **RR.HH** =
+  Paula Martínez, Matías Millanao, Daphne Lazcano; **Supervisor** = Rodrigo Riquelme; **Gerente** = Luis Lazcano;
+  **Supervisor de Obra** = Alfonso Castilla, Franco Gutiérrez, Felipe Escobar, Cristian Mancilla, Héctor Herrera;
+  **Prevencionista** = Cristoffer Bolados, Héctor Gómez, Jhoan Vásquez. RR.HH, Supervisor y Gerente nacen como
+  **copia del Administrador** (Gerente, más `inicio.gerencia`); Supervisor de Obra y Prevencionista, como copia de
+  **«En Terreno»** (queda sin gente). **Ojo:** un cambio de permisos «de oficina» que antes tocaba solo el rol
+  Administrador ahora debe tocar los cuatro (Administrador, RR.HH, Supervisor, Gerente), y uno «de terreno», los dos.
 - Lo que una persona necesite de más se agrega de a poco como **permiso propio** (override `grant`), no al
   rol — preguntar a Marcos antes. Mig 127: Paula y Matías (RRHH) → emitir documentos laborales, registrar
   entregas físicas, crear y editar trabajadores (editar: el contrato pide completar la ficha); Leonardo →
@@ -156,6 +164,24 @@
   `diferencias_ver` (Luis no lo tiene); al tocar una, Inventario abre «Diferencias» si puede verlas y, si no, la
   solicitud misma (`TransferenciasPanel`). Probada dos veces sobre MySQL 5.7 (sql_mode estricto y de MariaDB 10.6).
   Test: `backend/tests/inicio_gerencia.test.js`.
+- **Mig 139 (2026-10-26, «un rol por cargo»)**: en producción 8 personas seguían en el rol 1 (lo que la mig 126 pedía
+  hacer a mano en Configuración → Usuarios no había quedado) y las de terreno en «En Terreno». Con el rol 1 veían todo
+  el catálogo, Soporte y «ver como»; y como `aprobadores` excluye al rol 1, el Inicio decía «Quien aprueba» en vez de
+  «Leonardo». La 139 crea los cinco roles (arriba), les deja **exactamente** los permisos de su rol de origen (si ya
+  existían, se borra lo que sobra), y mueve a cada persona: oficina por **correo** (de cualquier rol); terreno solo si
+  hoy está en «En Terreno», por correo o, para tres sin correo a mano, por apellido (Escobar, Mancilla/Mansilla,
+  Bolados). Quien pasa a un rol de oficina y ve Configuración conserva `cargos.sueldo.ver` como permiso propio (lo de
+  la 137 que dependía del rol; un «deny» puesto a mano se respeta). Los permisos propios de
+  las migs 127-137 no se tocan.
+  - **Re-login:** `roles.version + 1` del rol que cada persona **deja** (como hace `PUT /api/usuarios/:id` al cambiar
+    un rol) y de los cinco roles. En producción eso incluye el **rol 1**: Marcos y Mauricio también vuelven a entrar;
+    sin eso, quien deja el rol 1 seguiría hasta 8 h con un token de Super Administrador (la versión es por rol, no por
+    persona). Como siempre, corre al reiniciarse el backend (el auto-migrate lo hace).
+  - Una tabla temporal (`_mig139_destino`, solo ids) es la única lista de quién va a dónde, para el re-login y el
+    cambio. Idempotente: la segunda pasada no mueve a nadie (solo vuelve a subir la versión de los cinco roles).
+    Probada dos veces sobre MySQL 5.7 con sql_mode estricto, de MariaDB 10.6 y vacío (68 verificaciones: roles,
+    permisos por rol, persona por persona, versiones, permisos propios y efectivos). Test:
+    `backend/tests/roles_por_cargo_139.test.js`.
 
 ## Ver como usuario (soporte)
 
