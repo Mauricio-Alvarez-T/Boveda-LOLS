@@ -1,6 +1,6 @@
 import type { TonoTarjeta } from '../tarjetaActiva';
 import {
-    TIPO, diasEntre, enLista, fechaConDia, fechaCorta, fraseItems, iniciales, nombreCorto, nombreDe, nombreLugar, numero,
+    APROBADOR_POR_DEFECTO, TIPO, diasEntre, enLista, fechaConDia, fechaCorta, fraseItems, iniciales, nombreCorto, nombreDe, nombreLugar, numero,
     plural, porRecibirCircuito, quienAprueba, rutaDiferencia, rutaLista, rutaSolicitud, textoDias, textoDiferencia,
     type FiltroInventario,
 } from './formato';
@@ -45,8 +45,8 @@ export const TOPE_GRUPO_ABIERTO = 50;
 export const TOPE_ULTIMO_CERRADO = 30;
 export const TOPE_ULTIMO = 150;
 
-/** Sin nombres en la respuesta: rótulos genéricos (nunca un nombre fijo). */
-export const QUIEN_APRUEBA = 'Quien aprueba';
+/** Sin nombres en la respuesta: «Leonardo» (Marcos 2026-10-26, en vez de «Quien aprueba»). */
+export const QUIEN_APRUEBA = APROBADOR_POR_DEFECTO;
 /** La respuesta no trae quién tiene `diferencias_ver` (Daphne): este rótulo va en su lugar. */
 export const JEFATURA = 'Jefatura';
 

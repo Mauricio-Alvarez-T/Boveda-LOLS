@@ -305,7 +305,7 @@ Lógica pura en `inventarioPerfil/superadmin.modelo.ts` (con test). Solo usa la 
   ítems, la bajada lo dice («… en 3 ítems»). Cada etapa baja a su pestaña de la secuencia. Con una obra elegida en el
   selector de arriba, una nota chica dice que este detalle no se filtra (como VistaJefatura).
 - **Quién tiene qué** (tres cajas, en una fila desde 768 px; sin caja «Bodega» desde 2026-10-23): quien aprueba (nombre
-  de `aprobadores`; sin nombre, «Quien aprueba»), con «En octubre aprobó
+  de `aprobadores`; sin nombre, «Leonardo»), con «En octubre aprobó
   N y no aprobó M» (solo lo suyo, por id: lo que aprobó el Super Administrador no se le cuenta) y «Además, N diferencias
   por resolver» (solicitudes); **Obras** (solo lo que va a una obra: «aprobadas por recibir · la más antigua, N días»,
   con las en tránsito sumadas; cuántas pidieron y recibieron este mes. A las cifras exactas se les resta lo de la lista
@@ -466,6 +466,12 @@ el perfil no puede hacer viene `null` y la tarjeta no lo muestra. Cada grupo tra
 La ruta va ANTES de `/:id`. Cada fila abre Inventario → Solicitudes con su filtro:
 `/inventario?tab=transferencias&estado=pendiente|aprobada|discrepancias|todas` (Inventario lee `tab`,
 `estado`, `id` y `nuevo` solo al entrar, abajo). Lógica del frontend en `resumenInventarioInicio.ts` (con test).
+
+### Nombre de quien aprueba cuando no se encuentra (2026-10-26)
+
+Las vistas escriben el nombre de quien aprueba desde `aprobadores` (permiso efectivo de aprobar, sin el rol 1). Si no
+hay nadie (o hay más de dos), en vez de «Quien aprueba» dicen **«Leonardo»** (Marcos 2026-10-26; solo él aprueba desde
+las mig 131/133): `APROBADOR_POR_DEFECTO` de `inventarioPerfil/formato.ts`, también en el Inicio de gerencia.
 
 ### Enlaces del Inicio a Inventario (`/inventario?tab=transferencias&…`, 2026-10-22)
 

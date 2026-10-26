@@ -1,7 +1,7 @@
 import type { TonoTarjeta } from '../tarjetaActiva';
 import { plural } from '../fichasInicio';
 import { fichasVehiculos, tituloVehiculo, type PapelesFlotaApi } from '../fichasVehiculosInicio';
-import { cantidad, enLista, fraseItems, nombreCorto, rutaDiferencia, rutaLista, rutaSolicitud, textoDiferencia } from '../inventarioPerfil/formato';
+import { APROBADOR_POR_DEFECTO, cantidad, enLista, fraseItems, nombreCorto, rutaDiferencia, rutaLista, rutaSolicitud, textoDiferencia } from '../inventarioPerfil/formato';
 import { ETAPA_LABEL, type EtapaDocumento } from '../../../documentos-fisicos/documentosAlertas';
 import { formatCLP } from '../../../../utils/currency';
 import {
@@ -94,17 +94,21 @@ const venceConFecha = (hoy: string, d: number) => {
 
 type Aprobadores = GerenciaApi['aprobadores'];
 
-/** Quién aprueba («Leonardo»; con dos, «Leonardo o Ana»); null sin nadie o con más de dos. */
-export function quienAprueba(aprobadores: Aprobadores): string | null {
+/**
+ * Quién aprueba («Leonardo»; con dos, «Leonardo o Ana»); sin nadie o con más de dos, «Leonardo» (Marcos 2026-10-26:
+ * «cambiar por el nombre Leonardo»; mismo criterio que inventarioPerfil/formato.ts).
+ */
+export function quienAprueba(aprobadores: Aprobadores): string {
     const nombres = aprobadores.map(a => (a.nombre?.trim() ? nombreCorto(a.nombre) : '')).filter(Boolean);
-    if (nombres.length === 0 || nombres.length > 2) return null;
+    if (nombres.length === 0 || nombres.length > 2) return APROBADOR_POR_DEFECTO;
     return nombres.join(' o ');
 }
-/** El primer nombre de quien aprueba si es UNO solo (para saludarlo en un mensaje). */
-const unoQueAprueba = (aprobadores: Aprobadores) => (aprobadores.length === 1 ? quienAprueba(aprobadores) : null);
-/** El nombre completo de quien aprueba (si es uno solo), para las bajadas: «Leonardo López». */
+/** El primer nombre de quien aprueba si es UNO solo, o «Leonardo» sin nadie (para saludarlo en un mensaje). */
+const unoQueAprueba = (aprobadores: Aprobadores) => (aprobadores.length <= 1 ? quienAprueba(aprobadores) : null);
+/** El nombre completo de quien aprueba (si es uno solo), para las bajadas: «Leonardo López»; sin nadie, «Leonardo». */
 const aprobadorCompleto = (aprobadores: Aprobadores) =>
-    (aprobadores.length === 1 && aprobadores[0].nombre?.trim() ? aprobadores[0].nombre.trim() : null);
+    (aprobadores.length === 1 && aprobadores[0].nombre?.trim() ? aprobadores[0].nombre.trim()
+        : aprobadores.length === 0 ? APROBADOR_POR_DEFECTO : null);
 
 // ─────────────────────────────── 1. Faltas reiteradas ───────────────────────────────
 

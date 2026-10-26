@@ -106,10 +106,10 @@ describe('modeloObra · orden de las listas (lienzo A, VistaObra)', () => {
         expect(m.rechazadas.todas.map(s => s.id)).toEqual([26, 24]);
     });
 
-    test('obra y quién aprueba: «Domeyko» y «Esperando a Leonardo»; sin datos, «tu obra» y «Esperando aprobación»', () => {
+    test('obra y quién aprueba: «Domeyko» y «Esperando a Leonardo»; sin datos, «tu obra» y «Esperando a Leonardo» (Marcos 2026-10-26)', () => {
         expect(m).toMatchObject({ obra: 'Domeyko', obraId: 3, enObra: 'Domeyko', tituloEsperando: 'Esperando a Leonardo' });
         const sin = modeloObra(DATOS({ obra: null, aprobadores: [] }));
-        expect(sin).toMatchObject({ obra: null, obraId: null, enObra: 'tu obra', tituloEsperando: 'Esperando aprobación' });
+        expect(sin).toMatchObject({ obra: null, obraId: null, enObra: 'tu obra', tituloEsperando: 'Esperando a Leonardo' });
         expect(modeloObra(DATOS({ obra: { id: 3, nombre: '  ' } })).enObra).toBe('tu obra');
     });
 

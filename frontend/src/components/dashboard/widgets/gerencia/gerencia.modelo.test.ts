@@ -206,10 +206,10 @@ describe('temasGerencia', () => {
         expect(t.whatsapp?.mensaje).toMatch(/^Hola Leonardo, estas solicitudes de materiales llevan más de 10 días esperando aprobación:/);
     });
 
-    test('quienAprueba: uno, dos o ninguno', () => {
+    test('quienAprueba: uno, dos o ninguno (sin nadie, «Leonardo»: Marcos 2026-10-26)', () => {
         expect(quienAprueba([{ id: 1, nombre: 'Leonardo López' }])).toBe('Leonardo');
         expect(quienAprueba([{ id: 1, nombre: 'Leonardo López' }, { id: 2, nombre: 'Ana Rojas' }])).toBe('Leonardo o Ana');
-        expect(quienAprueba([])).toBeNull();
+        expect(quienAprueba([])).toBe('Leonardo');
     });
 
     test('desplegar: «Ver los N» con más de 3; «Ver el detalle» con 3 o menos; aviso si el servidor cortó la lista', () => {

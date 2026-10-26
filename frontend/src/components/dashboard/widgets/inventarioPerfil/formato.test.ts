@@ -153,13 +153,13 @@ describe('personas y lugares', () => {
         expect(nombreCortoDe(null)).toBeNull();
     });
 
-    test('quienAprueba: uno, dos o nadie (con más de dos, sin nombre)', () => {
+    test('quienAprueba: uno, dos o nadie (sin nadie o con más de dos, «Leonardo»: Marcos 2026-10-26)', () => {
         expect(quienAprueba([{ id: 7, nombre: 'Leonardo López' }])).toBe('Leonardo');
         expect(quienAprueba([{ id: 7, nombre: 'Leonardo López' }, { id: 8, nombre: 'Ana Rojas' }])).toBe('Leonardo o Ana');
-        expect(quienAprueba([{ id: 1, nombre: 'A B' }, { id: 2, nombre: 'C D' }, { id: 3, nombre: 'E F' }])).toBeNull();
-        expect(quienAprueba([])).toBeNull();
-        expect(quienAprueba(undefined)).toBeNull();
-        expect(quienAprueba([{ id: 9, nombre: null }])).toBeNull();
+        expect(quienAprueba([{ id: 1, nombre: 'A B' }, { id: 2, nombre: 'C D' }, { id: 3, nombre: 'E F' }])).toBe('Leonardo');
+        expect(quienAprueba([])).toBe('Leonardo');
+        expect(quienAprueba(undefined)).toBe('Leonardo');
+        expect(quienAprueba([{ id: 9, nombre: null }])).toBe('Leonardo');
     });
 
     test('nombreLugar: obra o bodega; con responsable solo si se pide', () => {
