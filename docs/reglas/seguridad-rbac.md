@@ -218,6 +218,12 @@ pide/recibe sin la pestaña Solicitudes, aprueba o ve diferencias sin «Ver toda
 Inventario, permisos de un módulo sin su «Ver …», obra finalizada/inactiva, bodega asignada, permisos quitados y
 «cambiaron sus permisos después de su último ingreso: debe volver a iniciar sesión».
 
+**«Lo que puede usar <Nombre> (<rol>)» (Marcos 2026-10-26):** recuadro del Inicio **solo con «ver como» activo**: una
+tarjeta por sección de su menú (`menuVisible`, mismo orden) con lo que puede hacer ahí (pestañas, secciones, vista de
+Inventario del Inicio, permisos con «propio»/«quitado»/«$»; los de una sección que no ve van a «Otros permisos»). La ficha
+la guarda Soporte al entrar dentro de la sesión prestada (`sgdl_ver_como.ficha`, misma vida); sin ella, permisos del
+token + `PERMISO_HIERARCHY`. Lógica pura y test: `components/soporte/accesosPerfil.ts` (`menuDePermiso`).
+
 Limitaciones conocidas: la obra elegida arriba (selector) es la que el Super Administrador tiene guardada en su
 navegador, no la del teléfono de esa persona (y cambiarla ahí cambia la propia); las preferencias locales por persona
 (última sección de Gestiones, «Ver como» del Inicio, etc.) se leen del navegador de quien mira. El token de descarga

@@ -29,6 +29,31 @@ export interface RespuestaVerComo {
     quien: { id: number; nombre: string | null };
 }
 
+/** Un permiso de la ficha de Soporte, como se guarda con la sesión prestada (nombre y módulo del catálogo + origen). */
+export interface PermisoVerComo {
+    clave: string;
+    modulo: string;
+    nombre: string;
+    descripcion?: string | null;
+    orden?: number;
+    /** rol = viene de su rol · propio = dado a esta persona · quitado = su rol lo trae, pero a ella se le quitó. */
+    origen: 'rol' | 'propio' | 'quitado';
+}
+
+/**
+ * Lo de la ficha de Soporte que se guarda al entrar a «ver como» (recuadro «Lo que puede usar…» del Inicio): mientras
+ * se ve como otra persona no se puede pedir la ficha (/api/soporte no se encadena), así que va junto a la sesión
+ * prestada, con su misma vida (sessionStorage de la pestaña; se borra al salir). Sin ella el recuadro igual se arma
+ * con los permisos del token.
+ */
+export interface FichaVerComo {
+    /** De quién es (debe ser la persona de la sesión; si no, no se usa). */
+    usuarioId: number;
+    nombre: string;
+    rol: string;
+    permisos: PermisoVerComo[];
+}
+
 /** La sesión prestada, como se guarda. */
 export interface SesionVerComo {
     token: string;
@@ -36,6 +61,8 @@ export interface SesionVerComo {
     /** Cuándo vence (ms desde 1970). */
     vence: number;
     quien: { id: number; nombre: string | null };
+    /** La ficha de Soporte de esa persona, si se tenía al entrar. */
+    ficha?: FichaVerComo;
 }
 
 /** Lo mínimo de Storage que se usa (así el test pasa uno falso). */
@@ -62,12 +89,46 @@ const esSesion = (s: unknown): s is SesionVerComo => {
         && !!x.quien && typeof x.quien.id === 'number';
 };
 
-/** La respuesta del servidor como sesión guardable; null si no trae lo necesario. */
-export function sesionDesdeRespuesta(r: RespuestaVerComo | null | undefined): SesionVerComo | null {
+const ORIGENES: readonly PermisoVerComo['origen'][] = ['rol', 'propio', 'quitado'];
+
+const esPermisoVerComo = (p: unknown): p is PermisoVerComo => {
+    const x = p as Partial<PermisoVerComo> | null;
+    return !!x && typeof x === 'object' && typeof x.clave === 'string' && x.clave.length > 0
+        && typeof x.modulo === 'string' && typeof x.nombre === 'string' && ORIGENES.includes(x.origen as PermisoVerComo['origen']);
+};
+
+/**
+ * La ficha guardada, si sirve para esta persona (`usuarioId`); si no, null. Los permisos que no traen lo mínimo se
+ * descartan uno a uno (el resto se usa).
+ */
+export function fichaVerComoValida(f: unknown, usuarioId: number): FichaVerComo | null {
+    const x = f as Partial<FichaVerComo> | null;
+    if (!x || typeof x !== 'object' || x.usuarioId !== usuarioId || !Array.isArray(x.permisos)) return null;
+    return {
+        usuarioId,
+        nombre: typeof x.nombre === 'string' ? x.nombre : '',
+        rol: typeof x.rol === 'string' ? x.rol : '',
+        permisos: x.permisos.filter(esPermisoVerComo),
+    };
+}
+
+/** La sesión sin una ficha que no sirve (la sesión igual vale). */
+function conFichaValida(s: SesionVerComo, ficha: unknown): SesionVerComo {
+    const limpia: SesionVerComo = { token: s.token, user: s.user, vence: s.vence, quien: s.quien };
+    const f = fichaVerComoValida(ficha, s.user.id);
+    if (f) limpia.ficha = f;
+    return limpia;
+}
+
+/**
+ * La respuesta del servidor como sesión guardable; null si no trae lo necesario. `ficha` = lo de la ficha de Soporte de
+ * esa persona (se guarda solo si es de ella).
+ */
+export function sesionDesdeRespuesta(r: RespuestaVerComo | null | undefined, ficha?: FichaVerComo | null): SesionVerComo | null {
     if (!r) return null;
     const vence = Date.parse(r.vence);
     const s = { token: r.token, user: r.user, vence, quien: r.quien };
-    return esSesion(s) ? s : null;
+    return esSesion(s) ? conFichaValida(s, ficha) : null;
 }
 
 function leerCruda(almacen: Almacen | null | undefined): unknown {
@@ -91,7 +152,7 @@ export function leerSesionVerComo(almacen: Almacen | null | undefined, ahora: nu
         borrarSesionVerComo(almacen);
         return null;
     }
-    return s;
+    return conFichaValida(s, s.ficha);
 }
 
 /**
