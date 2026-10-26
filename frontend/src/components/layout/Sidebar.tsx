@@ -17,7 +17,8 @@ import {
     BookOpen,
     Lightbulb,
     Inbox,
-    Calculator
+    Calculator,
+    UserSearch
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
@@ -32,6 +33,7 @@ import { IconButton } from '../ui/IconButton';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { useMisIdeasResumen, useIdeasPendientes } from '../../hooks/useIdeas';
 import { ETIQUETA_BUZON_IDEAS } from '../ideas/ideasConfig';
+import { menuVisible, veBuzonIdeas, type ClaveMenu } from './menuLateral';
 
 // Buzón de ideas (≈45 KB con el visor y la compresión de fotos): se baja al abrirlo, no al entrar (2026-10-21,
 // celular lento). `lazyWithRetry` recupera el «chunk viejo» tras un deploy.
@@ -45,7 +47,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen }) => {
-    const { user, logout, hasPermission } = useAuth();
+    const { user, logout, hasPermission, verComo } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
     // Contador de vencimientos del módulo Vehículos: número en el menú + panel al
@@ -69,8 +71,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
         setMobileOpen(false);
     }, [location.pathname]);
 
-    const menuItems: {
-        icon: React.ElementType; label: string; path: string; visible: boolean;
+    /** Lo que se le suma a cada sección del menú: su ícono y, en algunas, un contador. */
+    type ExtraMenu = {
+        icon: React.ElementType;
         /** Contador opcional (Vehículos: vencimientos; Gestiones: solicitudes de ingreso). 0 o undefined = no se muestra. */
         badge?: number;
         /** true = hay algo vencido → rojo; false = pendiente/por vencer → ámbar. */
@@ -81,26 +84,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
         badgeAriaLabel?: string;
         /** Qué hace el clic en el NÚMERO (menú expandido). Sin él abre el panel de vencimientos. */
         onBadgeClick?: (e: React.MouseEvent) => void;
-    }[] = [
-        { icon: LayoutDashboard, label: 'Inicio', path: '/', visible: true },
-        {
-            icon: CheckSquare,
-            label: 'Asistencia',
-            path: '/asistencia',
-            visible: hasPermission('asistencia.ver')
-        },
-        {
+    };
+    const extras: Record<ClaveMenu, ExtraMenu> = {
+        inicio: { icon: LayoutDashboard },
+        asistencia: { icon: CheckSquare },
+        gestiones: {
             icon: SearchCheck,
-            label: 'Gestiones',
-            // Siempre a la portada (ajuste 2026-09-15: con «lo último usado» la gente no encontraba cómo volver).
-            path: '/consultas?tab=inicio',
-            // También para quien solo participa de la ficha de ingreso digital (terreno u oficina) y para
-            // quien porta documentos físicos (B6: el encargado de obra confirma sus lotes desde acá).
-            visible: hasPermission('trabajadores.ver')
-                || hasPermission('trabajadores.solicitud.crear')
-                || hasPermission('trabajadores.solicitud.aprobar')
-                || hasPermission('documentos.entrega.registrar')
-                || hasPermission('documentos.entrega.portar'),
             // Pendiente = ÁMBAR (por hacer, no es error). El store ya devuelve 0 sin permiso de aprobar.
             badge: solicitudes.pendientes,
             badgeUrgente: false,
@@ -108,45 +97,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             badgeAriaLabel: 'Ver solicitudes de ingreso pendientes',
             onBadgeClick: () => { setMobileOpen(false); navigate('/consultas?tab=solicitudes'); },
         },
-        {
-            icon: Package,
-            label: 'Inventario',
-            path: '/inventario',
-            visible: hasPermission('inventario.ver')
-        },
-        {
+        inventario: { icon: Package },
+        vehiculos: {
             icon: Truck,
-            label: 'Vehículos',
-            path: '/vehiculos',
-            visible: hasPermission('vehiculos.ver'),
             badge: vencimientos.total,
             // Rojo si hay algo vencido; ámbar si solo faltan vencimientos por llegar.
             badgeUrgente: vencimientos.vencidos > 0,
         },
-        {
-            icon: Archive,
-            label: 'Obras Finalizadas',
-            path: '/obras-finalizadas',
-            visible: hasPermission('obras.ver')
-        },
-        {
-            // Costos de obra (mig 122): don Luis, Rodrigo y el arquitecto, por usuario.
-            icon: Calculator,
-            label: 'Presupuestos',
-            path: '/costos',
-            visible: hasPermission('costos.gestionar')
-        },
-        {
-            icon: BookOpen,
-            label: 'Ayuda',
-            path: '/ayuda',
-            visible: true
-        },
-        {
+        obras_finalizadas: { icon: Archive },
+        presupuestos: { icon: Calculator },
+        ayuda: { icon: BookOpen },
+        revisar_ideas: {
             icon: Inbox,
-            label: 'Revisar ideas',
-            path: '/ideas',
-            visible: hasPermission('ideas.revisar'),
             // Pendiente = ÁMBAR (por revisar, no es error).
             badge: ideasPendientes.pendientes,
             badgeUrgente: false,
@@ -154,13 +116,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             badgeAriaLabel: 'Ver ideas por revisar',
             onBadgeClick: () => { setMobileOpen(false); navigate('/ideas'); },
         },
-        {
-            icon: Settings,
-            label: 'Configuración',
-            path: '/configuracion',
-            visible: hasPermission('usuarios.ver')
-        },
-    ].filter(i => i.visible);
+        soporte: { icon: UserSearch },
+        configuracion: { icon: Settings },
+    };
+    // Qué secciones ve: la regla pura de `menuLateral.ts` (la misma que muestra la ficha de Soporte · usuarios).
+    const menuItems = menuVisible(hasPermission, user).map(s => ({ ...s, ...extras[s.clave] }));
 
     const sidebarContent = (isMobile: boolean) => (
         <>
@@ -245,7 +205,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                     quieren proponer, la bandeja tiene "Proponer una idea"). No es una página — abre
                     el modal — así que imita a un ítem inactivo (sin estado "activo"). Con novedades
                     en "Mis ideas" lleva un número ámbar, como los demás contadores. */}
-                {!hasPermission('ideas.revisar') && (
+                {veBuzonIdeas(hasPermission) && (
                 // eslint-disable-next-line no-restricted-syntax -- ítem de menú que abre un modal; mismo layout que NavLink, Button no lo soporta
                 <button
                     type="button"
@@ -301,8 +261,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                         <IconButton
                             variant="danger"
                             size="sm"
-                            aria-label="Cerrar sesión"
-                            title="Cerrar sesión"
+                            // Con «ver como» (Soporte · usuarios) cierra solo la sesión prestada y vuelve a la propia.
+                            aria-label={verComo ? 'Volver a mi cuenta' : 'Cerrar sesión'}
+                            title={verComo ? 'Volver a mi cuenta' : 'Cerrar sesión'}
                             onClick={logout}
                             className="shrink-0"
                             icon={<LogOut className="h-4 w-4" />}
@@ -318,7 +279,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             {/* Desktop Sidebar */}
             <motion.aside
                 animate={{ width: isCollapsed ? '72px' : '260px' }}
-                className="hidden md:flex h-[100dvh] sticky top-0 bg-card/80 backdrop-blur-xl border-r border-border flex-col z-60 transition-all duration-300"
+                className="hidden md:flex h-full sticky top-0 bg-card/80 backdrop-blur-xl border-r border-border flex-col z-60 transition-all duration-300"
             >
                 {sidebarContent(false)}
 

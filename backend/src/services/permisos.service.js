@@ -1,13 +1,36 @@
 const db = require('../config/db');
 const logger = require('../utils/logger-structured');
 
+// Lock-out safety del Super Administrador: estos permisos NUNCA se le pueden
+// denegar vía override. Garantiza recuperación si se prueba con la propia cuenta.
+const SAFE_KEYS_SUPER_ADMIN = new Set([
+    'usuarios.ver',
+    'usuarios.crear',
+    'usuarios.editar',
+    'usuarios.eliminar',
+    'usuarios.roles.ver',
+    'usuarios.roles.crear',
+    'usuarios.roles.editar',
+    'usuarios.roles.eliminar',
+    'usuarios.permisos.gestionar',
+    'sistema.logs.ver',
+]);
+
 const permisosService = {
     /**
-     * Calcula los permisos finales de un usuario:
-     * = (permisos del rol) + (overrides tipo 'grant') - (overrides tipo 'deny')
-     * Devuelve un Array<string> con las claves de los permisos.
+     * EL cálculo de los permisos de un usuario, con el ORIGEN de cada uno. Lo usan el login, /auth/me
+     * (vía getPermisosEfectivos) y la ficha de «Soporte · usuarios»: un solo cálculo, no se duplica.
+     *   efectivos = (permisos del rol) + (overrides tipo 'grant') - (overrides tipo 'deny')
+     * Devuelve:
+     *   - `efectivos`: Array<string> con las claves finales (lo que viaja en el JWT como `p`);
+     *   - `base`: las del rol (rol 1: todo el catálogo);
+     *   - `propios`: efectivas que NO vienen del rol (override 'grant');
+     *   - `quitados`: del rol, pero que la persona no tiene (override 'deny').
      */
-    async getPermisosEfectivos(usuario_id, rol_id) {
+    async detallePermisos(usuario_id, rol_id) {
+        let base;
+        const permisos = new Set();
+
         // 0. Super Administrator (rol_id === 1): parte con TODOS los permisos del
         //    catálogo (God Mode). Antes los overrides se ignoraban completamente,
         //    pero eso hacía imposible que un Super Admin probara escenarios de
@@ -17,56 +40,56 @@ const permisosService = {
         //    forma de revertir el experimento.
         if (rol_id === 1) {
             const [catalogo] = await db.query('SELECT clave FROM permisos_catalogo');
-            const all = new Set(catalogo.map(c => c.clave));
-
-            // Lock-out safety: estos permisos NUNCA se pueden denegar al Super
-            // Admin vía override. Garantiza recuperación si se prueba con la
-            // propia cuenta.
-            const SAFE_KEYS = new Set([
-                'usuarios.ver',
-                'usuarios.crear',
-                'usuarios.editar',
-                'usuarios.eliminar',
-                'usuarios.roles.ver',
-                'usuarios.roles.crear',
-                'usuarios.roles.editar',
-                'usuarios.roles.eliminar',
-                'usuarios.permisos.gestionar',
-                'sistema.logs.ver',
-            ]);
+            base = new Set(catalogo.map(c => c.clave));
+            base.forEach(k => permisos.add(k));
 
             const [adminOverrides] = await db.query(
                 'SELECT permiso_clave, tipo FROM permisos_usuario_override WHERE usuario_id = ?',
                 [usuario_id]
             );
             for (const ov of adminOverrides) {
-                if (ov.tipo === 'deny' && !SAFE_KEYS.has(ov.permiso_clave)) {
-                    all.delete(ov.permiso_clave);
+                if (ov.tipo === 'deny' && !SAFE_KEYS_SUPER_ADMIN.has(ov.permiso_clave)) {
+                    permisos.delete(ov.permiso_clave);
                 }
                 // 'grant' no aplica: Super Admin ya tiene todo.
             }
-            return Array.from(all);
+        } else {
+            // 1. Obtener permisos base del rol
+            const [rolPermisos] = await db.query(
+                'SELECT permiso_clave FROM permisos_rol_v2 WHERE rol_id = ?',
+                [rol_id]
+            );
+            base = new Set(rolPermisos.map(r => r.permiso_clave));
+            base.forEach(k => permisos.add(k));
+
+            // 2. Obtener overrides del usuario
+            const [overrides] = await db.query(
+                'SELECT permiso_clave, tipo FROM permisos_usuario_override WHERE usuario_id = ?',
+                [usuario_id]
+            );
+
+            for (const ov of overrides) {
+                if (ov.tipo === 'grant') permisos.add(ov.permiso_clave);
+                if (ov.tipo === 'deny') permisos.delete(ov.permiso_clave);
+            }
         }
 
-        // 1. Obtener permisos base del rol
-        const [rolPermisos] = await db.query(
-            'SELECT permiso_clave FROM permisos_rol_v2 WHERE rol_id = ?',
-            [rol_id]
-        );
-        const permisos = new Set(rolPermisos.map(r => r.permiso_clave));
+        const efectivos = Array.from(permisos);
+        return {
+            efectivos,
+            base: Array.from(base),
+            propios: efectivos.filter(k => !base.has(k)),
+            quitados: Array.from(base).filter(k => !permisos.has(k)),
+        };
+    },
 
-        // 2. Obtener overrides del usuario
-        const [overrides] = await db.query(
-            'SELECT permiso_clave, tipo FROM permisos_usuario_override WHERE usuario_id = ?',
-            [usuario_id]
-        );
-
-        for (const ov of overrides) {
-            if (ov.tipo === 'grant') permisos.add(ov.permiso_clave);
-            if (ov.tipo === 'deny') permisos.delete(ov.permiso_clave);
-        }
-
-        return Array.from(permisos);
+    /**
+     * Calcula los permisos finales de un usuario:
+     * = (permisos del rol) + (overrides tipo 'grant') - (overrides tipo 'deny')
+     * Devuelve un Array<string> con las claves de los permisos.
+     */
+    async getPermisosEfectivos(usuario_id, rol_id) {
+        return (await permisosService.detallePermisos(usuario_id, rol_id)).efectivos;
     },
 
     /** Devuelve el catálogo completo agrupado por módulo */

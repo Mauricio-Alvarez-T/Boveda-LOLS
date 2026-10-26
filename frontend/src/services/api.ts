@@ -1,5 +1,8 @@
 import axios from 'axios';
 import { toast } from 'sonner';
+import {
+    AVISOS_VER_COMO, almacenSesion, borrarSesionVerComo, esErrorSoloLectura, guardarAvisoVerComo, rutaAlSalir, tokenVerComoGuardado,
+} from '../context/verComoSesion';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -20,9 +23,15 @@ const api = axios.create({
     },
 });
 
+// «Ver como» (Soporte · usuarios): el aviso de «solo lectura», con su propio throttle (una pantalla puede disparar
+// más de un guardado automático a la vez).
+let _lastSoloLecturaTs = 0;
+
 // Interceptor to add JWT token to requests
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('sgdl_token');
+    // Con «ver como» en esta pestaña va el token prestado (sessionStorage), aunque haya vencido: el 401 de abajo
+    // devuelve a la cuenta propia. Sin él, el de la cuenta propia (localStorage).
+    const token = tokenVerComoGuardado(almacenSesion()) ?? localStorage.getItem('sgdl_token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
@@ -34,6 +43,27 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         const status = error.response?.status;
+
+        // «Ver como»: el 401 es del token prestado (venció, o cambiaron los permisos de esa persona). Se vuelve a la
+        // cuenta propia sin tocarla; si la propia tampoco sirve, su propio 401 llevará al login.
+        if (status === 401 && tokenVerComoGuardado(almacenSesion()) && !String(error.config?.url || '').includes('/auth/login')) {
+            const ses = almacenSesion();
+            const volverA = rutaAlSalir(ses);
+            borrarSesionVerComo(ses);
+            guardarAvisoVerComo(ses, AVISOS_VER_COMO.terminoServidor);
+            window.location.href = volverA;
+            return Promise.reject(error);
+        }
+
+        // «Ver como»: el servidor rechazó un guardado (solo lectura). Un aviso claro, aunque sea un 403.
+        if (status === 403 && esErrorSoloLectura(error.response?.data)) {
+            const now = Date.now();
+            if (now - _lastSoloLecturaTs > TOAST_403_THROTTLE_MS) {
+                _lastSoloLecturaTs = now;
+                toast.warning(AVISOS_VER_COMO.soloLectura, { description: AVISOS_VER_COMO.soloLecturaDetalle });
+            }
+            return Promise.reject(error);
+        }
 
         if (status === 401) {
             const isLogged = !!localStorage.getItem('sgdl_token');

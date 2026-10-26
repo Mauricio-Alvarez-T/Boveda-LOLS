@@ -31,22 +31,27 @@ import type { StockObraData } from '../hooks/inventario/useInventarioData';
 import { formatBodegaConResponsable } from '../utils/formatBodega';
 import { Button } from '../components/ui/Button';
 import { PestanasElasticas } from '../components/ui/PestanasElasticas';
+import { PESTANAS_INVENTARIO, type PestanaInventario } from '../components/inventario/pestanasInventario';
 
-type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencias' | 'maestro' | 'bombas' | 'movimientos' | 'facturas';
+type TabKey = PestanaInventario;
 
 // Tabs del módulo Inventario. Cada uno gateado individualmente por su permiso
 // `inventario.tab.*`. El acceso al módulo entero ya está gateado un nivel
-// arriba por `inventario.ver` (ruta protegida en el router).
-const tabs: { key: TabKey; label: string; shortLabel: string; icon: React.ElementType; requiresPerm?: string }[] = [
-    { key: 'resumen_ejecutivo', label: 'Resumen Ejecutivo', shortLabel: 'Ejecutivo', icon: BarChart3,       requiresPerm: 'inventario.tab.resumen_ejecutivo' },
-    { key: 'resumen',           label: 'Resumen',           shortLabel: 'Resumen',   icon: ClipboardList,   requiresPerm: 'inventario.tab.resumen' },
-    { key: 'por_ubicacion',     label: 'Por Obra/Bodega',   shortLabel: 'Obra/Bod.', icon: Building2,       requiresPerm: 'inventario.tab.por_ubicacion' },
-    { key: 'transferencias',    label: 'Solicitudes',       shortLabel: 'Solicitudes', icon: ArrowLeftRight,  requiresPerm: 'inventario.tab.transferencias' },
-    { key: 'maestro',           label: 'Maestro',           shortLabel: 'Maestro',   icon: LayoutGrid,      requiresPerm: 'inventario.tab.maestro' },
-    { key: 'bombas',            label: 'Hormigón',          shortLabel: 'Hormigón',  icon: MixerTruck,      requiresPerm: 'inventario.tab.bombas' },
-    { key: 'facturas',          label: 'Facturas',          shortLabel: 'Facturas',  icon: Receipt,         requiresPerm: 'inventario.facturas.ver' },
-    { key: 'movimientos',       label: 'Movimientos',       shortLabel: 'Movim.',    icon: History,         requiresPerm: 'inventario.movimientos.ver' },
-];
+// arriba por `inventario.ver` (ruta protegida en el router). La lista (clave,
+// textos y permiso) vive en `pestanasInventario.ts` —la ficha de Soporte · usuarios
+// usa la misma—; aquí solo se le pone el ícono a cada una.
+const ICONOS_TAB: Record<TabKey, React.ElementType> = {
+    resumen_ejecutivo: BarChart3,
+    resumen: ClipboardList,
+    por_ubicacion: Building2,
+    transferencias: ArrowLeftRight,
+    maestro: LayoutGrid,
+    bombas: MixerTruck,
+    facturas: Receipt,
+    movimientos: History,
+};
+const tabs: { key: TabKey; label: string; shortLabel: string; icon: React.ElementType; requiresPerm?: string }[] =
+    PESTANAS_INVENTARIO.map(t => ({ ...t, icon: ICONOS_TAB[t.key] }));
 
 const SUBTABS_MAESTRO = [
     { key: 'items' as const, label: 'Ítems' },

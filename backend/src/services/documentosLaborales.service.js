@@ -253,6 +253,12 @@ const documentosLaboralesService = {
      * (el gate de la ruta ya exigió documentos.laborales.descargar). Marca la primera descarga y loguea.
      */
     async abrir(id, userId, req, { modo = 'download' } = {}) {
+        // «Ver como» (soporte, token con `imp`): el Super Administrador mira el documento sin marcarlo como
+        // descargado por el usuario mirado (es un GET con escritura). El log queda a nombre de quien mira
+        // (logManualActivity → atribuirVerComo).
+        const marcar = req?.user?.imp == null
+            ? () => documentoService.marcarDescargado(id)
+            : async () => {};
         const info = await documentoService.getFilePath(id);
         if (!fs.existsSync(info.fullPath)) throw httpError('El archivo no está en el servidor', 404);
         if (modo === 'html') {
@@ -266,13 +272,13 @@ const documentosLaboralesService = {
             if (!/^\s*<(!doctype|html)/i.test(html)) {
                 throw httpError('El archivo no tiene el formato que genera Bóveda; descárgalo en vez de imprimirlo.', 409, { code: 'NO_IMPRIMIBLE' });
             }
-            await documentoService.marcarDescargado(id);
+            await marcar();
             await logManualActivity(userId, 'documentos', 'UPDATE', String(id),
                 JSON.stringify({ evento: 'documento_impreso', tipo: info.tipo_codigo || null, trabajador_id: info.trabajador_id || null,
                     resumen: `Impresión de ${info.tipo_nombre || info.fileName}` }), req);
             return { html, titulo: info.tipo_nombre || info.fileName, nombre_archivo: info.fileName };
         }
-        await documentoService.marcarDescargado(id);
+        await marcar();
         await logManualActivity(userId, 'documentos', 'UPDATE', String(id),
             JSON.stringify({ evento: 'documento_descargado', tipo: info.tipo_codigo || null, trabajador_id: info.trabajador_id || null,
                 resumen: `Descarga de ${info.tipo_nombre || info.fileName}` }), req);

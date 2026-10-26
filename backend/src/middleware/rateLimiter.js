@@ -62,6 +62,8 @@ function userOrIpKey(req) {
     if (header && header.startsWith('Bearer ')) {
         try {
             const decoded = jwt.decode(header.slice(7));
+            // «Ver como» (soporte): cuenta contra el cupo de quien mira (`imp`), no del usuario mirado.
+            if (decoded && decoded.imp != null) return `u:${decoded.imp}`;
             if (decoded && decoded.id != null) return `u:${decoded.id}`;
         } catch (_) { /* token corrupto → cae a IP */ }
     }

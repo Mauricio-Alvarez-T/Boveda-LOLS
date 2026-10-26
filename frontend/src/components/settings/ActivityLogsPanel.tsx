@@ -744,8 +744,8 @@ export const ActivityLogsPanel: React.FC = () => {
 
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center flex-wrap gap-1.5">
-                                        <span className={cn("text-micro font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0", getActionDisplay(log.accion).color)}>
-                                            {getActionDisplay(log.accion).label}
+                                        <span className={cn("text-micro font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0", getActionDisplay(log.accion, log.modulo).color)}>
+                                            {getActionDisplay(log.accion, log.modulo).label}
                                         </span>
                                         <span className="text-label font-bold text-brand-dark">{log.usuario_nombre || 'Sistema'}</span>
                                         <span className="text-caption text-muted-foreground">{getModuloLabel(log.modulo)}</span>
@@ -846,7 +846,9 @@ const DetailModalContent: React.FC<{ log: Log }> = ({ log }) => {
     return <GenericDetailView parsed={parsed} resumen={(parsed as any)?.resumen} accion={log.accion} modulo={log.modulo} responsable={responsable} />;
 };
 
-const getActionDisplay = (accion: string) => {
+const getActionDisplay = (accion: string, modulo?: string | null) => {
+    // «Ver como» de Soporte · usuarios: se guarda como LOGIN (ENUM cerrado) pero no es un inicio de sesión propio.
+    if (modulo === 'soporte') return { label: 'VER COMO', color: 'bg-warning/10 text-warning' };
     switch (accion) {
         case 'CREATE': return { label: 'CREAR', color: 'bg-brand-accent/10 text-brand-accent' };
         case 'UPDATE': return { label: 'EDITAR', color: 'bg-warning/10 text-warning' };

@@ -21,6 +21,7 @@
   viejo se rechazan → fuerza re-login. **Regla operativa: tras correr migrate con permisos nuevos,
   re-login.**
 - No existe password-reset por email; solo cambio en-app con contraseña actual.
+- Excepción: el token de «ver como» de Soporte (30 min, con `imp` + `ro`, solo lectura; § Ver como usuario).
 
 ## Permisos financieros (deny-by-default)
 
@@ -146,6 +147,82 @@
   `diferencias_ver` (Luis no lo tiene); al tocar una, Inventario abre «Diferencias» si puede verlas y, si no, la
   solicitud misma (`TransferenciasPanel`). Probada dos veces sobre MySQL 5.7 (sql_mode estricto y de MariaDB 10.6).
   Test: `backend/tests/inicio_gerencia.test.js`.
+
+## Ver como usuario (soporte)
+
+Pedido del dueño (2026-10-23): «Soporte · usuarios» (`/soporte`, menú lateral «Soporte») para los dos Super
+Administradores (Marcos y Mauricio): cuando alguien pregunta «¿por qué no veo X?», se busca a la persona, se ve su
+**ficha** y, si hace falta, **«Ver como esta persona»** abre la app tal cual la ve ella, en **solo lectura**, sin
+entrar y salir de su cuenta. Código: `backend/src/routes/soporte.routes.js`, `services/soporte.service.js`,
+`middleware/superAdmin.js`, `middleware/auth.js`; frontend `pages/Soporte.tsx`, `components/soporte/`,
+`context/verComoSesion.ts`, `context/AuthContext.tsx`, `services/api.ts`, `components/layout/FranjaVerComo.tsx`.
+Test: `backend/tests/soporte_ver_como.test.js` (+ `fichaUsuario`, `verComoSesion`, `menuLateral` en el frontend).
+
+**Quién: solo el rol 1** (`rol_id === 1`, mismo criterio que `super_admin` de `inicioPerfil` y `esSuperAdmin` de
+`perfil.ts`). **No es un permiso del catálogo** (un permiso se puede regalar desde Configuración; el rol 1 no). Cada
+endpoint de `/api/soporte` pasa por `auth` + `soloSuperAdmin`, que exige: (1) que el token NO sea de «ver como» (`imp`
+/ `ro`) → 403 `VER_COMO_NO_ENCADENA`; (2) rol 1 en el token; (3) rol 1 **y activo en la BD** (el token puede tener 8 h)
+→ si no, 403 `SOLO_SUPER_ADMIN`. Un Administrador con todos los permisos de usuarios recibe 403.
+
+**Endpoints:**
+- `GET /api/soporte/usuarios` — usuarios activos: nombre, correo, rol, obra, bodega (columnas explícitas, nunca
+  `usuarios.*`: `password_hash` no sale).
+- `GET /api/soporte/usuarios/:id` — la ficha: datos, obra (activa/finalizada), `efectivos` (exactamente lo que llevaría
+  su token) y `permisos` con el **origen** de cada uno: `rol`, `propio` (override grant que el rol no trae) o `quitado`
+  (deny sobre uno del rol; no está en `efectivos`). Sale de `permisosService.detallePermisos`, **el mismo cálculo del
+  login** (`getPermisosEfectivos` = `detallePermisos().efectivos`; no hay un segundo cálculo). Más `sesion`: último
+  ingreso y último cambio de sus permisos según `logs_actividad` (permisos de su rol, sus propios, su rol/obra/bodega
+  desde la app; lo que cambia una migración no deja log).
+- `POST /api/soporte/usuarios/:id/ver-como` — el token prestado. Responde `Cache-Control: no-store`.
+
+**El token de «ver como»:** lo arma `authService.firmarSesion` (el mismo armado del login): `typ: 'session'`, `id`,
+`email`, `rol_id`, `obra_id`, `bodega_id`, `p` (sus permisos efectivos), `rv` (versión de SU rol) **más `imp`** (id del
+Super Administrador que mira) **y `ro: true`**, con **30 min** de vida. No se emite: para otro rol 1 (403
+`VER_COMO_SUPER_ADMIN`), para un usuario inactivo (409 `USUARIO_INACTIVO`), para uno que no existe (404) ni para la
+propia cuenta (400). Si al rol de esa persona le suben la versión mientras dura, el token muere igual que su sesión
+(401) y la app vuelve a la cuenta propia.
+
+**Solo lectura (`middleware/auth.js`):** con `ro: true` **o cualquier `imp`** (aunque faltara `ro`), todo lo que no sea
+`GET`/`HEAD`/`OPTIONS` se rechaza **antes de la ruta** con `403 { error: 'Modo «ver como»: solo lectura', code:
+'VER_COMO_SOLO_LECTURA' }`. Excepción, lista exacta `POST_SOLO_LECTURA`: `POST /api/inventario/stock-por-items` (solo
+lee; manda una lista de ids que no cabe en la URL; sin él el Maestro y el detalle de una solicitud no muestran stock).
+**Agregar una ruta ahí = revisar antes que su handler no escriba NADA.** Los montos siguen la regla de siempre: el
+token trae SUS permisos, así que `sanitizeFinancialFields` y compañía recortan igual que para él.
+
+**Historial:** el «ver como» queda en `logs_actividad` a nombre del Super Administrador: `modulo = 'soporte'`,
+`accion = 'LOGIN'` (la columna es un ENUM cerrado; para no migrar), `item_id` = el mirado, resumen «<Super Admin> vio
+como <usuario> (<rol>), solo lectura, 30 min». El Historial lo muestra siempre (el filtro que esconde los LOGIN deja
+pasar `soporte`) con la etiqueta «VER COMO». El log genérico excluye `/api/soporte` (no duplica). Lo que se registre
+durante la sesión prestada (p. ej. abrir un documento laboral, que es un GET con log) **nunca** queda a nombre del
+mirado: `logManualActivity` lo pasa al `imp` y le agrega «(viendo como usuario #N)» (`atribuirVerComo`); el
+`activityLogger` usa `imp` si existiera; el log de peticiones del servidor agrega `verComoPor`. Abrir un documento
+laboral con «ver como» **no lo marca como descargado** (`documentosLaborales.service.abrir`). Las peticiones cuentan
+contra el cupo del rate limit de quien mira, no del mirado.
+
+**Frontend:** la cuenta propia sigue intacta en localStorage; la prestada va en **sessionStorage** (`sgdl_ver_como`:
+solo esa pestaña, sobrevive un F5, se borra al cerrar la pestaña) y **nunca en la URL**. `api.ts` manda el token
+prestado mientras exista (aunque haya vencido: el 401 devuelve a la propia en vez de mezclar cuentas). Entrar y salir
+**recargan la app** (ningún dato en memoria de una cuenta queda bajo el menú de la otra). Franja ámbar fija arriba de
+toda la app (`FranjaVerComo`, en `MainLayout`): «Viendo como <Nombre> (<rol>) · solo lectura · vence en N min · Volver a
+mi cuenta». Se vuelve a la cuenta propia (a la ficha de esa persona, `/soporte?u=ID`) con el botón, con «Cerrar sesión»
+del menú, al vencer (reloj de la franja) o con cualquier 401 del token prestado; si se cierra la sesión propia en otra
+pestaña, también se cierra la prestada (al login). El 403 de solo lectura muestra un aviso claro («Estás viendo como
+otra persona: solo lectura · No se guardó nada»).
+
+**La ficha** calcula qué ve la persona con las MISMAS funciones de la app (nada duplicado): menú = `menuVisible`
+(`components/layout/menuLateral.ts`, la regla que ahora usa el Sidebar), pestañas de Inventario =
+`pestanasInventarioVisibles` (`components/inventario/pestanasInventario.ts`, la lista de `Inventario.tsx`), secciones de
+Gestiones = `permisosGestiones` + `seccionesDisponibles` (`gestionesNav.ts`, las de `Consultas.tsx`), Inicio = Inicio
+de gerencia (`inicio.gerencia`) + `vistaInventario` (`perfil.ts`). Más avisos puros (`components/soporte/fichaUsuario.ts`):
+pide/recibe sin la pestaña Solicitudes, aprueba o ve diferencias sin «Ver todas las obras», sin ningún permiso de
+Inventario, permisos de un módulo sin su «Ver …», obra finalizada/inactiva, bodega asignada, permisos quitados y
+«cambiaron sus permisos después de su último ingreso: debe volver a iniciar sesión».
+
+Limitaciones conocidas: la obra elegida arriba (selector) es la que el Super Administrador tiene guardada en su
+navegador, no la del teléfono de esa persona (y cambiarla ahí cambia la propia); las preferencias locales por persona
+(última sección de Gestiones, «Ver como» del Inicio, etc.) se leen del navegador de quien mira. El token de descarga
+pública de asistencia (`GET /asistencias/public-report-token`, 24 h, solo el reporte) se puede emitir también desde
+«ver como»: es una lectura que el Super Administrador ya puede hacer con su cuenta.
 
 ## Middleware y endurecimiento
 

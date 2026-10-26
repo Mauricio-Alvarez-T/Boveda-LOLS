@@ -33,7 +33,9 @@ const CASOS: Array<{ archivo: string; etiquetas: string[] }> = [
     { archivo: '../pages/Consultas.tsx', etiquetas: ['Gestiones', 'CREAR', 'Guardar'] },
     { archivo: 'consultas/TrabajadoresGrilla.tsx', etiquetas: ['Editar trabajador'] },
 
-    { archivo: 'layout/Sidebar.tsx', etiquetas: ["label: 'Gestiones'"] },
+    // Las etiquetas del menú lateral viven en menuLateral.ts desde 2026-10-23 (la regla pura que comparten el Sidebar
+    // y la ficha de Soporte · usuarios); el Sidebar solo les pone ícono y contador.
+    { archivo: 'layout/menuLateral.ts', etiquetas: ["label: 'Gestiones'"] },
     { archivo: 'consultas/crearItems.ts', etiquetas: ['Trabajador', 'Nuevo ingreso'] },
     { archivo: 'workers/WorkerQuickView.tsx', etiquetas: ['Ver documento'] },
 ];

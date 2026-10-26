@@ -1,8 +1,20 @@
 import {
     resolverSeccion, seccionesDisponibles, esParamGrilla, tieneParamsGrilla, PARAMS_GRILLA,
-    leerUltima, guardarUltima, CLAVE_ULTIMA, SECCION_LABEL,
+    leerUltima, guardarUltima, CLAVE_ULTIMA, SECCION_LABEL, permisosGestiones,
     type PermisosGestiones,
 } from './gestionesNav';
+
+describe('permisosGestiones (qué sección abre cada permiso; Consultas y la ficha de Soporte)', () => {
+    const con = (...p: string[]) => (k: string) => p.includes(k);
+    it('cada sección con sus permisos', () => {
+        expect(permisosGestiones(con())).toEqual({ trabajadores: false, solicitudes: false, fisicos: false });
+        expect(permisosGestiones(con('trabajadores.ver'))).toEqual({ trabajadores: true, solicitudes: false, fisicos: false });
+        expect(permisosGestiones(con('trabajadores.solicitud.crear')).solicitudes).toBe(true);
+        expect(permisosGestiones(con('trabajadores.solicitud.aprobar')).solicitudes).toBe(true);
+        expect(permisosGestiones(con('documentos.entrega.registrar')).fisicos).toBe(true);
+        expect(permisosGestiones(con('documentos.entrega.portar')).fisicos).toBe(true);
+    });
+});
 
 const TODO: PermisosGestiones = { trabajadores: true, solicitudes: true, fisicos: true };
 const RRHH: PermisosGestiones = { trabajadores: true, solicitudes: true, fisicos: true };
