@@ -1,9 +1,7 @@
 import {
-    CLAVE_AVISO_VER_COMO, CLAVE_VER_COMO, borrarSesionVerComo, enModoCambios, esErrorCambiosBloqueado, esErrorCambiosInvalido,
-    encabezadoSesionPropia, esErrorSoloLectura,
-    fichaVerComoValida, guardarAvisoVerComo, guardarSesionVerComo, leerSesionVerComo, minutosRestantes, rutaAlSalir,
-    sesionConCambios, sesionDesdeRespuesta, sesionSoloLectura, textoAdvertenciaCambios, textoVence, tokenActivo,
-    tokenVerComoGuardado, tomarAvisoVerComo, type Almacen, type FichaVerComo, type RespuestaCambiosVerComo, type RespuestaVerComo,
+    CLAVE_AVISO_VER_COMO, CLAVE_VER_COMO, borrarSesionVerComo, esErrorSoloLectura, fichaVerComoValida, guardarAvisoVerComo,
+    guardarSesionVerComo, leerSesionVerComo, minutosRestantes, rutaAlSalir, sesionDesdeRespuesta, textoVence, tokenVerComoGuardado,
+    tomarAvisoVerComo, type Almacen, type FichaVerComo, type RespuestaVerComo,
 } from './verComoSesion';
 
 /** Un sessionStorage falso. */
@@ -135,105 +133,5 @@ describe('tiempo y errores', () => {
         expect(esErrorSoloLectura({ error: 'Modo «ver como»: solo lectura', code: 'VER_COMO_SOLO_LECTURA' })).toBe(true);
         expect(esErrorSoloLectura({ error: 'No tienes permisos para esta acción' })).toBe(false);
         expect(esErrorSoloLectura(undefined)).toBe(false);
-    });
-});
-
-describe('modo cambios (Marcos 2026-10-26)', () => {
-    const CAMBIOS: RespuestaCambiosVerComo = {
-        token: 'tok.cambios',
-        vence: RESPUESTA.vence, // el servidor da la MISMA hora
-        modo: 'cambios',
-        quien: { id: 1, nombre: 'Marcos Uribe' },
-    };
-    const base = () => sesionDesdeRespuesta(RESPUESTA)!;
-
-    test('al activar se manda el token de cambios; al volver, otra vez el de solo lectura', () => {
-        const a = almacenFalso();
-        const s = base();
-        expect(enModoCambios(s)).toBe(false);
-        expect(tokenActivo(s)).toBe('tok.prestado');
-
-        const c = sesionConCambios(s, CAMBIOS)!;
-        expect(enModoCambios(c)).toBe(true);
-        expect(c.token).toBe('tok.prestado'); // el de solo lectura se guarda para volver
-        expect(tokenActivo(c)).toBe('tok.cambios');
-        guardarSesionVerComo(a, c);
-        expect(tokenVerComoGuardado(a)).toBe('tok.cambios');
-
-        const l = sesionSoloLectura(c);
-        expect(enModoCambios(l)).toBe(false);
-        expect(l.tokenCambios).toBeUndefined();
-        expect(c.tokenCambios).toBe('tok.cambios'); // no toca la sesión original
-        guardarSesionVerComo(a, l);
-        expect(tokenVerComoGuardado(a)).toBe('tok.prestado');
-        expect(JSON.parse(a.datos[CLAVE_VER_COMO]).tokenCambios).toBeUndefined();
-    });
-
-    test('un F5 mantiene el modo que estaba (con su ficha)', () => {
-        const a = almacenFalso();
-        const ficha: FichaVerComo = { usuarioId: 7, nombre: 'Leonardo López', rol: 'Administrador', permisos: [] };
-        guardarSesionVerComo(a, sesionConCambios(sesionDesdeRespuesta(RESPUESTA, ficha)!, CAMBIOS)!);
-        const leida = leerSesionVerComo(a, AHORA)!;
-        expect(enModoCambios(leida)).toBe(true);
-        expect(tokenActivo(leida)).toBe('tok.cambios');
-        expect(leida.ficha).toEqual(ficha);
-    });
-
-    test('vence a la misma hora (nunca alarga) y al vencer se va todo junto', () => {
-        const a = almacenFalso();
-        const s = base();
-        // Aunque el servidor dijera más tarde, se queda con la hora del solo lectura; si dice antes, con la de antes.
-        expect(sesionConCambios(s, { ...CAMBIOS, vence: '2026-10-23T16:30:00.000Z' })!.vence).toBe(s.vence);
-        expect(sesionConCambios(s, { ...CAMBIOS, vence: '2026-10-23T15:20:00.000Z' })!.vence).toBe(Date.parse('2026-10-23T15:20:00.000Z'));
-        guardarSesionVerComo(a, sesionConCambios(s, CAMBIOS)!);
-        expect(leerSesionVerComo(a, s.vence - 1)).not.toBeNull();
-        expect(leerSesionVerComo(a, s.vence)).toBeNull();
-        expect(a.datos[CLAVE_VER_COMO]).toBeUndefined();
-        expect(tokenVerComoGuardado(a)).toBeNull();
-    });
-
-    test('una respuesta que no sirve no activa nada', () => {
-        const s = base();
-        expect(sesionConCambios(s, null)).toBeNull();
-        expect(sesionConCambios(s, { ...CAMBIOS, token: '' })).toBeNull();
-        expect(sesionConCambios(s, { ...CAMBIOS, token: 'tok.prestado' })).toBeNull();
-        expect(sesionConCambios(s, { ...CAMBIOS, vence: 'no es fecha' })).toBeNull();
-        expect(sesionConCambios(s, { ...CAMBIOS, quien: { id: 2, nombre: 'Otro' } })).toBeNull();
-    });
-
-    test('un token de cambios guardado roto se ignora: queda en solo lectura (lo seguro)', () => {
-        const a = almacenFalso({ [CLAVE_VER_COMO]: JSON.stringify({ ...base(), tokenCambios: 123 }) });
-        const leida = leerSesionVerComo(a, AHORA)!;
-        expect(enModoCambios(leida)).toBe(false);
-        expect(tokenActivo(leida)).toBe('tok.prestado');
-        expect(tokenVerComoGuardado(a)).toBe('tok.prestado');
-        expect(enModoCambios(null)).toBe(false);
-    });
-
-    test('la advertencia: texto acordado, con la persona, su rol y quien mira', () => {
-        expect(textoAdvertenciaCambios('Leonardo López', 'Administrador', 'Marcos Uribe')).toBe(
-            'Vas a poder hacer cambios como Leonardo López (Administrador). Lo que guardes quedará a su nombre en la app, '
-            + 'y en el historial de actividad quedará registrado que lo hiciste tú (Marcos Uribe). '
-            + 'Úsalo solo para arreglar lo que te pidieron.',
-        );
-        expect(textoAdvertenciaCambios('Leonardo López', undefined, null)).toMatch(/^Vas a poder hacer cambios como Leonardo López\. .*\(Super Administrador\)\./);
-    });
-
-    test('el encabezado de la sesión propia: con token, «Bearer <token>»; sin token, no se pide', () => {
-        expect(encabezadoSesionPropia('tok.propio')).toEqual({ 'X-Sesion-Propia': 'Bearer tok.propio' });
-        expect(encabezadoSesionPropia(' tok.propio ')).toEqual({ 'X-Sesion-Propia': 'Bearer tok.propio' });
-        expect(encabezadoSesionPropia(null)).toBeNull();
-        expect(encabezadoSesionPropia('')).toBeNull();
-        expect(encabezadoSesionPropia('   ')).toBeNull();
-        expect(encabezadoSesionPropia(undefined)).toBeNull();
-    });
-
-    test('el 403 de lo bloqueado en modo cambios se reconoce por su código', () => {
-        expect(esErrorCambiosBloqueado({ error: 'En modo cambios no se puede…', code: 'VER_COMO_CAMBIOS_BLOQUEADO' })).toBe(true);
-        expect(esErrorCambiosBloqueado({ code: 'VER_COMO_SOLO_LECTURA' })).toBe(false);
-        expect(esErrorCambiosBloqueado(null)).toBe(false);
-        expect(esErrorCambiosInvalido({ error: 'El modo cambios terminó…', code: 'VER_COMO_CAMBIOS_INVALIDO' })).toBe(true);
-        expect(esErrorCambiosInvalido({ code: 'VER_COMO_CAMBIOS_BLOQUEADO' })).toBe(false);
-        expect(esErrorCambiosInvalido(undefined)).toBe(false);
     });
 });

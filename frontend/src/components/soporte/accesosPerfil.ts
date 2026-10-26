@@ -197,16 +197,6 @@ export const DESCRIPCION_MENU: Record<ClaveMenu, string> = {
 
 export const TEXTO_INICIO_GERENCIA = 'Inicio de gerencia arriba: los temas que esperan una decisión';
 export const TEXTO_SIN_INVENTARIO = 'Sin tarjeta de Inventario (le falta «Ver inventario»)';
-
-/**
- * El subtítulo del recuadro «Lo que puede usar…». En solo lectura el recuadro (y todo) no guarda nada; en modo cambios
- * (2026-10-26) eso ya no es cierto: lo dice.
- */
-export function subtituloAccesos(modoCambios: boolean): string {
-    return modoCambios
-        ? 'Así es su menú y lo que puede hacer en cada parte. Estás en modo cambios: lo que guardes queda a su nombre y registrado.'
-        : 'Así es su menú y lo que puede hacer en cada parte. Es solo para revisar: no guarda nada.';
-}
 const PERMISO_GERENCIA = 'inicio.gerencia';
 
 const capitalizar = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);

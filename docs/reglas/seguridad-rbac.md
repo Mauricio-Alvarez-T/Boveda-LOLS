@@ -156,10 +156,7 @@ Administradores (Marcos y Mauricio): cuando alguien pregunta «¿por qué no veo
 entrar y salir de su cuenta. Código: `backend/src/routes/soporte.routes.js`, `services/soporte.service.js`,
 `middleware/superAdmin.js`, `middleware/auth.js`; frontend `pages/Soporte.tsx`, `components/soporte/`,
 `context/verComoSesion.ts`, `context/AuthContext.tsx`, `services/api.ts`, `components/layout/FranjaVerComo.tsx`.
-Modo cambios (2026-10-26, más abajo): `middleware/verComoLectura.js`, `soporte.service.activarCambios`,
-`middleware/logger.registrarCambioVerComo`, `components/layout/ActivarCambiosVerComo.tsx`.
-Test: `backend/tests/soporte_ver_como.test.js` y `soporte_ver_como_cambios.test.js` (+ `fichaUsuario`,
-`verComoSesion`, `menuLateral` en el frontend).
+Test: `backend/tests/soporte_ver_como.test.js` (+ `fichaUsuario`, `verComoSesion`, `menuLateral` en el frontend).
 
 **Quién: solo el rol 1** (`rol_id === 1`, mismo criterio que `super_admin` de `inicioPerfil` y `esSuperAdmin` de
 `perfil.ts`). **No es un permiso del catálogo** (un permiso se puede regalar desde Configuración; el rol 1 no). Cada
@@ -189,10 +186,7 @@ propia cuenta (400). Si al rol de esa persona le suben la versión mientras dura
 `GET`/`HEAD`/`OPTIONS` se rechaza **antes de la ruta** con `403 { error: 'Modo «ver como»: solo lectura', code:
 'VER_COMO_SOLO_LECTURA' }`. Excepción, lista exacta `POST_SOLO_LECTURA`: `POST /api/inventario/stock-por-items` (solo
 lee; manda una lista de ids que no cabe en la URL; sin él el Maestro y el detalle de una solicitud no muestran stock).
-**Agregar una ruta ahí = revisar antes que su handler no escriba NADA.** Segunda lista exacta, `POST_CAMBIO_DE_MODO`:
-`POST /api/soporte/ver-como/escritura` (la única salida del solo lectura; no escribe datos: firma un token y deja una
-fila en el historial; la cuida su propia guarda). La única excepción al «cualquier `imp` es solo lectura» es el token
-del **modo cambios** (`imp` + `rw === true` + `ro !== true`, ver abajo). Los montos siguen la regla de siempre: el
+**Agregar una ruta ahí = revisar antes que su handler no escriba NADA.** Los montos siguen la regla de siempre: el
 token trae SUS permisos, así que `sanitizeFinancialFields` y compañía recortan igual que para él.
 
 **Historial:** el «ver como» queda en `logs_actividad` a nombre del Super Administrador: `modulo = 'soporte'`,
@@ -213,64 +207,7 @@ toda la app (`FranjaVerComo`, en `MainLayout`): «Viendo como <Nombre> (<rol>) �
 mi cuenta». Se vuelve a la cuenta propia (a la ficha de esa persona, `/soporte?u=ID`) con el botón, con «Cerrar sesión»
 del menú, al vencer (reloj de la franja) o con cualquier 401 del token prestado; si se cierra la sesión propia en otra
 pestaña, también se cierra la prestada (al login). El 403 de solo lectura muestra un aviso claro («Estás viendo como
-otra persona: solo lectura · No se guardó nada…»).
-
-**Modo cambios (Marcos 2026-10-26, «está conversado con el jefe»):** para arreglar directo un problema del perfil de
-alguien sin salir y entrar con su cuenta. Paso a paso:
-1. En la franja ámbar, junto a «Volver a mi cuenta», el botón **«Solo lectura · Activar cambios»** (44 px en el
-   teléfono). Abre una advertencia (`ActivarCambiosVerComo`, el `Modal` de la app): «Vas a poder hacer cambios como
-   <Nombre> (<rol>). Lo que guardes quedará a su nombre en la app, y en el historial de actividad quedará registrado
-   que lo hiciste tú (<Super Admin>). Úsalo solo para arreglar lo que te pidieron.» (+ vence a la misma hora y lo que
-   no se puede). Botones «Activar cambios» (rojo, `destructive`; nunca el verde de marca) y «Seguir en solo lectura».
-2. «Activar cambios» llama `POST /api/soporte/ver-como/escritura` **con el token de solo lectura** (`Authorization`)
-   **y además la sesión PROPIA del Super Admin** (la de localStorage) en el encabezado **`X-Sesion-Propia: Bearer
-   <token>`** (nunca en la URL ni en el body; ningún log registra encabezados; está en `allowedHeaders` de CORS). Esa
-   ruta NO pasa por `soloSuperAdmin` (que rechaza todo `imp`); va detrás de `auth` + **`middleware/verComoLectura`**,
-   que exige: un token de «ver como» en solo lectura vigente (`typ: 'session'`, `imp` entero ≠ la persona, `ro ===
-   true`, sin `rw`; si no, 403 `VER_COMO_REQUERIDO`; si ya es de cambios, 409 `VER_COMO_YA_EN_CAMBIOS`); la sesión
-   propia verificada con `jwt.verify` (`typ: 'session'`, SIN `imp`/`ro`/`rw`, rol 1, el mismo id que el `imp` y su `rv`
-   vigente según `versionService`; si no, 403 `SESION_PROPIA_REQUERIDA` «Para activar cambios vuelve a entrar a tu
-   cuenta.»), y que la BD confirme que `imp` sigue **activo y en el rol 1** (403 `SOLO_SUPER_ADMIN`). **Así, quien
-   tenga solo el token de solo lectura (copiado, filtrado) no puede pasarlo a escritura.** `soporte.service.activarCambios` re-verifica a la persona
-   en la BD (existe, activa, no rol 1, no es quien mira: 404 / 409 `USUARIO_INACTIVO` / 403 `VER_COMO_SUPER_ADMIN` /
-   400), **re-lee sus permisos efectivos** (el mismo cálculo del login) y firma con `firmarSesion` un token de la misma
-   persona con `imp`, `ro: false`, `rw: true` y **el mismo `exp` del token entrante** (nunca más de 30 min desde
-   ahora): activar cambios no alarga la sesión. Responde `{ token, vence, modo: 'cambios', quien }` con `no-store`.
-3. Historial: «<Super Admin> activó cambios como <persona> (<rol>)» (`modulo 'soporte'`, `accion 'LOGIN'`, `evento
-   'ver_como_cambios'`, a nombre del Super Admin).
-4. El frontend guarda el token de cambios **junto** al de solo lectura en `sgdl_ver_como` (`tokenCambios`): mientras
-   esté, `api.ts` manda ese. La franja pasa a **roja** (`bg-red-700`, texto blanco 6,4:1): «Viendo como <Nombre>
-   (<rol>) · MODO CAMBIOS · todo queda registrado · vence en N min», con **«Volver a solo lectura»** (borra el token de
-   cambios de la pestaña y vuelve a usar el de solo lectura, sin endpoint ni recarga: es la misma persona) y «Volver a
-   mi cuenta». Un F5 mantiene el modo; al vencer se vuelve a la cuenta propia como siempre.
-
-**Qué deja y qué no (`middleware/auth.js`):** con `rw` se permiten las escrituras que SUS permisos permitan (la ruta
-decide con `checkPermission`, la SoD, etc., como para él), **excepto** `BLOQUEADAS_EN_CAMBIOS` → 403 `{ error: 'En modo
-cambios no se …', code: 'VER_COMO_CAMBIOS_BLOQUEADO' }`, antes de la ruta:
-- `/api/auth/*` (cambiar su contraseña: `PUT /api/auth/me/password`);
-- `/api/usuarios/me/*` (su configuración de correo, con la clave de su casilla, y sus plantillas);
-- `/api/usuarios/*` (usuarios, roles, permisos de rol, permisos propios/overrides: crear, editar, borrar, asignar);
-- `/api/soporte/*` salvo el cambio de modo (que la guarda rechaza con `rw`): no se encadena;
-- `POST /api/fiscalizacion/enviar-excel` (manda el correo desde la casilla guardada de ESA persona).
-La ruta se compara **normalizada** (decodificada, minúsculas, sin `//` ni `/` final): Express enruta sin distinguir
-mayúsculas, así que `/API/Usuarios/5` o `/api/%75suarios/5` no se cuelan. Las lecturas siguen pasando. Sin `rw` de
-verdad (`rw` texto, o `rw` junto a `ro`), todo sigue en solo lectura. **Antes de CADA escritura** con `rw`, auth
-re-verifica en la BD (`verComoLectura.motivoModoCambiosInvalido`) que quien mira siga activo y en el rol 1 y que la
-persona siga activa y no sea rol 1 (el token dura hasta 30 min): si no, 403 `VER_COMO_CAMBIOS_INVALIDO` («El modo
-cambios terminó: …») y `api.ts` vuelve a la cuenta propia con ese motivo, como con un 401; si la BD no responde, 503
-(nunca escribe sin verificar).
-
-**Registro del modo cambios:** CADA petición que escribe con `rw` (POST/PUT/PATCH/DELETE), también las que auth corta o
-fallan, deja una fila mínima (`logger.registrarCambioVerComo`, al terminar la respuesta): a nombre del Super Admin,
-`modulo 'soporte'`, `accion` CREATE/UPDATE/DELETE (PATCH = UPDATE), `item_id` = la persona, resumen «<MÉTODO> <ruta> →
-<estado> (como <persona> #id)», **sin el body ni la query** (claves, RUT, montos, tokens). Una sola por petición aunque
-`auth` corra dos veces. Es además de lo que registre la ruta: el log genérico y `logManualActivity` (cuando reciben
-`req`) quedan también a nombre del Super Admin con «(cambios como usuario #N)» y `ver_como_modo: 'cambios'`
-(`atribuirVerComo`). El Historial muestra estas filas con la etiqueta «CAMBIO COMO» (las de LOGIN siguen «VER COMO»).
-El log del servidor agrega `verComoModo: 'cambios'`. **Lo que queda a nombre de la PERSONA (esperado, lo dice la
-advertencia):** los datos de negocio (`aprobador_id`, `creado_por`, `solicitante_id`…, todo lo que usa `req.user.id`)
-y los logs manuales que un service guarda sin recibir `req` (para esos, la fila mínima es la traza). Abrir un
-documento laboral en modo cambios tampoco lo marca como descargado (`imp` presente).
+otra persona: solo lectura · No se guardó nada»).
 
 **La ficha** calcula qué ve la persona con las MISMAS funciones de la app (nada duplicado): menú = `menuVisible`
 (`components/layout/menuLateral.ts`, la regla que ahora usa el Sidebar), pestañas de Inventario =
@@ -285,20 +222,13 @@ Inventario, permisos de un módulo sin su «Ver …», obra finalizada/inactiva,
 tarjeta por sección de su menú (`menuVisible`, mismo orden) con lo que puede hacer ahí (pestañas, secciones, vista de
 Inventario del Inicio, permisos con «propio»/«quitado»/«$»; los de una sección que no ve van a «Otros permisos»). La ficha
 la guarda Soporte al entrar dentro de la sesión prestada (`sgdl_ver_como.ficha`, misma vida); sin ella, permisos del
-token + `PERMISO_HIERARCHY`. Lógica pura y test: `components/soporte/accesosPerfil.ts` (`menuDePermiso`). El subtítulo
-dice el modo (`subtituloAccesos`): en solo lectura «Es solo para revisar: no guarda nada.»; en modo cambios «Estás en
-modo cambios: lo que guardes queda a su nombre y registrado.»
+token + `PERMISO_HIERARCHY`. Lógica pura y test: `components/soporte/accesosPerfil.ts` (`menuDePermiso`).
 
 Limitaciones conocidas: la obra elegida arriba (selector) es la que el Super Administrador tiene guardada en su
 navegador, no la del teléfono de esa persona (y cambiarla ahí cambia la propia); las preferencias locales por persona
 (última sección de Gestiones, «Ver como» del Inicio, etc.) se leen del navegador de quien mira. El token de descarga
 pública de asistencia (`GET /asistencias/public-report-token`, 24 h, solo el reporte) se puede emitir también desde
-«ver como»: es una lectura que el Super Administrador ya puede hacer con su cuenta. Modo cambios: «Volver a solo
-lectura» solo borra el token de cambios de la pestaña; el JWT sigue siendo válido hasta su `exp` (no hay revocación:
-sesión sin estado), igual que el de solo lectura. Pasar a modo cambios exige las DOS sesiones (la prestada y la propia
-en `X-Sesion-Propia`): un token de solo lectura filtrado solo deja leer; quien tenga acceso al navegador (XSS) tiene
-las dos, igual que con cualquier sesión. La lista `BLOQUEADAS_EN_CAMBIOS` es una lista negra: una ruta sensible nueva
-(credenciales, correo desde la casilla de la persona, gestión de usuarios fuera de `/api/usuarios`) hay que agregarla.
+«ver como»: es una lectura que el Super Administrador ya puede hacer con su cuenta.
 
 ## Middleware y endurecimiento
 

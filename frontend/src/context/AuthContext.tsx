@@ -3,9 +3,8 @@ import { toast } from 'sonner';
 import type { User, AuthResponse } from '../types';
 import {
     AVISOS_VER_COMO, almacenSesion, borrarSesionVerComo, guardarAvisoVerComo, guardarSesionVerComo,
-    leerSesionVerComo, rutaAlSalir, sesionConCambios, sesionDesdeRespuesta, sesionSoloLectura, tokenActivo,
-    tokenVerComoGuardado, tomarAvisoVerComo,
-    type FichaVerComo, type RespuestaCambiosVerComo, type RespuestaVerComo, type SesionVerComo,
+    leerSesionVerComo, rutaAlSalir, sesionDesdeRespuesta, tokenVerComoGuardado, tomarAvisoVerComo,
+    type FichaVerComo, type RespuestaVerComo, type SesionVerComo,
 } from './verComoSesion';
 
 interface AuthContextType {
@@ -19,8 +18,7 @@ interface AuthContextType {
     /**
      * «Ver como esta persona» (Soporte · usuarios, solo Super Administrador): la sesión prestada en curso, o null si es
      * la cuenta propia. Mientras dura, `user`/`token`/`hasPermission` son los de la otra persona (así la app se ve tal
-     * cual la ve ella) y el servidor rechaza todo lo que no sea lectura, salvo en modo cambios (`tokenCambios`, ver
-     * `activarCambiosVerComo`). Opcional: los sandbox de Ayuda no lo traen.
+     * cual la ve ella) y el servidor rechaza todo lo que no sea lectura. Opcional: los sandbox de Ayuda no lo traen.
      */
     verComo?: SesionVerComo | null;
     /**
@@ -30,13 +28,6 @@ interface AuthContextType {
     entrarVerComo?: (r: RespuestaVerComo, ficha?: FichaVerComo | null) => void;
     /** Vuelve a la cuenta propia (recarga en Soporte). `aviso`: qué decir al volver (venció, etc.). */
     salirVerComo?: (aviso?: string) => void;
-    /**
-     * Modo cambios: guarda el token que dio el servidor (POST /soporte/ver-como/escritura) junto al de solo lectura y
-     * desde ahí se manda ese. No recarga (es la misma persona). false si la respuesta no sirve o no se pudo guardar.
-     */
-    activarCambiosVerComo?: (r: RespuestaCambiosVerComo) => boolean;
-    /** Vuelve a solo lectura: deja de usar el token de cambios (lo borra de la pestaña). */
-    volverASoloLecturaVerComo?: () => void;
 }
 
 // Exportado para overrides controlados (ej. sandbox del Centro de ayuda).
@@ -62,8 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const habiaPrestada = tokenVerComoGuardado(ses) !== null;
             const prestada = leerSesionVerComo(ses);
             if (prestada) {
-                // En modo cambios sigue en modo cambios después de un F5 (mismo vencimiento).
-                setToken(tokenActivo(prestada));
+                setToken(prestada.token);
                 setUser(prestada.user);
                 setVerComo(prestada);
                 return;
@@ -124,27 +114,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         recargarEn('/');
     }, []);
 
-    const activarCambiosVerComo = useCallback((r: RespuestaCambiosVerComo): boolean => {
-        const ses = almacenSesion();
-        const actual = leerSesionVerComo(ses);
-        const nueva = actual ? sesionConCambios(actual, r) : null;
-        if (!nueva || !guardarSesionVerComo(ses, nueva)) return false;
-        setVerComo(nueva);
-        setToken(tokenActivo(nueva));
-        return true;
-    }, []);
-
-    const volverASoloLecturaVerComo = useCallback(() => {
-        const ses = almacenSesion();
-        const actual = leerSesionVerComo(ses);
-        if (!actual) { salirVerComo(AVISOS_VER_COMO.vencio); return; }
-        const nueva = sesionSoloLectura(actual);
-        // Si no se puede guardar, el token de cambios seguiría en la pestaña: lo seguro es salir del todo.
-        if (!guardarSesionVerComo(ses, nueva)) { salirVerComo(); return; }
-        setVerComo(nueva);
-        setToken(nueva.token);
-    }, [salirVerComo]);
-
     const logout = useCallback(() => {
         // Con «ver como», «Cerrar sesión» cierra solo la prestada y vuelve a la propia.
         if (verComo) { salirVerComo(); return; }
@@ -192,9 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verComo,
         entrarVerComo,
         salirVerComo,
-        activarCambiosVerComo,
-        volverASoloLecturaVerComo,
-    }), [user, token, isLoading, login, logout, hasPermission, verComo, entrarVerComo, salirVerComo, activarCambiosVerComo, volverASoloLecturaVerComo]);
+    }), [user, token, isLoading, login, logout, hasPermission, verComo, entrarVerComo, salirVerComo]);
 
     return (
         <AuthContext.Provider value={value}>

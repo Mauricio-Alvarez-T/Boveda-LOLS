@@ -4,15 +4,12 @@
  *   1. la FICHA de la persona: rol, obra, bodega y sus permisos efectivos con el origen de cada uno;
  *   2. «Ver como esta persona»: un token de 30 min PARA ESE USUARIO, de solo lectura, con el que la app se ve tal
  *      cual la ve él (mismos permisos, obra y bodega; los montos siguen recortados por SUS permisos).
- *   3. Modo cambios (2026-10-26, `activarCambios`): desde ese solo lectura, un token de la misma persona que deja
- *      escribir (`rw`), con lo bloqueado de middleware/auth y cada escritura en el historial a nombre de quien mira.
  *
  * Seguridad (docs/reglas/seguridad-rbac.md § Ver como usuario):
- *   - Las rutas van detrás de `auth` + `middleware/superAdmin` (rol 1 en el token Y en la BD; nunca un token `imp`),
- *     salvo el paso a modo cambios, que va detrás de `middleware/verComoLectura` (SOLO un token de «ver como»).
+ *   - Las rutas van detrás de `auth` + `middleware/superAdmin` (rol 1 en el token Y en la BD; nunca un token `imp`).
  *   - El token lleva `imp` (id de quien mira) y `ro: true`: `middleware/auth` rechaza todo lo que no sea lectura.
  *   - No se emite para un usuario inactivo ni para otro rol 1.
- *   - El «ver como» (y el paso a modo cambios) queda en el historial a nombre del Super Administrador.
+ *   - El «ver como» queda en el historial a nombre del Super Administrador.
  * Las columnas se piden una por una: nunca `usuarios.*` (password_hash no sale de aquí).
  */
 const jwt = require('jsonwebtoken');
@@ -172,7 +169,25 @@ const soporteService = {
      */
     async emitirVerComo(superAdmin, rawId, req) {
         const id = idValido(rawId);
-        const u = await personaVerComo(superAdmin, id);
+        if (!superAdmin || superAdmin.id == null) throw httpError('Solo el Super Administrador puede usar Soporte · usuarios.', 403, 'SOLO_SUPER_ADMIN');
+        if (id === Number(superAdmin.id)) throw httpError('Esa es tu propia cuenta.', 400, 'VER_COMO_PROPIA');
+
+        const [rows] = await db.query(
+            `SELECT u.id, u.nombre, u.email, u.email_corporativo, u.activo, u.rol_id, u.obra_id, u.bodega_id,
+                    r.nombre AS rol_nombre
+               FROM usuarios u
+               JOIN roles r ON r.id = u.rol_id
+              WHERE u.id = ?`,
+            [id]
+        );
+        if (!rows.length) throw httpError('Usuario no encontrado', 404, 'USUARIO_NO_EXISTE');
+        const u = { ...rows[0], id: Number(rows[0].id), rol_id: Number(rows[0].rol_id) };
+        if (!esActivo(u.activo)) {
+            throw httpError('Esa persona está inactiva: no puede entrar, así que no hay nada que mirar.', 409, 'USUARIO_INACTIVO');
+        }
+        if (u.rol_id === ROL_SUPER_ADMIN) {
+            throw httpError('No se puede ver como otro Super Administrador.', 403, 'VER_COMO_SUPER_ADMIN');
+        }
 
         const permisos = await permisosService.getPermisosEfectivos(u.id, u.rol_id);
         const { token, user } = authService.firmarSesion(u, permisos, {
@@ -203,90 +218,6 @@ const soporteService = {
             quien: { id: Number(superAdmin.id), nombre: superAdmin.nombre ?? null },
         };
     },
-
-    /**
-     * Modo cambios (Marcos 2026-10-26, «conversado con el jefe»): desde «ver como» en solo lectura, un token de la
-     * MISMA persona que deja escribir, para arreglar directo lo que le pasa sin entrar y salir de su cuenta.
-     *   - `superAdmin` viene de `middleware/verComoLectura` (token de «ver como» en solo lectura + rol 1 activo en BD).
-     *   - `verComo` = el token entrante ya verificado (`req.user`): de ahí salen la persona y el `exp`.
-     *   - La persona se vuelve a verificar en la BD (activa, no rol 1) y sus permisos efectivos se RE-LEEN (el mismo
-     *     cálculo del login): si le quitaron algo en estos minutos, el token nuevo ya no lo trae.
-     *   - Mismos claims que su login + `imp`, `ro: false`, `rw: true`. Vence a la MISMA hora que el token de solo
-     *     lectura (su `exp`; nunca más de 30 min desde ahora): activar cambios no alarga la sesión.
-     *   - Queda en el historial: «<Super Admin> activó cambios como <persona> (<rol>)».
-     * Lo que se puede y no se puede hacer con ese token: middleware/auth (`BLOQUEADAS_EN_CAMBIOS`).
-     */
-    async activarCambios(superAdmin, verComo, req) {
-        if (!verComo) throw httpError('Esto solo se usa mientras ves como otra persona (Soporte · usuarios).', 403, 'VER_COMO_REQUERIDO');
-        const id = idValido(verComo.id);
-        const u = await personaVerComo(superAdmin, id);
-
-        const ahora = Math.floor(Date.now() / 1000);
-        const expEntrante = Number(verComo.exp);
-        if (!Number.isInteger(expEntrante) || expEntrante <= ahora) {
-            throw httpError('El «ver como» ya venció: vuelve a tu cuenta.', 401, 'VER_COMO_VENCIDO');
-        }
-        const exp = Math.min(expEntrante, ahora + MINUTOS_VER_COMO * 60);
-
-        const permisos = await permisosService.getPermisosEfectivos(u.id, u.rol_id);
-        const { token } = authService.firmarSesion(u, permisos, {
-            extra: { imp: Number(superAdmin.id), ro: false, rw: true },
-            exp,
-        });
-        const vence = new Date(exp * 1000).toISOString();
-        const quien = superAdmin.nombre || 'Super Administrador';
-
-        await logManualActivity(
-            Number(superAdmin.id), 'soporte', 'LOGIN', String(u.id),
-            JSON.stringify({
-                evento: 'ver_como_cambios',
-                usuario_id: u.id,
-                usuario: u.nombre,
-                rol: u.rol_nombre,
-                // Ya dice como quién: atribuirVerComo no le agrega su marca (queda igual a nombre de `imp`).
-                ver_como_usuario_id: u.id,
-                ver_como_modo: 'cambios',
-                vence,
-                resumen: `${quien} activó cambios como ${u.nombre} (${u.rol_nombre})`,
-            }),
-            req,
-            { entidad_tipo: 'usuario', entidad_label: u.nombre }
-        );
-
-        return {
-            token,
-            vence,
-            modo: 'cambios',
-            quien: { id: Number(superAdmin.id), nombre: superAdmin.nombre ?? null },
-        };
-    },
 };
-
-/**
- * La persona a mirar, desde la BD (columnas una por una): existe, está activa, no es rol 1 y no es quien mira. La
- * usan «ver como» y el modo cambios (mismas reglas, mismos códigos).
- */
-async function personaVerComo(superAdmin, id) {
-    if (!superAdmin || superAdmin.id == null) throw httpError('Solo el Super Administrador puede usar Soporte · usuarios.', 403, 'SOLO_SUPER_ADMIN');
-    if (id === Number(superAdmin.id)) throw httpError('Esa es tu propia cuenta.', 400, 'VER_COMO_PROPIA');
-
-    const [rows] = await db.query(
-        `SELECT u.id, u.nombre, u.email, u.email_corporativo, u.activo, u.rol_id, u.obra_id, u.bodega_id,
-                r.nombre AS rol_nombre
-           FROM usuarios u
-           JOIN roles r ON r.id = u.rol_id
-          WHERE u.id = ?`,
-        [id]
-    );
-    if (!rows.length) throw httpError('Usuario no encontrado', 404, 'USUARIO_NO_EXISTE');
-    const u = { ...rows[0], id: Number(rows[0].id), rol_id: Number(rows[0].rol_id) };
-    if (!esActivo(u.activo)) {
-        throw httpError('Esa persona está inactiva: no puede entrar, así que no hay nada que mirar.', 409, 'USUARIO_INACTIVO');
-    }
-    if (u.rol_id === ROL_SUPER_ADMIN) {
-        throw httpError('No se puede ver como otro Super Administrador.', 403, 'VER_COMO_SUPER_ADMIN');
-    }
-    return u;
-}
 
 module.exports = soporteService;

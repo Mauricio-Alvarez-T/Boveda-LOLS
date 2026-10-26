@@ -45,8 +45,7 @@ app.use(helmet({
 const corsOptions = {
   origin: process.env.FRONTEND_URL || '*', // In prod, better to set FRONTEND_URL
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  // X-Sesion-Propia: la sesión propia del Super Admin al pasar «ver como» a modo cambios (middleware/verComoLectura).
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Sesion-Propia'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 };
 app.use(cors(corsOptions));

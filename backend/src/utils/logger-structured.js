@@ -92,7 +92,6 @@ const logger = {
             };
             // «Ver como» (soporte): quién mira de verdad (el Super Administrador), además del usuario mirado.
             if (req.user?.imp != null) meta.verComoPor = req.user.imp;
-            if (req.user?.imp != null && req.user.rw === true && req.user.ro !== true) meta.verComoModo = 'cambios';
             
             if (res.statusCode >= 500) {
                 logger.error(`${req.method} ${req.originalUrl} → ${res.statusCode}`, meta);
