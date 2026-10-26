@@ -719,7 +719,7 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     - **Franja** «N temas esperan una decisión» con la cifra de cada tema que tiene algo (en su color). Sin nada
       pendiente: «Nada espera una decisión» y no van tarjetas. Error sin datos: aviso con «Reintentar». Se recarga
       con «Actualizar» (`version={lastUpdated}`), dejando ver lo de antes mientras llega lo nuevo.
-    - **Seis tarjetas** (3 por fila desde 1280 px, 2 desde 768, 1 en el teléfono) con `EncabezadoTarjeta`, número
+    - **Siete tarjetas** (3 por fila desde 1280 px, 2 desde 768, 1 en el teléfono; seis hasta el 2026-10-26) con `EncabezadoTarjeta`, número
       grande (un monto va en `text-headline`), bajada, «Qué se decide: …», «LO MÁS URGENTE» (3 filas) y pie.
       **Tocar la tarjeta** (o «Ver los N» / «Ver el detalle», que es el camino con teclado) la despliega dentro:
       todos los pendientes, cada uno con una frase de qué falta, de quién y desde cuándo. Cada fila abre donde se
@@ -745,5 +745,19 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
          la ficha del trabajador (`/consultas?q=RUT`), porque Documentos físicos pide `documentos.entrega.*`.
       6. *Solicitudes trabadas* (`inventario.ver` + `ver_todas`): pendientes «estancadas» del Resumen Ejecutivo (10
          días desde la solicitud o su prórroga). Fila → la solicitud. Botón «Apurar a {quien aprueba}».
+      7. *Contratos por vencer* (`trabajadores.ver`; Marcos 2026-10-26, mig 138): trabajadores activos (sin los de
+         prueba ni obras de prueba o finalizadas) con `fecha_termino_contrato` vencida o que vence en 30 días (vacía =
+         indefinido, no entra), del más vencido al que vence más tarde; UNA consulta. Mismo molde que Documentos: la
+         cifra grande son los vencidos (rojo) o, sin ellos, los por vencer (ámbar). Fila: nombre; obra · cargo ·
+         «vence el 4 nov» / «vence hoy» / «venció hace N días»; al desplegar, la fecha, el ingreso y el RUT. «Qué se
+         decide: Renovar, pasar a indefinido o terminar.» Fila → la ficha (`/consultas?q=RUT`); pie «Ver en Gestiones»
+         y «Consultar por WhatsApp» (`mensajeContratos`: «Hola, estos contratos vencen pronto o ya vencieron:», una
+         línea «• Nombre (Obra): vence el …» y «¿Qué hacemos con cada uno: renovar, pasar a indefinido o terminar? Me
+         cuentan.»; con uno solo o todos del mismo lado, el encabezado sin el «o»). Va **al final** para no mover los
+         seis de siempre.
+    - **La última tarjeta, si queda sola en su fila, va a lo ancho** (`columnasUltima`): con los siete temas ocupa
+      la fila entera en computador (3 columnas) y en tableta (2). La tarjeta es `@container`: desde 48rem de ancho
+      pasa a dos columnas por dentro — a la izquierda encabezado, cifra, bajada, «Qué se decide» y el pie con los
+      botones; a la derecha «Lo más urgente». Las tarjetas de una columna no cambian.
       «Quien aprueba» = permiso efectivo de `inventario.transferencias.aprobar` sin el rol 1 (hoy, Leonardo).
     - Teléfono (bajo 768 px): una columna, todo objetivo de 44 px; el botón de WhatsApp ocupa el ancho de la tarjeta.

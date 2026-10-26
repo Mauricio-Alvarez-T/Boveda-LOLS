@@ -4,6 +4,7 @@ import { cantidad, enLista, fraseItems } from '../inventarioPerfil/formato';
 import { formatCLP } from '../../../../utils/currency';
 import type { CausalFalta, DocumentosGerenciaApi, FaltasGerenciaApi, PapelLaboralApi, PerdidaApi, SolicitudTrabadaApi } from './tipos';
 import type { EtapaDocumento } from '../../../documentos-fisicos/documentosAlertas';
+import type { ContratoPorVencerApi } from './tipos';
 
 /**
  * TODOS los textos de WhatsApp del «Inicio de gerencia» (dueño 2026-10-23): UN botón por tarjeta, en el pie, que abre
@@ -231,6 +232,44 @@ export function mensajeSolicitudes(
         `Hola${quien ? ` ${quien}` : ''}, ${uno ? 'esta solicitud de materiales lleva' : 'estas solicitudes de materiales llevan'} más de ${diasLimite} días esperando aprobación:`,
         lista.map(lineaSolicitud),
         `¿Qué pasó? ${quien ? `¿${uno ? 'La' : 'Las'} puedes aprobar o rechazar hoy?` : `¿Quién ${uno ? 'la' : 'las'} puede aprobar o rechazar hoy?`}`,
+        total,
+    );
+}
+
+// ─────────────────────────────── 7. Contratos por vencer ───────────────────────────────
+
+/** «vence el 4 nov» / «vence hoy» / «venció el 20 oct (hace 6 días)». */
+export function venceContrato(c: Pick<ContratoPorVencerApi, 'fecha' | 'dias'>): string {
+    if (c.dias === 0) return 'vence hoy';
+    return c.dias < 0 ? `venció el ${fechaCorta(c.fecha)} (hace ${dias(-c.dias)})` : `vence el ${fechaCorta(c.fecha)}`;
+}
+
+/** «Iván Saavedra Lagos (Gorbea 3082): venció el 20 oct (hace 6 días)». */
+export const lineaContrato = (c: ContratoPorVencerApi) =>
+    limpiar(`${texto(c.nombre) || 'Trabajador sin nombre'}${entreParentesis(c.obra)}: ${venceContrato(c)}`);
+
+/**
+ * Borrador del dueño (2026-10-26): «Hola, estos contratos vencen pronto o ya vencieron:» + una línea por contrato +
+ * «¿Qué hacemos con cada uno: renovar, pasar a indefinido o terminar? Me cuentan.». Con uno solo, o si todos están del
+ * mismo lado (y la lista viene completa), el encabezado lo dice sin el «o».
+ */
+export function mensajeContratos(lista: readonly ContratoPorVencerApi[], total: number = lista.length): string {
+    const uno = total === 1;
+    const vencidos = lista.filter(c => c.dias < 0).length;
+    const completa = total === lista.length;
+    const encabezado = uno
+        ? (vencidos ? 'Hola, este contrato ya venció:' : 'Hola, este contrato vence pronto:')
+        : completa && vencidos === 0
+            ? 'Hola, estos contratos vencen pronto:'
+            : completa && vencidos === lista.length
+                ? 'Hola, estos contratos ya vencieron:'
+                : 'Hola, estos contratos vencen pronto o ya vencieron:';
+    return armarMensaje(
+        encabezado,
+        lista.map(lineaContrato),
+        uno
+            ? '¿Qué hacemos: renovar, pasar a indefinido o terminar? Me cuentan.'
+            : '¿Qué hacemos con cada uno: renovar, pasar a indefinido o terminar? Me cuentan.',
         total,
     );
 }

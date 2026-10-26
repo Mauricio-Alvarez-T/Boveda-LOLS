@@ -21,9 +21,16 @@ import { DocumentosGeneradosList } from '../documents/DocumentosGeneradosList';
 import { contarObligatorios, docsSubidos, faltanDatosContrato } from '../documents/documentosLaborales';
 import { DATOS_PERSONALES_LABELS } from '../consultas/solicitudIngresoSchema';
 import { descargarArchivo } from '../../utils/descargarArchivo';
-import { antiguedad, porcentajeDocs } from './fichaTrabajador';
+import { antiguedad, porcentajeDocs, terminoContrato, type TerminoContrato } from './fichaTrabajador';
 import { useAuth } from '../../context/AuthContext';
 import type { Trabajador, EstadoAsistencia } from '../../types/entities';
+
+/** Color del aviso bajo la fecha de término: rojo vencido, ámbar en 30 días o menos, gris si falta. */
+const TONO_TERMINO: Record<TerminoContrato['estado'], string> = {
+    vencido: 'text-red-600 dark:text-red-400',
+    por_vencer: 'text-amber-600 dark:text-amber-400',
+    vigente: 'text-muted-foreground',
+};
 
 interface WorkerData {
     id: number;
@@ -40,6 +47,8 @@ interface WorkerData {
     email: string | null;
     telefono: string | null;
     fecha_ingreso: string | null;
+    /** Fin del contrato a plazo fijo (mig 138); null = indefinido o sin dato. */
+    fecha_termino_contrato?: string | null;
     fecha_desvinculacion: string | null;
     categoria_reporte: string;
     activo: boolean;
@@ -217,6 +226,8 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     // Solo los datos personales que existen (el teléfono ya se muestra en Contacto).
     const datosPersonales = listarDatosPersonales(worker).filter(d => d.key !== 'telefono');
     const anios = worker ? antiguedad(worker.fecha_ingreso, worker.activo ? null : worker.fecha_desvinculacion) : null;
+    // Término del contrato a plazo fijo (mig 138): solo mientras está activo; la baja real manda sobre él.
+    const termino = worker?.activo && !worker.fecha_desvinculacion ? terminoContrato(worker.fecha_termino_contrato) : null;
 
     const TABS = [
         { id: 'resumen' as const, label: 'Resumen' },
@@ -357,7 +368,17 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             <p className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Contrato</p>
                                             <div className="mt-2.5 grid grid-cols-2 gap-3">
                                                 {dato('Inicio', worker.fecha_ingreso ? fmtFecha(worker.fecha_ingreso) : '—', <CalendarCheck className="h-3 w-3 text-brand-primary" />)}
-                                                {dato('Término', worker.fecha_desvinculacion ? fmtFecha(worker.fecha_desvinculacion) : (worker.activo ? 'Vigente' : '—'), <CalendarOff className="h-3 w-3 text-muted-foreground" />)}
+                                                {dato('Término', worker.fecha_desvinculacion ? fmtFecha(worker.fecha_desvinculacion) : !worker.activo ? '—' : termino ? (
+                                                    <>
+                                                        {fmtFecha(termino.fecha)}
+                                                        <span className={cn('block text-xs font-medium', TONO_TERMINO[termino.estado])}>{termino.aviso}</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        Vigente
+                                                        <span className="block text-xs font-medium text-muted-foreground">sin fecha de término</span>
+                                                    </>
+                                                ), <CalendarOff className="h-3 w-3 text-muted-foreground" />)}
                                                 {anios && dato('Antigüedad', (
                                                     <span className={cn(anios.porCumplir10Meses && worker.activo && 'text-amber-600 dark:text-amber-400')}>
                                                         {anios.texto}{anios.porCumplir10Meses && worker.activo ? ' · renovación cerca' : ''}

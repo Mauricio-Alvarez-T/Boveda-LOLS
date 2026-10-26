@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, ChevronDown, FileSignature, Hourglass, IdCard, PackageX, RotateCcw, Truck, UserX } from 'lucide-react';
+import { ArrowRight, CalendarClock, CheckCircle2, ChevronDown, FileSignature, Hourglass, IdCard, PackageX, RotateCcw, Truck, UserX } from 'lucide-react';
 import api from '../../../../services/api';
 import type { ApiResponse } from '../../../../types';
 import { useAuth } from '../../../../context/AuthContext';
@@ -12,15 +12,17 @@ import WhatsAppIcon from '../../../ui/WhatsAppIcon';
 import { EncabezadoTarjeta } from '../EncabezadoTarjeta';
 import { CIFRA, PILDORA, ROTULO_FICHAS } from '../fichasInicio';
 import {
-    TOPE_URGENTE, temasGerencia, temasPendientes, textoDesplegar, textoMasEnModulo, tituloFranja,
+    TOPE_URGENTE, columnasUltima, temasGerencia, temasPendientes, textoDesplegar, textoMasEnModulo, tituloFranja,
     type FilaTema, type GerenciaApi, type TemaGerencia, type TemaKey,
 } from './gerencia.modelo';
 
 /**
  * «Inicio de gerencia» (don Luis Lazcano; opción B «Tablero por tema» del lienzo, 2026-10-23). Va ARRIBA de las tarjetas
- * del Inicio, solo con `inicio.gerencia`. Una franja «N temas esperan una decisión» con la cifra de cada tema y seis
- * tarjetas (3 por fila desde 1280 px, 2 en tableta, 1 en el teléfono), cada una con su número grande, qué se decide y
- * lo más urgente. Tocar la tarjeta (o «Ver los N») la despliega: todos los pendientes con qué falta, de quién y desde
+ * del Inicio, solo con `inicio.gerencia`. Una franja «N temas esperan una decisión» con la cifra de cada tema y hasta
+ * siete tarjetas (3 por fila desde 1280 px, 2 en tableta, 1 en el teléfono), cada una con su número grande, qué se
+ * decide y lo más urgente. Si la última queda sola en su fila (el 7.º tema, «Contratos por vencer», 2026-10-26) va a lo
+ * ancho y, con espacio, en dos columnas: a la izquierda qué pasa y los botones, a la derecha los nombres.
+ * Tocar la tarjeta (o «Ver los N») la despliega: todos los pendientes con qué falta, de quién y desde
  * cuándo. Cada fila abre donde se resuelve; el pie lleva el enlace al módulo y UN botón de WhatsApp sin número con todo
  * lo pendiente del tema (don Luis elige el grupo o la persona). Pide GET /dashboard/gerencia al montarse y cuando cambia
  * `version` («Actualizar» del Inicio). Lógica y textos en `gerencia.modelo.ts` y `mensajes.ts`.
@@ -31,6 +33,15 @@ const FOCO = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-p
 
 const ICONO: Record<TemaKey, React.ElementType> = {
     faltas: UserX, vehiculos: Truck, perdidas: PackageX, documentos: IdCard, papeles: FileSignature, solicitudes: Hourglass,
+    contratos: CalendarClock,
+};
+
+/** La última tarjeta, si queda sola en su fila, va a lo ancho (`columnasUltima`). Clases literales para Tailwind. */
+const ANCHO_ULTIMA: Record<string, string> = {
+    '2-3': 'md:col-span-2 xl:col-span-3',
+    '2-1': 'md:col-span-2 xl:col-span-1',
+    '1-3': 'xl:col-span-3',
+    '1-1': '',
 };
 
 const Pildora: React.FC<{ tono: FilaTema['tono']; children: React.ReactNode }> = ({ tono, children }) => (
@@ -59,7 +70,7 @@ const Fila: React.FC<{ f: FilaTema; abierta: boolean; onAbrir: (ruta: string) =>
     </button>
 );
 
-const TarjetaTema: React.FC<{ t: TemaGerencia; onAbrir: (ruta: string) => void }> = ({ t, onAbrir }) => {
+const TarjetaTema: React.FC<{ t: TemaGerencia; onAbrir: (ruta: string) => void; className?: string }> = ({ t, onAbrir, className }) => {
     const [abierta, setAbierta] = useState(false);
     const idLista = useId();
     const hay = t.filas.length > 0;
@@ -68,62 +79,70 @@ const TarjetaTema: React.FC<{ t: TemaGerencia; onAbrir: (ruta: string) => void }
     return (
         <article
             aria-label={t.titulo}
-            className={cn(CARD, 'flex flex-col p-5 sm:p-6', hay && 'cursor-pointer transition-shadow duration-200 hover:ring-1 hover:ring-border')}
+            // `@container`: la tarjeta que va a lo ancho (la última sola en su fila) pasa a dos columnas cuando le
+            // sobra espacio (≥ 48rem); las de una columna no cambian.
+            className={cn(CARD, '@container flex flex-col p-5 sm:p-6', hay && 'cursor-pointer transition-shadow duration-200 hover:ring-1 hover:ring-border', className)}
             // Toda la tarjeta despliega (atajo con mouse o dedo); los botones de adentro mandan sobre ella. Con teclado,
             // el camino es su botón «Ver los N» / «Ver el detalle».
             onClick={hay ? (e) => {
                 if ((e.target as HTMLElement).closest('button, a')) return;
                 setAbierta(v => !v);
             } : undefined}>
-            <EncabezadoTarjeta icon={ICONO[t.key]} tono={t.tono} titulo={t.titulo} className="mb-3" />
-            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span className={cn('font-bold leading-none tracking-display tabular-nums', CIFRA[t.tono], t.esMonto ? 'text-headline' : 'text-5xl')}>{t.cifra}</span>
-                <span className="text-sm text-muted-foreground">{t.etiqueta}</span>
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">{t.resumen}.</p>
-            {hay && (
-                <p className="mt-2 text-sm"><span className="font-semibold">Qué se decide: </span><span className="text-muted-foreground">{t.decision}.</span></p>
-            )}
-
-            {hay ? (
-                <>
-                    <h4 className={cn(ROTULO_FICHAS, 'mt-5')}>{abierta ? `Todos los pendientes (${t.total})` : 'Lo más urgente'}</h4>
-                    <ul id={idLista} className="mt-1 divide-y divide-border">
-                        {visibles.map(f => <li key={f.id}><Fila f={f} abierta={abierta} onAbrir={onAbrir} /></li>)}
-                    </ul>
-                    {masEnModulo && <p className="mt-1 text-xs text-muted-foreground">{masEnModulo}</p>}
-                </>
-            ) : (
-                <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" aria-hidden />
-                    Nada pendiente en este tema.
-                </p>
-            )}
-
-            <div className="mt-auto pt-4">
-                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-2">
-                    {hay ? (
-                        // eslint-disable-next-line no-restricted-syntax -- enlace del pie (despliega la tarjeta, como el lienzo)
-                        <button type="button" onClick={() => setAbierta(v => !v)} aria-expanded={abierta} aria-controls={idLista}
-                            className={cn('inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-section font-semibold text-zinc-700 hover:underline dark:text-zinc-300', FOCO)}>
-                            {abierta ? 'Ver menos' : textoDesplegar(t)}
-                            <ChevronDown className={cn('h-4 w-4 transition-transform duration-200 motion-reduce:transition-none', abierta && 'rotate-180')} aria-hidden />
-                        </button>
-                    ) : <span />}
-                    {/* eslint-disable-next-line no-restricted-syntax -- enlace del pie (navega al módulo) */}
-                    <button type="button" onClick={() => onAbrir(t.enlace.ruta)}
-                        className={cn('inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-section font-semibold text-green-700 hover:underline dark:text-green-300', FOCO)}>
-                        {t.enlace.texto}<ArrowRight className="h-4 w-4" aria-hidden />
-                    </button>
+            <div className="flex flex-1 flex-col @3xl:grid @3xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] @3xl:grid-rows-[auto_1fr] @3xl:gap-x-10">
+                <div className="@3xl:col-start-1 @3xl:row-start-1">
+                    <EncabezadoTarjeta icon={ICONO[t.key]} tono={t.tono} titulo={t.titulo} className="mb-3" />
+                    <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <span className={cn('font-bold leading-none tracking-display tabular-nums', CIFRA[t.tono], t.esMonto ? 'text-headline' : 'text-5xl')}>{t.cifra}</span>
+                        <span className="text-sm text-muted-foreground">{t.etiqueta}</span>
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">{t.resumen}.</p>
+                    {hay && (
+                        <p className="mt-2 text-sm"><span className="font-semibold">Qué se decide: </span><span className="text-muted-foreground">{t.decision}.</span></p>
+                    )}
                 </div>
-                {t.whatsapp && (
-                    // eslint-disable-next-line no-restricted-syntax -- pastilla verde de 44 px del lienzo (abre WhatsApp sin número)
-                    <button type="button" onClick={() => { void shareViaWhatsApp(t.whatsapp!.mensaje, t.titulo); }}
-                        className={cn('mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-green-50 px-4 text-sm font-semibold text-green-700 transition-colors duration-200 hover:bg-green-100 dark:bg-green-500/15 dark:text-green-300 dark:hover:bg-green-500/25', FOCO)}>
-                        <WhatsAppIcon className="h-4 w-4" />
-                        {t.whatsapp.texto}
-                    </button>
-                )}
+
+                <div className="@3xl:col-start-2 @3xl:row-span-2 @3xl:row-start-1">
+                    {hay ? (
+                        <>
+                            <h4 className={cn(ROTULO_FICHAS, 'mt-5 @3xl:mt-1')}>{abierta ? `Todos los pendientes (${t.total})` : 'Lo más urgente'}</h4>
+                            <ul id={idLista} className="mt-1 divide-y divide-border">
+                                {visibles.map(f => <li key={f.id}><Fila f={f} abierta={abierta} onAbrir={onAbrir} /></li>)}
+                            </ul>
+                            {masEnModulo && <p className="mt-1 text-xs text-muted-foreground">{masEnModulo}</p>}
+                        </>
+                    ) : (
+                        <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground @3xl:mt-1">
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" aria-hidden />
+                            Nada pendiente en este tema.
+                        </p>
+                    )}
+                </div>
+
+                <div className="mt-auto pt-4 @3xl:col-start-1 @3xl:row-start-2">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-2">
+                        {hay ? (
+                            // eslint-disable-next-line no-restricted-syntax -- enlace del pie (despliega la tarjeta, como el lienzo)
+                            <button type="button" onClick={() => setAbierta(v => !v)} aria-expanded={abierta} aria-controls={idLista}
+                                className={cn('inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-section font-semibold text-zinc-700 hover:underline dark:text-zinc-300', FOCO)}>
+                                {abierta ? 'Ver menos' : textoDesplegar(t)}
+                                <ChevronDown className={cn('h-4 w-4 transition-transform duration-200 motion-reduce:transition-none', abierta && 'rotate-180')} aria-hidden />
+                            </button>
+                        ) : <span />}
+                        {/* eslint-disable-next-line no-restricted-syntax -- enlace del pie (navega al módulo) */}
+                        <button type="button" onClick={() => onAbrir(t.enlace.ruta)}
+                            className={cn('inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-section font-semibold text-green-700 hover:underline dark:text-green-300', FOCO)}>
+                            {t.enlace.texto}<ArrowRight className="h-4 w-4" aria-hidden />
+                        </button>
+                    </div>
+                    {t.whatsapp && (
+                        // eslint-disable-next-line no-restricted-syntax -- pastilla verde de 44 px del lienzo (abre WhatsApp sin número)
+                        <button type="button" onClick={() => { void shareViaWhatsApp(t.whatsapp!.mensaje, t.titulo); }}
+                            className={cn('mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-green-50 px-4 text-sm font-semibold text-green-700 transition-colors duration-200 hover:bg-green-100 dark:bg-green-500/15 dark:text-green-300 dark:hover:bg-green-500/25', FOCO)}>
+                            <WhatsAppIcon className="h-4 w-4" />
+                            {t.whatsapp.texto}
+                        </button>
+                    )}
+                </div>
             </div>
         </article>
     );
@@ -150,7 +169,7 @@ const Franja: React.FC<{ temas: TemaGerencia[] }> = ({ temas }) => {
                 </ul>
             ) : (
                 <p className="text-sm text-muted-foreground lg:border-l lg:border-border lg:pl-6">
-                    Sin faltas reiteradas, papeles vencidos, pérdidas ni solicitudes trabadas.
+                    Sin faltas reiteradas, papeles vencidos, pérdidas, solicitudes trabadas ni contratos por vencer.
                 </p>
             )}
         </section>
@@ -217,7 +236,13 @@ const InicioGerencia: React.FC<{ version?: unknown }> = ({ version }) => {
             <Franja temas={temas} />
             {pendientes.length > 0 && (
                 <div className={GRILLA}>
-                    {temas.map(t => <TarjetaTema key={t.key} t={t} onAbrir={(ruta) => navigate(ruta)} />)}
+                    {temas.map((t, i) => {
+                        const ultima = i === temas.length - 1 ? columnasUltima(temas.length) : null;
+                        return (
+                            <TarjetaTema key={t.key} t={t} onAbrir={(ruta) => navigate(ruta)}
+                                className={ultima ? ANCHO_ULTIMA[`${ultima.md}-${ultima.xl}`] : undefined} />
+                        );
+                    })}
                 </div>
             )}
         </section>

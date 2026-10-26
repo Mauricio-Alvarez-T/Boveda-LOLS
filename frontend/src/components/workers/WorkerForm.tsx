@@ -41,10 +41,15 @@ const workerSchema = datosPersonalesSchema.extend({
         error: () => ({ message: 'Selecciona una categoría de reporte' }),
     }),
     fecha_ingreso: z.string().optional(),
+    // Mig 138: vacía = contrato indefinido. Si hay ingreso, no puede ser antes (el backend valida lo mismo).
+    fecha_termino_contrato: z.string().optional(),
     es_prueba: z.boolean().optional(),
     licencia_conducir: z.string().optional(),
     licencia_vencimiento: z.string().optional(),
-});
+}).refine(
+    d => !d.fecha_termino_contrato || !d.fecha_ingreso || d.fecha_termino_contrato >= d.fecha_ingreso,
+    { path: ['fecha_termino_contrato'], message: 'No puede ser anterior a la fecha de ingreso' },
+);
 
 type WorkerFormData = z.infer<typeof workerSchema>;
 
@@ -105,7 +110,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
         register,
         handleSubmit,
         control,
-        formState: { errors, isDirty },
+        formState: { errors, isDirty, dirtyFields },
     } = useForm<WorkerFormData>({
         resolver: zodResolver(workerSchema) as any,
         defaultValues: initialData ? {
@@ -121,6 +126,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
             cargo_id: initialData.cargo_id || 0,
             categoria_reporte: initialData.categoria_reporte || 'obra',
             fecha_ingreso: initialData.fecha_ingreso ? initialData.fecha_ingreso.split('T')[0] : '',
+            fecha_termino_contrato: initialData.fecha_termino_contrato ? initialData.fecha_termino_contrato.split('T')[0] : '',
             es_prueba: initialData.es_prueba ?? false,
             licencia_conducir: initialData.licencia_conducir || '',
             licencia_vencimiento: initialData.licencia_vencimiento ? initialData.licencia_vencimiento.split('T')[0] : '',
@@ -139,6 +145,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
             cargo_id: 0,
             categoria_reporte: undefined,
             fecha_ingreso: '',
+            fecha_termino_contrato: '',
             es_prueba: false,
             licencia_conducir: '',
             licencia_vencimiento: '',
@@ -179,7 +186,11 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
         }
         setLoading(true);
         // Datos personales: '' → null y cargas a número (la API no quiere strings vacíos).
-        const payload = { ...data, ...normalizarDatosPersonales(data) };
+        const payload: Record<string, unknown> = { ...data, ...normalizarDatosPersonales(data) };
+        // Fecha de término del contrato (mig 138): '' → null (indefinido). Al editar viaja SOLO si se tocó: el CRUD
+        // escribe los null, y una ficha abierta desde una lista sin la columna no debe borrar la fecha guardada.
+        if (initialData && !dirtyFields.fecha_termino_contrato) delete payload.fecha_termino_contrato;
+        else payload.fecha_termino_contrato = data.fecha_termino_contrato || null;
         try {
             if (initialData) {
                 await api.put(`/trabajadores/${initialData.id}`, payload);
@@ -366,6 +377,16 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                     error={errors.fecha_ingreso?.message}
                     {...register('fecha_ingreso')}
                 />
+                {/* Mig 138: justo bajo la fecha de ingreso (segunda columna en computador). */}
+                <div className="md:col-start-2">
+                    <Input
+                        label="Fecha de término del contrato"
+                        type="date"
+                        helperText="Déjala vacía si el contrato es indefinido"
+                        error={errors.fecha_termino_contrato?.message}
+                        {...register('fecha_termino_contrato')}
+                    />
+                </div>
             </div>
 
             {/* Licencia de conducir */}
