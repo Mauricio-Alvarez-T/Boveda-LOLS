@@ -8,8 +8,8 @@
         <rect x="20" y="48" width="75" height="144" />
 
         <!-- 3 Rectángulos apilados en el centro -->
-        <rect x="119" y="52" width="77" height="32" fill="transparent" stroke="#029E4D" strokeWidth="8" />
-        <rect x="119" y="104" width="77" height="32" fill="transparent" stroke="#029E4D" strokeWidth="8" />
+        <rect x="119" y="52" width="77" height="32" fill="transparent" stroke="#029E4D" stroke-width="8" />
+        <rect x="119" y="104" width="77" height="32" fill="transparent" stroke="#029E4D" stroke-width="8" />
         
         <!-- El último rectángulo abajo es sólido -->
         <rect x="115" y="152" width="85" height="40" />
