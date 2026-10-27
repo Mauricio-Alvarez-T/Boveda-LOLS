@@ -370,6 +370,31 @@ acción, el código, la espera y el error. Nota + «Marcar revisado» / «Volver
 Probado: backend `tests/soporte_errores.test.js`; frontend `clasificarError.test.ts`, `reporteErrores.test.ts`,
 `components/soporte/errores.test.ts`; migración y service sobre MySQL 5.7 (tres sql_mode).
 
+## Avisos al celular (mig 143, prueba piloto)
+
+Marcos 2026-10-27: que suene el celular cuando pasa algo, sin SMS ni WhatsApp (gratis, sin cuentas nuevas). Son las
+**notificaciones del navegador** (Web Push, estándar VAPID, librería `web-push` en el backend). **Piloto: solo el
+Super Administrador** (todas las rutas con `soloSuperAdmin`), con dos avisos: el de prueba y **«Nueva falla en
+Soporte»** (una `falla`/`app` NUEVA en Errores, no un repetido; a todos los rol 1 activos con avisos activados).
+
+- **Cómo se activa:** Soporte → Errores → «Avisos en este celular» → «Activar avisos» → el teléfono pregunta «¿Permitir
+  notificaciones?». El navegador da una dirección para avisarle (`avisos_celular_suscripciones`, una fila por celular
+  por sha1 del endpoint; **no se guarda el número de teléfono**). «Desactivar» la borra; un celular que ya no existe
+  (el servicio responde 404/410) se borra solo; otro error queda en `ultimo_error`.
+- **iPhone:** solo si Bóveda está agregada a la pantalla de inicio (requisito de Apple); la tarjeta lo explica. Android
+  (Chrome) funciona con la app cerrada.
+- **`public/sw-avisos.js`:** recibe el aviso y al tocarlo abre la pantalla (`url` solo rutas internas). **No guarda
+  caché ni intercepta pedidos** (sin `fetch`): no puede dejar una versión vieja de la app. Se registra recién al tocar
+  «Activar avisos».
+- **Claves VAPID:** del entorno (`VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`) o, si no hay, el backend las crea la primera
+  vez y las guarda en `avisos_celular_claves` (id = 1). Si se cambian, los celulares deben activar de nuevo.
+- **Contenido:** título ≤ 80 y texto ≤ 180 caracteres, sin datos delicados (se ve en la pantalla bloqueada): «A Tomás
+  Vera le falló Inventario. Toca para verla.». Vida del aviso 6 h si el celular está apagado.
+- **Dependencia nueva:** `web-push` se carga recién al mandar (si el servidor aún no la instaló —`heal-deps` del cron
+  de deploy—, el backend arranca igual y el aviso no sale). No entra al historial (`logger.js` excluye
+  `/api/avisos-celular`). Abrir a todos = sacar `soloSuperAdmin` de las rutas y sumar avisos (p. ej. solicitud por
+  aprobar para Leonardo). Test: `backend/tests/avisos_celular.test.js`, `frontend/src/services/avisosCelular.test.ts`.
+
 **«Lo que puede usar <Nombre> (<rol>)» (Marcos 2026-10-26):** recuadro del Inicio **solo con «ver como» activo**: una
 tarjeta por sección de su menú (`menuVisible`, mismo orden) con lo que puede hacer ahí (pestañas, secciones, vista de
 Inventario del Inicio, permisos con «propio»/«quitado»/«$»; los de una sección que no ve van a «Otros permisos»). La ficha

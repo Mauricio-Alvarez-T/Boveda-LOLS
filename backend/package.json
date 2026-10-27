@@ -49,7 +49,8 @@
     "mysql2": "^3.17.2",
     "nodemailer": "^8.0.1",
     "pdf-lib": "^1.17.1",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "web-push": "3.6.7"
   },
   "devDependencies": {
     "cross-env": "^10.1.0",

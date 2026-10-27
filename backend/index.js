@@ -533,6 +533,7 @@ safeRoute('/api/vehiculos', './src/routes/vehiculos.routes', 'Vehículos');
 safeRoute('/api/tutoriales-progreso', './src/routes/tutoriales.routes', 'Tutoriales (progreso Centro de ayuda)');
 safeRoute('/api/ideas', './src/routes/ideas.routes', 'Ideas para Bóveda (buzón de mejoras, mig 120)');
 safeRoute('/api/costos', './src/routes/costos.routes', 'Costos de obra (presupuesto, gastos e historial, mig 122)');
+safeRoute('/api/avisos-celular', './src/routes/avisosCelular.routes', 'Avisos al celular (notificaciones del navegador, mig 143; piloto solo Super Administrador)');
 // Antes de /api/soporte: los avisos de error los manda cualquier persona; la bandeja es solo del rol 1 (mig 141).
 safeRoute('/api/soporte/errores', './src/routes/soporteErrores.routes', 'Soporte · errores (avisos de la app; bandeja solo Super Administrador)');
 safeRoute('/api/soporte', './src/routes/soporte.routes', 'Soporte · usuarios (ficha y «ver como», solo Super Administrador)');

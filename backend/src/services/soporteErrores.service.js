@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const db = require('../config/db');
 const logger = require('../utils/logger-structured');
+const avisosCelular = require('./avisosCelular.service');
 
 /**
  * «Errores» de Soporte (mig 141, Marcos 2026-10-26; docs/reglas/seguridad-rbac.md § Errores).
@@ -197,6 +198,10 @@ const soporteErroresService = {
                 navegador, duracion, pedirFoto ? 1 : 0,
             ]
         );
+        // Una falla real nueva (no un repetido): les suena el celular a los Super Administradores con avisos activos.
+        if (CON_FOTO.includes(categoria)) {
+            avisosCelular.avisarFallaSoporte({ usuarioId, pantalla: texto(body.pantalla_nombre, 120) || sinConsulta(pantalla) });
+        }
         return { id: Number(r.insertId), repetido: false, pedir_foto: pedirFoto };
     },
 
