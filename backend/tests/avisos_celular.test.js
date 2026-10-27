@@ -47,7 +47,9 @@ function bd() {
         if (s.startsWith('SELECT publica, privada FROM avisos_celular_claves')) return [CLAVES ? [CLAVES] : []];
         if (s.startsWith('INSERT IGNORE INTO avisos_celular_claves')) { CLAVES = { publica: params[0], privada: params[1] }; return [{ affectedRows: 1 }]; }
         if (s.startsWith('SELECT id, endpoint, p256dh, auth FROM avisos_celular_suscripciones')) return [SUBS];
-        if (s.startsWith('SELECT COUNT(*) AS n FROM avisos_celular_suscripciones')) return [[{ n: SUBS.length }]];
+        if (s.startsWith('SELECT endpoint_hash, dispositivo, ultimo_envio, ultimo_error, created_at')) {
+            return [SUBS.map(x => ({ endpoint_hash: 'abcdef0123456789', dispositivo: 'Chrome Android', ultimo_envio: x.ultimo_envio ?? null, ultimo_error: x.ultimo_error ?? null, created_at: '2026-10-27T12:00:00.000Z' }))];
+        }
         if (s.startsWith('SELECT id FROM usuarios WHERE rol_id = 1')) return [[{ id: 1 }]];
         if (s.startsWith('SELECT nombre FROM usuarios WHERE id = ?')) return [[{ nombre: USUARIOS[params[0]]?.nombre }]];
         if (s.includes('FROM soporte_errores') && s.includes('firma = ?')) return [[]];
@@ -128,6 +130,8 @@ describe('enviar', () => {
         expect(c.cuerpo.length).toBeLessThanOrEqual(180);
         expect(c.url).toBe('/soporte');
         expect(opciones.vapidDetails.publicKey).toBe('BPUBLICA');
+        // Urgente: Android no lo retiene con la pantalla apagada.
+        expect(opciones.urgency).toBe('high');
     });
 
     test('una url de afuera no se acepta (lleva al inicio)', async () => {
@@ -157,6 +161,18 @@ describe('enviar', () => {
         SUBS = [{ id: 5, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }];
         db.query.mockImplementationOnce(async () => { throw new Error('caído'); });
         await expect(svc.enviarA([1], { cuerpo: 'x' })).resolves.toMatchObject({ enviados: 0 });
+    });
+});
+
+describe('estado', () => {
+    test('cuenta los celulares y dice cuándo salió el último aviso y si lo rechazaron', async () => {
+        SUBS = [{ id: 5, ultimo_envio: '2026-10-27T12:21:00.000Z', ultimo_error: null }, { id: 6, ultimo_error: '403' }];
+        const r = await request(app).get('/api/avisos-celular/estado').set('Authorization', `Bearer ${sesion(USUARIOS[1])}`);
+        expect(r.status).toBe(200);
+        expect(r.body.data.celulares).toBe(2);
+        expect(r.body.data.lista[0]).toMatchObject({ id: 'abcdef01', dispositivo: 'Chrome Android', ultimo_envio: '2026-10-27T12:21:00.000Z', ultimo_error: null });
+        expect(r.body.data.lista[1].ultimo_error).toBe('403');
+        expect(JSON.stringify(r.body)).not.toMatch(/fcm.googleapis|p256dh|auth"/);
     });
 });
 

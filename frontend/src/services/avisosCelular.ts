@@ -97,3 +97,27 @@ export async function desactivarAvisos(): Promise<EstadoAvisos> {
 export async function probarAviso(): Promise<void> {
     await api.post('/avisos-celular/probar');
 }
+
+export interface CelularServidor {
+    id: string;
+    dispositivo: string | null;
+    ultimo_envio: string | null;
+    ultimo_error: string | null;
+    creado: string | null;
+}
+
+/** Lo que el servidor sabe de mis celulares (para ver dónde se pierde un aviso). */
+export async function estadoServidor(): Promise<{ celulares: number; lista: CelularServidor[] }> {
+    const { data } = await api.get<{ data: { celulares: number; lista?: CelularServidor[] } }>('/avisos-celular/estado');
+    return { celulares: Number(data.data.celulares) || 0, lista: data.data.lista ?? [] };
+}
+
+/**
+ * «Probar solo este celular»: muestra un aviso desde el propio teléfono, sin pasar por internet. Si aparece, el
+ * celular sí sabe mostrar avisos (permiso y ajustes bien) y lo que falla es la entrega.
+ */
+export async function avisoLocal(): Promise<void> {
+    const reg = await registro();
+    if (!reg) throw new Error('sin registro');
+    await reg.showNotification('Bóveda LOLS', { body: 'Prueba de este celular: sí muestra avisos.', icon: '/icon-192.png', tag: 'prueba-local' });
+}

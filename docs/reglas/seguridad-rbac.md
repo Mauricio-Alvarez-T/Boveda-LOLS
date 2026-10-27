@@ -389,7 +389,11 @@ Soporte»** (una `falla`/`app` NUEVA en Errores, no un repetido; a todos los rol
 - **Claves VAPID:** del entorno (`VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`) o, si no hay, el backend las crea la primera
   vez y las guarda en `avisos_celular_claves` (id = 1). Si se cambian, los celulares deben activar de nuevo.
 - **Contenido:** título ≤ 80 y texto ≤ 180 caracteres, sin datos delicados (se ve en la pantalla bloqueada): «A Tomás
-  Vera le falló Inventario. Toca para verla.». Vida del aviso 6 h si el celular está apagado.
+  Vera le falló Inventario. Toca para verla.». Vida del aviso 6 h si el celular está apagado. Van con
+  `urgency: 'high'` (sin ella Android los retiene con el teléfono quieto y la pantalla apagada).
+- **Para ver dónde se pierde un aviso** (la tarjeta): lo que respondió el servidor la última vez (`GET /estado` →
+  `ultimo_envio` / `ultimo_error` de cada celular, sin el endpoint ni las claves) y «Probar solo este celular»: un aviso
+  que muestra el propio teléfono sin internet (si aparece, permiso y ajustes están bien y falla la entrega).
 - **Dependencia nueva:** `web-push` se carga recién al mandar (si el servidor aún no la instaló —`heal-deps` del cron
   de deploy—, el backend arranca igual y el aviso no sale). No entra al historial (`logger.js` excluye
   `/api/avisos-celular`). Abrir a todos = sacar `soloSuperAdmin` de las rutas y sumar avisos (p. ej. solicitud por
