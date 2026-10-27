@@ -400,6 +400,10 @@ Revise en Bóveda.»). Al tocarlo se abre Bóveda en ese tema.
   pantalla no los dejaba seguir. La pantalla y las franjas solo salen en test (`VITE_ENTORNO=staging`, lo pone
   `deploy-cpanel-staging.yml`); en producción no se le pide nada a nadie, pero quien ya los activó sigue recibiendo los
   recordatorios y su suscripción se vuelve a mandar sola. Se reactiva cuando Marcos rediseñe la activación.
+  En test, para el plan de prueba con Mauricio: la pantalla también les sale al Super Administrador; `activarAvisos()`
+  pregunta «¿Permitir?» PRIMERO (en el mismo toque: antes se perdía y el botón «no hacía nada»), cada paso tiene tope
+  (45 s la pregunta, 20 s los demás; `FalloActivar` dice el paso) y si falla o tarda más de 8 s aparece «Seguir sin
+  avisos por ahora» con el motivo y un «Detalle para soporte» (se vuelve a pedir al abrir Bóveda de nuevo).
 - **Celular siempre; computador solo si no está mirando Bóveda** (Marcos 2026-10-27): el recordatorio llega SIEMPRE al
   celular. Quien trabaja casi siempre en el computador (`HORARIO` → `computador: true`: Paula, Matías, Daphne, Héctor
   Herrera y don Luis; `GET /estado` → `debe_activar_computador`) tiene la misma pantalla obligatoria en el computador,

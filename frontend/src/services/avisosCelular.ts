@@ -69,17 +69,74 @@ export async function leerEstado(): Promise<EstadoAvisos> {
     });
 }
 
-/** «Activar avisos»: registra el archivo, pide permiso, se suscribe y se lo cuenta al servidor. */
+/** Los pasos de «Activar avisos», para decir dónde se trabó. */
+export type PasoActivar = 'permiso' | 'archivo' | 'clave' | 'suscripcion' | 'servidor';
+
+/** Un paso de «Activar avisos» que falló o tardó demasiado. `message` = «paso: causa» (el «Detalle para soporte»). */
+export class FalloActivar extends Error {
+    readonly paso: PasoActivar;
+    constructor(paso: PasoActivar, causa: string) {
+        super(`${paso}: ${causa}`);
+        this.name = 'FalloActivar';
+        this.paso = paso;
+    }
+}
+
+/** Tope para responder la pregunta «¿Permitir?» (la persona puede estar leyéndola). */
+export const TOPE_PERMISO_MS = 45_000;
+/** Tope para cada uno de los demás pasos: nunca deja el botón girando para siempre. */
+export const TOPE_PASO_MS = 20_000;
+
+async function paso<T>(nombre: PasoActivar, p: Promise<T>, ms = TOPE_PASO_MS): Promise<T> {
+    let reloj: ReturnType<typeof setTimeout> | undefined;
+    try {
+        return await Promise.race([
+            p,
+            new Promise<never>((_, rechazar) => { reloj = setTimeout(() => rechazar(new FalloActivar(nombre, 'tardó demasiado')), ms); }),
+        ]);
+    } catch (e) {
+        if (e instanceof FalloActivar) throw e;
+        const err = e as { name?: string; message?: string } | null;
+        throw new FalloActivar(nombre, [err?.name, err?.message].filter(Boolean).join(': ').slice(0, 200) || 'error');
+    } finally {
+        clearTimeout(reloj);
+    }
+}
+
+/** La pregunta del navegador (los antiguos responden por callback y no con promesa). */
+function pedirPermiso(): Promise<NotificationPermission> {
+    return new Promise(resolve => {
+        const r = Notification.requestPermission(resolve);
+        if (r && typeof r.then === 'function') r.then(resolve);
+    });
+}
+
+/**
+ * «Activar avisos». PRIMERO la pregunta «¿Permitir?», en el mismo toque (27-10-2026: antes se registraba el archivo
+ * primero; con esa espera algunos celulares ya no mostraban la pregunta y el botón «no hacía nada»). Después registra el
+ * archivo, se suscribe y se lo cuenta al servidor. Cada paso tiene tope; si uno falla o tarda, lanza `FalloActivar`.
+ */
 export async function activarAvisos(): Promise<EstadoAvisos> {
-    const reg = await navigator.serviceWorker.register(ARCHIVO_AVISOS);
-    await navigator.serviceWorker.ready;
-    const permiso = await Notification.requestPermission();
+    if (typeof Notification === 'undefined' || !('serviceWorker' in navigator)) {
+        throw new FalloActivar('permiso', 'este navegador no tiene avisos');
+    }
+    const permiso = Notification.permission === 'granted' ? 'granted' : await paso('permiso', pedirPermiso(), TOPE_PERMISO_MS);
     if (permiso !== 'granted') return permiso === 'denied' ? 'bloqueado' : 'inactivo';
-    const { data } = await api.get<{ data: { clave: string } }>('/avisos-celular/clave');
-    const sub = (await reg.pushManager.getSubscription())
-        ?? await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: claveABytes(data.data.clave) });
-    await api.post('/avisos-celular/suscribir', sub.toJSON());
+    const reg = await paso('archivo', navigator.serviceWorker.register(ARCHIVO_AVISOS));
+    await paso('archivo', navigator.serviceWorker.ready);
+    const { data } = await paso('clave', api.get<{ data: { clave: string } }>('/avisos-celular/clave'));
+    const sub = await paso('suscripcion', (async () => (await reg.pushManager.getSubscription())
+        ?? reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: claveABytes(data.data.clave) }))());
+    await paso('servidor', api.post('/avisos-celular/suscribir', sub.toJSON()));
     return 'activo';
+}
+
+/** Por qué no se activaron, en palabras (lógica pura, con test). */
+export function motivoFalloActivar(p: PasoActivar, equipo: 'celular' | 'computador'): string {
+    if (p === 'permiso') return 'la pregunta para permitir los avisos no respondió';
+    if (p === 'archivo') return `este ${equipo} no pudo prepararse para recibir avisos`;
+    if (p === 'suscripcion') return `el servicio de avisos de este ${equipo} no respondió`;
+    return 'no hubo conexión con Bóveda (revise la señal o el internet)';
 }
 
 /** «Desactivar»: se desuscribe aquí y lo borra en el servidor. */

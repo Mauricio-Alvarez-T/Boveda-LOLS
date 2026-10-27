@@ -4,7 +4,8 @@ import { BellOff, BellRing, Smartphone } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/Button';
 import {
-    activarAvisos, actualizarArchivoAvisos, estadoServidor, leerEstado, pedidoAvisos, type PedidoAvisos,
+    FalloActivar, activarAvisos, actualizarArchivoAvisos, estadoServidor, leerEstado, motivoFalloActivar, pedidoAvisos,
+    type PedidoAvisos,
 } from '../../services/avisosCelular';
 
 /**
@@ -23,19 +24,28 @@ import {
  * dejaba seguir. Mientras se rediseña, la pantalla y las franjas solo salen en test (`VITE_ENTORNO=staging`, lo pone
  * deploy-cpanel-staging.yml). En producción sigue lo silencioso: actualizar el archivo de avisos y volver a mandar la
  * suscripción de quien ya los activó; los recordatorios le siguen llegando a quien ya los tiene activos.
+ *
+ * En test (plan de prueba del 27-10): también les sale al Super Administrador (Marcos y Mauricio), para practicarla.
+ * Si la activación falla o tarda más de 8 s, aparece «Seguir sin avisos por ahora» con el motivo: nadie queda trabado
+ * (se le vuelve a pedir la próxima vez que abra Bóveda).
  */
 
 const PEDIR_AVISOS = import.meta.env.VITE_ENTORNO === 'staging';
+/** Si el botón sigue girando después de esto, la salida aparece igual. */
+const ESPERA_SALIDA_MS = 8_000;
 
 const esCelular = () => typeof window !== 'undefined'
     && (!!window.matchMedia?.('(max-width: 767px)').matches || !!window.matchMedia?.('(pointer: coarse)').matches);
 
 export const ActivarAvisos: React.FC = () => {
-    const { isAuthenticated, verComo } = useAuth();
+    const { isAuthenticated, verComo, user } = useAuth();
     const [pedido, setPedido] = useState<PedidoAvisos>('nada');
     const [activando, setActivando] = useState(false);
+    const [falla, setFalla] = useState<{ texto: string; detalle?: string } | null>(null);
+    const [puedeSeguir, setPuedeSeguir] = useState(false);
     const [celular] = useState(esCelular);
     const equipo = celular ? 'celular' : 'computador';
+    const practica = PEDIR_AVISOS && user?.rol_id != null && Number(user.rol_id) === 1;
 
     useEffect(() => {
         if (!isAuthenticated || verComo) return undefined;
@@ -45,7 +55,8 @@ export const ActivarAvisos: React.FC = () => {
             try {
                 const [estado, servidor] = await Promise.all([leerEstado(), estadoServidor()]);
                 const p = pedidoAvisos({
-                    debeActivar: servidor.debeActivar, debeActivarComputador: servidor.debeActivarComputador,
+                    debeActivar: servidor.debeActivar || practica,
+                    debeActivarComputador: servidor.debeActivarComputador || practica,
                     esCelular: celular, mirando: false, estado,
                     celularesServidor: servidor.porEquipo.celular, computadoresServidor: servidor.porEquipo.computador,
                 });
@@ -60,10 +71,12 @@ export const ActivarAvisos: React.FC = () => {
             } catch { /* sin conexión: lo vuelve a revisar la próxima vez que abra Bóveda */ }
         })();
         return () => { vivo = false; };
-    }, [isAuthenticated, verComo, celular]);
+    }, [isAuthenticated, verComo, celular, practica]);
 
     const activar = async () => {
         setActivando(true);
+        setFalla(null);
+        const reloj = setTimeout(() => setPuedeSeguir(true), ESPERA_SALIDA_MS);
         try {
             const e = await activarAvisos();
             if (e === 'activo') {
@@ -73,10 +86,24 @@ export const ActivarAvisos: React.FC = () => {
                     : 'Listo: le avisaremos en este computador cuando tenga algo pendiente y no esté mirando Bóveda.');
             } else if (e === 'bloqueado') {
                 setPedido('bloqueado');
+            } else {
+                // Cerró la pregunta sin elegir, o el equipo no la mostró.
+                setFalla({
+                    texto: celular
+                        ? 'No eligió una opción: la pregunta se cerró o el celular no la mostró. Toque «Activar avisos» otra vez y elija «Permitir».'
+                        : 'No eligió una opción: la pregunta se cerró o el navegador no la mostró. Haga clic en «Activar avisos» otra vez y elija «Permitir» arriba, junto a la dirección.',
+                });
+                setPuedeSeguir(true);
             }
-        } catch {
-            toast.error('No se pudieron activar los avisos. Intente de nuevo.');
+        } catch (err) {
+            const motivo = err instanceof FalloActivar ? motivoFalloActivar(err.paso, equipo) : 'algo falló en este equipo';
+            setFalla({
+                texto: `No se pudieron activar: ${motivo}. Puede intentar de nuevo o seguir trabajando; se lo volveremos a pedir la próxima vez que abra Bóveda.`,
+                detalle: String(err instanceof Error ? err.message : err).slice(0, 200),
+            });
+            setPuedeSeguir(true);
         } finally {
+            clearTimeout(reloj);
             setActivando(false);
         }
     };
@@ -105,6 +132,17 @@ export const ActivarAvisos: React.FC = () => {
                     <Button className="mt-5 h-12 w-full" onClick={activar} isLoading={activando} leftIcon={<BellRing className="h-5 w-5" />}>
                         Activar avisos
                     </Button>
+                    {falla && (
+                        <div role="alert" className="mt-4 rounded-control bg-amber-100 px-3 py-2.5 text-left text-xs text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
+                            <p>{falla.texto}</p>
+                            {falla.detalle && <p className="mt-1 break-words opacity-80">Detalle para soporte: {falla.detalle}</p>}
+                        </div>
+                    )}
+                    {puedeSeguir && (
+                        <Button variant="ghost" className="mt-2 h-11 w-full" onClick={() => setPedido('nada')}>
+                            Seguir sin avisos por ahora
+                        </Button>
+                    )}
                 </div>
             </div>
         );

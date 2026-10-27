@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { BellOff, BellRing, Send, Smartphone, Stethoscope } from 'lucide-react';
 import { Button } from '../ui/Button';
 import {
-    activarAvisos, avisoLocal, desactivarAvisos, estadoServidor, leerEstado, probarAviso,
+    FalloActivar, activarAvisos, avisoLocal, desactivarAvisos, estadoServidor, leerEstado, probarAviso,
     type CelularServidor, type EstadoAvisos,
 } from '../../services/avisosCelular';
 import { textoIngreso } from './fichaUsuario';
@@ -73,9 +73,10 @@ export const AvisosCelular: React.FC = () => {
                 toast.success('El servidor lo mandó: debería sonar en unos segundos.');
                 await leerServidor();
             }
-        } catch {
+        } catch (e) {
             if (que === 'probar') await leerServidor();
-            toast.error(que === 'probar' ? 'No salió el aviso de prueba. Mira el detalle en la tarjeta.' : 'No se pudo. Intenta de nuevo.');
+            toast.error(que === 'probar' ? 'No salió el aviso de prueba. Mira el detalle en la tarjeta.'
+                : e instanceof FalloActivar ? `No se pudo (${e.message}). Intenta de nuevo.` : 'No se pudo. Intenta de nuevo.');
         } finally {
             setOcupado(null);
         }
