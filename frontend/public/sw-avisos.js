@@ -13,7 +13,8 @@ self.addEventListener('push', (e) => {
     e.waitUntil(self.registration.showNotification(titulo, {
         body: d.cuerpo || '',
         icon: '/icon-192.png',
-        badge: '/icon-192.png',
+        // La insignia de la barra: Android la pinta en blanco, así que es el logo en blanco sobre transparente.
+        badge: '/aviso-insignia.png',
         tag: d.etiqueta || undefined,
         renotify: !!d.etiqueta,
         data: { url: typeof d.url === 'string' && d.url.startsWith('/') ? d.url : '/' },
