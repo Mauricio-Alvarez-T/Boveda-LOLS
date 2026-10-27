@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Camera, LifeBuoy, Trash2 } from 'lucide-react';
 import api from '../../services/api';
@@ -48,6 +49,22 @@ export const AvisoSoporte: React.FC = () => {
         window.addEventListener(EVENTO_AVISO_SOPORTE, alAvisar);
         return () => window.removeEventListener(EVENTO_AVISO_SOPORTE, alAvisar);
     }, [abrir]);
+
+    // Avisos al celular (mig 143): al tocar un aviso con esta ventana ya abierta, `sw-avisos.js` la trae al frente y,
+    // si no puede moverla él, le pide que vaya a la pantalla del aviso.
+    const navigate = useNavigate();
+    useEffect(() => {
+        if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return undefined;
+        const alMensaje = (e: MessageEvent) => {
+            const d = e.data as { tipo?: string; url?: string } | null;
+            if (d?.tipo !== 'boveda-abrir' || typeof d.url !== 'string') return;
+            let u: URL;
+            try { u = new URL(d.url, window.location.origin); } catch { return; }
+            if (u.origin === window.location.origin) navigate(`${u.pathname}${u.search}`);
+        };
+        navigator.serviceWorker.addEventListener('message', alMensaje);
+        return () => navigator.serviceWorker.removeEventListener('message', alMensaje);
+    }, [navigate]);
 
     const cerrar = () => { if (!enviando) setAbierto(null); };
 
