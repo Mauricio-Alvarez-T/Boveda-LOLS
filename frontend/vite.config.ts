@@ -1,9 +1,10 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib'
+import { esIconoTest, esStaging, htmlDeStaging, manifestDeStaging, type Manifest } from './src/pwa/manifestEntorno'
 
 /**
  * Comprime cada .js/.css/.svg de `dist/assets` a .br y .gz al terminar el build (2026-10-21, celular lento).
@@ -30,12 +31,44 @@ function precomprimir(): Plugin {
   }
 }
 
+/**
+ * La app instalada de test.boveda.lols.cl se distingue de la de producción (2026-10-27): en el build de
+ * staging (`VITE_ENTORNO=staging`) reescribe `dist/manifest.json` e `index.html` con nombre «Bóveda TEST»,
+ * íconos naranjos y barra naranja (ver src/pwa/manifestEntorno.ts). En cualquier otro build borra los
+ * íconos de test de `dist/` para que producción no los publique.
+ */
+function manifestPorEntorno(): Plugin {
+  let outDir = 'dist'
+  let staging = false
+  return {
+    name: 'manifest-por-entorno',
+    apply: 'build',
+    configResolved(c) {
+      outDir = c.build.outDir
+      staging = esStaging(c.env.VITE_ENTORNO)
+    },
+    transformIndexHtml(html) {
+      return staging ? htmlDeStaging(html) : html
+    },
+    closeBundle() {
+      if (staging) {
+        const ruta = join(outDir, 'manifest.json')
+        const base = JSON.parse(readFileSync(ruta, 'utf8')) as Manifest
+        writeFileSync(ruta, `${JSON.stringify(manifestDeStaging(base), null, 2)}\n`)
+        return
+      }
+      for (const nombre of readdirSync(outDir)) if (esIconoTest(nombre)) unlinkSync(join(outDir, nombre))
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
     precomprimir(),
+    manifestPorEntorno(),
   ],
   build: {
     rollupOptions: {
