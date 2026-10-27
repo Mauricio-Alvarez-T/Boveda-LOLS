@@ -21,17 +21,28 @@ self.addEventListener('push', (e) => {
     }));
 });
 
+/*
+ * Al tocar el aviso: si hay una ventana de Bóveda, se trae al frente PRIMERO (el permiso para enfocar dura poco) y
+ * después se lleva a la pantalla del aviso; si esa ventana no deja moverla (una pestaña abierta antes de activar los
+ * avisos), se le pide a la página que se mueva sola (AvisoSoporte.tsx escucha 'boveda-abrir'). Si no hay ventana o
+ * nada de eso funciona, se abre Bóveda nueva en esa pantalla. Nunca se queda sin abrir nada.
+ */
 self.addEventListener('notificationclick', (e) => {
     e.notification.close();
     const url = new URL((e.notification.data && e.notification.data.url) || '/', self.location.origin).href;
     e.waitUntil((async () => {
         const ventanas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-        for (const w of ventanas) {
-            if (new URL(w.url).origin === self.location.origin) {
-                try { await w.navigate(url); } catch { /* una ventana que no controla este archivo: se enfoca igual */ }
-                return w.focus();
-            }
+        const propia = ventanas.find((w) => new URL(w.url).origin === self.location.origin);
+        if (propia) {
+            try {
+                const enfocada = (await propia.focus()) || propia;
+                try {
+                    if ('navigate' in enfocada) { await enfocada.navigate(url); return; }
+                } catch { /* no la controla este archivo: que se mueva sola */ }
+                enfocada.postMessage({ tipo: 'boveda-abrir', url });
+                return;
+            } catch { /* no se pudo enfocar: se abre una nueva */ }
         }
-        return self.clients.openWindow(url);
+        await self.clients.openWindow(url);
     })());
 });
