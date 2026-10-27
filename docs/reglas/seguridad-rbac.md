@@ -394,11 +394,40 @@ Revise en Bóveda.»). Al tocarlo se abre Bóveda en ese tema.
   `debe_activar`), en un celular donde los avisos funcionan, al abrir Bóveda una pantalla con un solo botón «Activar
   avisos» (sin «Ahora no»), cada vez, hasta activarlos. El celular igual pregunta «¿Permitir?» (ninguna app lo puede
   saltar): si dice que no o los apaga, una franja fija arriba con los pasos. La app sigue funcionando (no se traba el
-  trabajo en terreno). En el computador y con «ver como», nada. Si el celular tiene el permiso pero el servidor no la
-  suscripción, se vuelve a mandar sola.
-- **Soporte → Errores** (rol 1): «Recordatorios de pendientes»: quién del horario tiene los avisos activos y qué se le
-  mandó hoy (`GET /api/avisos-celular/resumen`). Desde la 144, activar/desactivar/probar es de cualquier persona con
-  sesión (sobre sus celulares). Test: `backend/tests/avisos_pendientes.test.js`.
+  trabajo en terreno). Con «ver como», nada. Si el equipo tiene el permiso pero el servidor no la suscripción, se vuelve
+  a mandar sola.
+- **Celular siempre; computador solo si no está mirando Bóveda** (Marcos 2026-10-27): el recordatorio llega SIEMPRE al
+  celular. Quien trabaja casi siempre en el computador (`HORARIO` → `computador: true`: Paula, Matías, Daphne, Héctor
+  Herrera y don Luis; `GET /estado` → `debe_activar_computador`) tiene la misma pantalla obligatoria en el computador,
+  y ahí el recordatorio aparece **solo si no tiene Bóveda abierto y al frente** (`public/sw-avisos.js` mira si hay una
+  ventana de Bóveda enfocada; si la hay, no lo muestra y anota «en pantalla»). En el computador, a cualquiera del
+  horario que todavía **no tiene ningún celular activo** le queda una franja fija: «Falta activar los avisos en su
+  celular…» (el celular no se puede activar desde el computador: hay que abrir Bóveda en el celular una vez).
+- **Soporte → Errores** (rol 1): **«Centro de avisos»** (`RecordatoriosAvisos.tsx`): quién del horario tiene los avisos
+  activos en el celular (y en el computador), qué se le mandó hoy (`GET /api/avisos-celular/resumen`) y, por persona,
+  cada aviso de los últimos 7 días y qué pasó en cada equipo (`GET /mensajes`, ver mig 145 abajo). Desde la 144,
+  activar/desactivar/probar es de cualquier persona con sesión (sobre sus equipos). Test:
+  `backend/tests/avisos_pendientes.test.js`.
+
+## Centro de avisos: acuse de cada aviso (mig 145, desde el 27-10-2026)
+
+Para que nadie diga «no me avisaron» si el aviso le llegó (Marcos 2026-10-27). Cada aviso a cada equipo es una fila de
+`avisos_celular_mensajes` (persona, equipo celular/computador, tipo, título, texto, cuándo salió) con una **clave de un
+solo uso** (`token`, 32 hex) que viaja dentro del aviso. El equipo confirma solo (`public/sw-avisos.js` →
+`POST /api/avisos-celular/acuse` `{ id, t, evento }`, **sin sesión** — el archivo de avisos no la tiene —, siempre 204):
+
+- `mostrado` → **le llegó** (apareció en su equipo) · `abierto` → **lo abrió** (lo tocó; también cuenta como llegado) ·
+  `descartado` → lo cerró sin abrirlo · `en_pantalla` → computador con Bóveda al frente: no se mostró, ya estaba ahí.
+- Cada momento se anota **una vez** (el primero, `COALESCE`) y **solo con la clave de ese aviso** (`WHERE id AND token`);
+  un evento o clave rara no toca nada. Sin internet el acuse se pierde (no reintenta): queda «Salió · el equipo aún no
+  confirma». Que el servicio de avisos lo aceptara = `estado_envio = 'entregado'`; si no, `fallo` con el motivo.
+- **No se puede saber si lo leyó** sin abrirlo: lo más cercano es que apareció en su equipo y si lo abrió.
+- Quien ya tenía los avisos activos recibe el archivo nuevo al abrir Bóveda (`actualizarArchivoAvisos`); hasta
+  entonces sus avisos salen sin acuse.
+- Se guardan 90 días (cada ronda borra los más viejos). La lista (`GET /mensajes?dias=&usuario=`, `soloSuperAdmin`)
+  nunca devuelve la clave ni la dirección del equipo. Si la tabla faltara, el aviso sale igual, sin acuse.
+- Test: `backend/tests/avisos_celular.test.js` (acuse, centro de avisos, computador) y
+  `frontend/src/services/avisosCelular.test.ts` (`estadoDelAviso`, `pedidoAvisos`).
 
 ## Avisos al celular (mig 143, prueba piloto)
 

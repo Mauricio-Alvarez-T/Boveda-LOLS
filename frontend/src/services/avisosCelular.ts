@@ -3,8 +3,8 @@ import api from './api';
 /**
  * Avisos al celular (mig 143; docs/reglas/seguridad-rbac.md § Avisos al celular). Usa las notificaciones del navegador:
  * la persona toca «Activar avisos», el teléfono pregunta «¿Permitir notificaciones?» y el navegador da una dirección
- * para mandarle avisos (no el número de teléfono). El archivo `public/sw-avisos.js` los recibe y abre la pantalla.
- * Prueba piloto: solo el Super Administrador (el servidor lo exige).
+ * para mandarle avisos (no el número de teléfono). El archivo `public/sw-avisos.js` los recibe, abre la pantalla y
+ * confirma solo si le llegó y si lo abrió (centro de avisos de Soporte, mig 145). Sirve igual en el computador.
  */
 
 export const ARCHIVO_AVISOS = '/sw-avisos.js';
@@ -93,33 +93,75 @@ export async function desactivarAvisos(): Promise<EstadoAvisos> {
     return 'inactivo';
 }
 
+/**
+ * Pide al navegador que revise si cambió `public/sw-avisos.js` (al abrir Bóveda): así quien ya activó los avisos recibe
+ * la versión nueva sin hacer nada.
+ */
+export async function actualizarArchivoAvisos(): Promise<void> {
+    const reg = await registro().catch(() => null);
+    await reg?.update().catch(() => undefined);
+}
+
 /** «Mandarme un aviso de prueba». */
 export async function probarAviso(): Promise<void> {
     await api.post('/avisos-celular/probar');
 }
 
+export type Equipo = 'celular' | 'computador';
+
 export interface CelularServidor {
     id: string;
+    equipo?: Equipo;
     dispositivo: string | null;
     ultimo_envio: string | null;
     ultimo_error: string | null;
     creado: string | null;
 }
 
-/** Lo que el servidor sabe de mis celulares (para ver dónde se pierde un aviso). */
-export async function estadoServidor(): Promise<{ celulares: number; lista: CelularServidor[]; debeActivar: boolean }> {
-    const { data } = await api.get<{ data: { celulares: number; lista?: CelularServidor[]; debe_activar?: boolean } }>('/avisos-celular/estado');
-    return { celulares: Number(data.data.celulares) || 0, lista: data.data.lista ?? [], debeActivar: !!data.data.debe_activar };
+export interface EstadoServidor {
+    /** Todos los equipos (celulares + computadores). */
+    celulares: number;
+    porEquipo: Record<Equipo, number>;
+    lista: CelularServidor[];
+    debeActivar: boolean;
+    debeActivarComputador: boolean;
 }
 
-/** Qué pedirle a la persona al abrir Bóveda (lógica pura, con test). */
-export type PedidoAvisos = 'nada' | 'activar' | 'bloqueado' | 'iphone' | 'resincronizar';
-export function pedidoAvisos(o: { debeActivar: boolean; esCelular: boolean; mirando: boolean; estado: EstadoAvisos; celularesServidor: number }): PedidoAvisos {
-    if (!o.debeActivar || !o.esCelular || o.mirando) return 'nada';
-    if (o.estado === 'inactivo') return 'activar';
-    if (o.estado === 'bloqueado') return 'bloqueado';
-    if (o.estado === 'iphone_instalar') return 'iphone';
-    if (o.estado === 'activo' && o.celularesServidor === 0) return 'resincronizar';
+/** Lo que el servidor sabe de mis equipos (para ver dónde se pierde un aviso). */
+export async function estadoServidor(): Promise<EstadoServidor> {
+    const { data } = await api.get<{ data: {
+        celulares: number; por_equipo?: Partial<Record<Equipo, number>>; lista?: CelularServidor[];
+        debe_activar?: boolean; debe_activar_computador?: boolean;
+    } }>('/avisos-celular/estado');
+    const d = data.data;
+    return {
+        celulares: Number(d.celulares) || 0,
+        porEquipo: { celular: Number(d.por_equipo?.celular) || 0, computador: Number(d.por_equipo?.computador) || 0 },
+        lista: d.lista ?? [],
+        debeActivar: !!d.debe_activar,
+        debeActivarComputador: !!d.debe_activar_computador,
+    };
+}
+
+/**
+ * Qué pedirle a la persona al abrir Bóveda (lógica pura, con test). En el celular, a todo el horario de recordatorios;
+ * en el computador, solo a quien trabaja casi siempre ahí (`debeActivarComputador`). Y como los recordatorios llegan
+ * SIEMPRE al celular, en el computador se le recuerda activarlos en el celular si todavía no tiene ninguno.
+ */
+export type PedidoAvisos = 'nada' | 'activar' | 'bloqueado' | 'iphone' | 'resincronizar' | 'falta_celular';
+export function pedidoAvisos(o: {
+    debeActivar: boolean; debeActivarComputador?: boolean; esCelular: boolean; mirando: boolean; estado: EstadoAvisos;
+    celularesServidor: number; computadoresServidor?: number;
+}): PedidoAvisos {
+    if (!o.debeActivar || o.mirando) return 'nada';
+    if (o.esCelular || o.debeActivarComputador) {
+        const aquiEnServidor = o.esCelular ? o.celularesServidor : (o.computadoresServidor ?? 0);
+        if (o.estado === 'inactivo') return 'activar';
+        if (o.estado === 'bloqueado') return 'bloqueado';
+        if (o.estado === 'iphone_instalar') return 'iphone';
+        if (o.estado === 'activo' && aquiEnServidor === 0) return 'resincronizar';
+    }
+    if (!o.esCelular && o.celularesServidor === 0) return 'falta_celular';
     return 'nada';
 }
 
@@ -137,6 +179,9 @@ export interface PersonaRecordatorios {
     id: number;
     nombre: string;
     celulares: number;
+    computadores?: number;
+    /** Trabaja casi siempre en el computador: también se le piden los avisos ahí. */
+    usa_computador?: boolean;
     horas: number[];
     hoy: string | null;
 }
@@ -145,4 +190,50 @@ export interface PersonaRecordatorios {
 export async function resumenRecordatorios(): Promise<PersonaRecordatorios[]> {
     const { data } = await api.get<{ data: PersonaRecordatorios[] }>('/avisos-celular/resumen');
     return data.data ?? [];
+}
+
+/** Un aviso mandado a un equipo, con lo que el equipo confirmó (centro de avisos, mig 145). */
+export interface AvisoEnviado {
+    id: number;
+    usuario_id: number;
+    nombre: string;
+    equipo: Equipo | null;
+    tipo: string;
+    titulo: string;
+    cuerpo: string | null;
+    url: string | null;
+    estado_envio: 'enviando' | 'entregado' | 'fallo';
+    error: string | null;
+    enviado_en: string;
+    mostrado_en: string | null;
+    abierto_en: string | null;
+    descartado_en: string | null;
+    en_pantalla_en: string | null;
+}
+
+/** (Super Administrador) Los avisos de los últimos días, del más nuevo al más viejo. */
+export async function avisosEnviados(dias = 7, usuarioId?: number): Promise<AvisoEnviado[]> {
+    const { data } = await api.get<{ data: AvisoEnviado[] }>('/avisos-celular/mensajes', { params: { dias, usuario: usuarioId } });
+    return data.data ?? [];
+}
+
+const horaDe = (raw: string | null): string => {
+    const d = raw ? new Date(raw) : null;
+    return d && !Number.isNaN(d.getTime()) ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '';
+};
+
+/**
+ * Qué pasó con el aviso en ese equipo, en palabras (lógica pura, con test). `tono`: ok = le apareció o lo abrió;
+ * espera = salió y el equipo aún no confirma; aviso = no se mostró porque ya estaba en Bóveda; error = no salió.
+ * «Le llegó» = apareció en su equipo; no se puede saber si lo leyó sin abrirlo.
+ */
+export function estadoDelAviso(a: Pick<AvisoEnviado, 'estado_envio' | 'error' | 'mostrado_en' | 'abierto_en' | 'descartado_en' | 'en_pantalla_en'>):
+    { texto: string; tono: 'ok' | 'espera' | 'aviso' | 'error' } {
+    if (a.abierto_en) return { texto: `${a.mostrado_en ? `Le llegó ${horaDe(a.mostrado_en)} · ` : ''}lo abrió ${horaDe(a.abierto_en)}`, tono: 'ok' };
+    if (a.en_pantalla_en) return { texto: `No se mostró: tenía Bóveda abierto en el computador (${horaDe(a.en_pantalla_en)})`, tono: 'aviso' };
+    if (a.descartado_en) return { texto: `Le llegó ${horaDe(a.mostrado_en || a.descartado_en)} · lo cerró sin abrirlo`, tono: 'ok' };
+    if (a.mostrado_en) return { texto: `Le llegó ${horaDe(a.mostrado_en)} · todavía no lo abre`, tono: 'ok' };
+    if (a.estado_envio === 'fallo') return { texto: `No salió${a.error ? `: ${a.error}` : ''}`, tono: 'error' };
+    if (a.estado_envio === 'entregado') return { texto: 'Salió · el equipo aún no confirma (apagado o sin internet)', tono: 'espera' };
+    return { texto: 'Enviando…', tono: 'espera' };
 }

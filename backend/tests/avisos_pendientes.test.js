@@ -6,7 +6,7 @@
  *   - don Luis: un solo resumen de los temas de su Inicio de gerencia.
  */
 jest.mock('../src/config/db', () => ({ query: jest.fn().mockResolvedValue([[]]) }));
-jest.mock('../src/services/avisosCelular.service', () => ({ enviarA: jest.fn().mockResolvedValue({ enviados: 1, fallidos: 0 }) }));
+jest.mock('../src/services/avisosCelular.service', () => ({ enviarA: jest.fn().mockResolvedValue({ enviados: 1, fallidos: 0 }), limpiarMensajes: jest.fn().mockResolvedValue() }));
 jest.mock('../src/services/permisos.service', () => ({ getPermisosEfectivos: jest.fn() }));
 jest.mock('../src/services/transferencia.service', () => ({ inicioPerfil: jest.fn() }));
 jest.mock('../src/services/inicioGerencia.service', () => ({
@@ -161,12 +161,22 @@ describe('la ronda', () => {
         const r = await svc.enviarRonda(12, '2026-10-27');
         expect(avisos.enviarA).toHaveBeenCalledTimes(1);
         expect(avisos.enviarA.mock.calls[0][0]).toEqual([3]);
-        expect(avisos.enviarA.mock.calls[0][1]).toMatchObject({ titulo: 'Tiene 2 solicitudes por aprobar', etiqueta: 'pendientes-12' });
+        expect(avisos.enviarA.mock.calls[0][1]).toMatchObject({ titulo: 'Tiene 2 solicitudes por aprobar', etiqueta: 'pendientes-12', computadorSoloSiNoEsta: true });
         expect(r).toMatch(/1 avisado\(s\)/);
         expect(r).toMatch(/ya enviado\(s\)/);
         // Paula (8 y 14) no está en la ronda de las 12.
         const correos = db.query.mock.calls.filter(([s]) => String(s).startsWith('SELECT id, nombre')).map(([, p]) => p[0]);
         expect(correos).not.toContain('paulamartinez@lols.cl');
         expect(correos).toContain('luislazcano@lols.cl');
+    });
+});
+
+describe('quién trabaja en el computador (también se le piden los avisos ahí)', () => {
+    test('Paula, Matías, Daphne, Héctor Herrera y don Luis sí; Leonardo no; mayúsculas no importan', () => {
+        for (const e of ['paulamartinez@lols.cl', 'matiasmillanao@lols.cl', 'daphnelazcano@lols.cl', 'hectorherrera@lols.cl', 'LuisLazcano@lols.cl']) {
+            expect(svc.debeActivarComputador(e)).toBe(true);
+        }
+        expect(svc.debeActivarComputador('leonardolopez@lols.cl')).toBe(false);
+        expect(svc.debeActivarComputador('nadie@lols.cl')).toBe(false);
     });
 });
