@@ -1,6 +1,10 @@
 jest.mock('./api', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn(), delete: jest.fn() } }));
 
-import { claveABytes, estadoAvisos, estadoDelAviso, pedidoAvisos, type Entorno } from './avisosCelular';
+import api from './api';
+import {
+    FalloActivar, TOPE_PASO_MS, activarAvisos, claveABytes, estadoAvisos, estadoDelAviso, motivoFalloActivar, pedidoAvisos,
+    type Entorno,
+} from './avisosCelular';
 
 const base: Entorno = {
     tieneServiceWorker: true, tienePush: true, tieneNotificaciones: true,
@@ -92,5 +96,92 @@ describe('estadoDelAviso: qué pasó con el aviso en ese equipo (centro de aviso
     it('salió pero el equipo no confirma; no salió', () => {
         expect(estadoDelAviso(base).tono).toBe('espera');
         expect(estadoDelAviso({ ...base, estado_envio: 'fallo', error: '403' })).toEqual({ texto: 'No salió: 403', tono: 'error' });
+    });
+});
+
+describe('activarAvisos: la pregunta primero y nunca se queda pegado (27-10)', () => {
+    const orden: string[] = [];
+    let permisoActual: NotificationPermission;
+    let respuesta: NotificationPermission;
+    let listo: Promise<unknown>;
+    let suscribir: jest.Mock;
+    let registrar: jest.Mock;
+    const reg = {
+        pushManager: {
+            getSubscription: jest.fn(async () => null),
+            subscribe: (...a: unknown[]) => suscribir(...a),
+        },
+    };
+    const g = globalThis as unknown as { Notification?: unknown };
+
+    beforeEach(() => {
+        orden.length = 0;
+        permisoActual = 'default';
+        respuesta = 'granted';
+        listo = Promise.resolve(reg);
+        suscribir = jest.fn(async () => ({ toJSON: () => ({ endpoint: 'https://push.example/x', keys: { p256dh: 'p', auth: 'a' } }) }));
+        registrar = jest.fn(async () => { orden.push('archivo'); return reg; });
+        g.Notification = {
+            get permission() { return permisoActual; },
+            requestPermission: jest.fn(async () => { orden.push('permiso'); return respuesta; }),
+        };
+        Object.defineProperty(globalThis, 'navigator', {
+            configurable: true,
+            value: { userAgent: 'jest', serviceWorker: { register: registrar, get ready() { return listo; } } },
+        });
+        (api.get as jest.Mock).mockReset().mockResolvedValue({ data: { data: { clave: 'AQID' } } });
+        (api.post as jest.Mock).mockReset().mockResolvedValue({ data: {} });
+    });
+    afterEach(() => {
+        jest.useRealTimers();
+        delete g.Notification;
+    });
+
+    it('pregunta «¿Permitir?» ANTES de preparar el equipo (en el mismo toque) y queda activo', async () => {
+        await expect(activarAvisos()).resolves.toBe('activo');
+        expect(orden).toEqual(['permiso', 'archivo']);
+        expect(api.post).toHaveBeenCalledWith('/avisos-celular/suscribir', expect.objectContaining({ endpoint: 'https://push.example/x' }));
+    });
+
+    it('si ya tenía el permiso no vuelve a preguntar', async () => {
+        permisoActual = 'granted';
+        await expect(activarAvisos()).resolves.toBe('activo');
+        expect(orden).toEqual(['archivo']);
+    });
+
+    it('dice que no → bloqueado; cierra la pregunta sin elegir → inactivo; en los dos no prepara nada', async () => {
+        respuesta = 'denied';
+        await expect(activarAvisos()).resolves.toBe('bloqueado');
+        respuesta = 'default';
+        await expect(activarAvisos()).resolves.toBe('inactivo');
+        expect(registrar).not.toHaveBeenCalled();
+    });
+
+    it('si el equipo nunca queda listo, a los 20 s falla en «archivo» (el botón no gira para siempre)', async () => {
+        jest.useFakeTimers();
+        listo = new Promise(() => { /* nunca */ });
+        const p = activarAvisos();
+        const espera = expect(p).rejects.toMatchObject({ paso: 'archivo', message: 'archivo: tardó demasiado' });
+        await jest.advanceTimersByTimeAsync(TOPE_PASO_MS);
+        await espera;
+    });
+
+    it('si el servicio de avisos del celular falla, dice el paso y la causa', async () => {
+        suscribir = jest.fn(async () => { throw Object.assign(new Error('Registration failed - push service error'), { name: 'AbortError' }); });
+        const e = await activarAvisos().catch(x => x);
+        expect(e).toBeInstanceOf(FalloActivar);
+        expect(e.message).toBe('suscripcion: AbortError: Registration failed - push service error');
+        expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('un navegador sin avisos falla al tiro, sin preguntar', async () => {
+        delete g.Notification;
+        await expect(activarAvisos()).rejects.toMatchObject({ paso: 'permiso' });
+    });
+
+    it('el motivo en palabras', () => {
+        expect(motivoFalloActivar('suscripcion', 'celular')).toBe('el servicio de avisos de este celular no respondió');
+        expect(motivoFalloActivar('archivo', 'computador')).toBe('este computador no pudo prepararse para recibir avisos');
+        expect(motivoFalloActivar('servidor', 'celular')).toMatch(/conexión con Bóveda/);
     });
 });
