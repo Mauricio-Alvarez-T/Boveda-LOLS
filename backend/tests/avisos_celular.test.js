@@ -70,15 +70,35 @@ beforeEach(() => {
     bd();
 });
 
-describe('rutas: solo el Super Administrador', () => {
+describe('rutas: cada persona maneja SUS celulares; el resumen es del Super Administrador', () => {
     test.each([
         ['get', '/api/avisos-celular/clave'],
         ['get', '/api/avisos-celular/estado'],
         ['post', '/api/avisos-celular/suscribir'],
-        ['post', '/api/avisos-celular/probar'],
-    ])('%s %s con otra persona → 403; sin sesión → 401', async (m, ruta) => {
-        expect((await request(app)[m](ruta).set('Authorization', `Bearer ${sesion(USUARIOS[20])}`).send(SUB)).status).toBe(403);
+    ])('%s %s: cualquier persona con sesión → 200; sin sesión → 401', async (m, ruta) => {
+        expect((await request(app)[m](ruta).set('Authorization', `Bearer ${sesion(USUARIOS[20])}`).send(SUB)).status).toBe(200);
         expect((await request(app)[m](ruta).send(SUB)).status).toBe(401);
+    });
+
+    test('la suscripción queda a nombre de quien la hizo (no de otro)', async () => {
+        await request(app).post('/api/avisos-celular/suscribir').set('Authorization', `Bearer ${sesion(USUARIOS[20])}`).send(SUB);
+        const llamada = db.query.mock.calls.find(([sql]) => String(sql).startsWith('INSERT INTO avisos_celular_suscripciones'));
+        expect(llamada[1][0]).toBe(20);
+    });
+
+    test('/resumen: otra persona → 403', async () => {
+        expect((await request(app).get('/api/avisos-celular/resumen').set('Authorization', `Bearer ${sesion(USUARIOS[20])}`)).status).toBe(403);
+    });
+
+    test('estado: debe_activar si está en el horario de recordatorios; con «ver como», nunca', async () => {
+        const leo = { id: 30, email: 'leonardolopez@lols.cl', rol_id: 2 };
+        USUARIOS[30] = { ...leo, nombre: 'Leonardo López', activo: 1 };
+        const r = await request(app).get('/api/avisos-celular/estado').set('Authorization', `Bearer ${sesion(leo)}`);
+        expect(r.body.data.debe_activar).toBe(true);
+        const otro = await request(app).get('/api/avisos-celular/estado').set('Authorization', `Bearer ${sesion(USUARIOS[20])}`);
+        expect(otro.body.data.debe_activar).toBe(false);
+        const mirando = await request(app).get('/api/avisos-celular/estado').set('Authorization', `Bearer ${sesion(leo, { imp: 1, ro: true })}`);
+        expect(mirando.body.data.debe_activar).toBe(false);
     });
 
     test('con «ver como» no se suscribe (auth frena lo que no es GET)', async () => {
@@ -152,7 +172,7 @@ describe('enviar', () => {
     });
 
     test('sin celulares activos, «probar» responde 409 con un mensaje claro', async () => {
-        const r = await request(app).post('/api/avisos-celular/probar').set('Authorization', `Bearer ${sesion(USUARIOS[1])}`);
+        const r = await request(app).post('/api/avisos-celular/probar').set('Authorization', `Bearer ${sesion(USUARIOS[20])}`);
         expect(r.status).toBe(409);
         expect(r.body.error).toMatch(/activados en este celular/);
     });

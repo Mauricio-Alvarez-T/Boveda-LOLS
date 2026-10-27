@@ -371,6 +371,43 @@ run_auto_migrate() {
 run_auto_migrate || echo "$(date '+%F %T') · auto-migrate: falló (rc=$?) — no fatal"
 # --- auto-migrate:end ---
 
+# --- avisos-programados:begin — Recordatorios de pendientes al celular (2026-10-27) ---
+# Cada tick corre backend/scripts/avisos_programados.js, que decide si a esta hora toca mandar algo: los recordatorios
+# de pendientes de cada persona (avisosPendientes.service.js: lunes a viernes, sin feriados, a sus horas; solo si tiene
+# algo pendiente; una vez por persona, día y hora). Va por cron y no dentro del backend porque Passenger duerme la app
+# sin uso. Igual que en staging: timeout, jamás tumba el deploy y una línea por HTTP en el docroot (avisos-status.txt,
+# solo cuando hizo algo o falló). Necesita web-push instalado (heal-deps); si falta, no hace nada.
+run_avisos_programados() {
+    local ht="$FRONT_DEST/api/.htaccess"
+    if [ ! -f "$ht" ] && grep -q '^PassengerAppRoot' "$FRONT_DEST/.htaccess" 2>/dev/null; then
+        ht="$FRONT_DEST/.htaccess"
+    fi
+    [ -f "$ht" ] || return 0
+    local nb
+    nb="$(sed -n 's/^PassengerNodejs[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}[[:space:]]*$/\1/p' "$ht" | tail -n1)"
+    { [ -n "$nb" ] && [ -x "$nb" ] && [ -s "$nb" ]; } || return 0
+    { [ -f "$BACK_DEST/scripts/avisos_programados.js" ] && [ -d "$BACK_DEST/node_modules/web-push" ]; } || return 0
+
+    mkdir -p "$BACK_DEST/tmp"
+    local alog="$BACK_DEST/tmp/avisos-programados.log" rc=0 tmo=""
+    command -v timeout >/dev/null 2>&1 && tmo="timeout 120"
+    ( cd "$BACK_DEST" && $tmo "$nb" scripts/avisos_programados.js ) > "$alog" 2>&1 || rc=$?
+
+    local resumen
+    resumen="$(grep -m1 '^RESUMEN' "$alog" 2>/dev/null | tr -d '\r' | sed 's/^RESUMEN · //')"
+    [ -n "$resumen" ] || resumen="sin resumen"
+    if [ "$rc" != "0" ]; then
+        echo "$(date '+%F %T') · avisos-programados: falló (rc=$rc) — ver tmp/avisos-programados.log"
+        printf '%s · FALLO rc=%s — revisar tmp/avisos-programados.log del backend\n' "$(date '+%F %T')" "$rc" > "$FRONT_DEST/avisos-status.txt" 2>/dev/null || true
+    elif [ "$resumen" != "nada programado ahora" ]; then
+        echo "$(date '+%F %T') · avisos-programados: $resumen"
+        printf '%s · %s\n' "$(date '+%F %T')" "$resumen" > "$FRONT_DEST/avisos-status.txt" 2>/dev/null || true
+    fi
+    return 0
+}
+run_avisos_programados || echo "$(date '+%F %T') · avisos-programados: falló (rc=$?) — no fatal"
+# --- avisos-programados:end ---
+
 # --- helpers del deploy ---
 # rsync corre bajo `set -e`: cualquier rc≠0 aborta la pasada a mitad del docroot. rc=24
 # ("partial transfer due to vanished source files") es benigno — algo desapareció del ORIGEN

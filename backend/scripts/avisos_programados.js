@@ -3,16 +3,18 @@
  * bloque `avisos-programados` de scripts/cpanel-deploy-staging.sh; docs/reglas/seguridad-rbac.md § Avisos al celular).
  * Decide si a esta hora toca mandar algo. Así no depende de que el backend esté despierto (Passenger lo duerme sin uso).
  *
- * Hoy solo hay UNA cosa programada: la prueba de las 10:00 del 27-10-2026 en test (Marcos): un error inventado en
- * Soporte → Errores y el aviso «Nueva falla en Soporte (prueba)» a los Super Administradores con avisos activos.
- * Una sola vez (si el error de prueba ya está en la BD, no hace nada). Los recordatorios de las 8:00 / 12:00 / 16:00
- * por puesto se suman aquí cuando Marcos los decida.
+ * Programado:
+ *   · Los recordatorios de pendientes de cada persona (avisosPendientes.service.js: lunes a viernes, sin feriados, a
+ *     las horas de cada uno; solo si tiene algo pendiente; una vez por persona, día y hora).
+ *   · La prueba de las 10:00 del 27-10-2026 en test (Marcos), ya hecha: un error inventado en Soporte → Errores y el
+ *     aviso «Nueva falla en Soporte (prueba)». Una sola vez (si el error de prueba ya está en la BD, no hace nada).
  *
  * Siempre imprime una línea «RESUMEN · …» (el cron la publica en avisos-status.txt).
  */
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const db = require('../src/config/db');
 const avisos = require('../src/services/avisosCelular.service');
+const pendientes = require('../src/services/avisosPendientes.service');
 
 const PRUEBA = {
     fecha: '2026-10-27',
@@ -56,9 +58,17 @@ async function pruebaDeLasDiez() {
     return `prueba de las 10:00: ${r.enviados} aviso(s) enviado(s), ${r.fallidos} fallido(s)`;
 }
 
+/** Los recordatorios de pendientes por persona (lunes a viernes, sin feriados, a la hora de cada uno). */
+async function recordatorios() {
+    const ahora = pendientes.ahoraChile();
+    const hora = await pendientes.horaDeRonda(ahora);
+    if (hora == null) return null;
+    return pendientes.enviarRonda(hora, ahora.fecha);
+}
+
 async function main() {
-    const hecho = await pruebaDeLasDiez();
-    console.log(`RESUMEN · ${hecho || 'nada programado ahora'}`);
+    const hechos = [await pruebaDeLasDiez(), await recordatorios()].filter(Boolean);
+    console.log(`RESUMEN · ${hechos.join(' | ') || 'nada programado ahora'}`);
 }
 
 if (require.main === module) {

@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
 import { AlertaAtrasosAlEntrar } from '../documentos-fisicos/AlertaAtrasosAlEntrar';
 import { AvisoSoporte } from '../soporte/AvisoSoporte';
+import { ActivarAvisos } from './ActivarAvisos';
 import { IconButton } from '../ui/IconButton';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { EntornoBanner } from './EntornoBanner';
@@ -81,6 +82,8 @@ export const MainLayout: React.FC = () => {
                 <AlertaAtrasosAlEntrar />
                 {/* «Le avisamos a soporte…» y «Contar qué pasó» (errores de Soporte, mig 141). */}
                 <AvisoSoporte />
+                {/* Avisos de pendientes al celular: pedir activarlos (sin saltarlo) a quien está en el horario. */}
+                <ActivarAvisos />
 
                 {/* Top Navbar — fixed above scroll area. Sin marco (dueño 2026-10-20, idea de la propuesta L del
                     lienzo): mismo fondo que la página, sin borde ni sombra, alineado con el contenido (md:px-5). */}
