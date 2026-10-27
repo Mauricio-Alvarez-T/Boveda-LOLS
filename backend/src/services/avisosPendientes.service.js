@@ -21,15 +21,19 @@ const avisosCelular = require('./avisosCelular.service');
  * día y hora: el cron puede pasar dos veces sin repetir el aviso).
  */
 
-/** Quién y a qué horas (horas de Chile). Por correo: si la persona no existe en ese entorno, se salta. */
+/**
+ * Quién y a qué horas (horas de Chile). Por correo: si la persona no existe en ese entorno, se salta.
+ * `computador`: trabaja casi siempre en el computador (Marcos 2026-10-27) → también se le piden los avisos ahí. El
+ * recordatorio llega SIEMPRE al celular; al computador solo si no tiene Bóveda abierto al frente (ya está ahí).
+ */
 const HORARIO = [
-    { email: 'paulamartinez@lols.cl', horas: [8, 14] },
+    { email: 'paulamartinez@lols.cl', horas: [8, 14], computador: true },
     { email: 'leonardolopez@lols.cl', horas: [8, 12] },
     { email: 'hectorgomez@lols.cl', horas: [8, 12] },
-    { email: 'matiasmillanao@lols.cl', horas: [8, 12] },
-    { email: 'daphnelazcano@lols.cl', horas: [8, 12] },
-    { email: 'hectorherrera@lols.cl', horas: [8, 12] },
-    { email: 'luislazcano@lols.cl', horas: [12] },
+    { email: 'matiasmillanao@lols.cl', horas: [8, 12], computador: true },
+    { email: 'daphnelazcano@lols.cl', horas: [8, 12], computador: true },
+    { email: 'hectorherrera@lols.cl', horas: [8, 12], computador: true },
+    { email: 'luislazcano@lols.cl', horas: [12], computador: true },
     { email: 'francogutierrez@lols.cl', horas: [8, 12] },
     { email: 'alfonsocastilla@lols.cl', horas: [8, 12] },
     { email: 'jhoanvasquez@lols.cl', horas: [8, 12] },
@@ -52,6 +56,12 @@ function textoDias(d) {
 function estaEnHorario(email) {
     const e = String(email || '').toLowerCase();
     return HORARIO.some(h => h.email === e);
+}
+
+/** ¿Se le piden también en el computador? (los que trabajan casi siempre ahí). */
+function debeActivarComputador(email) {
+    const e = String(email || '').toLowerCase();
+    return HORARIO.some(h => h.email === e && h.computador);
 }
 
 /** Lo pendiente de una persona. Cada ítem: { clave, n, texto, dias, url }. */
@@ -172,6 +182,7 @@ function mensajeDe(items) {
  */
 async function enviarRonda(hora, fecha) {
     const personas = HORARIO.filter(h => h.horas.includes(hora));
+    await avisosCelular.limpiarMensajes();
     let avisados = 0;
     let alDia = 0;
     let sinCelular = 0;
@@ -187,7 +198,7 @@ async function enviarRonda(hora, fecha) {
         const m = mensajeDe(items);
         let enviados = 0;
         if (m) {
-            const res = await avisosCelular.enviarA([u.id], { ...m, etiqueta: `pendientes-${hora}` });
+            const res = await avisosCelular.enviarA([u.id], { ...m, etiqueta: `pendientes-${hora}`, tipo: `recordatorio ${hora}:00`, computadorSoloSiNoEsta: true });
             enviados = res.enviados;
             if (enviados) {
                 avisados++;
@@ -228,4 +239,4 @@ async function horaDeRonda(ahora = ahoraChile()) {
     return hora;
 }
 
-module.exports = { HORARIO, HORAS, VENTANA_MIN, estaEnHorario, pendientesDe, mensajeDe, enviarRonda, ahoraChile, horaDeRonda, textoDias };
+module.exports = { HORARIO, HORAS, VENTANA_MIN, estaEnHorario, debeActivarComputador, pendientesDe, mensajeDe, enviarRonda, ahoraChile, horaDeRonda, textoDias };

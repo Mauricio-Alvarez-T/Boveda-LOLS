@@ -585,6 +585,7 @@ if command -v rsync >/dev/null 2>&1; then
     #                  (URL test.boveda.lols.cl/api) — borrarlo ROMPE la API
     #   migrate-status.txt → estado del último auto-migrate (lo escribe el bloque de arriba)
     #   datos-status.txt   → estado del último saneo de datos ficticios (run_sanear_datos)
+    #   avisos-status.txt  → la última ronda de avisos programados (run_avisos_programados)
     #   deploy-status.txt  → qué build está desplegado (estado_deploy) — se escribe ANTES de
     #                        este rsync, así que sin el exclude el --delete lo borraría
     rsync_deploy -a --delete \
@@ -594,13 +595,14 @@ if command -v rsync >/dev/null 2>&1; then
         --exclude 'migrate-status.txt' \
         --exclude 'datos-status.txt' \
         --exclude 'deploy-status.txt' \
+        --exclude 'avisos-status.txt' \
         --exclude 'api/' \
         "$REPO_DIR/frontend/dist/" "$FRONT_DEST/"
 else
     # Fallback sin rsync: limpiar y copiar, preservando .well-known (AutoSSL),
     # .htaccess (routing del SPA), api/ (mount de Passenger del backend) y los tres
     # *-status.txt que se publican por HTTP.
-    find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.htaccess' ! -name 'migrate-status.txt' ! -name 'datos-status.txt' ! -name 'deploy-status.txt' ! -name 'api' -exec rm -rf {} +
+    find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.htaccess' ! -name 'migrate-status.txt' ! -name 'datos-status.txt' ! -name 'deploy-status.txt' ! -name 'avisos-status.txt' ! -name 'api' -exec rm -rf {} +
     cp -a "$REPO_DIR/frontend/dist/." "$FRONT_DEST/"
 fi
 

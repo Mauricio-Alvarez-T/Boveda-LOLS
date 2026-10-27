@@ -4,7 +4,9 @@
  *   - la suscripción se valida (https, claves) y se guarda por celular (sha1 del endpoint), de esa persona;
  *   - las claves: se crean una vez y se reutilizan;
  *   - un celular que ya no existe (404/410) se borra; otro error queda anotado; enviar nunca lanza;
- *   - una falla real NUEVA en Soporte avisa a los Super Administradores; un repetido o un «lento» no.
+ *   - una falla real NUEVA en Soporte avisa a los Super Administradores; un repetido o un «lento» no;
+ *   - centro de avisos (mig 145): cada envío queda anotado con su clave; el equipo confirma sin sesión (acuse) solo con
+ *     esa clave; el computador con Bóveda al frente no muestra los recordatorios (al celular llegan siempre).
  */
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
@@ -37,6 +39,7 @@ const SUB = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc123', keys: { p2
 
 let CLAVES = null;
 let SUBS = [];
+let MENSAJE_ID = 0;
 function bd() {
     db.query.mockImplementation(async (sql, params = []) => {
         const s = String(sql);
@@ -46,9 +49,11 @@ function bd() {
         }
         if (s.startsWith('SELECT publica, privada FROM avisos_celular_claves')) return [CLAVES ? [CLAVES] : []];
         if (s.startsWith('INSERT IGNORE INTO avisos_celular_claves')) { CLAVES = { publica: params[0], privada: params[1] }; return [{ affectedRows: 1 }]; }
-        if (s.startsWith('SELECT id, endpoint, p256dh, auth FROM avisos_celular_suscripciones')) return [SUBS];
+        if (s.startsWith('SELECT id, usuario_id, endpoint, p256dh, auth, dispositivo FROM avisos_celular_suscripciones')) return [SUBS];
+        if (s.startsWith('INSERT INTO avisos_celular_mensajes')) return [{ insertId: ++MENSAJE_ID }];
+        if (s.includes('FROM avisos_celular_mensajes m JOIN usuarios u')) return [[{ id: '3', usuario_id: '1', nombre: 'Marcos Uribe', equipo: 'celular', titulo: 'x', estado_envio: 'entregado' }]];
         if (s.startsWith('SELECT endpoint_hash, dispositivo, ultimo_envio, ultimo_error, created_at')) {
-            return [SUBS.map(x => ({ endpoint_hash: 'abcdef0123456789', dispositivo: 'Chrome Android', ultimo_envio: x.ultimo_envio ?? null, ultimo_error: x.ultimo_error ?? null, created_at: '2026-10-27T12:00:00.000Z' }))];
+            return [SUBS.map(x => ({ endpoint_hash: 'abcdef0123456789', dispositivo: x.dispositivo ?? 'Chrome Android', ultimo_envio: x.ultimo_envio ?? null, ultimo_error: x.ultimo_error ?? null, created_at: '2026-10-27T12:00:00.000Z' }))];
         }
         if (s.startsWith('SELECT id FROM usuarios WHERE rol_id = 1')) return [[{ id: 1 }]];
         if (s.startsWith('SELECT nombre FROM usuarios WHERE id = ?')) return [[{ nombre: USUARIOS[params[0]]?.nombre }]];
@@ -67,6 +72,7 @@ beforeEach(() => {
     soporteErrores._reiniciar();
     CLAVES = null;
     SUBS = [];
+    MENSAJE_ID = 0;
     bd();
 });
 
@@ -99,6 +105,29 @@ describe('rutas: cada persona maneja SUS celulares; el resumen es del Super Admi
         expect(otro.body.data.debe_activar).toBe(false);
         const mirando = await request(app).get('/api/avisos-celular/estado').set('Authorization', `Bearer ${sesion(leo, { imp: 1, ro: true })}`);
         expect(mirando.body.data.debe_activar).toBe(false);
+    });
+
+    test('estado: en el computador solo se exige a quien trabaja ahí (Paula sí, Leonardo no)', async () => {
+        const leo = { id: 30, email: 'leonardolopez@lols.cl', rol_id: 2 };
+        const paula = { id: 31, email: 'paulamartinez@lols.cl', rol_id: 4 };
+        USUARIOS[30] = { ...leo, nombre: 'Leonardo López', activo: 1 };
+        USUARIOS[31] = { ...paula, nombre: 'Paula Martínez', activo: 1 };
+        const r1 = await request(app).get('/api/avisos-celular/estado').set('Authorization', `Bearer ${sesion(leo)}`);
+        expect(r1.body.data.debe_activar_computador).toBe(false);
+        const r2 = await request(app).get('/api/avisos-celular/estado').set('Authorization', `Bearer ${sesion(paula)}`);
+        expect(r2.body.data).toMatchObject({ debe_activar: true, debe_activar_computador: true });
+        const mirando = await request(app).get('/api/avisos-celular/estado').set('Authorization', `Bearer ${sesion(paula, { imp: 1, ro: true })}`);
+        expect(mirando.body.data.debe_activar_computador).toBe(false);
+    });
+
+    test('/mensajes (centro de avisos): otra persona → 403; el Super Administrador → la lista', async () => {
+        expect((await request(app).get('/api/avisos-celular/mensajes').set('Authorization', `Bearer ${sesion(USUARIOS[20])}`)).status).toBe(403);
+        const r = await request(app).get('/api/avisos-celular/mensajes?dias=7').set('Authorization', `Bearer ${sesion(USUARIOS[1])}`);
+        expect(r.status).toBe(200);
+        const llamada = db.query.mock.calls.find(([sql]) => String(sql).includes('FROM avisos_celular_mensajes m JOIN usuarios u'));
+        expect(llamada[1][0]).toBe(7);
+        expect(String(llamada[0])).not.toMatch(/token/);
+        expect(r.body.data[0]).toMatchObject({ id: 3, usuario_id: 1, nombre: 'Marcos Uribe', equipo: 'celular' });
     });
 
     test('con «ver como» no se suscribe (auth frena lo que no es GET)', async () => {
@@ -141,7 +170,7 @@ describe('suscribir', () => {
 
 describe('enviar', () => {
     test('a todos los celulares de esas personas, con la carga corta', async () => {
-        SUBS = [{ id: 5, ...SUB, p256dh: SUB.keys.p256dh, auth: SUB.keys.auth }];
+        SUBS = [{ id: 5, usuario_id: 1, ...SUB, p256dh: SUB.keys.p256dh, auth: SUB.keys.auth }];
         const r = await svc.enviarA([1, 1], { titulo: 'Hola', cuerpo: 'x'.repeat(300), url: '/soporte' });
         expect(r).toEqual({ enviados: 1, fallidos: 0 });
         const [sub, carga, opciones] = webpush.sendNotification.mock.calls[0];
@@ -154,14 +183,50 @@ describe('enviar', () => {
         expect(opciones.urgency).toBe('high');
     });
 
+    test('centro de avisos: cada envío queda anotado con su clave y la clave viaja en el aviso', async () => {
+        SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a', dispositivo: 'Mozilla/5.0 (Linux; Android 14) Chrome/130 Mobile' }];
+        await svc.enviarA([1], { titulo: 'Tiene 2 solicitudes', cuerpo: 'x', etiqueta: 'pendientes-12', tipo: 'recordatorio 12:00' });
+        const ins = db.query.mock.calls.find(([sql]) => String(sql).startsWith('INSERT INTO avisos_celular_mensajes'));
+        const [usuario, suscripcion, equipo, tipo, titulo, , , token] = ins[1];
+        expect([usuario, suscripcion, equipo, tipo, titulo]).toEqual([1, 5, 'celular', 'recordatorio 12:00', 'Tiene 2 solicitudes']);
+        expect(token).toMatch(/^[0-9a-f]{32}$/);
+        const c = JSON.parse(webpush.sendNotification.mock.calls[0][1]);
+        expect(c.aviso).toEqual({ id: 1, t: token });
+        expect(c.siEstaEnBoveda).toBeUndefined();
+        expect(db.query.mock.calls.some(([sql, p]) => String(sql).includes("SET estado_envio = 'entregado'") && p[0] === 1)).toBe(true);
+    });
+
+    test('recordatorios: al computador van con «si está en Bóveda, no mostrar»; al celular, siempre', async () => {
+        SUBS = [
+            { id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a', dispositivo: 'Mozilla/5.0 (Linux; Android 14) Mobile' },
+            { id: 6, usuario_id: 1, endpoint: `${SUB.endpoint}2`, p256dh: 'p', auth: 'a', dispositivo: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130' },
+        ];
+        await svc.enviarA([1], { titulo: 'x', cuerpo: 'y', computadorSoloSiNoEsta: true });
+        const cargas = webpush.sendNotification.mock.calls.map(([sub, carga]) => [sub.endpoint, JSON.parse(carga)]);
+        expect(cargas.find(([e]) => e === SUB.endpoint)[1].siEstaEnBoveda).toBeUndefined();
+        expect(cargas.find(([e]) => e === `${SUB.endpoint}2`)[1].siEstaEnBoveda).toBe('omitir');
+    });
+
+    test('si el centro de avisos falla (tabla aún sin crear), el aviso sale igual, sin clave', async () => {
+        SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }];
+        const normal = db.query.getMockImplementation();
+        db.query.mockImplementation(async (sql, params) => {
+            if (String(sql).startsWith('INSERT INTO avisos_celular_mensajes')) throw new Error("Table doesn't exist");
+            return normal(sql, params);
+        });
+        const r = await svc.enviarA([1], { cuerpo: 'x' });
+        expect(r.enviados).toBe(1);
+        expect(JSON.parse(webpush.sendNotification.mock.calls[0][1]).aviso).toBeUndefined();
+    });
+
     test('una url de afuera no se acepta (lleva al inicio)', async () => {
-        SUBS = [{ id: 5, endpoint: SUB.endpoint, p256dh: SUB.keys.p256dh, auth: SUB.keys.auth }];
+        SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: SUB.keys.p256dh, auth: SUB.keys.auth }];
         await svc.enviarA([1], { cuerpo: 'x', url: 'https://otro.sitio' });
         expect(JSON.parse(webpush.sendNotification.mock.calls[0][1]).url).toBe('/');
     });
 
     test('un celular que ya no existe (410) se borra; otro error queda anotado; nunca lanza', async () => {
-        SUBS = [{ id: 5, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }, { id: 6, endpoint: `${SUB.endpoint}2`, p256dh: 'p', auth: 'a' }];
+        SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }, { id: 6, usuario_id: 1, endpoint: `${SUB.endpoint}2`, p256dh: 'p', auth: 'a' }];
         webpush.sendNotification
             .mockRejectedValueOnce(Object.assign(new Error('Gone'), { statusCode: 410 }))
             .mockRejectedValueOnce(Object.assign(new Error('Server'), { statusCode: 500 }));
@@ -169,6 +234,8 @@ describe('enviar', () => {
         expect(r).toEqual({ enviados: 0, fallidos: 2 });
         expect(db.query.mock.calls.some(([sql, p]) => String(sql).startsWith('DELETE FROM avisos_celular_suscripciones WHERE id = ?') && p[0] === 5)).toBe(true);
         expect(db.query.mock.calls.some(([sql, p]) => String(sql).includes('SET ultimo_error = ?') && p[0] === '500' && p[1] === 6)).toBe(true);
+        // En el centro de avisos queda como «no salió».
+        expect(db.query.mock.calls.filter(([sql]) => String(sql).includes("SET estado_envio = 'fallo'")).length).toBe(2);
     });
 
     test('sin celulares activos, «probar» responde 409 con un mensaje claro', async () => {
@@ -184,6 +251,28 @@ describe('enviar', () => {
     });
 });
 
+describe('acuse (sin sesión, lo manda el equipo)', () => {
+    const T = 'a'.repeat(32);
+    test('con la clave del aviso anota el momento una sola vez (el primero); «abierto» también cuenta como que llegó', async () => {
+        const r = await request(app).post('/api/avisos-celular/acuse').send({ id: 7, t: T, evento: 'abierto' });
+        expect(r.status).toBe(204);
+        const [sql, p] = db.query.mock.calls.find(([q]) => String(q).startsWith('UPDATE avisos_celular_mensajes SET'));
+        expect(String(sql)).toMatch(/abierto_en = COALESCE\(abierto_en, NOW\(\)\), mostrado_en = COALESCE\(mostrado_en, NOW\(\)\)/);
+        expect(String(sql)).toMatch(/WHERE id = \? AND token = \?/);
+        expect(p).toEqual([7, T]);
+    });
+
+    test.each([
+        ['evento inventado', { id: 7, t: 'a'.repeat(32), evento: 'leido' }],
+        ['clave rara', { id: 7, t: "x' OR 1=1 --", evento: 'mostrado' }],
+        ['sin id', { t: 'a'.repeat(32), evento: 'mostrado' }],
+    ])('%s → 204 y no toca nada', async (_, body) => {
+        const r = await request(app).post('/api/avisos-celular/acuse').send(body);
+        expect(r.status).toBe(204);
+        expect(consultas().some(q => q.startsWith('UPDATE avisos_celular_mensajes'))).toBe(false);
+    });
+});
+
 describe('estado', () => {
     test('cuenta los celulares y dice cuándo salió el último aviso y si lo rechazaron', async () => {
         SUBS = [{ id: 5, ultimo_envio: '2026-10-27T12:21:00.000Z', ultimo_error: null }, { id: 6, ultimo_error: '403' }];
@@ -192,6 +281,8 @@ describe('estado', () => {
         expect(r.body.data.celulares).toBe(2);
         expect(r.body.data.lista[0]).toMatchObject({ id: 'abcdef01', dispositivo: 'Chrome Android', ultimo_envio: '2026-10-27T12:21:00.000Z', ultimo_error: null });
         expect(r.body.data.lista[1].ultimo_error).toBe('403');
+        expect(r.body.data.por_equipo).toEqual({ celular: 2, computador: 0 });
+        expect(r.body.data.lista[0].equipo).toBe('celular');
         expect(JSON.stringify(r.body)).not.toMatch(/fcm.googleapis|p256dh|auth"/);
     });
 });
@@ -200,7 +291,7 @@ describe('«Nueva falla en Soporte»', () => {
     const falla = { categoria: 'falla', mensaje: 'No se pudo guardar', pantalla: '/inventario', pantalla_nombre: 'Inventario' };
 
     test('una falla real nueva avisa a los Super Administradores, con el nombre y la pantalla', async () => {
-        SUBS = [{ id: 5, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }];
+        SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }];
         await soporteErrores.reportar(USUARIOS[20], falla, {});
         await esperar(); await esperar(); await esperar();
         expect(webpush.sendNotification).toHaveBeenCalledTimes(1);
