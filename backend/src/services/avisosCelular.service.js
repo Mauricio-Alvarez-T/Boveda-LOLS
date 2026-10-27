@@ -98,8 +98,22 @@ const avisosCelularService = {
 
     /** Cuántos celulares tiene activos esta persona. */
     async estado(usuario) {
-        const [[f]] = await db.query('SELECT COUNT(*) AS n FROM avisos_celular_suscripciones WHERE usuario_id = ?', [Number(usuario.id)]);
-        return { celulares: Number(f.n) || 0 };
+        const [filas] = await db.query(
+            `SELECT endpoint_hash, dispositivo, ultimo_envio, ultimo_error, created_at
+               FROM avisos_celular_suscripciones WHERE usuario_id = ? ORDER BY created_at DESC`,
+            [Number(usuario.id)]
+        );
+        // Para ver dónde se pierde un aviso: cuándo salió el último y si el servicio de avisos lo rechazó.
+        return {
+            celulares: filas.length,
+            lista: filas.map(f => ({
+                id: String(f.endpoint_hash).slice(0, 8),
+                dispositivo: f.dispositivo || null,
+                ultimo_envio: f.ultimo_envio || null,
+                ultimo_error: f.ultimo_error || null,
+                creado: f.created_at || null,
+            })),
+        };
     },
 
     /**
@@ -129,7 +143,9 @@ const avisosCelularService = {
                     await wp.sendNotification(
                         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
                         carga,
-                        { TTL: TTL_SEGUNDOS, vapidDetails: { subject: CONTACTO, publicKey: publica, privateKey: privada } }
+                        // urgency 'high': sin ella Android puede retener el aviso con el teléfono quieto y la pantalla
+                        // apagada (modo de ahorro). Son avisos para actuar, no boletines.
+                        { TTL: TTL_SEGUNDOS, urgency: 'high', vapidDetails: { subject: CONTACTO, publicKey: publica, privateKey: privada } }
                     );
                     enviados++;
                     await db.query('UPDATE avisos_celular_suscripciones SET ultimo_envio = NOW(), ultimo_error = NULL WHERE id = ?', [s.id]);
