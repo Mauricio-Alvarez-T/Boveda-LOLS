@@ -107,9 +107,20 @@ export interface CelularServidor {
 }
 
 /** Lo que el servidor sabe de mis celulares (para ver dónde se pierde un aviso). */
-export async function estadoServidor(): Promise<{ celulares: number; lista: CelularServidor[] }> {
-    const { data } = await api.get<{ data: { celulares: number; lista?: CelularServidor[] } }>('/avisos-celular/estado');
-    return { celulares: Number(data.data.celulares) || 0, lista: data.data.lista ?? [] };
+export async function estadoServidor(): Promise<{ celulares: number; lista: CelularServidor[]; debeActivar: boolean }> {
+    const { data } = await api.get<{ data: { celulares: number; lista?: CelularServidor[]; debe_activar?: boolean } }>('/avisos-celular/estado');
+    return { celulares: Number(data.data.celulares) || 0, lista: data.data.lista ?? [], debeActivar: !!data.data.debe_activar };
+}
+
+/** Qué pedirle a la persona al abrir Bóveda (lógica pura, con test). */
+export type PedidoAvisos = 'nada' | 'activar' | 'bloqueado' | 'iphone' | 'resincronizar';
+export function pedidoAvisos(o: { debeActivar: boolean; esCelular: boolean; mirando: boolean; estado: EstadoAvisos; celularesServidor: number }): PedidoAvisos {
+    if (!o.debeActivar || !o.esCelular || o.mirando) return 'nada';
+    if (o.estado === 'inactivo') return 'activar';
+    if (o.estado === 'bloqueado') return 'bloqueado';
+    if (o.estado === 'iphone_instalar') return 'iphone';
+    if (o.estado === 'activo' && o.celularesServidor === 0) return 'resincronizar';
+    return 'nada';
 }
 
 /**
@@ -120,4 +131,18 @@ export async function avisoLocal(): Promise<void> {
     const reg = await registro();
     if (!reg) throw new Error('sin registro');
     await reg.showNotification('Bóveda LOLS', { body: 'Prueba de este celular: sí muestra avisos.', icon: '/icon-192.png', tag: 'prueba-local' });
+}
+
+export interface PersonaRecordatorios {
+    id: number;
+    nombre: string;
+    celulares: number;
+    horas: number[];
+    hoy: string | null;
+}
+
+/** (Super Administrador) Quién está en el horario de recordatorios, si tiene los avisos activos y qué se le mandó hoy. */
+export async function resumenRecordatorios(): Promise<PersonaRecordatorios[]> {
+    const { data } = await api.get<{ data: PersonaRecordatorios[] }>('/avisos-celular/resumen');
+    return data.data ?? [];
 }

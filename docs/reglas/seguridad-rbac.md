@@ -370,6 +370,36 @@ acción, el código, la espera y el error. Nota + «Marcar revisado» / «Volver
 Probado: backend `tests/soporte_errores.test.js`; frontend `clasificarError.test.ts`, `reporteErrores.test.ts`,
 `components/soporte/errores.test.ts`; migración y service sobre MySQL 5.7 (tres sql_mode).
 
+## Recordatorios de pendientes al celular (mig 144, desde el 27-10-2026)
+
+Decisión de don Luis (Marcos 2026-10-27): **de lunes a viernes, sin feriados** (tabla `feriados`, salvo los de obra),
+a las horas de cada persona, un aviso con **lo pendiente de su cargo, solo si tiene algo**: si está al día no le llega
+nada. En «usted» y con los días que lleva («Tiene 3 solicitudes por aprobar. La más antigua lleva 2 días esperando.
+Revise en Bóveda.»). Al tocarlo se abre Bóveda en ese tema.
+
+- **Horario** (`avisosPendientes.service.js` → `HORARIO`, por correo): Paula 8:00 y 14:00; Leonardo, Héctor Gómez,
+  Matías, Daphne, Héctor Herrera, Franco, Alfonso y Jhoan 8:00 y 12:00; don Luis solo 12:00. Cambiarlo = editar esa
+  lista (y probar).
+- **Qué es pendiente** — lo MISMO que la persona ve en su Inicio: Inventario (`inicioPerfil`): quien aprueba → por
+  aprobar + diferencias por resolver; «Ver diferencias» → diferencias por revisar; la obra → aprobadas o en camino por
+  recibir. Fichas de ingreso por aprobar (`trabajadores.solicitud.aprobar`). RR.HH (`documentos.laborales.emitir` o
+  `trabajadores.editar`): papeles laborales atrasados y contratos vencidos o por vencer. Asistencia de hoy sin registrar
+  en su obra (desde las 12:00, con `asistencia.guardar`). Don Luis (`inicio.gerencia`): un solo resumen de los temas de
+  su Inicio de gerencia.
+- **Quién lo manda:** el cron de deploy, en cada tick (bloque `avisos-programados` de `scripts/cpanel-deploy-*.sh` →
+  `backend/scripts/avisos_programados.js`), dentro de una ventana de 30 min desde la hora. No vive en el backend porque
+  Passenger lo duerme sin uso. `avisos_celular_envios` (persona, día, hora) evita repetir; si tiene pendientes pero
+  ningún celular activo, se libera para reintentar en la ventana. Resultado por HTTP: `https://<host>/avisos-status.txt`.
+- **Activarlos sin saltarlo** (`components/layout/ActivarAvisos.tsx`): a quien está en el horario (`GET /estado` →
+  `debe_activar`), en un celular donde los avisos funcionan, al abrir Bóveda una pantalla con un solo botón «Activar
+  avisos» (sin «Ahora no»), cada vez, hasta activarlos. El celular igual pregunta «¿Permitir?» (ninguna app lo puede
+  saltar): si dice que no o los apaga, una franja fija arriba con los pasos. La app sigue funcionando (no se traba el
+  trabajo en terreno). En el computador y con «ver como», nada. Si el celular tiene el permiso pero el servidor no la
+  suscripción, se vuelve a mandar sola.
+- **Soporte → Errores** (rol 1): «Recordatorios de pendientes»: quién del horario tiene los avisos activos y qué se le
+  mandó hoy (`GET /api/avisos-celular/resumen`). Desde la 144, activar/desactivar/probar es de cualquier persona con
+  sesión (sobre sus celulares). Test: `backend/tests/avisos_pendientes.test.js`.
+
 ## Avisos al celular (mig 143, prueba piloto)
 
 Marcos 2026-10-27: que suene el celular cuando pasa algo, sin SMS ni WhatsApp (gratis, sin cuentas nuevas). Son las
