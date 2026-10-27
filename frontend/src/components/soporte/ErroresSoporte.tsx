@@ -15,6 +15,7 @@ import { SkeletonFilas } from '../ui/Skeleton';
 import { useErroresSoporte } from '../../hooks/useErroresSoporte';
 import { cn } from '../../utils/cn';
 import { textoIngreso } from './fichaUsuario';
+import { AvisosCelular } from './AvisosCelular';
 import {
     CATEGORIA_ERROR, VISTAS_ERRORES, filtrarErrores, navegadorCorto, pideRevision, porQueSinFoto, textoDuracion,
     type ErrorSoporte, type VistaErrores,
@@ -230,6 +231,8 @@ export const ErroresSoporte: React.FC = () => {
 
     return (
         <div className="flex flex-col gap-4">
+            {/* Prueba piloto de avisos al celular (mig 143). */}
+            <AvisosCelular />
             {lentos.personas >= 3 && (
                 <div className="flex items-start gap-2.5 rounded-card border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-foreground dark:border-blue-900/50 dark:bg-blue-500/10">
                     <Clock aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-blue-700 dark:text-blue-300" />
