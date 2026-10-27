@@ -566,6 +566,10 @@ ficha del trabajador y su descarga o impresión es "solo oficina".
   celda con borde superior, div anidado → párrafos, interlineado CSS → puntos EXACTOS, `<br>` en párrafo
   justificado → párrafos). **Si se cambia una plantilla, revisar el .docx en Word** (exportar a PDF y
   contar páginas: el ODI debe seguir en UNA hoja); `tests/docx_export.test.js` cubre lo estructural.
+  **Título del encabezado (logo | título | celda vacía)**: si el título cabe en su columna central (44%,
+  estimado con anchos de Times negrita) queda centrado en la HOJA; si no cabe (DAS, EPP, RI, finiquito…),
+  la celda vacía le cede su ancho para que no se parta en tres líneas y queda centrado en el 72% derecho.
+  Antes se cedía siempre y «CONTRATO DE TRABAJO» salía ~2 cm corrido a la derecha (RRHH 2026-10-27).
 - **Plantillas** (`backend/src/plantillas/documentos/`, mapa blanco `codigo → plantilla`): cada una
   expone `codigo, version, titulo, requiere(ctx), nombreBase(ctx), build(ctx), metadata(ctx)`. Los textos
   legales son DATO: RRHH los corrige ahí sin tocar lógica. Kit de ingreso = `CONTRATO`, `ODI_D40`,
