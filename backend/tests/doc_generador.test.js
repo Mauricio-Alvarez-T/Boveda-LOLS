@@ -234,9 +234,17 @@ describe('plantillas de documentos', () => {
         const maua = p.build({ ...base, empresa: { ...base.empresa, rut: '7.546.352-9' } });
         expect(maua).toContain(`width="${Math.round(g.LOGOS.MAUA.w * 40 / g.LOGOS.MAUA.h)}" height="40"`);
         // Los demás documentos siguen en la página estándar.
-        const contrato = g.wrapHtml('C', getPlantilla('CONTRATO').build(base), getPlantilla('CONTRATO').pagina);
-        expect(contrato).toContain('@page { size: A4; margin: 2.5cm; }');
-        expect(contrato).not.toContain('WordSection1');
+        const das = g.wrapHtml('D', getPlantilla('DAS').build(base), getPlantilla('DAS').pagina);
+        expect(das).toContain('@page { size: A4; margin: 2.5cm; }');
+        expect(das).not.toContain('WordSection1');
+    });
+
+    test('CONTRATO 1.1: máximo 3 hojas — A4 y Times 12 de siempre, márgenes sup/inf 2 cm e interlineado 1,3', () => {
+        const p = getPlantilla('CONTRATO');
+        expect(p.version).toBe('1.1');
+        const doc = g.wrapHtml(p.titulo, p.build(base), p.pagina);
+        expect(doc).toContain('@page WordSection1 { size: A4; margin: 2cm 2.5cm 2cm 2.5cm;');
+        expect(doc).toContain("font-family: 'Times New Roman', serif; font-size: 12pt; color: #000; line-height: 1.3;");
     });
 
     test('DAS / PTS_ALTURA / RI_RECEPCION / EPP_RECEPCION: empleador y firma; EPP con lista default o editada', () => {

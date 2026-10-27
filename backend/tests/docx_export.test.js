@@ -63,6 +63,15 @@ describe('htmlADocx — Word real desde el HTML del motor', () => {
         expect(doc).toMatch(/<w:tcBorders>[\s\S]*?<w:top /);
     });
 
+    test('contrato (máx. 3 hojas, RRHH 2026-10-27): A4, márgenes sup/inf 2 cm e interlineado 1,3 × 12 pt exacto', async () => {
+        const { doc } = await abrir(await docx.htmlADocx(htmlDe('CONTRATO')));
+        expect(doc).toMatch(/<w:pgSz w:w="11906" w:h="16838"/);
+        expect(doc).toMatch(/<w:pgMar w:top="1134" w:right="1417" w:bottom="1134" w:left="1417"/);
+        // 1,3 × 12 pt = 15,6 pt = 312 twips (con 1,5 eran 360 y las firmas caían a una 4ª hoja).
+        expect(doc).toContain('w:line="312"');
+        expect(doc).not.toContain('w:line="360"');
+    });
+
     test('el título del encabezado (div dentro de div en una celda) no se pierde', async () => {
         const { doc } = await abrir(await docx.htmlADocx(htmlDe('DAS')));
         expect(texto(doc)).toContain('DECLARACIÓN DE RECIBIR EL DERECHO A SABER');

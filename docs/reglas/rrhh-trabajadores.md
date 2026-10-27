@@ -576,6 +576,11 @@ ficha del trabajador y su descarga o impresión es "solo oficina".
   y pago el día 05 como texto fijo; el **sueldo base se imprime en cifras y en letras**
   (`utils/numeroALetras.js`) tomado de `cargo_sueldos` (mig 111) y queda congelado en `metadata`.
   Sin representante legal de la empresa o sin sueldo del cargo → 409 con el dato que falta.
+  **Máximo 3 hojas (RRHH 2026-10-27, plantilla 1.1)**: con la página estándar (A4, 2,5 cm, interlineado 1,5)
+  las firmas caían solas en una 4ª hoja. El contrato trae página propia: A4 y Times 12 iguales, márgenes
+  superior/inferior 2 cm e interlineado 1,3 — 3 hojas en Word y en la impresión del navegador, aun con
+  nombre/domicilio/cargo largos. Los contratos ya emitidos guardan su HTML: para tenerlos en 3 hojas
+  hay que **re-emitirlos**. Si se agrega texto al contrato, volver a contar hojas en Word.
   **Emitirlo no guarda `trabajadores.fecha_termino_contrato`** (mig 138, decisión 2026-10-26): la cláusula 9 dice
   «duración de N días» y cita la fecha de INGRESO, que en una renovación es la del primer contrato; emitir tampoco es
   firmar. Calcular «ingreso + N días» daría fechas falsas, así que RRHH la anota a mano en la ficha → Editar.
