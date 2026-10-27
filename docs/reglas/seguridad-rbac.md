@@ -396,6 +396,10 @@ Revise en Bóveda.»). Al tocarlo se abre Bóveda en ese tema.
   saltar): si dice que no o los apaga, una franja fija arriba con los pasos. La app sigue funcionando (no se traba el
   trabajo en terreno). Con «ver como», nada. Si el equipo tiene el permiso pero el servidor no la suscripción, se vuelve
   a mandar sola.
+- **EN PAUSA EN PRODUCCIÓN desde el 27-10-2026** (Marcos): a algunos trabajadores el botón no les hacía nada y la
+  pantalla no los dejaba seguir. La pantalla y las franjas solo salen en test (`VITE_ENTORNO=staging`, lo pone
+  `deploy-cpanel-staging.yml`); en producción no se le pide nada a nadie, pero quien ya los activó sigue recibiendo los
+  recordatorios y su suscripción se vuelve a mandar sola. Se reactiva cuando Marcos rediseñe la activación.
 - **Celular siempre; computador solo si no está mirando Bóveda** (Marcos 2026-10-27): el recordatorio llega SIEMPRE al
   celular. Quien trabaja casi siempre en el computador (`HORARIO` → `computador: true`: Paula, Matías, Daphne, Héctor
   Herrera y don Luis; `GET /estado` → `debe_activar_computador`) tiene la misma pantalla obligatoria en el computador,

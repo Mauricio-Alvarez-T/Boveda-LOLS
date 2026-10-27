@@ -18,7 +18,14 @@ import {
  * El equipo siempre pregunta «¿Permitir notificaciones?» (eso no lo puede saltar ninguna app); si dice que no o los
  * apaga después, queda una franja fija arriba con los pasos. La app sigue funcionando: no se traba el trabajo.
  * Con «ver como», nada.
+ *
+ * EN PAUSA EN PRODUCCIÓN (Marcos 2026-10-27): a algunos trabajadores el botón no les hacía nada y la pantalla no los
+ * dejaba seguir. Mientras se rediseña, la pantalla y las franjas solo salen en test (`VITE_ENTORNO=staging`, lo pone
+ * deploy-cpanel-staging.yml). En producción sigue lo silencioso: actualizar el archivo de avisos y volver a mandar la
+ * suscripción de quien ya los activó; los recordatorios le siguen llegando a quien ya los tiene activos.
  */
+
+const PEDIR_AVISOS = import.meta.env.VITE_ENTORNO === 'staging';
 
 const esCelular = () => typeof window !== 'undefined'
     && (!!window.matchMedia?.('(max-width: 767px)').matches || !!window.matchMedia?.('(pointer: coarse)').matches);
@@ -49,7 +56,7 @@ export const ActivarAvisos: React.FC = () => {
                     activarAvisos().catch(() => { /* lo intenta la próxima vez */ });
                     return;
                 }
-                setPedido(p);
+                if (PEDIR_AVISOS) setPedido(p);
             } catch { /* sin conexión: lo vuelve a revisar la próxima vez que abra Bóveda */ }
         })();
         return () => { vivo = false; };
