@@ -72,6 +72,16 @@ describe('htmlADocx — Word real desde el HTML del motor', () => {
         expect(doc).not.toContain('w:line="360"');
     });
 
+    test('encabezado: un título que cabe queda centrado en la HOJA (no se cede la celda vacía); uno largo sí la toma', async () => {
+        const celdasDelEncabezado = (doc) => (doc.match(/<w:tbl>[\s\S]*?<\/w:tbl>/)[0].match(/<w:tc>/g) || []).length;
+        // «CONTRATO DE TRABAJO» cabe en el 44% central: logo | título | vacía, simétrico (RRHH 2026-10-27).
+        const contrato = await abrir(await docx.htmlADocx(htmlDe('CONTRATO')));
+        expect(celdasDelEncabezado(contrato.doc)).toBe(3);
+        // «DECLARACIÓN DE RECIBIR EL DERECHO A SABER» no cabe: la vacía cede su ancho y el título no se parte en tres.
+        const das = await abrir(await docx.htmlADocx(htmlDe('DAS')));
+        expect(celdasDelEncabezado(das.doc)).toBe(2);
+    });
+
     test('el título del encabezado (div dentro de div en una celda) no se pierde', async () => {
         const { doc } = await abrir(await docx.htmlADocx(htmlDe('DAS')));
         expect(texto(doc)).toContain('DECLARACIÓN DE RECIBIR EL DERECHO A SABER');

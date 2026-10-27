@@ -359,11 +359,60 @@ function envolverTextoDeCeldas(raiz) {
 }
 
 /**
- * Celda VACÍA al final de una fila (sin texto, imagen ni borde; la del encabezado que equilibra el logo):
- * el navegador la achica y el título usa ese espacio; Word respeta su % y el título se partía en tres
- * líneas. Se quita y su ancho pasa a la celda anterior.
+ * Ancho de letra de Times New Roman negrita (milésimas de em) de las mayúsculas y el espacio; una
+ * mayúscula con tilde mide lo que su base. Cualquier otro carácter cuenta 556 (más que una minúscula o
+ * un dígito de Times): la estimación debe pecar de ancha, nunca de angosta.
  */
-function cederCeldasVaciasFinales(raiz) {
+const ANCHO_TNR_NEGRITA = {
+    A: 722, B: 667, C: 722, D: 722, E: 667, F: 611, G: 778, H: 778, I: 389, J: 500, K: 778, L: 667, M: 944,
+    N: 722, O: 778, P: 611, Q: 778, R: 722, S: 556, T: 667, U: 722, V: 722, W: 1000, X: 722, Y: 722, Z: 667, ' ': 250,
+};
+
+/** Ancho estimado (pt) de una línea de texto. Con otra letra que Times se infla un 12% (Arial/Tahoma son más anchas). */
+function anchoLineaPt(texto, tamanoPt, fuente) {
+    const milesimas = [...texto.normalize('NFD').replace(/[̀-ͯ]/g, '')]
+        .reduce((s, ch) => s + (ANCHO_TNR_NEGRITA[ch] ?? 556), 0);
+    return (milesimas / 1000) * tamanoPt * (/times/i.test(fuente) ? 1 : 1.12);
+}
+
+/** Texto plano de un nodo (sin etiquetas, con las entidades del motor resueltas), partido en sus <br>. */
+function lineasDeTexto(nodo) {
+    return render(nodo.children || [], { decodeEntities: false })
+        .split(/<br\s*\/?>/i)
+        .map(l => l.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+}
+
+/** ¿Cada línea de la celda cabe en `anchoPt`? Mira los párrafos (tras divsAParrafos) con su letra. */
+function textoCabeEnCelda(td, anchoPt, letra) {
+    const parrafos = [];
+    elementos(td, (el) => { if (el.name === 'p') parrafos.push(el); });
+    if (!parrafos.length) parrafos.push(td);
+    return parrafos.every((p) => {
+        let tamano = letra.tamanoPt;
+        let fuente = letra.fuente;
+        for (let n = p; n && n !== td.parent; n = n.parent) {
+            const m = estiloDe(n);
+            if (m.has('font-size') && aPt(m.get('font-size'))) { tamano = aPt(m.get('font-size')); break; }
+        }
+        for (let n = p; n && n !== td.parent; n = n.parent) {
+            const f = estiloDe(n).get('font-family');
+            if (f) { fuente = f; break; }
+        }
+        return lineasDeTexto(p).every(l => anchoLineaPt(l, tamano, fuente) <= anchoPt);
+    });
+}
+
+/**
+ * Celda VACÍA al final de una fila (sin texto, imagen ni borde; la del encabezado que equilibra el logo):
+ * el navegador la achica y el título usa ese espacio; Word respeta su % y un título largo se partía en
+ * tres líneas. Se quita y su ancho pasa a la celda anterior — pero SOLO si el texto no cabe en la celda
+ * propia: si cabe, la vacía se queda y el título sigue centrado en la HOJA (RRHH 2026-10-27: con la
+ * celda cedida, «CONTRATO DE TRABAJO» quedaba centrado en el 72% derecho, ~2 cm corrido).
+ * `contenidoPt` = ancho útil de la hoja; `letra` = letra base del documento.
+ */
+function cederCeldasVaciasFinales(raiz, contenidoPt, letra) {
     const vacia = (td) => !render(td.children || [], { decodeEntities: false }).replace(/&nbsp;|\s/g, '')
         && !/border/.test(td.attribs.style || '') && !td.attribs.colspan && !td.attribs.rowspan;
     elementos(raiz, (tr) => {
@@ -383,6 +432,9 @@ function cederCeldasVaciasFinales(raiz) {
         const mp = estiloDe(previa);
         const wP = mp.get('width') || previa.attribs.width;
         if (!/%$/.test(String(wU || '')) || !/%$/.test(String(wP || ''))) return;
+        // Margen de celda de Word: 4 pt por lado (tblCellMar 80 twips, ver ajustarXml). Holgura del 5%.
+        const anchoPropioPt = (parseFloat(wP) / 100) * contenidoPt - 8;
+        if (textoCabeEnCelda(previa, anchoPropioPt * 0.95, letra)) return;
         mp.set('width', `${parseFloat(wP) + parseFloat(wU)}%`);
         escribirEstilo(previa, mp);
         delete previa.attribs.width;
@@ -623,15 +675,16 @@ async function htmlADocx(htmlCompleto, { titulo } = {}) {
     bordesSuperiorACelda(raiz);
     divsAParrafos(raiz);
     anchosAEstilo(raiz);
-    cederCeldasVaciasFinales(raiz);
+    const pg = pagina(pages);
+    const [top, right, bottom, left] = pg.margen.map(Math.round);
+    const contenidoPt = (pg.papel[0] - left - right) / 20;
+    cederCeldasVaciasFinales(raiz, contenidoPt, letra);
     completarAnchosDeTablas(raiz);
     partirJustificadosConBr(raiz);
     normalizarMargenes(raiz);
     interlineadoEnPuntos(raiz, letra.tamanoPt);
 
-    const pg = pagina(pages);
-    const [top, right, bottom, left] = pg.margen.map(Math.round);
-    anchosAbsolutos(raiz, (pg.papel[0] - left - right) / 20);
+    anchosAbsolutos(raiz, contenidoPt);
     const crudo = await HTMLtoDOCX(render(raiz.children, { decodeEntities: false }), null, {
         orientation: 'portrait',
         pageSize: { width: Math.round(pg.papel[0]), height: Math.round(pg.papel[1]) },
