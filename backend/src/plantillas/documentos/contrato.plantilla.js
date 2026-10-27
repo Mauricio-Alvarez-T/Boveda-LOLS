@@ -10,6 +10,14 @@ const { montoEnLetras, capitalizar } = require('../../utils/numeroALetras');
 const DIAS_DEFAULT = 15;
 
 /**
+ * Página propia (RRHH 2026-10-27: máximo 3 hojas). Con la estándar (A4, 2,5 cm, interlineado 1,5) el
+ * texto llenaba 3 hojas y las firmas caían solas en una 4ª. Misma hoja y misma letra; bajan solo los
+ * márgenes superior/inferior (2 cm) y el interlineado (1,3). Medido en Word y en la impresión del
+ * navegador: 3 hojas, con holgura incluso con nombre, domicilio y cargo largos.
+ */
+const PAGINA = { papel: 'A4', margen: '2cm 2.5cm 2cm 2.5cm', fuente: "'Times New Roman', serif", tamano: '12pt', interlineado: 1.3 };
+
+/**
  * Datos personales que la primera cláusula imprime del trabajador (orden de aparición). Son
  * OBLIGATORIOS para emitir (decisión del dueño 2026-09-11, tras recibir un contrato con líneas en
  * blanco): antes se rellenaban con guiones y el hueco aparecía recién en el papel firmado.
@@ -150,8 +158,9 @@ function metadata(ctx) {
 
 module.exports = {
     codigo: 'CONTRATO',
-    version: '1.0',
+    version: '1.1',
     titulo: 'Contrato de Trabajo',
+    pagina: PAGINA,
     requiere,
     /** Hook opcional del contrato de plantillas: el service lo agrega al 409 como `campos_trabajador`. */
     camposTrabajadorFaltantes,
