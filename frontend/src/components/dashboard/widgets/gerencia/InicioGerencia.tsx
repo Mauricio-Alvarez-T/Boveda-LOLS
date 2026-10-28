@@ -12,7 +12,7 @@ import WhatsAppIcon from '../../../ui/WhatsAppIcon';
 import { EncabezadoTarjeta } from '../EncabezadoTarjeta';
 import { CIFRA, PILDORA, ROTULO_FICHAS } from '../fichasInicio';
 import {
-    TOPE_URGENTE, columnasUltima, temasGerencia, temasPendientes, textoDesplegar, textoMasEnModulo, tituloFranja,
+    TOPE_URGENTE, columnasUltima, cortoWhatsApp, temasGerencia, temasPendientes, textoDesplegar, textoMasEnModulo, tituloFranja,
     type FilaTema, type GerenciaApi, type TemaGerencia, type TemaKey,
 } from './gerencia.modelo';
 
@@ -25,8 +25,8 @@ import {
  * Tocar la tarjeta (o «Ver los N») la despliega: todos los pendientes con qué falta, de quién y desde
  * cuándo. Cada fila abre donde se resuelve; el pie lleva el enlace al módulo. Arriba a la derecha, junto al título
  * (Marcos 2026-10-28: a la vista apenas abre el Inicio), UN botón de WhatsApp «Apurar» sin número con todo lo pendiente
- * del tema (don Luis elige el grupo o la persona). Pide GET /dashboard/gerencia al montarse y cuando cambia
- * `version` («Actualizar» del Inicio). Lógica y textos en `gerencia.modelo.ts` y `mensajes.ts`.
+ * del tema (don Luis elige el grupo o la persona); con el tema al día queda apagado, en gris, en el mismo lugar.
+ * Pide GET /dashboard/gerencia al montarse y cuando cambia `version` («Actualizar» del Inicio). Lógica y textos en `gerencia.modelo.ts` y `mensajes.ts`.
  */
 
 const CARD = 'rounded-3xl bg-card text-foreground shadow-[var(--shadow-md)]';
@@ -85,6 +85,20 @@ const BotonWhatsApp: React.FC<{ w: NonNullable<TemaGerencia['whatsapp']>; titulo
     </button>
 );
 
+/**
+ * El WhatsApp de un tema al día: apagado y en gris, en el mismo lugar y con el mismo texto que el verde (Marcos
+ * 2026-10-28, opción B de la vista previa: todas las tarjetas iguales; gris = hoy no hay nada que apurar).
+ */
+const BotonWhatsAppApagado: React.FC<{ corto: string; titulo: string }> = ({ corto, titulo }) => (
+    // eslint-disable-next-line no-restricted-syntax -- pastilla gris (apagada) del mismo tamaño que la verde
+    <button type="button" aria-disabled="true" onClick={e => e.preventDefault()}
+        aria-label={`${corto} por WhatsApp: ${titulo} (nada pendiente)`} title="Nada pendiente que apurar en este tema"
+        className={cn('inline-flex min-h-11 shrink-0 cursor-not-allowed items-center gap-1.5 rounded-full bg-muted px-3.5 text-sm font-semibold text-muted-foreground opacity-70', FOCO)}>
+        <WhatsAppIcon className="h-4 w-4" />
+        {corto}
+    </button>
+);
+
 const TarjetaTema: React.FC<{ t: TemaGerencia; onAbrir: (ruta: string) => void; className?: string }> = ({ t, onAbrir, className }) => {
     const [abierta, setAbierta] = useState(false);
     const idLista = useId();
@@ -107,7 +121,9 @@ const TarjetaTema: React.FC<{ t: TemaGerencia; onAbrir: (ruta: string) => void; 
                 <div className="@3xl:col-start-1 @3xl:row-start-1">
                     <div className="mb-3 flex items-start justify-between gap-3">
                         <EncabezadoTarjeta icon={ICONO[t.key]} tono={t.tono} titulo={t.titulo} className="mb-0 min-w-0 flex-1" />
-                        {t.whatsapp && <BotonWhatsApp w={t.whatsapp} titulo={t.titulo} />}
+                        {t.whatsapp
+                            ? <BotonWhatsApp w={t.whatsapp} titulo={t.titulo} />
+                            : <BotonWhatsAppApagado corto={cortoWhatsApp(t.key)} titulo={t.titulo} />}
                     </div>
                     <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                         <span className={cn('font-bold leading-none tracking-display tabular-nums', CIFRA[t.tono], t.esMonto ? 'text-headline' : 'text-5xl')}>{t.cifra}</span>

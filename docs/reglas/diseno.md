@@ -715,7 +715,9 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       (pastilla verde de 44 px que dice «Apurar», o «Consultar» en Contratos; el nombre completo, p. ej. «Pedir a
       Leonardo», al pasar el mouse; `shareViaWhatsApp` **sin número**: don Luis elige el grupo o la persona) con TODO lo
       pendiente del tema: encabezado, una línea «•» por pendiente y el cierre, con tope de 20 líneas y «y N más». Las filas no
-      tienen WhatsApp propio. Ningún botón «decide»: la app no registra qué resuelve gerencia.
+      tienen WhatsApp propio. **Con el tema al día el botón se ve igual, apagado** (gris, `aria-disabled`, mismo texto:
+      `cortoWhatsApp`), para que todas las tarjetas sean iguales y no parezca que falta (Marcos 2026-10-28, opción B de
+      la vista previa; la A era una línea «Si algo se atrasa…»). Ningún botón «decide»: la app no registra qué resuelve gerencia.
     - **Los temas y de dónde sale cada dato** (nada inventado):
       1. *Faltas reiteradas* (`asistencia.ver`): `asistenciaService.getAlertasFaltas` (lo mismo de la tarjeta
          Asistencia: 2 días seguidos, 2 lunes o 3+ F en el mes). Fila → `/asistencia?q=RUT`.
