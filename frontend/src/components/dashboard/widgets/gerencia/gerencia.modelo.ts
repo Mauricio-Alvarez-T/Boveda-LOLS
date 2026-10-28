@@ -78,6 +78,13 @@ export interface TemaGerencia {
     franja: { cifra: string; texto: string };
 }
 
+/**
+ * Lo que dice el botón de WhatsApp del tema («Consultar» en Contratos, «Apurar» en el resto). Con el tema al día el
+ * botón igual se ve, apagado y en gris, con este mismo texto (Marcos 2026-10-28, opción B: todas las tarjetas iguales
+ * y el botón siempre en su lugar).
+ */
+export const cortoWhatsApp = (k: TemaKey): string => (k === 'contratos' ? 'Consultar' : 'Apurar');
+
 /** Filas a la vista antes de desplegar la tarjeta. */
 export const TOPE_URGENTE = 3;
 

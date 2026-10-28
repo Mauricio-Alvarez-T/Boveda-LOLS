@@ -1,5 +1,5 @@
 import {
-    TOPE_URGENTE, cifraPapel, quienAprueba, temasGerencia, temasPendientes, textoDesplegar, textoMasEnModulo, tituloFranja,
+    TOPE_URGENTE, cifraPapel, cortoWhatsApp, quienAprueba, temasGerencia, temasPendientes, textoDesplegar, textoMasEnModulo, tituloFranja,
     type GerenciaApi, type TemaGerencia,
 } from './gerencia.modelo';
 import type { PapelesFlotaApi } from '../fichasVehiculosInicio';
@@ -114,6 +114,8 @@ describe('temasGerencia', () => {
         expect(temasPendientes(vacio)).toEqual([]);
         expect(tituloFranja(vacio)).toBe('Nada espera una decisión');
         expect(vacio.every(t => t.tono === 'verde' && t.whatsapp === null)).toBe(true);
+        // Al día el botón se ve igual, apagado, con el mismo texto que tendría encendido.
+        expect(vacio.map(t => cortoWhatsApp(t.key))).toEqual(vacio.map(t => (t.key === 'contratos' ? 'Consultar' : 'Apurar')));
     });
 
     test('faltas: rojo, pildoras de causal, fila a Asistencia ?q=RUT, detalle y WhatsApp', () => {
