@@ -86,7 +86,7 @@ describe('WhatsApp de contratos', () => {
             '• Marcelo Aguilera Paz: vence el 4 nov',
             '¿Qué hacemos con cada uno: renovar, pasar a indefinido o terminar? Me cuentan.',
         ].join('\n'));
-        expect(tema(contratos()).whatsapp).toEqual({ texto: 'Consultar por WhatsApp', mensaje: mensajeContratos(LISTA, 3) });
+        expect(tema(contratos()).whatsapp).toEqual({ texto: 'Consultar por WhatsApp', corto: 'Consultar', mensaje: mensajeContratos(LISTA, 3) });
     });
 
     test('uno solo, o todos del mismo lado: el encabezado sin el «o»', () => {

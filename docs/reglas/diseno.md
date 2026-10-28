@@ -723,9 +723,11 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       grande (un monto va en `text-headline`), bajada, «Qué se decide: …», «LO MÁS URGENTE» (3 filas) y pie.
       **Tocar la tarjeta** (o «Ver los N» / «Ver el detalle», que es el camino con teclado) la despliega dentro:
       todos los pendientes, cada uno con una frase de qué falta, de quién y desde cuándo. Cada fila abre donde se
-      resuelve. El pie lleva el enlace al módulo («Ver en Asistencia →») y **UN solo botón de WhatsApp** (pastilla
-      verde de 44 px, `shareViaWhatsApp` **sin número**: don Luis elige el grupo o la persona) con TODO lo pendiente
-      del tema: encabezado, una línea «•» por pendiente y el cierre, con tope de 20 líneas y «y N más». Las filas no
+      resuelve. El pie lleva el enlace al módulo («Ver en Asistencia →»). **Arriba a la derecha, junto al título**
+      (Marcos 2026-10-28: a la vista apenas abre el Inicio; antes iba al pie a lo ancho), **UN solo botón de WhatsApp**
+      (pastilla verde de 44 px que dice «Apurar», o «Consultar» en Contratos; el nombre completo, p. ej. «Pedir a
+      Leonardo», al pasar el mouse; `shareViaWhatsApp` **sin número**: don Luis elige el grupo o la persona) con TODO lo
+      pendiente del tema: encabezado, una línea «•» por pendiente y el cierre, con tope de 20 líneas y «y N más». Las filas no
       tienen WhatsApp propio. Ningún botón «decide»: la app no registra qué resuelve gerencia.
     - **Los temas y de dónde sale cada dato** (nada inventado):
       1. *Faltas reiteradas* (`asistencia.ver`): `asistenciaService.getAlertasFaltas` (lo mismo de la tarjeta
@@ -757,7 +759,8 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
          seis de siempre.
     - **La última tarjeta, si queda sola en su fila, va a lo ancho** (`columnasUltima`): con los siete temas ocupa
       la fila entera en computador (3 columnas) y en tableta (2). La tarjeta es `@container`: desde 48rem de ancho
-      pasa a dos columnas por dentro — a la izquierda encabezado, cifra, bajada, «Qué se decide» y el pie con los
-      botones; a la derecha «Lo más urgente». Las tarjetas de una columna no cambian.
+      pasa a dos columnas por dentro — a la izquierda encabezado (con el WhatsApp), cifra, bajada, «Qué se decide» y el
+      pie con los enlaces; a la derecha «Lo más urgente». Las tarjetas de una columna no cambian.
       «Quien aprueba» = permiso efectivo de `inventario.transferencias.aprobar` sin el rol 1 (hoy, Leonardo).
-    - Teléfono (bajo 768 px): una columna, todo objetivo de 44 px; el botón de WhatsApp ocupa el ancho de la tarjeta.
+    - Teléfono (bajo 768 px): una columna, todo objetivo de 44 px; el WhatsApp sigue arriba a la derecha (el título
+      parte línea si no cabe).

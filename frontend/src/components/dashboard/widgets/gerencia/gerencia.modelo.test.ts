@@ -128,6 +128,7 @@ describe('temasGerencia', () => {
         expect(t.filas[0].detalle).toBe('Faltó el lun 5, lun 12, mar 13 y lun 19 sin justificación. 2 días seguidos, 2 lunes en el mes y 3 o más faltas.');
         expect(t.enlace).toEqual({ texto: 'Ver en Asistencia', ruta: '/asistencia' });
         expect(t.whatsapp?.texto).toBe('Apurar por WhatsApp');
+        expect(t.whatsapp?.corto).toBe('Apurar');
         expect(t.whatsapp?.mensaje).toMatch(/^Hola, estos trabajadores cumplen una causal del Art\. 160 N°3 este mes:\n• Jorge Contreras Pávez \(Domeyko\)/);
     });
 
@@ -155,6 +156,7 @@ describe('temasGerencia', () => {
             ruta: '/inventario?tab=transferencias&estado=discrepancias&id=27' });
         expect(t.filas[0].detalle).toBe('Faltan 12 unidades ($33.990 cada uno) en la solicitud TRF-202610-0027 (Bodega Cerrillos → Gorbea 3082). Lo recibió Carla Soto el 16 oct (hace 7 días).');
         expect(t.whatsapp?.texto).toBe('Pedir a Leonardo');
+        expect(t.whatsapp?.corto).toBe('Apurar'); // el botón dice «Apurar»; «Pedir a Leonardo», al pasar el mouse
         expect(t.whatsapp?.mensaje).toContain('siguen sin aclararse, unos $597.870 en total:');
         expect(t.whatsapp?.mensaje).toContain('Leonardo, ¿las puedes revisar y resolver?');
         expect(t.enlace.ruta).toBe('/inventario?tab=transferencias&estado=discrepancias');

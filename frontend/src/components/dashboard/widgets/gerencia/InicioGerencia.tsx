@@ -23,8 +23,9 @@ import {
  * decide y lo más urgente. Si la última queda sola en su fila (el 7.º tema, «Contratos por vencer», 2026-10-26) va a lo
  * ancho y, con espacio, en dos columnas: a la izquierda qué pasa y los botones, a la derecha los nombres.
  * Tocar la tarjeta (o «Ver los N») la despliega: todos los pendientes con qué falta, de quién y desde
- * cuándo. Cada fila abre donde se resuelve; el pie lleva el enlace al módulo y UN botón de WhatsApp sin número con todo
- * lo pendiente del tema (don Luis elige el grupo o la persona). Pide GET /dashboard/gerencia al montarse y cuando cambia
+ * cuándo. Cada fila abre donde se resuelve; el pie lleva el enlace al módulo. Arriba a la derecha, junto al título
+ * (Marcos 2026-10-28: a la vista apenas abre el Inicio), UN botón de WhatsApp «Apurar» sin número con todo lo pendiente
+ * del tema (don Luis elige el grupo o la persona). Pide GET /dashboard/gerencia al montarse y cuando cambia
  * `version` («Actualizar» del Inicio). Lógica y textos en `gerencia.modelo.ts` y `mensajes.ts`.
  */
 
@@ -70,6 +71,20 @@ const Fila: React.FC<{ f: FilaTema; abierta: boolean; onAbrir: (ruta: string) =>
     </button>
 );
 
+/**
+ * El WhatsApp del tema, arriba a la derecha: corto («Apurar») para que quepa junto al título también en el teléfono; el
+ * nombre completo («Pedir a Leonardo») va al pasar el mouse. El nombre accesible empieza con lo que se ve.
+ */
+const BotonWhatsApp: React.FC<{ w: NonNullable<TemaGerencia['whatsapp']>; titulo: string }> = ({ w, titulo }) => (
+    // eslint-disable-next-line no-restricted-syntax -- pastilla verde de 44 px del lienzo (abre WhatsApp sin número)
+    <button type="button" onClick={() => { void shareViaWhatsApp(w.mensaje, titulo); }}
+        aria-label={`${w.corto} por WhatsApp: ${titulo}`} title={w.texto}
+        className={cn('inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-green-50 px-3.5 text-sm font-semibold text-green-700 transition-colors duration-200 hover:bg-green-100 dark:bg-green-500/15 dark:text-green-300 dark:hover:bg-green-500/25', FOCO)}>
+        <WhatsAppIcon className="h-4 w-4" />
+        {w.corto}
+    </button>
+);
+
 const TarjetaTema: React.FC<{ t: TemaGerencia; onAbrir: (ruta: string) => void; className?: string }> = ({ t, onAbrir, className }) => {
     const [abierta, setAbierta] = useState(false);
     const idLista = useId();
@@ -90,7 +105,10 @@ const TarjetaTema: React.FC<{ t: TemaGerencia; onAbrir: (ruta: string) => void; 
             } : undefined}>
             <div className="flex flex-1 flex-col @3xl:grid @3xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] @3xl:grid-rows-[auto_1fr] @3xl:gap-x-10">
                 <div className="@3xl:col-start-1 @3xl:row-start-1">
-                    <EncabezadoTarjeta icon={ICONO[t.key]} tono={t.tono} titulo={t.titulo} className="mb-3" />
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                        <EncabezadoTarjeta icon={ICONO[t.key]} tono={t.tono} titulo={t.titulo} className="mb-0 min-w-0 flex-1" />
+                        {t.whatsapp && <BotonWhatsApp w={t.whatsapp} titulo={t.titulo} />}
+                    </div>
                     <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                         <span className={cn('font-bold leading-none tracking-display tabular-nums', CIFRA[t.tono], t.esMonto ? 'text-headline' : 'text-5xl')}>{t.cifra}</span>
                         <span className="text-sm text-muted-foreground">{t.etiqueta}</span>
@@ -134,14 +152,6 @@ const TarjetaTema: React.FC<{ t: TemaGerencia; onAbrir: (ruta: string) => void; 
                             {t.enlace.texto}<ArrowRight className="h-4 w-4" aria-hidden />
                         </button>
                     </div>
-                    {t.whatsapp && (
-                        // eslint-disable-next-line no-restricted-syntax -- pastilla verde de 44 px del lienzo (abre WhatsApp sin número)
-                        <button type="button" onClick={() => { void shareViaWhatsApp(t.whatsapp!.mensaje, t.titulo); }}
-                            className={cn('mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-green-50 px-4 text-sm font-semibold text-green-700 transition-colors duration-200 hover:bg-green-100 dark:bg-green-500/15 dark:text-green-300 dark:hover:bg-green-500/25', FOCO)}>
-                            <WhatsAppIcon className="h-4 w-4" />
-                            {t.whatsapp.texto}
-                        </button>
-                    )}
                 </div>
             </div>
         </article>
