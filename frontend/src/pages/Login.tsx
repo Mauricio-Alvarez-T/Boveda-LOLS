@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { motion, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, ExternalLink } from 'lucide-react';
 
 import { Button } from '../components/ui/Button';
 import { IconButton } from '../components/ui/IconButton';
@@ -13,6 +13,7 @@ import { Input } from '../components/ui/Input';
 import { Logo } from '../components/ui/Logo';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { cn } from '../utils/cn';
 import type { AuthResponse } from '../types';
 
 const loginSchema = z.object({
@@ -21,6 +22,22 @@ const loginSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
+
+/**
+ * La página web de la empresa, abajo del inicio de sesión (Marcos 2026-10-28: «para que la vayan conociendo»). Hoy es la
+ * antigua; cuando salga la nueva y se dé de baja esta, se cambian solo estas dos líneas.
+ */
+const PAGINA_WEB = 'https://lols.cl';
+const PAGINA_WEB_TEXTO = 'lols.cl';
+
+const EnlacePaginaWeb: React.FC<{ className: string }> = ({ className }) => (
+    <a href={PAGINA_WEB} target="_blank" rel="noopener noreferrer"
+        className={cn('inline-flex items-center gap-1 rounded underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2', className)}>
+        Conoce nuestra página web: {PAGINA_WEB_TEXTO}
+        <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span className="sr-only">(se abre en otra pestaña)</span>
+    </a>
+);
 
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
@@ -97,7 +114,10 @@ const LoginPage: React.FC = () => {
                     </p>
                 </div>
 
-                <p className="text-ui text-white/40">LOLS Ingeniería © {year}</p>
+                <div className="flex flex-col items-start gap-1 text-ui text-white/40">
+                    <p>LOLS Ingeniería © {year}</p>
+                    <EnlacePaginaWeb className="text-white/70 hover:text-white focus-visible:ring-white/50" />
+                </div>
             </aside>
 
             {/* ── Panel de formulario ────────────────────────────────────── */}
@@ -156,9 +176,10 @@ const LoginPage: React.FC = () => {
                         </Button>
                     </form>
 
-                    <p className="mt-12 text-center text-sm text-muted-foreground lg:hidden">
-                        LOLS Ingeniería © {year}
-                    </p>
+                    <div className="mt-12 flex flex-col items-center text-center text-sm text-muted-foreground lg:hidden">
+                        <p>LOLS Ingeniería © {year}</p>
+                        <EnlacePaginaWeb className="min-h-11 font-medium text-green-700 focus-visible:ring-brand-primary/40 dark:text-green-300" />
+                    </div>
                 </motion.div>
             </main>
         </div>
