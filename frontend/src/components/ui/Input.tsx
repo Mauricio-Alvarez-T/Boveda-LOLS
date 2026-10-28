@@ -7,10 +7,12 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
     error?: string;
     helperText?: string;
     leftIcon?: React.ReactNode;
+    /** Un botón dentro del campo, a la derecha (ej. el ojito de la contraseña). */
+    rightElement?: React.ReactNode;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-    ({ className, label, error, helperText, type, leftIcon, ...props }, ref) => {
+    ({ className, label, error, helperText, type, leftIcon, rightElement, ...props }, ref) => {
         return (
             <div className="w-full space-y-1.5">
                 {label && (
@@ -29,12 +31,18 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                         className={cn(
                             "flex h-11 w-full rounded-xl border border-border bg-card py-2 text-base text-brand-dark ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 focus-visible:border-brand-primary transition-all hover:border-[var(--border-hover)]",
                             leftIcon ? "pl-10 pr-4" : "px-4",
+                            rightElement && "pr-12",
                             error && "border-destructive focus-visible:ring-destructive/30 focus-visible:border-destructive",
                             className
                         )}
                         ref={ref}
                         {...props}
                     />
+                    {rightElement && (
+                        <div className="absolute right-0.5 flex items-center">
+                            {rightElement}
+                        </div>
+                    )}
                 </div>
                 <FieldError message={error} />
                 {helperText && !error && (
