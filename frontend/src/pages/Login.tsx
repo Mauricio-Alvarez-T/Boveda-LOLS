@@ -5,8 +5,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { motion, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
+import { Eye, EyeOff } from 'lucide-react';
 
 import { Button } from '../components/ui/Button';
+import { IconButton } from '../components/ui/IconButton';
 import { Input } from '../components/ui/Input';
 import { Logo } from '../components/ui/Logo';
 import { useAuth } from '../context/AuthContext';
@@ -24,6 +26,8 @@ const LoginPage: React.FC = () => {
     const navigate = useNavigate();
     const { login } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
+    /** El ojito: muestra la contraseña mientras se escribe (Marcos 2026-10-28). */
+    const [verClave, setVerClave] = useState(false);
     const reduceMotion = useReducedMotion();
     const year = new Date().getFullYear();
 
@@ -125,11 +129,21 @@ const LoginPage: React.FC = () => {
                         <Input
                             label="Contraseña"
                             placeholder="••••••••"
-                            type="password"
+                            type={verClave ? 'text' : 'password'}
                             autoComplete="current-password"
                             error={errors.password?.message}
                             {...register('password')}
                             className="h-12"
+                            rightElement={
+                                <IconButton
+                                    size="lg"
+                                    icon={verClave ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    aria-label={verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                    aria-pressed={verClave}
+                                    title={verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                    onClick={() => setVerClave(v => !v)}
+                                />
+                            }
                         />
                         <Button
                             type="submit"
