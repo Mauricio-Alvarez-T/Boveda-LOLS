@@ -69,10 +69,11 @@ export interface TemaGerencia {
     /** El módulo donde se resuelve («Ver en Asistencia»). */
     enlace: { texto: string; ruta: string };
     /**
-     * El ÚNICO WhatsApp de la tarjeta (pie): todos los pendientes del tema en un mensaje, sin número (don Luis elige el
-     * grupo o la persona). null si no hay nada pendiente.
+     * El ÚNICO WhatsApp de la tarjeta (arriba a la derecha, junto al título; Marcos 2026-10-28): todos los pendientes del
+     * tema en un mensaje, sin número (don Luis elige el grupo o la persona). `corto` = lo que dice el botón («Apurar»);
+     * `texto` = el nombre completo («Pedir a Leonardo»), al pasar el mouse. null si no hay nada pendiente.
      */
-    whatsapp: { texto: string; mensaje: string } | null;
+    whatsapp: { texto: string; corto: string; mensaje: string } | null;
     /** Para la franja de arriba: «5 trabajadores con causal». */
     franja: { cifra: string; texto: string };
 }
@@ -152,7 +153,7 @@ function temaFaltas(f: FaltasGerenciaApi): TemaGerencia {
         decision: 'Amonestar, carta de despido o conversar: revísalo con RRHH',
         total: n, filas,
         enlace: { texto: 'Ver en Asistencia', ruta: '/asistencia' },
-        whatsapp: n > 0 ? { texto: 'Apurar por WhatsApp', mensaje: mensajeFaltas(f.lista, n) } : null,
+        whatsapp: n > 0 ? { texto: 'Apurar por WhatsApp', corto: 'Apurar', mensaje: mensajeFaltas(f.lista, n) } : null,
         franja: { cifra: String(n), texto: plural(n, 'trabajador con causal', 'trabajadores con causal') },
     };
 }
@@ -195,7 +196,7 @@ function temaVehiculos(data: PapelesFlotaApi, hoy: string): TemaGerencia {
         decision: 'Sacar el vehículo de circulación o pedir que se renueve',
         total: filas.length, filas,
         enlace: { texto: 'Ver en Vehículos', ruta: '/vehiculos' },
-        whatsapp: filas.length ? { texto: 'Apurar por WhatsApp', mensaje: mensajeVehiculos(pares) } : null,
+        whatsapp: filas.length ? { texto: 'Apurar por WhatsApp', corto: 'Apurar', mensaje: mensajeVehiculos(pares) } : null,
         franja: conVencidos
             ? { cifra: String(vencidos), texto: plural(vencidos, 'papel de vehículo vencido', 'papeles de vehículos vencidos') }
             : { cifra: String(porVencer), texto: plural(porVencer, 'papel de vehículo por vencer', 'papeles de vehículos por vencer') },
@@ -251,6 +252,7 @@ function temaPerdidas(p: PerdidasApi, aprobadores: Aprobadores, hoy: string): Te
         enlace: { texto: 'Ver en Inventario', ruta: rutaLista('discrepancias') },
         whatsapp: n > 0 ? {
             texto: quien ? `Pedir a ${quien}` : 'Apurar por WhatsApp',
+            corto: 'Apurar',
             mensaje: mensajePerdidas(p.lista, { total: n, quien, conValores, totalPesos: conValores ? p.total ?? null : null }),
         } : null,
         franja: conValores
@@ -290,7 +292,7 @@ function temaDocumentos(d: DocumentosGerenciaApi, hoy: string): TemaGerencia {
         decision: 'Pedir que se renueven antes de que llegue un fiscalizador',
         total, filas,
         enlace: { texto: 'Ver en Gestiones', ruta: `/consultas?tab=trabajadores&doc_vigencia=${conVencidos ? 'vencido' : '30'}` },
-        whatsapp: total > 0 ? { texto: 'Apurar por WhatsApp', mensaje: mensajeDocumentos(d.lista, total) } : null,
+        whatsapp: total > 0 ? { texto: 'Apurar por WhatsApp', corto: 'Apurar', mensaje: mensajeDocumentos(d.lista, total) } : null,
         franja: conVencidos
             ? { cifra: String(d.vencidos), texto: plural(d.vencidos, 'documento de trabajador vencido', 'documentos de trabajadores vencidos') }
             : { cifra: String(d.por_vencer), texto: plural(d.por_vencer, 'documento de trabajador por vencer', 'documentos de trabajadores por vencer') },
@@ -358,7 +360,7 @@ function temaPapeles(p: PapelesGerenciaApi, registra: boolean, hoy: string): Tem
         decision: 'Pedir a RRHH que los imprima, los mande o los traiga de vuelta',
         total: n, filas,
         enlace: { texto: 'Ver en Gestiones', ruta: registra ? '/consultas?tab=fisicos' : '/consultas?tab=inicio' },
-        whatsapp: n > 0 ? { texto: 'Apurar por WhatsApp', mensaje: mensajePapeles(p.lista, n) } : null,
+        whatsapp: n > 0 ? { texto: 'Apurar por WhatsApp', corto: 'Apurar', mensaje: mensajePapeles(p.lista, n) } : null,
         franja: { cifra: String(n), texto: plural(n, 'papel laboral atrasado', 'papeles laborales atrasados') },
     };
 }
@@ -400,6 +402,7 @@ function temaSolicitudes(s: SolicitudesGerenciaApi, aprobadores: Aprobadores): T
         enlace: { texto: 'Ver en Inventario', ruta: rutaLista('pendiente') },
         whatsapp: n > 0 ? {
             texto: uno ? `Apurar a ${uno}` : 'Apurar por WhatsApp',
+            corto: 'Apurar',
             mensaje: mensajeSolicitudes(s.lista, { total: n, quien: uno, diasLimite: s.dias_limite }),
         } : null,
         franja: { cifra: String(n), texto: plural(n, 'solicitud trabada', 'solicitudes trabadas') },
@@ -454,7 +457,7 @@ function temaContratos(c: ContratosGerenciaApi, hoy: string): TemaGerencia {
         decision: 'Renovar, pasar a indefinido o terminar',
         total, filas,
         enlace: { texto: 'Ver en Gestiones', ruta: '/consultas?tab=trabajadores' },
-        whatsapp: total > 0 ? { texto: 'Consultar por WhatsApp', mensaje: mensajeContratos(c.lista, total) } : null,
+        whatsapp: total > 0 ? { texto: 'Consultar por WhatsApp', corto: 'Consultar', mensaje: mensajeContratos(c.lista, total) } : null,
         franja: conVencidos
             ? { cifra: String(c.vencidos), texto: plural(c.vencidos, 'contrato vencido', 'contratos vencidos') }
             : { cifra: String(c.por_vencer), texto: plural(c.por_vencer, 'contrato por vencer', 'contratos por vencer') },
