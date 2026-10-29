@@ -11,6 +11,94 @@ const createCrudRoutes = require('./crud.routes');
 const validateBody = require('../middleware/validateBody');
 const { crearUsuario, editarUsuario } = require('../schemas/usuarios.schema');
 const { logManualActivity } = require('../middleware/logger');
+const logger = require('../utils/logger-structured');
+
+/**
+ * Cierra la sesión de UNA persona (mig 146: sus tokens emitidos hasta este segundo dejan de valer) en vez de la de
+ * todo su rol. RESPALDO si eso falla (p. ej. la columna `permisos_cambiados_en` aún no existe, ventana
+ * deploy→migrate): subir la versión del rol que trae su token, como se hacía antes — saca a todo ese rol, pero nadie
+ * se queda con permisos viejos. `rolIdRespaldo` = ese rol, SIEMPRE leído de la BD por quien llama (PUT lo lee antes
+ * del UPDATE); nunca el que manda el cliente (puede venir de una pestaña vieja). Si no viene, se lee de la BD ahora.
+ */
+async function cerrarSesionPersona(usuarioId, rolIdRespaldo) {
+    try {
+        await versionService.cerrarSesionDe(usuarioId);
+    } catch (err) {
+        let rolId = rolIdRespaldo;
+        if (rolId === undefined || rolId === null || rolId === '') {
+            const [rows] = await db.query('SELECT rol_id FROM usuarios WHERE id = ?', [usuarioId]);
+            rolId = rows.length ? rows[0].rol_id : null;
+        }
+        logger.warn('[usuarios] No se pudo cerrar la sesión solo de la persona; se sube la versión de su rol (respaldo)', {
+            usuario_id: Number(usuarioId), rol_id: rolId, err: err.message, errno: err.errno,
+        });
+        if (rolId !== undefined && rolId !== null && rolId !== '') {
+            await versionService.increment(rolId);
+        }
+    }
+}
+
+const TIPOS_OVERRIDE = new Set(['grant', 'deny']);
+// permisos_usuario_override.permiso_clave es VARCHAR(100) (scripts/migrations/migrate_granular_permissions.js).
+const MAX_LARGO_CLAVE = 100;
+
+/**
+ * Valida y normaliza la FORMA del payload de POST /user-overrides/:id (sin tocar la BD). Devuelve { overrides } o
+ * { error } (mensaje del 400). `overrides` = lista (vacía = quitarle todos sus permisos propios) de
+ * { permiso_clave: texto no vacío de hasta 100 caracteres, tipo: 'grant'|'deny' }. Una clave repetida se queda con la
+ * ÚLTIMA; «repetida» SIN distinguir mayúsculas (la PK de la tabla es utf8mb4_general_ci: 'asistencia.ver' y
+ * 'ASISTENCIA.VER' son la misma fila) → no revienta por clave duplicada en la BD.
+ */
+function normalizarOverrides(overrides) {
+    if (!Array.isArray(overrides)) {
+        return { error: 'Faltan los permisos de la persona: «overrides» debe ser una lista (vacía para quitarle todos sus permisos propios).' };
+    }
+    const porClave = new Map(); // clave en minúsculas -> { permiso_clave, tipo }
+    for (let i = 0; i < overrides.length; i++) {
+        const o = overrides[i];
+        if (!o || typeof o !== 'object' || Array.isArray(o)) {
+            return { error: `El permiso n.º ${i + 1} no es válido: cada uno debe traer «permiso_clave» y «tipo».` };
+        }
+        const clave = typeof o.permiso_clave === 'string' ? o.permiso_clave.trim() : '';
+        if (!clave) {
+            return { error: `El permiso n.º ${i + 1} no trae su clave («permiso_clave» vacío).` };
+        }
+        if (clave.length > MAX_LARGO_CLAVE) {
+            return { error: `El permiso n.º ${i + 1} trae una clave demasiado larga (máximo ${MAX_LARGO_CLAVE} caracteres).` };
+        }
+        if (!TIPOS_OVERRIDE.has(o.tipo)) {
+            return { error: `El permiso «${clave}» trae un tipo no válido: debe ser «grant» (dárselo) o «deny» (quitárselo).` };
+        }
+        porClave.set(clave.toLowerCase(), { permiso_clave: clave, tipo: o.tipo });
+    }
+    return { overrides: [...porClave.values()] };
+}
+
+/**
+ * Revisa que cada clave exista en `permisos_catalogo` (la FK de permisos_usuario_override; sin esto una clave basura
+ * llegaba al INSERT → errno 1452 → 500). Solo LEE. Devuelve { overrides } con la clave escrita como en el catálogo, o
+ * { error } (mensaje del 400) con las claves que no existen.
+ */
+async function validarEnCatalogo(overrides) {
+    if (!overrides.length) return { overrides };
+    const [rows] = await db.query(
+        'SELECT clave FROM permisos_catalogo WHERE clave IN (?)',
+        [overrides.map(o => o.permiso_clave)]
+    );
+    const canonica = new Map((rows || []).map(r => [String(r.clave).toLowerCase(), String(r.clave)]));
+    const faltan = overrides.filter(o => !canonica.has(o.permiso_clave.toLowerCase())).map(o => o.permiso_clave);
+    if (faltan.length) {
+        const muestra = faltan.slice(0, 5).map(c => `«${c}»`).join(', ');
+        const resto = faltan.length > 5 ? ` y ${faltan.length - 5} más` : '';
+        return {
+            error: `${faltan.length === 1 ? 'Este permiso no existe' : 'Estos permisos no existen'} en el catálogo: ${muestra}${resto}. `
+                + 'Recarga la página y vuelve a intentarlo.',
+        };
+    }
+    return {
+        overrides: overrides.map(o => ({ permiso_clave: canonica.get(o.permiso_clave.toLowerCase()), tipo: o.tipo })),
+    };
+}
 
 // Instantiate missing user service dynamically since the file doesnt exist
 const usuariosService = createCrudService('usuarios', { 
@@ -125,13 +213,19 @@ router.get('/user-overrides/:id', auth, checkPermission('usuarios.permisos.gesti
 /** POST /usuarios/user-overrides/:id */
 router.post('/user-overrides/:id', auth, checkPermission('usuarios.permisos.gestionar'), async (req, res, next) => {
     try {
-        const { overrides, rol_id } = req.body; // overrides: [{ permiso_clave, tipo }], rol_id (optional for bump)
+        // overrides: [{ permiso_clave, tipo }]. El rol_id del body ya no se usa (se acepta por compatibilidad y se
+        // IGNORA: puede venir de una pestaña vieja; el respaldo lee el rol actual de la BD).
+        const body = req.body || {};
+        const forma = normalizarOverrides(body.overrides);
+        if (forma.error) return res.status(400).json({ error: forma.error });
+        const { overrides, error } = await validarEnCatalogo(forma.overrides);
+        if (error) return res.status(400).json({ error });
+
         await permisosService.setOverrides(req.params.id, overrides);
 
-        // BUMP VERSION for this user's role to force logout/re-login (simplest way to invalidate one user for now)
-        if (rol_id) {
-            await versionService.increment(rol_id);
-        }
+        // Cerrar la sesión SOLO de esta persona (mig 146): vuelve a entrar con sus permisos nuevos. Antes se subía la
+        // versión de su rol y salían todas las personas del rol (p. ej. las tres de RR.HH).
+        await cerrarSesionPersona(req.params.id);
 
         // Log explícito (modulo='roles') para el resumen diario de novedades.
         try {
@@ -212,23 +306,17 @@ router.put('/:id', auth, checkPermission('usuarios.editar'), validateBody(editar
             } else { throw e; }
         }
 
-        // Si el rol_id cambió, bumpear la versión del rol VIEJO. Esto causa
-        // mismatch en auth middleware (rv del JWT ≠ versionService.get(oldRol))
-        // → 401 expired_by_version → forced logout → re-login → JWT nuevo con
-        // rol_id nuevo + permisos nuevos.
-        //
-        // Side effect aceptado: otros usuarios actualmente en el rol viejo
-        // también se desloguean. Trade-off OK para escala Bóveda LOLS (~50 users).
-        if (oldRolId != null && data.rol_id != null && Number(oldRolId) !== Number(data.rol_id)) {
-            await versionService.increment(oldRolId);
-        }
-
-        // Si la bodega asignada cambió, bumpear la versión del rol ACTUAL del
-        // usuario: bodega_id vive en el JWT (scope bodeguero, mig 097) → sin
-        // re-login seguiría viendo/recibiendo con la bodega vieja.
-        if (data.bodega_id !== undefined && oldRolId != null
-            && (oldBodegaId ?? null) !== (data.bodega_id ?? null)) {
-            await versionService.increment(data.rol_id != null ? data.rol_id : oldRolId);
+        // Si cambió el rol o la bodega, cerrar la sesión SOLO de esta persona (mig 146): sus tokens emitidos hasta
+        // ahora → 401 expired_by_version → re-login → JWT nuevo con rol, permisos y bodega nuevos (rol_id y bodega_id
+        // viven en el JWT; bodega = scope bodeguero, mig 097). Una sola vez aunque cambien ambas cosas.
+        // Hasta la mig 146 se subía la versión del rol (el viejo al cambiar de rol, el actual al cambiar de bodega) y
+        // con eso salían TODAS las personas de ese rol; ahora las demás siguen dentro.
+        // Respaldo (si la mig 146 aún no corrió): subir la versión del rol VIEJO, el que trae su token.
+        const cambioRol = oldRolId != null && data.rol_id != null && Number(oldRolId) !== Number(data.rol_id);
+        const cambioBodega = data.bodega_id !== undefined && oldRolId != null
+            && (oldBodegaId ?? null) !== (data.bodega_id ?? null);
+        if (cambioRol || cambioBodega) {
+            await cerrarSesionPersona(req.params.id, oldRolId);
         }
 
         res.json(user);

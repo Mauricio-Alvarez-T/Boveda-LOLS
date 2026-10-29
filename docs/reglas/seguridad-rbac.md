@@ -20,6 +20,26 @@
   re-login. Por eso `roles.version` (mig 047): al cambiar permisos se bumpea → tokens con `rv`
   viejo se rechazan → fuerza re-login. **Regla operativa: tras correr migrate con permisos nuevos,
   re-login.**
+- **Cierre por persona (mig 146, 2026-10-28)**: `usuarios.permisos_cambiados_en` (DATETIME NULL, **en UTC**) = el
+  segundo en que se le cambiaron por última vez los permisos propios, el rol o la bodega a ESA persona. Se escribe y
+  se lee con aritmética desde `'1970-01-01 00:00:00'` (`DATE_ADD … INTERVAL ? SECOND` / `TIMESTAMPDIFF(SECOND, …)`),
+  **nunca** con `FROM_UNIXTIME` / `UNIX_TIMESTAMP`: esas usan la zona horaria de la sesión (no se fija en
+  `config/db.js`) y en el cambio de horario la hora repetida es ambigua → el cierre recargado se correría ±1 h.
+  `version.service` la guarda en un segundo mapa en memoria (`usuarioId → segundos`), cargado en `init()` y puesto al
+  día por `cerrarSesionDe(id)`. `init()` tolera **solo** el errno 1054 (la columna aún no existe, ventana
+  deploy→migrate: nadie tiene fecha guardada y el respaldo de abajo sube la versión del rol); **cualquier otro fallo
+  de esa carga lanza** igual que el de los roles (index.js no levanta el servidor, Passenger reintenta): arrancar con
+  el mapa vacío volvería a aceptar sesiones ya cerradas, porque el cierre por persona ya no sube `roles.version`.
+  El middleware de auth, después del chequeo de `rv`, rechaza los tokens de esa persona
+  con `iat` <= ese segundo con el **mismo** 401 `expired_by_version` (el frontend avisa igual); el token del mismo
+  segundo muere a propósito (mejor que dejar vivo uno viejo). Las demás personas de su rol siguen dentro. Lo usan
+  `POST /usuarios/user-overrides/:id` y `PUT /usuarios/:id` (cambio de rol o de bodega, una sola vez aunque cambien
+  ambos); si `cerrarSesionDe` falla, respaldo = `roles.version + 1` del rol que trae su token, **leído de la BD**
+  (PUT: el rol que deja, leído antes del UPDATE; overrides: el rol actual; nunca el `rol_id` que manda el cliente) —
+  lo de antes: sale todo el rol. Cambiar los permisos de un **rol** sigue subiendo `roles.version`. En «ver como»
+  cuentan **las dos personas**: la mirada (`id`) y quien mira (`imp`): si al Super Administrador que mira le cambian
+  el rol o los permisos, su token prestado también muere. Misma limitación que `roles.version`: el mapa es **por
+  proceso**. Test: `backend/tests/sesion_por_persona.test.js`.
 - No existe password-reset por email; solo cambio en-app con contraseña actual.
 - Excepción: el token de «ver como» de Soporte (30 min, con `imp` + `ro`, solo lectura; § Ver como usuario).
 
@@ -73,8 +93,39 @@
 
 ## Overrides por usuario
 
-- `permisos_usuario_override`: grant/deny/default por usuario individual, con precedencia sobre el
-  rol (UI: Settings → Usuarios → Permisos personalizados).
+- `permisos_usuario_override`: `grant`/`deny` por persona, con precedencia sobre el rol (efectivos = rol + grant −
+  deny, el mismo cálculo del login).
+- La ventana **«Permisos de <persona>»** (Configuración › Usuarios › botón de permisos) es **«en frases»** (opción E,
+  Marcos 2026-10-28): se edita lo que la persona **TIENE** (sus permisos efectivos) con la misma frase e interruptores
+  que el rol. Al guardar, el frontend calcula los overrides **solo de las claves que cambiaron**: si la clave queda
+  igual a lo que trae el rol se borra su override; si no, queda `grant` (la tiene y el rol no) o `deny` (no la tiene
+  y el rol sí). Los overrides que no se tocaron se conservan tal cual (incluso los redundantes). Excepción: «Dejar
+  todo como su rol» los arma **desde cero** (solo lo distinto al rol; los redundantes se van).
+- **Puertas en una persona** (`respetarPuertas`, `config/frasesPermisos.ts`): `aplicarNivel`/`alternarClave` ordenan
+  las puertas de TODOS los módulos; en una persona, después de editar una pantalla, las puertas de los **otros**
+  módulos vuelven a como estaban, y la de su módulo solo cambia si el módulo se abre (nada → algo) o se vacía (algo →
+  nada), o si lo que se editó es la fila puerta (subirla la pone, apagar justo la entrada cierra el módulo como en
+  la matriz, encender otra acción la pone; apagar otra acción la deja como estaba). «Como su rol» deja la entrada
+  como la trae el rol si abre o cierra el módulo, y vaciar un módulo no borra una entrada que ya estaba guardada sin
+  pantallas. Así un `deny` de
+  `inventario.ver` heredado del editor viejo no se pierde al tocar Vehículos, ni un rol desordenado le inventa
+  propios. `inventario.ver` (puerta implícita, no es fila de ninguna pantalla) se muestra y se cuenta aparte, en la
+  tarjeta de Inventario («Le quitaron la entrada…» / «Tiene la entrada… aunque su rol no la trae», con «Devolver la
+  entrada» / «Quitar la entrada»), y si un módulo tiene pantallas pero no su entrada se avisa que no ve nada de él.
+- El botón de permisos de cada persona (Configuración › Usuarios) solo aparece con `usuarios.permisos.gestionar` y
+  `usuarios.roles.ver` (las dos lecturas que necesita la ventana).
+- Guardar (`POST /usuarios/user-overrides/:id`, reemplaza la lista entera) cierra la sesión **solo de esa persona**
+  (§ JWT y sesión, mig 146); antes subía la versión de su rol y salía todo el rol (p. ej. las tres de RR.HH). El
+  `rol_id` del body ya no hace falta (se acepta por compatibilidad y se **ignora**: puede venir de una pestaña vieja;
+  el respaldo lee el rol actual de la BD).
+- Super Administrador (rol 1) no se edita (tiene todo).
+- El backend valida el payload → **400** sin escribir en la BD: `overrides` debe ser una lista (vacía = quitarle todos
+  sus permisos propios); cada elemento `{ permiso_clave: texto no vacío de hasta 100 caracteres, tipo:
+  'grant'|'deny' }` (campos de más se ignoran); y cada clave tiene que existir en `permisos_catalogo` (se LEE el
+  catálogo; antes una clave que no estaba llegaba al INSERT, la FK reventaba con errno 1452 y salía un 500). Una
+  clave repetida se queda con la última, **sin distinguir mayúsculas** (la PK es `utf8mb4_general_ci`:
+  `asistencia.ver` y `ASISTENCIA.VER` son la misma fila; antes reventaba con errno 1062 → 500), y se guarda escrita
+  como en el catálogo.
 
 ## Matriz de roles (Configuración › Roles, 2026-10-26)
 
@@ -82,6 +133,9 @@
   módulo, columnas = roles activos (con «N personas» = `usuarios_count`, subquery de `GET /usuarios/roles`),
   celda = nivel **Nada · Mira · Trabaja · Todo**. Reemplazó la tabla de roles + el modal de casillas
   (`PermisosRolPanel`, borrado). Los overrides por persona siguen en Usuarios.
+- **Desde 2026-10-28 Configuración › Roles abre por defecto «Por rol (en frases)»**: un rol a la vez, cada pantalla
+  como una frase con «Cambiar» (atajos de nivel + interruptores por acción). La matriz de siempre queda como **«Todos
+  los roles (tabla)»**. Mismas claves, mismo `POST /usuarios/roles/:id/permisos`, mismo cierre de sesión del rol.
 - **Los niveles son solo UI** (`frontend/src/config/permisosPantallas.ts`): cada nivel = un conjunto
   exacto de claves; el backend sigue guardando la lista plana (`POST /usuarios/roles/:id/permisos`, que
   sube `roles.version` → quien tenga el rol vuelve a entrar). Una mezcla que no calza = **«A medida»**,
@@ -94,7 +148,7 @@
   del módulo y apagarla apaga el módulo (salvo filas libres: Ingresos de trabajadores, Documentos
   físicos, Sistema); quitar el «ver» de una pantalla la apaga entera. Claves que la matriz no conoce se
   conservan al guardar.
-- **Permiso nuevo ⇒ además de catálogo + `permisosHierarchy.ts` (panel de overrides), darle fila o
+- **Permiso nuevo ⇒ además de catálogo + `permisosHierarchy.ts` (fichas de Soporte), darle fila o
   marca en `permisosPantallas.ts`.** `permisosPantallas.test.ts` lee el catálogo del backend y falla si
   una clave no está en la matriz exactamente una vez.
 - Super Administrador (rol 1) se muestra bloqueado en «Todo». Sin `usuarios.permisos.gestionar` la
@@ -200,8 +254,9 @@
   Bolados). Quien pasa a un rol de oficina y ve Configuración conserva `cargos.sueldo.ver` como permiso propio (lo de
   la 137 que dependía del rol; un «deny» puesto a mano se respeta). Los permisos propios de
   las migs 127-137 no se tocan.
-  - **Re-login:** `roles.version + 1` del rol que cada persona **deja** (como hace `PUT /api/usuarios/:id` al cambiar
-    un rol) y de los cinco roles. En producción eso incluye el **rol 1**: Marcos y Mauricio también vuelven a entrar;
+  - **Re-login:** `roles.version + 1` del rol que cada persona **deja** (como hacía entonces `PUT /api/usuarios/:id`
+    al cambiar un rol; desde la mig 146 ese PUT cierra solo la sesión de esa persona, § JWT y sesión) y de los cinco
+    roles. En producción eso incluye el **rol 1**: Marcos y Mauricio también vuelven a entrar;
     sin eso, quien deja el rol 1 seguiría hasta 8 h con un token de Super Administrador (la versión es por rol, no por
     persona). Como siempre, corre al reiniciarse el backend (el auto-migrate lo hace).
   - Una tabla temporal (`_mig139_destino`, solo ids) es la única lista de quién va a dónde, para el re-login y el

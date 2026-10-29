@@ -17,6 +17,13 @@ const POST_SOLO_LECTURA = [
     /^\/api\/inventario\/stock-por-items$/,
 ];
 
+// 401 cuando la sesión dejó de valer por un cambio de permisos (del rol o de la persona). `expired_by_version` es lo
+// que mira el frontend para avisar «se actualizaron tus permisos» en el login.
+const SESION_EXPIRADA_POR_PERMISOS = Object.freeze({
+    error: 'Tu sesión ha expirado debido a una actualización de permisos. Por favor, ingresa de nuevo.',
+    expired_by_version: true,
+});
+
 const esTokenSoloLectura = (decoded) => decoded.ro === true || (decoded.imp !== undefined && decoded.imp !== null);
 
 const permitidoEnSoloLectura = (req) => {
@@ -51,10 +58,15 @@ const auth = (req, res, next) => {
         // por lo que el Map está poblado cuando llega el primer request.
         const currentVersion = versionService.get(decoded.rol_id);
         if (!decoded.rv || decoded.rv !== currentVersion) {
-            return res.status(401).json({
-                error: 'Tu sesión ha expirado debido a una actualización de permisos. Por favor, ingresa de nuevo.',
-                expired_by_version: true
-            });
+            return res.status(401).json(SESION_EXPIRADA_POR_PERMISOS);
+        }
+
+        // Cierre por PERSONA (mig 146): a esta persona se le cambiaron sus permisos propios, su rol o su bodega
+        // después de emitir el token (`iat` <= usuarios.permisos_cambiados_en). Mismo cuerpo que el de versión para
+        // que el frontend (services/api.ts) lo trate igual. En «ver como» cuentan la persona mirada (`id`) Y quien
+        // mira (`imp`): si al Super Administrador que mira le cambian el rol, su token prestado también muere.
+        if (versionService.sesionCerradaPara(decoded)) {
+            return res.status(401).json(SESION_EXPIRADA_POR_PERMISOS);
         }
 
         // «Ver como» (soporte): solo lectura, antes de cualquier ruta.
