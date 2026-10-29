@@ -1,17 +1,15 @@
 /**
  * Mapeo jerárquico de claves de permisos → sección, subsección y verbo.
  *
- * **Por qué frontend:** la jerarquía visual del modal de permisos es 100% un
- * concern de UI. Mantenerla acá evita migración de backend y permite iterar
- * el layout sin tocar la API. El catálogo backend (`permisos.config.js`) sigue
- * siendo la fuente de verdad de qué permisos existen — este archivo sólo
- * decide cómo se agrupan visualmente.
+ * **Por qué frontend:** la agrupación visual de permisos es 100% un concern de UI. El catálogo backend
+ * (`permisos.config.js`) sigue siendo la fuente de verdad de qué permisos existen — este archivo sólo
+ * decide cómo se agrupan y cuáles son sensibles (montos) en las fichas de «Soporte · usuarios»
+ * (`fichaUsuario.ts`, `FichaPersona`, `AccesosVerComo`). Los roles y los permisos de cada persona se
+ * editan con `permisosPantallas.ts` (matriz y vista en frases); el viejo árbol de «overrides» que usaba
+ * este archivo se borró el 2026-10-28.
  *
- * **Drift safety:** `runHierarchyDevCheck()` corre en dev mode al cargar el
- * panel y warns en consola si una clave del catálogo no tiene entrada acá.
- * Si agregas un permiso nuevo a `permisos.config.js`, también debes agregarlo
- * aquí — el panel lo mostrará en la sección "Otros" como fallback hasta que
- * se mapee correctamente.
+ * Si agregas un permiso nuevo a `permisos.config.js`, agrégalo también aquí (sin entrada cae en
+ * «Configuración → Otros», `FALLBACK_ENTRY`).
  */
 
 export type Verbo = 'ver' | 'crear' | 'editar' | 'eliminar' | 'aprobar' | 'enviar' | 'exportar' | 'otro';
@@ -252,30 +250,9 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'costos.gestionar':                        { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar', sensible: 'financiero' },
 };
 
-/** Sección por defecto cuando ninguna específica está activa. */
-export const DEFAULT_SECCION: Seccion = 'inventario';
-
 /** Etiqueta para claves no mapeadas (fallback safety). */
 export const FALLBACK_ENTRY: HierarchyEntry = {
     seccion: 'configuracion',
     subseccion: 'Otros',
     verbo: 'otro',
 };
-
-/**
- * Dev-only check: warna en consola si el catálogo backend tiene claves
- * no presentes en `PERMISO_HIERARCHY`. Llamar una sola vez al montar el
- * editor de permisos. Sin efecto en producción.
- */
-export function runHierarchyDevCheck(catalogoClaves: string[]): void {
-    if (import.meta.env.PROD) return;
-    const missing = catalogoClaves.filter(c => !(c in PERMISO_HIERARCHY));
-    if (missing.length > 0) {
-        // eslint-disable-next-line no-console
-        console.warn(
-            `[permisosHierarchy] ${missing.length} clave(s) del catálogo backend sin mapping en PERMISO_HIERARCHY:`,
-            missing,
-            '\nSe mostrarán en "Configuración → Otros" como fallback. Agrega entradas en frontend/src/config/permisosHierarchy.ts.'
-        );
-    }
-}

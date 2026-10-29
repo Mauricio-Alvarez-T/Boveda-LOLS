@@ -766,3 +766,43 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       «Quien aprueba» = permiso efectivo de `inventario.transferencias.aprobar` sin el rol 1 (hoy, Leonardo).
     - Teléfono (bajo 768 px): una columna, todo objetivo de 44 px; el WhatsApp sigue arriba a la derecha (el título
       parte línea si no cabe).
+16. **Permisos en frases (Marcos 2026-10-28: opción E del lienzo, «la más clara y se entiende el paso a paso»).**
+    La MISMA vista para un rol (Configuración › Roles, «Un rol a la vez») y para una persona (Usuarios › botón de
+    permisos → «Permisos de <persona>»): `components/settings/frases/PermisosEnFrases.tsx`, con la lógica pura en
+    `config/frasesPermisos.ts` (test). Reemplazó el árbol de «overrides» (Conceder / Defecto ✓✗ / Denegar), borrado.
+    - Una tarjeta por módulo con la **barra verde** (ícono del menú lateral, `ICONO_MENU`; «ve 4 de 8 · 2 cosas
+      distintas»). Desde 1280 px van en **dos columnas fijas** (corte calculado por cantidad de pantallas, en orden):
+      abrir «Cambiar» no hace saltar tarjetas de una columna a otra (con `columns-2` sí saltaban); abajo, una.
+    - Cada pantalla se lee como una **frase**: «Puede ver la asistencia y descargar Excel. No puede guardar la
+      asistencia ni marcar feriados (y 2 más).» — lo que puede con «y» («e» antes de sonido /i/: «e imprimir»), lo
+      que no con «ni»; montos (`$`) y delicados solo se nombran si los tiene. Nada = «No la ve.» (en una persona a la
+      que se la quitaron entera: «No la ve: le quitaron …» en ámbar). Las etiquetas que son sustantivo («Plantillas de
+      correo») se dicen con su acción dentro de la frase (`etiquetaFrase`: «cambiar las plantillas de correo»); el
+      test exige que toda acción de frase empiece con un verbo.
+    - «Cambiar» (uno abierto a la vez; «Listo» lo cierra) abre los **atajos de nivel** (Nada · Mira · Trabaja ·
+      Todo, o los nombres propios de la pantalla; botones con `aria-pressed`, 44 px en el teléfono; el de ahora en
+      verde, ninguno si es «a medida») y un **interruptor por acción** donde **toda la fila de 44 px** es el botón
+      (verde = la tiene; rojo si es delicada; apagado `muted-foreground/70`, 3:1 contra el fondo), con «$ Montos ·
+      solo a mano» y «Delicados» aparte, como el ajuste fino de la matriz. En la fila puerta (Asistencia diaria,
+      Trabajadores y reportes) se avisa en texto visible qué más apaga «Nada» (las pantallas que dependen de ella;
+      las libres, como Ingresos de trabajadores, no). Sin «Cambiar permisos»
+      dice «Ver detalle» (y la leyenda lo dice), con todo deshabilitado.
+    - En una persona, dentro de la misma frase: lo que tiene de más en **azul** («propio») y lo que le quitaron en
+      **ámbar** («quitado») — los colores de Soporte —, y en los interruptores los chips «Propio» / «Quitado». Lo
+      quitado va primero en «no puede» (la frase se corta). Arriba: «Paula tiene N cosas distintas a su rol» (cosas =
+      acciones, no pantallas, más la entrada a Inventario si difiere), «Solo lo distinto a su rol» (la pantalla que se
+      está cambiando no desaparece) y «Dejar todo como su rol» (no desaparecen al quedar en cero con cambios sin
+      guardar; el foco va al resumen); en cada pantalla, «Como su rol» (solo si cambiaría algo; el foco vuelve a
+      «Listo»). La entrada a Inventario distinta a su rol (o un módulo con pantallas pero sin entrada) va como aviso
+      arriba de su tarjeta, con «Devolver la entrada» / «Quitar la entrada»; si se cambió y no se guardó, el aviso
+      sigue (borde ámbar y «Deshacer») para que no desaparezca bajo el dedo. Si el interruptor «Solo lo distinto» no
+      se ve (nada distinto ni sin guardar), el filtro tampoco se aplica.
+    - Lo no guardado: borde ámbar a la izquierda de la fila y el pie fijo de siempre (rol: `PieCambios`, dice a
+      cuántas personas les llega; persona: «Solo para Paula: al guardar se le cierra la sesión…», y si son los
+      tuyos, que también a ti).
+    - Roles: arriba el selector de rol en píldoras (la elegida en verde, punto si tiene cambios sin guardar; Super
+      Administrador al final con candado y sin editar), la ficha «Rol RR.HH · 3 personas: Daphne, Matías y Paula
+      Martínez» (la cantidad es `usuarios_count`; los nombres, solo si calzan con ella), «Editar nombre» / «Borrar
+      rol» (sin personas) y el aviso de roles gemelos. «Todos juntos (tabla)»
+      es la matriz de siempre (§ matriz en `seguridad-rbac.md`) con el MISMO estado (`RolesPanel`): pasar de una a
+      otra no pierde lo no guardado; la vista elegida se recuerda en el navegador (`boveda-roles-vista`).

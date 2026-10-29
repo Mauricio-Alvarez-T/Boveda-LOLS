@@ -1,24 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { Copy, Lock, Pencil, Plus, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
-import api from '../../../services/api';
-import { useAuth } from '../../../context/AuthContext';
-import { useMatrizRoles, type RolMatriz } from '../../../hooks/useMatrizRoles';
+import { Copy, Lock, Pencil, Trash2 } from 'lucide-react';
+import type { RolMatriz, useMatrizRoles } from '../../../hooks/useMatrizRoles';
 import { GRUPOS, PANTALLAS, ROL_SUPER_ADMIN, clavesPantalla, nivelDe } from '../../../config/permisosPantallas';
-import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
-import { Modal } from '../../ui/Modal';
-import { RolForm } from '../RolForm';
-import { showDeleteToast } from '../../../utils/toastUtils';
 import { cn } from '../../../utils/cn';
 import { CeldaNivel } from './CeldaNivel';
 import { estiloCelda } from './estiloCelda';
-import { PieCambios } from './PieCambios';
 
 /**
  * Configuración › Roles como MATRIZ (propuesta C, 2026-10-26): filas = pantallas de Bóveda, columnas =
- * roles, celda = nivel. Reemplaza la tabla de roles + el modal de 107 casillas (`PermisosRolPanel`).
- * Los permisos propios de cada persona siguen en Usuarios (`PermisosUsuarioPanel`).
+ * roles, celda = nivel. Reemplazó la tabla de roles + el modal de 107 casillas (`PermisosRolPanel`).
+ * Desde el 2026-10-28 es la vista «Todos los roles (tabla)» de `RolesPanel`, que la abre al lado de la vista
+ * en frases (opción E) con el MISMO estado (`useMatrizRoles`): cambiar de vista no pierde lo no guardado, y el
+ * pie de guardar, el formulario de rol y el borrado viven en el panel. Los permisos de cada persona: Usuarios.
  */
 
 const unirConY = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}`);
@@ -31,16 +25,18 @@ const LEYENDA: { etiqueta: string; nivel: number; total: number; texto: string }
     { etiqueta: 'A medida', nivel: -1, total: 3, texto: 'Una mezcla propia' },
 ];
 
-const MatrizRoles: React.FC = () => {
-    const { hasPermission } = useAuth();
-    const soloLectura = !hasPermission('usuarios.permisos.gestionar');
-    const puedeCrear = hasPermission('usuarios.roles.crear');
-    const puedeEditar = hasPermission('usuarios.roles.editar');
-    const puedeBorrar = hasPermission('usuarios.roles.eliminar');
+interface Props {
+    editor: ReturnType<typeof useMatrizRoles>;
+    soloLectura: boolean;
+    puedeEditar: boolean;
+    puedeBorrar: boolean;
+    onEditar: (rol: RolMatriz) => void;
+    onBorrar: (rol: RolMatriz) => void;
+}
 
-    const { state, actions } = useMatrizRoles();
+const MatrizRoles: React.FC<Props> = ({ editor, soloLectura, puedeEditar, puedeBorrar, onEditar, onBorrar }) => {
+    const { state, actions } = editor;
     const [soloDiferencias, setSoloDiferencias] = useState(false);
-    const [form, setForm] = useState<{ abierto: boolean; rol: RolMatriz | null }>({ abierto: false, rol: null });
 
     const editables = state.roles.filter(r => r.id !== ROL_SUPER_ADMIN);
 
@@ -55,33 +51,6 @@ const MatrizRoles: React.FC = () => {
             return firmas.size > 1;
         }),
     })).filter(g => g.pantallas.length > 0), [soloDiferencias, editables, state]);
-
-    const abrirForm = (rol: RolMatriz | null) => {
-        if (state.dirty) {
-            toast.info('Guarda o deshaz los cambios de permisos antes de crear o editar un rol.');
-            return;
-        }
-        setForm({ abierto: true, rol });
-    };
-
-    const borrar = (rol: RolMatriz) => {
-        if (state.dirty) {
-            toast.info('Guarda o deshaz los cambios de permisos antes de borrar un rol.');
-            return;
-        }
-        showDeleteToast({
-            message: `¿Borrar el rol «${rol.nombre}»?`,
-            successMessage: 'Rol borrado',
-            onConfirm: async () => {
-                await api.delete(`/usuarios/roles/${rol.id}`);
-                actions.recargar();
-            },
-        });
-    };
-
-    if (state.loading) {
-        return <div className="py-16 text-center text-ui text-muted-foreground">Cargando roles…</div>;
-    }
 
     const gemelos = state.gemelos[0];
 
@@ -106,9 +75,6 @@ const MatrizRoles: React.FC = () => {
                             <span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all duration-200', soloDiferencias ? 'left-6' : 'left-1')} />
                         </span>
                     </button>
-                    {puedeCrear && (
-                        <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => abrirForm(null)}>Nuevo rol</Button>
-                    )}
                 </div>
             </div>
 
@@ -158,7 +124,7 @@ const MatrizRoles: React.FC = () => {
                                                             aria-label={`Editar el rol ${r.nombre}`}
                                                             icon={<Pencil className="h-3.5 w-3.5" />}
                                                             className="text-white/80 hover:bg-white/15 hover:text-white dark:hover:bg-white/15"
-                                                            onClick={() => abrirForm(r)}
+                                                            onClick={() => onEditar(r)}
                                                         />
                                                     )}
                                                     {puedeBorrar && personas === 0 && (
@@ -167,7 +133,7 @@ const MatrizRoles: React.FC = () => {
                                                             aria-label={`Borrar el rol ${r.nombre}`}
                                                             icon={<Trash2 className="h-3.5 w-3.5" />}
                                                             className="text-white/80 hover:bg-white/15 hover:text-white"
-                                                            onClick={() => borrar(r)}
+                                                            onClick={() => onBorrar(r)}
                                                         />
                                                     )}
                                                 </span>
@@ -212,31 +178,6 @@ const MatrizRoles: React.FC = () => {
                     ))}
                 </table>
             </div>
-
-            {!soloLectura && (
-                <PieCambios
-                    totalCambios={state.totalCambios}
-                    roles={state.cambiados.map(r => r.nombre)}
-                    personas={state.personasAfectadas}
-                    cambiaMiRol={state.cambiaMiRol}
-                    saving={state.saving}
-                    onDeshacer={actions.deshacer}
-                    onGuardar={actions.guardar}
-                />
-            )}
-
-            <Modal
-                isOpen={form.abierto}
-                onClose={() => setForm({ abierto: false, rol: null })}
-                title={form.rol ? `Editar rol «${form.rol.nombre}»` : 'Nuevo rol'}
-                size="md"
-            >
-                <RolForm
-                    initialData={form.rol}
-                    onSuccess={() => { setForm({ abierto: false, rol: null }); actions.recargar(); }}
-                    onCancel={() => setForm({ abierto: false, rol: null })}
-                />
-            </Modal>
         </div>
     );
 };

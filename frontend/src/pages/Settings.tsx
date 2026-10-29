@@ -53,14 +53,14 @@ import ChangePasswordForm from '../components/settings/ChangePasswordForm';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
 import { FeriadosPanel } from '../components/settings/FeriadosPanel';
-import { UserCog, Package, Warehouse, Wrench, Archive, Bell, Banknote, Lock, FileWarning } from 'lucide-react';
+import { UserCog, ShieldCheck, Package, Warehouse, Wrench, Archive, Bell, Banknote, Lock, FileWarning } from 'lucide-react';
 import { FinalizarObraModal } from '../components/obras/FinalizarObraModal';
 import { ParticipaToggle } from '../components/settings/ParticipaToggle';
 import { CategoriaInventarioForm } from '../components/settings/CategoriaInventarioForm';
 import { BodegaForm } from '../components/settings/BodegaForm';
 import { ItemInventarioForm } from '../components/settings/ItemInventarioForm';
-import MatrizRoles from '../components/settings/matriz/MatrizRoles';
-import PermisosUsuarioPanel from '../components/settings/PermisosUsuarioPanel';
+import RolesPanel from '../components/settings/matriz/RolesPanel';
+import PermisosPersonaPanel from '../components/settings/frases/PermisosPersonaPanel';
 import ReporteSuscriptoresPanel from '../components/settings/ReporteSuscriptoresPanel';
 import AvisosPanel from '../components/settings/AvisosPanel';
 import AlertasDocumentosPanel from '../components/settings/AlertasDocumentosPanel';
@@ -579,18 +579,20 @@ const SettingsPage: React.FC = () => {
                             canEdit={hasPermission('usuarios.editar')}
                             canDelete={hasPermission('usuarios.eliminar')}
                             canExport={false}
-                            renderActions={(row) => (
+                            // Permisos de cada persona: solo con «Cambiar permisos» (la API de overrides lo exige) y
+                            // «Ver roles» (para leer lo que trae su rol).
+                            renderActions={hasPermission('usuarios.permisos.gestionar') && hasPermission('usuarios.roles.ver') ? (row) => (
                                 <IconButton
                                     variant="ghost"
-                                    aria-label="Gestionar permisos especiales"
-                                    title="Gestionar Permisos Especiales"
+                                    aria-label={`Permisos de ${row.nombre}`}
+                                    title="Ver y cambiar sus permisos"
                                     onClick={() => setUserPermsModal({ open: true, user: row })}
                                     icon={<UserCog className="h-4 w-4" />}
                                 />
-                            )}
+                            ) : undefined}
                         />
                     )}
-                    {activeTab === 'roles' && <MatrizRoles />}
+                    {activeTab === 'roles' && <RolesPanel />}
                     {activeTab === 'estados_asistencia' && (
                         <CrudTable
                             endpoint="/estados-asistencia"
@@ -781,17 +783,20 @@ const SettingsPage: React.FC = () => {
             <Modal
                 isOpen={userPermsModal.open}
                 onClose={() => setUserPermsModal({ open: false, user: null })}
-                title="Overrides de Permisos de Usuario"
+                title={userPermsModal.user ? `Permisos de ${userPermsModal.user.nombre}` : 'Permisos'}
+                description={userPermsModal.user
+                    ? `Rol ${userPermsModal.user.rol_nombre || '—'} · lo que cambies acá es solo para esta persona; su rol no cambia`
+                    : undefined}
+                icon={ShieldCheck}
                 size="full"
                 noBodyPadding
             >
                 {userPermsModal.user && (
-                    <PermisosUsuarioPanel 
+                    <PermisosPersonaPanel
                         usuarioId={userPermsModal.user.id}
                         usuarioNombre={userPermsModal.user.nombre}
                         rolId={userPermsModal.user.rol_id}
                         rolNombre={userPermsModal.user.rol_nombre || ''}
-                        onClose={() => setUserPermsModal({ open: false, user: null })}
                     />
                 )}
             </Modal>
