@@ -13,6 +13,7 @@ import { fmtFechaHora } from '../../utils/fechas';
 import { recargarPendientesSitioWeb } from '../../hooks/useSitioWebPendientes';
 import { protegerSalida } from '../../utils/salidaProtegida';
 import { ConfirmarModal } from './piezas';
+import { Skeleton, SkeletonFormulario } from '../ui/Skeleton';
 import { borrarBorrador, guardarBorrador, leerBorrador, ofrecerBorrador, type BorradorObra } from './borradorObra';
 import { EditorObra } from './EditorObra';
 import { FotoPortada } from './FotoPortada';
@@ -213,7 +214,20 @@ export const ObraSitio: React.FC<Props> = ({ id, pestana, config, permisos, onPe
                 action={<Button variant="glass" onClick={onVolver}>Volver a las obras</Button>} />
         );
     }
-    if (!nueva && !detalle) return <div className="h-96 rounded-card border border-border bg-card" />;
+    if (!nueva && !detalle) {
+        // Lo que no depende de datos («Obras») va de verdad; el título y el formulario, en silueta (diseno.md §9.17).
+        return (
+            <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <Button variant="ghost" size="sm" onClick={onVolver} leftIcon={<ChevronLeft className="h-4 w-4" />} className="h-11 md:h-9 -ml-2 shrink-0">Obras</Button>
+                    <Skeleton className="h-6 w-48 max-w-full sm:w-64" />
+                </div>
+                <div className="rounded-card border border-border bg-card p-4 md:p-5">
+                    <SkeletonFormulario campos={6} columnas={2} que="la obra" />
+                </div>
+            </div>
+        );
+    }
 
     const obra = detalle?.obra ?? null;
     const vigente = detalle?.fotos.find(f => f.vigente) ?? null;

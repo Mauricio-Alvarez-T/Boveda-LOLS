@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, CheckCircle2, Circle, Clock, CloudUpload, ExternalLink, Info, MinusCircle, XCircle } from 'lucide-react';
 import { Aviso } from '../costos/piezas';
 import { Button } from '../ui/Button';
+import { SiluetaPasos } from './piezas';
 import { cn } from '../../utils/cn';
 import { useEstadoPublicacion } from './useEstadoPublicacion';
 import { TEXTO_PASO, TITULO_PASO } from './sitioWebConfig';
@@ -29,7 +30,7 @@ export const EstadoPublicacion: React.FC<{ id: number; urlSitio?: string }> = ({
     if (!datos) {
         return error
             ? <Aviso icon={AlertTriangle} tono="peligro">{error} <Button variant="link" size="sm" className="text-xs font-semibold text-green-700 dark:text-green-300" onClick={recargar}>Reintentar</Button></Aviso>
-            : <div className="h-36 rounded-xl border border-border bg-muted/40" aria-busy="true" />;
+            : <SiluetaPasos />;
     }
     if (!datos.pasos.length) return null;
 

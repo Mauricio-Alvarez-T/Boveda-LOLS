@@ -5,7 +5,7 @@
 ## 1. Contexto y decisiones
 
 **Decisiones del dueño (28-oct):**
-1. Quién edita y quién publica se asigna con permisos de la Bóveda, en la matriz roles × pantallas y en el ajuste fino por usuario. Ninguna persona queda escrita en el código.
+1. Quién edita y quién publica se asigna con permisos de la Bóveda, en Configuración › Roles (por pantalla y nivel, un rol a la vez) y en el ajuste fino por usuario. Ninguna persona queda escrita en el código.
 2. Se parte solo por **obras**.
 3. En las fotos publicadas **no puede aparecer nadie reconocible**: ni caras, ni nombres en cascos o chalecos, ni patentes.
 
@@ -269,7 +269,7 @@ MariaDB admite varios NULL bajo `uk_sitio_obras_obra`. El `ER_DUP_ENTRY` ya se t
 
 ### 4.2 Permisos
 
-| Clave | Para qué | Matriz |
+| Clave | Para qué | Nivel en Roles |
 |---|---|---|
 | `sitio_web.ver` | Lista, vista previa y estado | Nivel «Mira» |
 | `sitio_web.editar` | Borradores, fotos, confirmación «sin personas» | Nivel «Edita» |
@@ -488,7 +488,7 @@ En la Fase 1 se agrega:
 3. **`.env` de producción** (`/home/lolscl/boveda/.env`): `GITHUB_TOKEN_SITIO`, `GITHUB_REPO_SITIO`, `GITHUB_BRANCH_SITIO=main`, `SITIO_WEB_MODO=publicar`, `SITIO_WEB_PERMITIR_REPO_PUBLICO=1`, `GITHUB_TOKEN_SITIO_VENCE`, `GITHUB_AUTOR_EMAIL_SITIO` (un correo dedicado, que será público) y `SITIO_WEB_URL`. Después, `touch tmp/restart.txt`.
 4. **Staging:** no hacer nada. Si se quiere la prueba real, crear el repo privado de prueba y un PAT aparte.
 5. **Migración:** corre sola. Revisar `migrate-status.txt` en staging y después en producción. Si dice FALLO, avisar.
-6. **Volver a iniciar sesión** y **asignar permisos**: en la matriz, nivel Mira o Edita; en el ajuste fino, `sitio_web.publicar`.
+6. **Volver a iniciar sesión** y **asignar permisos**: en Configuración › Roles, nivel Mira o Edita; en el ajuste fino, `sitio_web.publicar`.
 7. Confirmar que main de lols.cl no tiene una protección de rama que bloquee el push con el PAT.
 8. Renovar el token cada 90 días. La Bóveda avisa 30 días antes.
 9. Responder D1 y D2 (D3 y D4 resueltos el 28-oct).

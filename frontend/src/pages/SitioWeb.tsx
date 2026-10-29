@@ -16,6 +16,7 @@ import { ObraSitio, type PestanaObra } from '../components/sitio-web/ObraSitio';
 import { PublicarModal } from '../components/sitio-web/PublicarModal';
 import { ImportarObrasModal } from '../components/sitio-web/ImportarObrasModal';
 import { PublicacionesSitio } from '../components/sitio-web/PublicacionesSitio';
+import { SiluetaObras } from '../components/sitio-web/piezas';
 import { TEXTO_CODIGO, codigoError, mensajeError } from '../components/sitio-web/sitioWebConfig';
 import { TEXTO_MOTIVO, avisoToken, ultimaConProblema, type FiltroObras } from '../components/sitio-web/reglas';
 import type { ConfigSitio, ObraSitioLista, PublicacionSitio } from '../components/sitio-web/tipos';
@@ -74,7 +75,7 @@ const SitioWeb: React.FC<{ permisos: Permisos }> = ({ permisos }) => {
             : <EmptyState icon={Globe} title="No se pudo abrir Sitio web" description={falla.mensaje}
                 action={<Button variant="glass" onClick={() => { setFalla(null); cargarConfig(); }} leftIcon={<RefreshCw className="h-4 w-4" />}>Reintentar</Button>} />;
     }
-    if (!config) return <div className="h-96 rounded-card border border-border bg-card" />;
+    if (!config) return <SiluetaObras conBarra />;
 
     // Lo que se ve de la lista (filtro y pestaña) viaja con la obra abierta: «Obras» vuelve a lo mismo.
     const lista: Record<string, string> = {};
@@ -234,9 +235,7 @@ const Portada: React.FC<{
                 <EmptyState icon={Globe} title="No se pudieron cargar las obras" description={fallaObras}
                     action={<Button variant="glass" onClick={() => { setFallaObras(null); cargarObras(); }} leftIcon={<RefreshCw className="h-4 w-4" />}>Reintentar</Button>} />
             ) : obras === null ? (
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {[0, 1, 2].map(i => <div key={i} className="h-28 rounded-card border border-border bg-card" />)}
-                </div>
+                <SiluetaObras />
             ) : !obras.length ? (
                 <EmptyState icon={Globe} title="Todavía no hay obras del sitio aquí"
                     description={puedeImportar && !hayBase

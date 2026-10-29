@@ -8,7 +8,7 @@ import { MarcaEstado } from '../ui/MarcaEstado';
 import { Aviso } from '../costos/piezas';
 import { descargarArchivo } from '../../utils/descargarArchivo';
 import { fmtFecha } from '../../utils/format';
-import { Casilla, ListaObras } from './piezas';
+import { Casilla, ListaObras, SiluetaPrevia } from './piezas';
 import { EstadoPublicacion } from './EstadoPublicacion';
 import { TEXTO_CODIGO, TIMEOUT_PUBLICAR_MS, mensajeError } from './sitioWebConfig';
 import { TEXTO_MOTIVO } from './reglas';
@@ -118,7 +118,7 @@ export const PublicarModal: React.FC<Props> = ({ modo, urlSitio, onClose, onPubl
                         <Button variant="glass" onClick={cargarPrevia} leftIcon={<RefreshCw className="h-4 w-4" />}>Reintentar</Button>
                     </div>
                 )
-                    : !previa ? <div className="h-64 rounded-xl bg-muted/50" aria-busy="true" />
+                    : !previa ? <SiluetaPrevia />
                         : (
                             <div className="flex flex-col gap-4">
                                 {simulacion && (

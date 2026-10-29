@@ -11,7 +11,7 @@ import { Aviso } from '../costos/piezas';
 import { descargarArchivo } from '../../utils/descargarArchivo';
 import { fmtFechaHora } from '../../utils/fechas';
 import { cn } from '../../utils/cn';
-import { Casilla, ListaObras } from './piezas';
+import { Casilla, ListaObras, SiluetaPasos, SiluetaPublicaciones } from './piezas';
 import { EstadoPublicacion } from './EstadoPublicacion';
 import { useEstadoPublicacion } from './useEstadoPublicacion';
 import { TEXTO_CODIGO, TIMEOUT_PUBLICAR_MS, mensajeError } from './sitioWebConfig';
@@ -63,7 +63,7 @@ export const PublicacionesSitio: React.FC<Props> = ({ config, publicaciones, pue
     return (
         <div className="flex flex-col gap-5">
             {publicaciones === null ? (
-                <div className="flex flex-col gap-2">{[0, 1, 2].map(i => <div key={i} className="h-20 rounded-card border border-border bg-card" />)}</div>
+                <SiluetaPublicaciones />
             ) : !publicaciones.length ? (
                 <EmptyState icon={History} title="Todavía no hay publicaciones"
                     description="Cada vez que alguien publica (o simula) queda aquí, con lo que cambió y si ya se ve en el sitio." />
@@ -152,7 +152,7 @@ const DetallePublicacionModal: React.FC<{ id: number; urlSitio: string; puedePub
                     <Button onClick={onClose}>Cerrar</Button>
                 </div>
             }>
-            {!datos ? (error ? <FormError message={error} /> : <div className="h-48 rounded-xl bg-muted/50" aria-busy="true" />) : (
+            {!datos ? (error ? <FormError message={error} /> : <SiluetaPasos que="el detalle de la publicación" />) : (
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-wrap items-center gap-1.5">
                         <BadgesPublicacion modo={datos.modo} estado={datos.estado} />

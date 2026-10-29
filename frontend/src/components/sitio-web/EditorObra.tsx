@@ -11,6 +11,7 @@ import { Aviso, Opciones } from '../costos/piezas';
 import { fmtFecha } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import { Casilla } from './piezas';
+import { Skeleton, Cargando } from '../ui/Skeleton';
 import { CAMPO, codigoError, mensajeError } from './sitioWebConfig';
 import {
     ANIO_MAX, ANIO_MIN, ETIQUETA_ESTADO, LARGOS, SERVICIOS, TIPOS,
@@ -251,7 +252,7 @@ export const EditorObra: React.FC<Props> = ({ obra, form, setForm, base, vigente
                                 <Button size="sm" className="h-11 md:h-9" variant="ghost" onClick={() => elegirObra(null)} leftIcon={<Unlink className="h-4 w-4" />} disabled={deshabilitado}>Quitar vínculo</Button>
                             </div>
                         ) : disponibles === null ? (
-                            <div className="h-11 rounded-xl bg-muted" />
+                            <Cargando que="las obras de la Bóveda"><Skeleton className="h-11 rounded-xl" /></Cargando>
                         ) : (
                             <SearchableSelect options={opcionesObras} value={null} onChange={elegirObra} disabled={deshabilitado}
                                 placeholder={opcionesObras.length ? 'Buscar obra para traer sus datos…' : 'No quedan obras sin vincular'} />
