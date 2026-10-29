@@ -127,20 +127,22 @@
   `asistencia.ver` y `ASISTENCIA.VER` son la misma fila; antes reventaba con errno 1062 → 500), y se guarda escrita
   como en el catálogo.
 
-## Matriz de roles (Configuración › Roles, 2026-10-26)
+## Roles por pantallas y niveles (Configuración › Roles, 2026-10-26)
 
-- Los permisos de los roles se editan en una **matriz**: filas = pantallas de Bóveda agrupadas por
-  módulo, columnas = roles activos (con «N personas» = `usuarios_count`, subquery de `GET /usuarios/roles`),
-  celda = nivel **Nada · Mira · Trabaja · Todo**. Reemplazó la tabla de roles + el modal de casillas
-  (`PermisosRolPanel`, borrado). Los overrides por persona siguen en Usuarios.
-- **Desde 2026-10-28 Configuración › Roles abre por defecto «Por rol (en frases)»**: un rol a la vez, cada pantalla
-  como una frase con «Cambiar» (atajos de nivel + interruptores por acción). La matriz de siempre queda como **«Todos
-  los roles (tabla)»**. Mismas claves, mismo `POST /usuarios/roles/:id/permisos`, mismo cierre de sesión del rol.
+- Los permisos de los roles se editan **por pantalla de Bóveda** (agrupadas por módulo), con nivel **Nada · Mira ·
+  Trabaja · Todo**. Del 2026-10-26 al 2026-10-28 fue una **matriz** (filas = pantallas, columnas = roles); reemplazó
+  la tabla de roles + el modal de casillas (`PermisosRolPanel`, borrado).
+- **Desde 2026-10-28 es «un rol a la vez, en frases»** (opción E): se elige el rol arriba («N personas» =
+  `usuarios_count`, subquery de `GET /usuarios/roles`) y cada pantalla se lee como una frase con «Cambiar» (atajos de
+  nivel + interruptores por acción). **La matriz se quitó el 2026-10-29** (Marcos: queda solo la vista nueva;
+  `MatrizRoles`, `CeldaNivel` y `estiloCelda` borrados). Mismas claves, mismo `POST /usuarios/roles/:id/permisos`,
+  mismo cierre de sesión del rol. Los overrides por persona siguen en Usuarios, con la misma vista.
 - **Los niveles son solo UI** (`frontend/src/config/permisosPantallas.ts`): cada nivel = un conjunto
   exacto de claves; el backend sigue guardando la lista plana (`POST /usuarios/roles/:id/permisos`, que
   sube `roles.version` → quien tenga el rol vuelve a entrar). Una mezcla que no calza = **«A medida»**,
-  editable en el ajuste fino de la celda.
-- **`$` y delicados nunca los da un nivel**: se marcan a mano en el ajuste fino. Delicados = borrar para
+  editable con los interruptores de cada acción.
+- **`$` y delicados nunca los da un nivel**: se marcan a mano con su interruptor («$ Montos · solo a mano»,
+  «Delicados»). Delicados = borrar para
   siempre, saltarse aprobaciones (push directo, intra-bodega, orden de gerencia, bypass SoD, cancelar en
   tránsito), tocar usuarios/roles/permisos, correo del sistema, estados de asistencia, imprimir contratos.
 - Reglas automáticas: `inventario.ver` se pone/saca solo según las pantallas de Inventario; en
@@ -150,9 +152,9 @@
   conservan al guardar.
 - **Permiso nuevo ⇒ además de catálogo + `permisosHierarchy.ts` (fichas de Soporte), darle fila o
   marca en `permisosPantallas.ts`.** `permisosPantallas.test.ts` lee el catálogo del backend y falla si
-  una clave no está en la matriz exactamente una vez.
-- Super Administrador (rol 1) se muestra bloqueado en «Todo». Sin `usuarios.permisos.gestionar` la
-  matriz es de solo lectura.
+  una clave no está en `permisosPantallas.ts` exactamente una vez.
+- Super Administrador (rol 1) aparece al final con candado: tiene todo y no se edita. Sin
+  `usuarios.permisos.gestionar` Roles es de solo lectura («Ver detalle»).
 
 ## Roles: Super Administrador vs Administrador (2026-10-21)
 

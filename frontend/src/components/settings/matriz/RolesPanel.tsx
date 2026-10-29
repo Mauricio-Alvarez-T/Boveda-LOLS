@@ -9,24 +9,15 @@ import { Button } from '../../ui/Button';
 import { Modal } from '../../ui/Modal';
 import { RolForm } from '../RolForm';
 import { showDeleteToast } from '../../../utils/toastUtils';
-import { cn } from '../../../utils/cn';
 import { RolesEnFrases } from '../frases/RolesEnFrases';
-import MatrizRoles from './MatrizRoles';
 import { PieCambios } from './PieCambios';
 
 /**
- * Configuración › Roles (2026-10-28): dos vistas de los MISMOS datos —
- *   · «Un rol a la vez» (por defecto): el rol en frases, la misma vista que los permisos de una persona (opción E);
- *   · «Todos juntos (tabla)»: la matriz de todos los roles (propuesta C, 2026-10-26).
- * El estado (`useMatrizRoles`) vive acá: pasar de una vista a la otra no pierde lo no guardado, y el pie de guardar,
- * el formulario de rol y el borrado son uno solo. La vista elegida se recuerda en este navegador.
+ * Configuración › Roles: un rol a la vez, en frases (opción E, Marcos 2026-10-28) — la misma vista que los permisos de
+ * una persona. La tabla de todos los roles juntos (matriz, propuesta C del 2026-10-26) se quitó el 2026-10-29: «la
+ * vista que tiene que permanecer es la nueva». El estado de todos los roles (`useMatrizRoles`) vive acá: lo que se
+ * cambia en un rol queda marcado aunque se elija otro, y el pie de guardar, el formulario de rol y el borrado son uno solo.
  */
-type Vista = 'frases' | 'tabla';
-const CLAVE_VISTA = 'boveda-roles-vista';
-
-const leerVista = (): Vista => {
-    try { return localStorage.getItem(CLAVE_VISTA) === 'tabla' ? 'tabla' : 'frases'; } catch { return 'frases'; }
-};
 
 /** Nombres de las personas activas de cada rol, para decir a quién le llega un cambio. Si no se puede leer, null. */
 function usePersonasPorRol(version: number): Map<number, string[]> | null {
@@ -61,16 +52,10 @@ const RolesPanel: React.FC = () => {
 
     const editor = useMatrizRoles();
     const { state, actions } = editor;
-    const [vista, setVista] = useState<Vista>(leerVista);
     const [rolId, setRolId] = useState<number | null>(null);
     const [form, setForm] = useState<{ abierto: boolean; rol: RolMatriz | null }>({ abierto: false, rol: null });
     const [recargas, setRecargas] = useState(0);
     const personas = usePersonasPorRol(recargas);
-
-    const cambiarVista = (v: Vista) => {
-        setVista(v);
-        try { localStorage.setItem(CLAVE_VISTA, v); } catch { /* sin almacenamiento: no se recuerda */ }
-    };
 
     const recargar = () => { actions.recargar(); setRecargas(n => n + 1); };
 
@@ -107,45 +92,18 @@ const RolesPanel: React.FC = () => {
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex w-fit rounded-full border border-border bg-background p-0.5" role="group" aria-label="Cómo ver los roles">
-                    {([['frases', 'Un rol a la vez'], ['tabla', 'Todos juntos (tabla)']] as const).map(([k, t]) => {
-                        const activo = vista === k;
-                        return (
-                            <Button
-                                key={k}
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                aria-pressed={activo}
-                                onClick={() => cambiarVista(k)}
-                                className={cn('min-h-11 px-4 text-sm sm:min-h-9', activo ? 'bg-card text-brand-dark shadow-sm hover:bg-card' : 'text-muted-foreground')}
-                            >
-                                {t}
-                            </Button>
-                        );
-                    })}
-                </div>
-                {puedeCrear && (
+            {puedeCrear && (
+                <div className="flex justify-end">
                     <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => abrirForm(null)}>Nuevo rol</Button>
-                )}
-            </div>
+                </div>
+            )}
 
-            {vista === 'frases' && elegido ? (
+            {elegido && (
                 <RolesEnFrases
                     editor={editor}
                     rolId={elegido.id}
                     onElegir={setRolId}
                     personas={personas}
-                    soloLectura={soloLectura}
-                    puedeEditar={puedeEditar}
-                    puedeBorrar={puedeBorrar}
-                    onEditar={abrirForm}
-                    onBorrar={borrar}
-                />
-            ) : (
-                <MatrizRoles
-                    editor={editor}
                     soloLectura={soloLectura}
                     puedeEditar={puedeEditar}
                     puedeBorrar={puedeBorrar}

@@ -803,6 +803,6 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     - Roles: arriba el selector de rol en píldoras (la elegida en verde, punto si tiene cambios sin guardar; Super
       Administrador al final con candado y sin editar), la ficha «Rol RR.HH · 3 personas: Daphne, Matías y Paula
       Martínez» (la cantidad es `usuarios_count`; los nombres, solo si calzan con ella), «Editar nombre» / «Borrar
-      rol» (sin personas) y el aviso de roles gemelos. «Todos juntos (tabla)»
-      es la matriz de siempre (§ matriz en `seguridad-rbac.md`) con el MISMO estado (`RolesPanel`): pasar de una a
-      otra no pierde lo no guardado; la vista elegida se recuerda en el navegador (`boveda-roles-vista`).
+      rol» (sin personas) y el aviso de roles gemelos. Es la **única** vista de Roles: la tabla de todos los roles
+      juntos (la matriz) se quitó el 2026-10-29 (Marcos: «la vista que tiene que permanecer es la nueva»). El estado
+      de todos los roles vive en `RolesPanel`: lo cambiado en un rol queda marcado aunque se elija otro.

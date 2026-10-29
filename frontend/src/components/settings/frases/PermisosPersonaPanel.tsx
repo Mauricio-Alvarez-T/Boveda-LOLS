@@ -59,7 +59,7 @@ const PermisosPersonaPanel: React.FC<Props> = ({ usuarioId, usuarioNombre, rolId
                         </p>
                         {conControles && (
                             <div className="flex flex-wrap items-center gap-2">
-                                {/* eslint-disable-next-line no-restricted-syntax -- interruptor con texto (copia el de MatrizRoles) */}
+                                {/* eslint-disable-next-line no-restricted-syntax -- interruptor con texto (no hay primitivo Switch) */}
                                 <button
                                     type="button"
                                     role="switch"

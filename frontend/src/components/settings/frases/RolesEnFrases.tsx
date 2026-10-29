@@ -8,10 +8,9 @@ import { cn } from '../../../utils/cn';
 import { LeyendaFrases, PermisosEnFrases } from './PermisosEnFrases';
 
 /**
- * Configuración › Roles «por rol, en frases» (opción E, Marcos 2026-10-28): un rol a la vez, elegido arriba, con la
- * misma vista que los permisos de una persona (`PermisosEnFrases`). Comparte el estado con la tabla de todos los roles
- * (`useMatrizRoles` vive en `RolesPanel`): lo que se cambia en un rol queda marcado aunque se pase a otro, y el pie
- * de guardar es uno solo.
+ * Configuración › Roles «un rol a la vez, en frases» (opción E, Marcos 2026-10-28): el rol elegido arriba, con la
+ * misma vista que los permisos de una persona (`PermisosEnFrases`). El estado de todos los roles (`useMatrizRoles`)
+ * vive en `RolesPanel`: lo que se cambia en un rol queda marcado aunque se pase a otro, y el pie de guardar es uno solo.
  */
 interface Props {
     editor: ReturnType<typeof useMatrizRoles>;

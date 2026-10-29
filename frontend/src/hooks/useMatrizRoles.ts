@@ -1,6 +1,6 @@
 /**
- * Estado de la matriz de roles (Configuración › Roles): todos los roles activos con sus permisos, lo que
- * se cambió sin guardar y el guardado rol por rol.
+ * Estado de Configuración › Roles (vista en frases, `RolesPanel`; hasta el 2026-10-29 también la matriz): todos los
+ * roles activos con sus permisos, lo que se cambió sin guardar y el guardado rol por rol.
  *
  * Reusa la API de siempre — `GET /usuarios/roles`, `GET|POST /usuarios/roles/:id/permisos` — y el POST
  * ya sube `roles.version`, así que quien tenga un rol guardado vuelve a entrar solo. La lógica de niveles
