@@ -4,6 +4,7 @@ import { ImageOff, Image as ImageIcon, Building2 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { cn } from '../../utils/cn';
+import { Skeleton, SkeletonCirculo, Cargando } from '../ui/Skeleton';
 import { useFotoUrl, type AnchoFoto } from './useFotoUrl';
 import type { EstadoObra } from './tipos';
 
@@ -30,7 +31,7 @@ export const Miniatura: React.FC<{
     const base = cn('relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted', className);
     if (fotoId) {
         return (
-            <span ref={ref} className={base}>
+            <span ref={ref} className={cn(base, !url && !error && 'silueta')}>
                 {url ? <img src={url} alt={alt} className="h-full w-full object-cover" draggable={false} />
                     : error ? <ImageOff className="h-5 w-5 text-muted-foreground" aria-label="No se pudo cargar la foto" /> : null}
             </span>
@@ -127,3 +128,73 @@ export const ListaObras: React.FC<{
         </div>
     );
 };
+
+/*
+ * Siluetas de carga del módulo (diseno.md §9.17): la forma de lo que va a llegar, con el brillo de `ui/Skeleton`.
+ * Cada una imita su componente real y trae su `role="status"` (vía `Cargando`).
+ */
+
+/** Las tarjetas de `ListaObrasSitio`: portada, nombre, comuna y estado. `conBarra` agrega pestañas y botón (página entera). */
+export const SiluetaObras: React.FC<{ conBarra?: boolean }> = ({ conBarra }) => (
+    <Cargando que="las obras del sitio" className="flex flex-col gap-4">
+        {conBarra && (
+            <div className="flex flex-wrap items-center justify-between gap-2" aria-hidden="true">
+                <Skeleton className="h-10 w-56 max-w-full rounded-full" />
+                <Skeleton className="h-10 w-32 rounded-full" />
+            </div>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
+            {[0, 1, 2].map(i => (
+                <div key={i} className="flex items-start gap-3 rounded-card border border-border bg-card p-3">
+                    <Skeleton className="h-16 w-20 shrink-0 rounded-xl" />
+                    <div className="flex min-w-0 flex-1 flex-col gap-2 pt-0.5">
+                        <Skeleton className={cn('h-4', i === 1 ? 'w-2/5' : 'w-3/5')} />
+                        <Skeleton className="h-3 w-1/3" />
+                        <Skeleton className="h-6 w-24 rounded-full" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    </Cargando>
+);
+
+/** Las filas de `PublicacionesSitio`: insignias, fecha y resumen. */
+export const SiluetaPublicaciones: React.FC = () => (
+    <Cargando que="las publicaciones" className="flex flex-col gap-2">
+        {[0, 1, 2].map(i => (
+            <div key={i} className="flex flex-col gap-2 rounded-card border border-border bg-card p-4" aria-hidden="true">
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <Skeleton className="h-6 w-24 rounded-full" />
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                    <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className={cn('h-3.5', i === 1 ? 'w-1/2' : 'w-3/4')} />
+            </div>
+        ))}
+    </Cargando>
+);
+
+/** Los pasos de `EstadoPublicacion`: marca redonda, título y una línea. */
+export const SiluetaPasos: React.FC<{ que?: string }> = ({ que = 'el estado de la publicación' }) => (
+    <Cargando que={que} className="flex flex-col gap-4">
+        {[0, 1, 2, 3].map(i => (
+            <div key={i} className="flex gap-3" aria-hidden="true">
+                <SkeletonCirculo className="mt-0.5 h-5 w-5" />
+                <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className={cn('h-3.5', i % 2 ? 'w-1/3' : 'w-2/5')} />
+                    <Skeleton className="h-3 w-3/5" />
+                </div>
+            </div>
+        ))}
+    </Cargando>
+);
+
+/** Lo que va a cambiar en `PublicarModal`: el recuadro del total y la lista de obras. */
+export const SiluetaPrevia: React.FC = () => (
+    <Cargando que="lo que va a cambiar" className="flex flex-col gap-4">
+        <Skeleton className="h-16 w-full rounded-xl" />
+        <div className="flex flex-col gap-2" aria-hidden="true">
+            {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-9 rounded-xl" />)}
+        </div>
+    </Cargando>
+);

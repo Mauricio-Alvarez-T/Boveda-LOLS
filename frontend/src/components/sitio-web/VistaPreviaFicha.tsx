@@ -2,6 +2,7 @@ import React from 'react';
 import { Building2, Eye, ExternalLink, ImageOff, Image as ImageIcon, Info } from 'lucide-react';
 import { Aviso } from '../costos/piezas';
 import { useFotoUrl } from './useFotoUrl';
+import { cn } from '../../utils/cn';
 import { fichaDesdeForm, urlObraEnSitio, type FormObra } from './reglas';
 import type { JsonObraSitio } from './tipos';
 
@@ -47,7 +48,7 @@ export const VistaPreviaFicha: React.FC<Props> = ({ form, portada, referencia, u
             </Aviso>
 
             <article className="overflow-hidden rounded-card border border-border bg-card">
-                <div className="flex aspect-[16/9] w-full items-center justify-center bg-muted">
+                <div className={cn('flex aspect-[16/9] w-full items-center justify-center bg-muted', portada && !url && !errorFoto && 'silueta')}>
                     {portada ? (
                         url ? <img src={url} alt={portada.alt || ''} className="h-full w-full object-cover" />
                             : errorFoto ? (
