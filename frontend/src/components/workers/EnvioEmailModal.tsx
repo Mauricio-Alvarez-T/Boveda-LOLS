@@ -1,12 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Send, ChevronRight, ChevronLeft, Pencil, Star, Loader2 } from 'lucide-react';
+import { X, Mail, Send, ChevronRight, ChevronLeft, Pencil, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
+import { Cargando, Skeleton } from '../ui/Skeleton';
+import { CampoSilueta } from './CampoSilueta';
 import api from '../../services/api';
 import { cn } from '../../utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
+
+/** Silueta del formulario mientras llegan las plantillas y la configuración de correo (rótulos de verdad). */
+const FormSilueta: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) => (
+    <div className="space-y-4" aria-hidden="true">
+        {isMobile && (
+            <div className="flex gap-2 overflow-hidden pb-2">
+                {[0, 1, 2].map(i => <Skeleton key={i} className="h-7 w-24 shrink-0 rounded-full" />)}
+            </div>
+        )}
+        <CampoSilueta label="Para" />
+        <CampoSilueta label="Asunto" />
+        <div className="space-y-1.5">
+            <span className="block text-sm font-medium text-muted-foreground">Mensaje</span>
+            <Skeleton className="h-[120px] w-full rounded-xl md:h-[200px]" />
+        </div>
+    </div>
+);
 
 interface PlantillaCorreo {
     id: number;
@@ -255,9 +274,9 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                     </div>
 
                     {loading ? (
-                        <div className="flex-1 flex items-center justify-center">
-                            <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
-                        </div>
+                        <Cargando que="las plantillas" className="flex-1 overflow-y-auto px-4 py-4">
+                            <FormSilueta isMobile />
+                        </Cargando>
                     ) : (
                         <div className="flex-1 overflow-y-auto px-4 py-4">
                             <FormContent isMobile={true} />
@@ -308,9 +327,23 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                     </div>
 
                     {loading ? (
-                        <div className="flex items-center justify-center py-20">
-                            <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
-                        </div>
+                        // Silueta: columna de plantillas (con su título) + el formulario.
+                        <Cargando que="las plantillas" className="flex max-h-[70vh] overflow-hidden">
+                            <div className="w-52 flex-shrink-0 border-r border-border bg-background" aria-hidden="true">
+                                <p className="text-caption font-bold uppercase tracking-wider text-muted-foreground px-4 pt-4 pb-2">
+                                    Plantillas
+                                </p>
+                                {[0, 1, 2].map(i => (
+                                    <div key={i} className="space-y-1.5 px-4 py-3">
+                                        <Skeleton className={cn('h-3', i % 2 ? 'w-24' : 'w-32')} />
+                                        <Skeleton className="h-2.5 w-36" />
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-5">
+                                <FormSilueta />
+                            </div>
+                        </Cargando>
                     ) : (
                         <div className="flex max-h-[70vh] overflow-hidden">
                             {/* Left: Template List */}

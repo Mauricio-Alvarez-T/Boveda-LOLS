@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Plus, Minus, Trash2, Search, Package, AlertCircle, ShoppingBag } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
-import { Skeleton } from '../../ui/Skeleton';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { QtyStepper } from '../../ui/QtyStepper';
 import type { ItemInventario, CategoriaInventario } from '../../../types/entities';
 import type { ItemInput, CustomItemInput } from '../../../utils/inferMovimiento';
@@ -97,7 +97,9 @@ export const CatalogoCarrito: React.FC<{
             )}
             <div className="flex-1 min-h-0 overflow-y-auto border border-border rounded-xl max-h-[55vh]">
                 {loading ? (
-                    <ul className="divide-y divide-border">{Array.from({ length: 6 }).map((_, i) => (<li key={i} className="flex items-center gap-2 px-3 py-2"><div className="flex-1 space-y-1.5"><Skeleton className="h-3 w-3/4" /><Skeleton className="h-2.5 w-24" /></div><Skeleton className="h-8 w-20" /></li>))}</ul>
+                    <Cargando que="el catálogo">
+                        <ul className="divide-y divide-border" aria-hidden="true">{Array.from({ length: 6 }).map((_, i) => (<li key={i} className="flex items-center gap-2 px-3 py-2"><div className="flex-1 min-w-0 space-y-1.5"><Skeleton className={i % 2 ? 'h-3 w-1/2' : 'h-3 w-3/4'} /><Skeleton className="h-2.5 w-24" /></div><Skeleton className="h-9 w-24 shrink-0 rounded-full" /></li>))}</ul>
+                    </Cargando>
                 ) : filtered.length === 0 ? (
                     <div className="h-32 flex flex-col items-center justify-center text-center p-4"><Package className="h-8 w-8 text-muted-foreground/30 mb-1" /><p className="text-xs text-muted-foreground">{conStockFiltro ? 'Sin stock en el origen elegido' : 'Sin resultados'}</p></div>
                 ) : (

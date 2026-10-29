@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Check } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { Chip } from '../../ui/Chip';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import type { Trabajador } from '../../../types/entities';
 
 interface Props {
@@ -114,3 +115,30 @@ const WorkerCheckListImpl: React.FC<Props> = ({ workers, selected, onToggle, obr
 
 const WorkerCheckList = React.memo(WorkerCheckListImpl);
 export default WorkerCheckList;
+
+// Sobre la barra verde del cargo la silueta toma el blanco del texto, translúcido (el gris no se lee ahí).
+const SOBRE_BARRA: React.CSSProperties = { backgroundColor: 'color-mix(in srgb, currentColor 30%, transparent)' };
+const ANCHO_NOMBRE = ['w-3/5', 'w-1/2', 'w-2/3', 'w-2/5', 'w-1/2'];
+
+/** Silueta de la lista mientras llegan los trabajadores: barra verde de un cargo y filas con su casilla. */
+export const SiluetaWorkerCheckList: React.FC<{ filas?: number }> = ({ filas = 5 }) => (
+    <Cargando que="los trabajadores">
+        <div aria-hidden="true" className="border border-border rounded-xl overflow-hidden">
+            <div className="bg-brand-primary px-3 py-2 flex items-center justify-between gap-3 text-white">
+                <Skeleton className="h-3.5 w-28" style={SOBRE_BARRA} />
+                <Skeleton className="h-3 w-8" style={SOBRE_BARRA} />
+            </div>
+            <div className="divide-y divide-border">
+                {Array.from({ length: filas }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3 px-3 py-2">
+                        <Skeleton className="h-5 w-5 shrink-0 rounded-md" />
+                        <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
+                            <Skeleton className={`h-3.5 ${ANCHO_NOMBRE[i % ANCHO_NOMBRE.length]}`} />
+                            <Skeleton className="h-3 w-1/4" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    </Cargando>
+);

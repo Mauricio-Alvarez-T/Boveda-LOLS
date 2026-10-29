@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ImageOff, Maximize2 } from 'lucide-react';
 import api from '../../services/api';
 import { VisorAdjunto } from '../ui/VisorAdjunto';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { formatearTamano } from '../../utils/archivos';
 
 /**
@@ -38,7 +39,7 @@ export const FotoIdea: React.FC<{ ideaId: number; resumen: string; tamano?: numb
         );
     }
     // Misma caja cargando y cargada (idea: Refine Frame de React Bits): la foto no empuja lo de abajo.
-    if (!url) return <div className={`${compacta ? 'h-16 w-24' : 'h-56 w-full'} rounded-xl bg-muted`} />;
+    if (!url) return <Cargando que="la foto"><Skeleton className={`${compacta ? 'h-16 w-24' : 'h-56 w-full'} rounded-xl`} /></Cargando>;
 
     return (
         <>

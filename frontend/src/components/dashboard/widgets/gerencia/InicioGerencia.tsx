@@ -7,7 +7,7 @@ import { useAuth } from '../../../../context/AuthContext';
 import { cn } from '../../../../utils/cn';
 import { shareViaWhatsApp } from '../../../../utils/whatsappShare';
 import { Button } from '../../../ui/Button';
-import { Skeleton, SkeletonText } from '../../../ui/Skeleton';
+import { Cargando, Skeleton } from '../../../ui/Skeleton';
 import WhatsAppIcon from '../../../ui/WhatsAppIcon';
 import { EncabezadoTarjeta } from '../EncabezadoTarjeta';
 import { CIFRA, PILDORA, ROTULO_FICHAS } from '../fichasInicio';
@@ -202,6 +202,34 @@ const Franja: React.FC<{ temas: TemaGerencia[] }> = ({ temas }) => {
     );
 };
 
+/**
+ * Un tema mientras llega (diseno.md §9.17): la forma de `TarjetaTema` en gris —qué temas hay depende de los datos y
+ * de los permisos, así que ni el título va de verdad—: encabezado y botón, la cifra grande, la frase y las filas.
+ */
+const TemaSilueta: React.FC<{ className?: string }> = ({ className }) => (
+    <div className={cn(CARD, 'flex flex-col p-5 sm:p-6', className)} aria-hidden="true">
+        <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+                <Skeleton className="h-11 w-11 shrink-0 rounded-full" />
+                <Skeleton className="h-4 w-36 max-w-full" />
+            </div>
+            <Skeleton className="h-11 w-24 shrink-0 rounded-full" />
+        </div>
+        <div className="flex items-end gap-2"><Skeleton className="h-12 w-16" /><Skeleton className="mb-1 h-3.5 w-28" /></div>
+        <Skeleton className="mt-2 h-3.5 w-4/5" />
+        <Skeleton className="mt-5 h-3 w-28" />
+        <div className="mt-1 divide-y divide-border">
+            {[0, 1, 2].map(i => (
+                <div key={i} className="flex items-start gap-3 py-2.5">
+                    <div className="min-w-0 flex-1 space-y-1.5"><Skeleton className={cn('h-4', i % 2 ? 'w-1/2' : 'w-3/4')} /><Skeleton className="h-3 w-2/5" /></div>
+                    <Skeleton className="h-4 w-10 shrink-0" />
+                </div>
+            ))}
+        </div>
+        <div className="mt-auto pt-4"><div className="border-t border-border pt-3"><Skeleton className="h-3.5 w-32" /></div></div>
+    </div>
+);
+
 type Resultado = { version: unknown; intento: number } & ({ ok: true; data: GerenciaApi } | { ok: false });
 
 const GRILLA = 'grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3';
@@ -235,12 +263,12 @@ const InicioGerencia: React.FC<{ version?: unknown }> = ({ version }) => {
         return (
             <section aria-label="Inicio de gerencia" aria-busy={cargando} className="space-y-6">
                 {cargando ? (
-                    <>
-                        <div className={cn(CARD, 'px-5 py-4 sm:px-6')}><Skeleton className="h-6 w-64" /></div>
+                    <Cargando que="lo que espera una decisión de gerencia" className="space-y-6">
+                        <div className={cn(CARD, 'px-5 py-4 sm:px-6')} aria-hidden="true"><Skeleton className="h-6 w-64 max-w-full" /></div>
                         <div className={GRILLA}>
-                            {[0, 1, 2].map(i => <div key={i} className={cn(CARD, 'p-6', i > 0 && 'max-md:hidden', i > 1 && 'max-xl:hidden')}><SkeletonText lines={7} /></div>)}
+                            {[0, 1, 2].map(i => <TemaSilueta key={i} className={cn(i > 0 && 'max-md:hidden', i > 1 && 'max-xl:hidden')} />)}
                         </div>
-                    </>
+                    </Cargando>
                 ) : (
                     <div className={cn(CARD, 'flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6')}>
                         <p className="text-sm text-muted-foreground">No se pudo cargar lo que espera una decisión de gerencia.</p>

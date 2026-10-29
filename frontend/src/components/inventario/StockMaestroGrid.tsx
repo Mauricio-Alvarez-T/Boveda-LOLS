@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAparecer } from '../../hooks/useAparecer';
-import { SkeletonFilas } from '../ui/Skeleton';
+import { Cargando, Skeleton } from '../ui/Skeleton';
+import { FilasTablaSilueta } from './siluetas';
 import { Save, Undo2, Search, MapPin, AlertTriangle } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useStockMaestro, type StockRow, type UbicacionRef } from '../../hooks/inventario/useStockMaestro';
@@ -22,6 +23,21 @@ interface DirtyValue {
     valor_arriendo_override?: number | null;
 }
 type DirtyMap = Record<number, DirtyValue>; // por item_id
+
+// Encabezado verde de la tabla (computador): lo usan la tabla y su silueta de carga.
+const ENCABEZADO_TABLA = (
+    <thead className="bg-brand-primary sticky top-0 z-10">
+        <tr>
+            <th className="text-left px-2 py-2 font-bold text-white w-12">Nº</th>
+            <th className="text-left px-2 py-2 font-bold text-white min-w-[240px]">Descripción</th>
+            <th className="text-left px-2 py-2 font-bold text-white w-28">Categoría</th>
+            <th className="text-left px-2 py-2 font-bold text-white w-16">Unidad</th>
+            <th className="text-right px-2 py-2 font-bold text-white w-24">Actual</th>
+            <th className="text-right px-2 py-2 font-bold text-white w-28">Nueva cant.</th>
+            <th className="text-right px-2 py-2 font-bold text-white w-24">Δ</th>
+        </tr>
+    </thead>
+);
 
 /**
  * Editor masivo de stock por ubicación — Ola 3.
@@ -170,9 +186,11 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                         />
                     </div>
                 )}
-                <span className="text-label text-muted-foreground ml-auto">
-                    {ubi ? `${filteredRows.length} de ${rows.length} ítems` : 'Selecciona una ubicación'}
-                </span>
+                {ubi && loading ? <Skeleton className="ml-auto h-3 w-20" /> : (
+                    <span className="text-label text-muted-foreground ml-auto">
+                        {ubi ? `${filteredRows.length} de ${rows.length} ítems` : 'Selecciona una ubicación'}
+                    </span>
+                )}
                 {dirtyCount > 0 && (
                     <>
                         <Button
@@ -205,8 +223,40 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                     <div className="py-12 text-center text-xs text-muted-foreground">
                         Elige una bodega u obra en el selector superior para ajustar su stock.
                     </div>
+                ) : loading && !esDesktop ? (
+                    // Silueta de las tarjetas del teléfono: nombre y categoría; «Actual · Nueva cant. · Δ» con sus rótulos.
+                    <Cargando que="el stock">
+                        <ul className="divide-y divide-border" aria-hidden="true">
+                            {[0, 1, 2, 3, 4, 5].map(i => (
+                                <li key={i} className="px-3 py-3">
+                                    <Skeleton className={cn('h-4', i % 2 ? 'w-1/2' : 'w-3/4')} />
+                                    <Skeleton className="mt-1.5 h-3 w-1/3" />
+                                    <div className="mt-2 flex items-end gap-3">
+                                        <div className="w-14 shrink-0">
+                                            <span className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground">Actual</span>
+                                            <Skeleton className="my-2.5 h-5 w-8" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <span className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground">Nueva cant.</span>
+                                            <Skeleton className="mt-0.5 h-10 w-full rounded-lg" />
+                                        </div>
+                                        <div className="w-14 shrink-0 text-right">
+                                            <span className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground">Δ</span>
+                                            <Skeleton className="my-2.5 ml-auto h-5 w-6" />
+                                        </div>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </Cargando>
                 ) : loading ? (
-                    <SkeletonFilas />
+                    // Silueta de la tabla: el encabezado verde de verdad y filas en gris.
+                    <Cargando que="el stock">
+                        <table className="w-full text-label border-collapse" aria-hidden="true">
+                            {ENCABEZADO_TABLA}
+                            <FilasTablaSilueta anchos={['w-6', 'texto', 'w-20', 'w-6', 'w-8 ml-auto', 'w-12 ml-auto', 'w-6 ml-auto']} />
+                        </table>
+                    </Cargando>
                 ) : filteredRows.length === 0 ? (
                     <div className="py-12 text-center text-xs text-muted-foreground">Sin ítems que coincidan.</div>
                 ) : !esDesktop ? (
@@ -259,17 +309,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                     </ul>
                 ) : (
                     <table className="w-full text-label border-collapse">
-                        <thead className="bg-brand-primary sticky top-0 z-10">
-                            <tr>
-                                <th className="text-left px-2 py-2 font-bold text-white w-12">Nº</th>
-                                <th className="text-left px-2 py-2 font-bold text-white min-w-[240px]">Descripción</th>
-                                <th className="text-left px-2 py-2 font-bold text-white w-28">Categoría</th>
-                                <th className="text-left px-2 py-2 font-bold text-white w-16">Unidad</th>
-                                <th className="text-right px-2 py-2 font-bold text-white w-24">Actual</th>
-                                <th className="text-right px-2 py-2 font-bold text-white w-28">Nueva cant.</th>
-                                <th className="text-right px-2 py-2 font-bold text-white w-24">Δ</th>
-                            </tr>
-                        </thead>
+                        {ENCABEZADO_TABLA}
                         <tbody>
                             {filteredRows.map((r, idx) => {
                                 const rowDirty = isDirty(r);

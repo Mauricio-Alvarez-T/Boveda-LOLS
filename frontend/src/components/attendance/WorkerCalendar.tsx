@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Loader2, Trash2, CalendarRange, Paperclip } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, CalendarRange, Paperclip } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import api from '../../services/api';
 import type { Trabajador, EstadoAsistencia, Asistencia, PeriodoAusencia, Feriado } from '../../types/entities';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { JustificativoViewer } from './JustificativoViewer';
+
+const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 interface WorkerCalendarProps {
     worker: Trabajador;
@@ -197,12 +200,34 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
             </div>
 
             {loading ? (
-                <div className="h-64 flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-                </div>
+                // Silueta del mes: los días y su orden no dependen del servidor y van de verdad; solo la marca
+                // de cada día hábil (A, F, V…) va en gris. El fin de semana queda sin marca, como suele llegar.
+                <Cargando que="el calendario">
+                    <div className="grid grid-cols-7 gap-1 md:gap-1.5" aria-hidden="true">
+                        {DIAS_SEMANA.map(day => (
+                            <div key={day} className="text-center text-caption font-bold text-muted-foreground uppercase tracking-widest mb-2">
+                                {day}
+                            </div>
+                        ))}
+                        {Array.from({ length: startingDay }).map((_, i) => (
+                            <div key={`empty-${i}`} className="h-10 md:h-14 bg-muted/30 rounded-xl border border-border/30" />
+                        ))}
+                        {Array.from({ length: daysInMonth }).map((_, i) => {
+                            const isWeekend = (startingDay + i) % 7 >= 5;
+                            return (
+                                <div key={`day-${i}`} className="relative aspect-square md:aspect-auto md:h-20">
+                                    <div className={`absolute inset-0 p-1 md:p-1.5 flex flex-col items-center rounded-xl border border-border ${isWeekend ? 'bg-muted' : 'bg-card'}`}>
+                                        <span className="text-caption font-medium text-muted-foreground mb-auto">{i + 1}</span>
+                                        {!isWeekend && <Skeleton className="h-3.5 md:h-4 w-full rounded-lg" />}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </Cargando>
             ) : (
                 <div className="grid grid-cols-7 gap-1 md:gap-1.5" onMouseLeave={() => setHoverDate(null)}>
-                    {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
+                    {DIAS_SEMANA.map(day => (
                         <div key={day} className="text-center text-caption font-bold text-muted-foreground uppercase tracking-widest mb-2">
                             {day}
                         </div>

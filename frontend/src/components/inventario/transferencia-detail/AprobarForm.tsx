@@ -8,6 +8,7 @@ import FaltanteDecisionModal, { type FaltanteItemRow } from '../FaltanteDecision
 import { QtyStepper } from '../../ui/QtyStepper';
 import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { CustomAprobacionEditor, initCustomEdits, buildNuevosPayload, customFaltaOrigen, type CustomItemSrc, type CustomEdit, type CustomNuevo } from './CustomAprobacionEditor';
 
 interface FaltanteModalState {
@@ -303,7 +304,23 @@ export const AprobarForm: React.FC<{
                 {/* Stock per item */}
                 <div className="space-y-3">
                     {stockLoading ? (
-                        <p className="text-xs text-muted-foreground text-center py-4">Cargando disponibilidad...</p>
+                        // Mientras llega el stock: cada ítem con su nombre y lo solicitado (ya se saben); las ubicaciones en gris.
+                        <Cargando que="la disponibilidad" className="space-y-3">
+                            {items.map((item, idx) => (
+                                <div key={item.id || idx} className="rounded-lg border border-border p-3" aria-hidden="true">
+                                    <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                                        <span className="text-xs font-bold text-brand-dark">{item.item_descripcion}</span>
+                                        <span className="text-caption font-semibold text-muted-foreground">
+                                            Solicitada: <span className="text-brand-dark">{Number(item.cantidad_solicitada)}</span>
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        <Skeleton className="h-6 w-28 rounded-lg" />
+                                        <Skeleton className={idx % 2 ? 'h-6 w-20 rounded-lg' : 'h-6 w-24 rounded-lg'} />
+                                    </div>
+                                </div>
+                            ))}
+                        </Cargando>
                     ) : (
                         items.map((item, idx) => {
                             const ai = approvalItems[idx];

@@ -23,7 +23,9 @@ import { descargarArchivo } from '../../utils/descargarArchivo';
 import { useAuth } from '../../context/AuthContext';
 import { IconButton } from '../ui/IconButton';
 import { RechazarForm } from '../inventario/transferencia-detail/RechazarForm';
-import { DatosPersonalesFields } from '../workers/DatosPersonalesFields';
+import { DatosPersonalesFields, DatosPersonalesSilueta } from '../workers/DatosPersonalesFields';
+import { CampoSilueta } from '../workers/CampoSilueta';
+import { Cargando } from '../ui/Skeleton';
 import { EmitirKitModal } from '../documents/EmitirKitModal';
 import { workerDesdeSolicitud, type DocumentoEmitido } from '../documents/documentosLaborales';
 import {
@@ -217,11 +219,36 @@ const FormRevision: React.FC<{ s: SolicitudIngreso; onResuelta: (a: SolicitudAcc
             }
         };
 
+        // Silueta de la revisión mientras llegan empresas, obras y cargos: el encabezado ya está (viene en `s`).
         if (initializing) {
             return (
-                <div className="py-20 flex flex-col items-center justify-center text-muted-foreground">
-                    <Loader2 className="h-8 w-8 animate-spin text-brand-primary mb-2" />
-                    <p>Cargando ficha...</p>
+                <div className="space-y-6">
+                    <Encabezado s={s} />
+                    <Cargando que="la ficha" className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <CampoSilueta label="RUT" />
+                            <CampoSilueta label="Nombres" />
+                            <CampoSilueta label="Apellido paterno" />
+                            <CampoSilueta label="Apellido materno" />
+                        </div>
+                        <div className="space-y-1" aria-hidden="true">
+                            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Contratación</p>
+                            <p className="text-xs text-muted-foreground">
+                                La empresa y la categoría de reporte las define administración; el resto viene de la ficha de terreno y se puede corregir antes de aprobar.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <CampoSilueta label="Empresa" />
+                            <CampoSilueta label="Obra" />
+                            <CampoSilueta label="Cargo" />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <CampoSilueta label="Categoría de reporte" />
+                            <CampoSilueta label="Fecha de ingreso" />
+                        </div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground" aria-hidden="true">Datos personales</p>
+                        <DatosPersonalesSilueta />
+                    </Cargando>
                 </div>
             );
         }

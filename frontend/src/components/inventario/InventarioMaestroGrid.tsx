@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useAparecer } from '../../hooks/useAparecer';
-import { SkeletonFilas } from '../ui/Skeleton';
+import { Cargando, Skeleton } from '../ui/Skeleton';
+import { FilasTablaSilueta } from './siluetas';
 import { Save, Undo2, Search, AlertTriangle, LayoutGrid, Table2, ChevronRight, Package } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -214,6 +215,48 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
         );
     }
 
+    // Encabezado verde de la vista Tabla: lo usan la tabla y su silueta de carga.
+    const encabezadoTabla = (
+        <thead className="bg-brand-primary sticky top-0 z-10">
+            <tr>
+                <th className="text-left px-2 py-2 font-bold text-white w-12">Nº</th>
+                <th className="text-left px-2 py-2 font-bold text-white min-w-[220px]">Descripción</th>
+                <th
+                    title="Clasificación del item (ej: MOLDAJES, MAQUINARIA, HERRAMIENTAS). Se usa para agrupar y filtrar."
+                    className="text-left px-2 py-2 font-bold text-white w-32 cursor-help"
+                >Categoría</th>
+                <th
+                    title="Unidad de medida del item (ej: U = unidad, M = metro, KG = kilogramo)."
+                    className="text-left px-2 py-2 font-bold text-white w-16 cursor-help"
+                >Unidad</th>
+                {verCostos && (
+                    <th
+                        title="Valor de compra del item en pesos. Costo histórico de adquisición utilizado para inventario y reportes contables."
+                        className="text-right px-2 py-2 font-bold text-white w-28 cursor-help"
+                    >V. Compra</th>
+                )}
+                {verCostos && (
+                    <th
+                        title="Valor de arriendo mensual del item en pesos. Se cobra siempre por mes completo y se usa para calcular el costo del item asignado a cada obra."
+                        className="text-right px-2 py-2 font-bold text-white w-28 cursor-help"
+                    >V. Arriendo</th>
+                )}
+                <th
+                    title="Indica si el item es consumible: se gasta o desaparece tras su uso y no se devuelve a bodega (ej: pernos, clavos)."
+                    className="text-center px-2 py-2 font-bold text-white w-16 cursor-help"
+                >Consum.</th>
+                <th
+                    title="Empresa propietaria del item (razón social a la que pertenece). Relevante cuando hay múltiples empresas en el grupo."
+                    className="text-left px-2 py-2 font-bold text-white w-24 cursor-help"
+                >Propiet.</th>
+                <th
+                    title="Indica si el item está habilitado en el sistema. Los items inactivos quedan archivados y no aparecen en nuevas solicitudes."
+                    className="text-center px-2 py-2 font-bold text-white w-16 cursor-help"
+                >Activo</th>
+            </tr>
+        </thead>
+    );
+
     return (
         <div className="flex flex-col flex-1 min-h-0 gap-3" ref={containerRef}>
             {/* ══════════════════════════════════════════════
@@ -254,9 +297,11 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                 <div className="flex-1" />
 
                 {/* Item count */}
-                <span className="text-label text-muted-foreground">
-                    {filteredItems.length} de {items.length} ítems
-                </span>
+                {loading ? <Skeleton className="h-3 w-20" /> : (
+                    <span className="text-label text-muted-foreground">
+                        {filteredItems.length} de {items.length} ítems
+                    </span>
+                )}
 
                 {/* View Toggle */}
                 <div className="flex rounded-xl bg-muted p-0.5">
@@ -313,8 +358,51 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                 ── CONTENT AREA ──
                ══════════════════════════════════════════════ */}
             <div className={cn('flex-1 min-h-0 overflow-auto', aparece)}>
-                {loading ? (
-                    <SkeletonFilas />
+                {loading && viewMode === 'cards' ? (
+                    // Silueta de la vista Cards: una categoría y sus tarjetas (foto, etiquetas, nombre, stock).
+                    <Cargando que="los ítems" className="pb-4">
+                        <div aria-hidden="true">
+                            <div className="flex items-center gap-2 mb-3">
+                                <ChevronRight className="h-4 w-4 text-muted-foreground rotate-90" />
+                                <Skeleton className="h-3 w-28" />
+                                <Skeleton className="h-3 w-12" />
+                                <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent ml-2" />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                                {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
+                                    <div key={i} className="flex flex-col rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+                                        <Skeleton className="h-36 rounded-none" />
+                                        <div className="flex flex-col p-3.5 gap-2">
+                                            <div className="flex items-center gap-1.5">
+                                                <Skeleton className="h-4 w-20 rounded-full" />
+                                                <Skeleton className="h-4 w-12 rounded-full" />
+                                            </div>
+                                            <div className="space-y-1.5 min-h-[2.5em]">
+                                                <Skeleton className="h-4 w-full" />
+                                                <Skeleton className={i % 2 ? 'h-4 w-1/2' : 'h-4 w-2/3'} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Skeleton className="h-7 w-full rounded-lg" />
+                                                <Skeleton className="h-7 w-full rounded-lg" />
+                                            </div>
+                                            <Skeleton className="h-7 w-full rounded-xl" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </Cargando>
+                ) : loading ? (
+                    // Silueta de la vista Tabla: el encabezado verde de verdad y filas en gris (recortada: en el teléfono
+                    // no se corre de lado).
+                    <Cargando que="los ítems" className="overflow-hidden border border-border rounded-xl bg-card">
+                        <table className="w-full text-label border-collapse" aria-hidden="true">
+                            {encabezadoTabla}
+                            <FilasTablaSilueta
+                                anchos={['w-6', 'texto', 'w-20', 'w-6', ...(verCostos ? ['w-14 ml-auto', 'w-14 ml-auto'] : []), 'w-4 mx-auto', 'w-14', 'w-4 mx-auto']}
+                            />
+                        </table>
+                    </Cargando>
                 ) : filteredItems.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                         <Package className="h-12 w-12 text-muted-foreground/15 mb-3" />
@@ -386,44 +474,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                        ═══════════════════════════════ */
                     <div className="border border-border rounded-xl bg-card">
                         <table className="w-full text-label border-collapse">
-                            <thead className="bg-brand-primary sticky top-0 z-10">
-                                <tr>
-                                    <th className="text-left px-2 py-2 font-bold text-white w-12">Nº</th>
-                                    <th className="text-left px-2 py-2 font-bold text-white min-w-[220px]">Descripción</th>
-                                    <th
-                                        title="Clasificación del item (ej: MOLDAJES, MAQUINARIA, HERRAMIENTAS). Se usa para agrupar y filtrar."
-                                        className="text-left px-2 py-2 font-bold text-white w-32 cursor-help"
-                                    >Categoría</th>
-                                    <th
-                                        title="Unidad de medida del item (ej: U = unidad, M = metro, KG = kilogramo)."
-                                        className="text-left px-2 py-2 font-bold text-white w-16 cursor-help"
-                                    >Unidad</th>
-                                    {verCostos && (
-                                        <th
-                                            title="Valor de compra del item en pesos. Costo histórico de adquisición utilizado para inventario y reportes contables."
-                                            className="text-right px-2 py-2 font-bold text-white w-28 cursor-help"
-                                        >V. Compra</th>
-                                    )}
-                                    {verCostos && (
-                                        <th
-                                            title="Valor de arriendo mensual del item en pesos. Se cobra siempre por mes completo y se usa para calcular el costo del item asignado a cada obra."
-                                            className="text-right px-2 py-2 font-bold text-white w-28 cursor-help"
-                                        >V. Arriendo</th>
-                                    )}
-                                    <th
-                                        title="Indica si el item es consumible: se gasta o desaparece tras su uso y no se devuelve a bodega (ej: pernos, clavos)."
-                                        className="text-center px-2 py-2 font-bold text-white w-16 cursor-help"
-                                    >Consum.</th>
-                                    <th
-                                        title="Empresa propietaria del item (razón social a la que pertenece). Relevante cuando hay múltiples empresas en el grupo."
-                                        className="text-left px-2 py-2 font-bold text-white w-24 cursor-help"
-                                    >Propiet.</th>
-                                    <th
-                                        title="Indica si el item está habilitado en el sistema. Los items inactivos quedan archivados y no aparecen en nuevas solicitudes."
-                                        className="text-center px-2 py-2 font-bold text-white w-16 cursor-help"
-                                    >Activo</th>
-                                </tr>
-                            </thead>
+                            {encabezadoTabla}
                             <tbody>
                                 {filteredItems.map((it, idx) => {
                                     const rowDirty = !!dirty[it.id];

@@ -8,7 +8,7 @@ import { avisarPorWhatsApp } from '../../../utils/whatsappShare';
 import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
 import { VehiculoDocumentos } from '../../vehiculos/VehiculoDocumentos';
-import { SkeletonText } from '../../ui/Skeleton';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
 import { CabezaFicha, EnlaceFicha, Pildora, PieFicha, RotuloFichas } from './FichaInicio';
 import { CUADRO, plural, ROTULO_FICHAS } from './fichasInicio';
@@ -262,10 +262,46 @@ const DetalleVehiculos: React.FC<{ version?: unknown }> = ({ version }) => {
             <section className="space-y-3" aria-busy={pendiente}>
                 {rotulo}
                 {pendiente ? (
-                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                        <div className={CARD}><SkeletonText lines={8} /></div>
-                        <div className={CARD}><SkeletonText lines={5} /></div>
-                    </div>
+                    // Los días del calendario no dependen de los datos: van de verdad (con hoy marcado), cada uno con el
+                    // brillo mientras llega lo que vence; lo vencido y los próximos días, en gris.
+                    <Cargando que="los papeles de la flota" className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                        <div className={cn(CARD, 'min-w-0 space-y-4 self-start')} aria-hidden="true">
+                            <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                                {LETRAS.map((l, i) => <span key={i} className="text-center text-micro font-bold text-muted-foreground">{l}</span>)}
+                                {calendario.map(d => (
+                                    <div key={d.iso} className={cn('flex min-h-11 min-w-0 flex-col items-start rounded-xl p-1.5 sm:min-h-[4.5rem] sm:p-2',
+                                        d.pasado || d.fuera ? 'text-muted-foreground/60' : 'silueta', d.hoy && 'ring-[1.5px] ring-foreground')}>
+                                        <span className={cn('relative text-xs tabular-nums', d.hoy ? 'font-bold text-foreground' : 'font-medium')}>{d.num}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <Leyenda items={LEYENDA_CALENDARIO} />
+                        </div>
+                        <div className="flex min-w-0 flex-col gap-6" aria-hidden="true">
+                            <div className={cn(CARD, 'space-y-3')}>
+                                <div className="flex items-end gap-2"><Skeleton className="h-9 w-10" /><Skeleton className="mb-0.5 h-3.5 w-36" /></div>
+                                {[0, 1, 2].map(i => (
+                                    <div key={i} className="flex items-center gap-3 border-t border-border py-2.5 first:border-t-0">
+                                        <Skeleton className="h-2.5 w-2.5 shrink-0 rounded-[3px]" />
+                                        <div className="min-w-0 flex-1 space-y-1.5"><Skeleton className={cn('h-4', i % 2 ? 'w-1/2' : 'w-3/4')} /><Skeleton className="h-3 w-2/5" /></div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className={cn(CARD, 'space-y-3')}>
+                                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                                    <Skeleton className="h-3 w-32" />
+                                    <span className="text-xs text-muted-foreground">Para que nada llegue por sorpresa</span>
+                                </div>
+                                {[0, 1, 2, 3].map(i => (
+                                    <div key={i} className="flex items-center gap-3 py-1.5">
+                                        <Skeleton className="h-2.5 w-2.5 shrink-0 rounded-[3px]" />
+                                        <Skeleton className="h-3 w-12 shrink-0" />
+                                        <Skeleton className={cn('h-3.5', i % 2 ? 'w-2/5' : 'w-3/5')} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </Cargando>
                 ) : (
                     <div className={cn(CARD, 'flex flex-wrap items-center justify-between gap-3')}>
                         <p className="text-sm text-muted-foreground">No se pudieron cargar los papeles de la flota.</p>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAparecer } from '../../hooks/useAparecer';
-import { SkeletonFilas } from '../ui/Skeleton';
+import { Cargando } from '../ui/Skeleton';
+import { FilasTablaSilueta, TarjetaMovimientoSilueta } from './siluetas';
 import { ArrowUp, ArrowDown, RefreshCw, History } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Button } from '../ui/Button';
@@ -37,6 +38,23 @@ const fmtNum = (n: number | string) => {
     // Mostrar decimales solo si los hay (kg/m³ pueden tener fracción).
     return Number.isInteger(v) ? v.toLocaleString('es-CL') : v.toLocaleString('es-CL', { maximumFractionDigits: 4 });
 };
+
+// Encabezado verde de la tabla (computador): lo usan la tabla y su silueta de carga.
+const ENCABEZADO_TABLA = (
+    <thead className="sticky top-0 bg-brand-primary border-b border-border z-10">
+        <tr className="text-caption font-bold text-white uppercase tracking-wide">
+            <th className="text-left px-3 py-2.5">Fecha</th>
+            <th className="text-left px-3 py-2.5">Tipo</th>
+            <th className="text-left px-3 py-2.5">Ítem</th>
+            <th className="text-left px-3 py-2.5">Ubicación</th>
+            <th className="text-right px-3 py-2.5">Antes</th>
+            <th className="text-right px-3 py-2.5">Después</th>
+            <th className="text-right px-3 py-2.5">Δ</th>
+            <th className="text-left px-3 py-2.5">Motivo</th>
+            <th className="text-left px-3 py-2.5">Usuario</th>
+        </tr>
+    </thead>
+);
 
 interface Props {
     /** Filtro opcional por ubicación preseleccionada. */
@@ -126,8 +144,24 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
 
             {/* Contenido */}
             <div className={cn('flex-1 min-h-0 overflow-auto custom-scrollbar bg-card border border-border rounded-2xl', aparece)}>
-                {loading ? (
-                    <SkeletonFilas />
+                {loading && !esDesktop ? (
+                    // Silueta de las tarjetas del teléfono (las mismas del detalle del ítem).
+                    <Cargando que="los movimientos">
+                        <ul className="divide-y divide-border" aria-hidden="true">
+                            {[0, 1, 2, 3, 4].map(i => <TarjetaMovimientoSilueta key={i} i={i} conItem />)}
+                        </ul>
+                    </Cargando>
+                ) : loading ? (
+                    // Silueta de la tabla: el encabezado verde de verdad y filas en gris.
+                    <Cargando que="los movimientos">
+                        <table className="w-full text-sm" aria-hidden="true">
+                            {ENCABEZADO_TABLA}
+                            <FilasTablaSilueta
+                                celda="px-3 py-2.5"
+                                anchos={['w-24', 'h-5 w-20 rounded-md', 'texto', 'w-24', 'w-8 ml-auto', 'w-8 ml-auto', 'w-6 ml-auto', 'w-28', 'w-20']}
+                            />
+                        </table>
+                    </Cargando>
                 ) : error ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center px-4">
                         <History className="h-10 w-10 text-muted-foreground/40" />
@@ -180,19 +214,7 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                     </ul>
                 ) : (
                     <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-brand-primary border-b border-border z-10">
-                            <tr className="text-caption font-bold text-white uppercase tracking-wide">
-                                <th className="text-left px-3 py-2.5">Fecha</th>
-                                <th className="text-left px-3 py-2.5">Tipo</th>
-                                <th className="text-left px-3 py-2.5">Ítem</th>
-                                <th className="text-left px-3 py-2.5">Ubicación</th>
-                                <th className="text-right px-3 py-2.5">Antes</th>
-                                <th className="text-right px-3 py-2.5">Después</th>
-                                <th className="text-right px-3 py-2.5">Δ</th>
-                                <th className="text-left px-3 py-2.5">Motivo</th>
-                                <th className="text-left px-3 py-2.5">Usuario</th>
-                            </tr>
-                        </thead>
+                        {ENCABEZADO_TABLA}
                         <tbody>
                             {movimientos.map((m) => {
                                 const meta = TIPO_META[m.tipo] || { label: m.tipo, badge: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/15 dark:text-slate-300 dark:border-slate-800/60' };

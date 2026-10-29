@@ -19,6 +19,7 @@ import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Chip } from '../ui/Chip';
 import { EmptyState } from '../ui/EmptyState';
+import { Skeleton } from '../ui/Skeleton';
 
 interface Props {
     workers: TrabajadorAvanzado[];
@@ -168,9 +169,14 @@ const TrabajadoresGrillaImpl: React.FC<Props> = ({
                     {/* En el celular los atajos bajan a su propia fila (abajo): entre «Filtros» y el conteo quedaban
                         ~150 px y se veía un pedazo de un solo atajo (Marcos 2026-10-21). */}
                     {atajos && <div className="hidden min-w-0 flex-1 sm:block">{atajos}</div>}
-                    <span className="ml-auto shrink-0 text-ui font-bold text-brand-dark tabular-nums">
-                        {loading ? 'Buscando…' : `${workers.length} trabajador${workers.length === 1 ? '' : 'es'}`}
-                    </span>
+                    {/* Mientras busca, el conteo es la silueta de la cifra (el anuncio va en la región viva de abajo). */}
+                    {loading ? (
+                        <Skeleton className="ml-auto h-4 w-28 shrink-0" />
+                    ) : (
+                        <span className="ml-auto shrink-0 text-ui font-bold text-brand-dark tabular-nums">
+                            {workers.length} trabajador{workers.length === 1 ? '' : 'es'}
+                        </span>
+                    )}
                 </>)}
 
                 {/* Región viva permanente: el número de arriba cambia solo (al filtrar o al buscar) y
@@ -187,15 +193,83 @@ const TrabajadoresGrillaImpl: React.FC<Props> = ({
 
             <div className={cn('flex-1 min-h-0 overflow-y-auto custom-scrollbar', aparece)}>
                 {loading ? (
-                    <div className="p-3 flex flex-col gap-2">
-                        {[1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="h-16 w-full rounded-2xl border border-border bg-card flex items-center px-4 gap-4">
-                                <div className="h-4 w-4 rounded bg-muted" /><div className="h-10 w-10 rounded-xl bg-muted" />
-                                <div className="flex-1 space-y-2"><div className="h-3.5 w-1/3 rounded bg-muted" /><div className="h-3 w-1/5 rounded bg-muted" /></div>
-                                <div className="hidden md:block h-3 w-1/6 rounded bg-muted" /><div className="hidden md:block h-1.5 w-32 rounded bg-muted" />
-                            </div>
-                        ))}
-                    </div>
+                    // Silueta de lo mismo que llega: la tabla con sus encabezados de verdad (computador) o las tarjetas (celular).
+                    // Sin <Cargando>: el anuncio va en la región viva fija de arriba («Buscando trabajadores»).
+                    esDesktop ? (
+                        <div aria-hidden="true">
+                            <table className="w-full border-separate border-spacing-0" aria-hidden="true">
+                                <thead className="sticky top-0 z-10 bg-card">
+                                    <tr className="text-left text-caption font-semibold uppercase tracking-wider text-muted-foreground [&>th]:border-b [&>th]:border-border [&>th]:px-3 [&>th]:py-2.5">
+                                        <th className="w-10" />
+                                        <th>Trabajador</th>
+                                        <th>Empresa · Obra</th>
+                                        <th className="hidden xl:table-cell">Cargo</th>
+                                        <th>Ingreso</th>
+                                        <th>Documentación</th>
+                                        <th className="w-32 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
+                                        <tr key={i} className="[&>td]:border-b [&>td]:border-border/70 [&>td]:px-3 [&>td]:py-2.5">
+                                            <td><Skeleton className="h-4 w-4 rounded" /></td>
+                                            <td>
+                                                <div className="flex items-center gap-3">
+                                                    <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                                                    <div className="space-y-2">
+                                                        <Skeleton className={cn('h-3.5', i % 2 ? 'w-36' : 'w-44')} />
+                                                        <Skeleton className="h-3 w-20" />
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="space-y-2">
+                                                    <Skeleton className={cn('h-3.5', i % 3 ? 'w-32' : 'w-24')} />
+                                                    <Skeleton className="h-3 w-20" />
+                                                </div>
+                                            </td>
+                                            <td className="hidden xl:table-cell"><Skeleton className="h-3.5 w-24" /></td>
+                                            <td><Skeleton className="h-3.5 w-20" /></td>
+                                            <td>
+                                                <div className="flex w-32 items-center gap-2">
+                                                    <Skeleton className="h-1.5 flex-1 rounded-full" />
+                                                    <Skeleton className="h-3 w-9" />
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="flex justify-end gap-0.5">
+                                                    {[0, 1, 2].map(j => <Skeleton key={j} className="h-8 w-8 rounded-full" />)}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-2 p-2" aria-hidden="true">
+                            {[0, 1, 2, 3, 4].map(i => (
+                                <div key={i} className="rounded-2xl border border-border bg-card p-3 shadow-sm" aria-hidden="true">
+                                    <div className="flex items-start gap-3">
+                                        <Skeleton className="h-4 w-4 shrink-0 rounded" />
+                                        <div className="min-w-0 flex-1">
+                                            <Skeleton className={cn('h-4', i % 2 ? 'w-3/5' : 'w-4/5')} />
+                                            <Skeleton className="mt-2 h-3 w-24" />
+                                            <Skeleton className="mt-2.5 h-3 w-3/4" />
+                                            <Skeleton className="mt-2 h-3 w-1/2" />
+                                            <div className="mt-2.5 flex items-center gap-2">
+                                                <Skeleton className="h-1.5 flex-1 rounded-full" />
+                                                <Skeleton className="h-3 w-9" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="mt-2 flex justify-end gap-0.5 border-t border-border/60 pt-1.5">
+                                        {[0, 1, 2].map(j => <Skeleton key={j} className="h-8 w-8 rounded-full" />)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )
                 ) : workers.length === 0 ? (
                     <EmptyState icon={Search} title="Sin resultados" description="No se encontraron trabajadores que coincidan con los filtros aplicados." className="h-full justify-center"
                         action={activeFilterCount > 0 ? <Button variant="outline" size="sm" onClick={onClearFilters}>Limpiar Búsqueda</Button> : undefined} />

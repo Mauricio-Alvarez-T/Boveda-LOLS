@@ -19,6 +19,8 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
+import { Cargando } from '../ui/Skeleton';
+import { CampoSilueta } from './CampoSilueta';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { fmtFecha } from '../../utils/format';
@@ -190,15 +192,17 @@ export const DesvincularModal: React.FC<Props> = ({ isOpen, worker, onClose, onD
                     <Controller
                         name="causal_codigo"
                         control={control}
-                        render={({ field }) => (
+                        // Mientras llega el catálogo, el campo es su silueta (con su rótulo), no un select vacío.
+                        render={({ field }) => cargando ? (
+                            <Cargando que="las causales"><CampoSilueta label="Causal (obligatoria)" /></Cargando>
+                        ) : (
                             <Select
                                 label="Causal (obligatoria)"
                                 value={field.value}
                                 onChange={e => onCausalChange(e.target.value)}
                                 onBlur={field.onBlur}
-                                disabled={cargando}
                                 error={errors.causal_codigo?.message}
-                                options={[{ value: '', label: cargando ? 'Cargando causales…' : 'Selecciona la causal' }, ...opcionesCausales(catalogo)]}
+                                options={[{ value: '', label: 'Selecciona la causal' }, ...opcionesCausales(catalogo)]}
                             />
                         )}
                     />

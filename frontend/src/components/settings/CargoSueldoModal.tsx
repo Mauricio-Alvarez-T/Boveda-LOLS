@@ -18,6 +18,8 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
+import { Cargando, Skeleton } from '../ui/Skeleton';
+import { CampoSilueta } from './SiluetasConfig';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { fmtMoney, fmtFecha } from '../../utils/format';
@@ -98,6 +100,22 @@ export const CargoSueldoModal: React.FC<Props> = ({ isOpen, cargo, onClose, onSa
                     Montos mensuales en pesos. Se imprimen en el contrato de trabajo al emitirlo y cada cambio de monto queda en el historial.
                 </p>
 
+                {loading ? (
+                    // Mientras llegan los montos: los rótulos de verdad y los campos en gris (no un $0 que no es).
+                    <Cargando que="el sueldo del cargo" className="space-y-4">
+                        <CampoSilueta label="Sueldo base" />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <CampoSilueta label="Colación" />
+                            <CampoSilueta label="Movilización" />
+                        </div>
+                        <CampoSilueta label="Observaciones" />
+                        <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3" aria-hidden="true">
+                            <span className="text-sm text-muted-foreground">Total mensual</span>
+                            <Skeleton className="h-5 w-24" />
+                        </div>
+                        <Skeleton className="h-9 w-56 rounded-full" />
+                    </Cargando>
+                ) : (<>
                 <Controller
                     name="sueldo_base"
                     control={control}
@@ -159,6 +177,7 @@ export const CargoSueldoModal: React.FC<Props> = ({ isOpen, cargo, onClose, onSa
                         )
                     )}
                 </div>
+                </>)}
             </form>
         </Modal>
     );

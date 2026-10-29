@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { EmptyState } from '../../ui/EmptyState';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { contarBandeja } from './bandejaConteo';
 import { EncabezadoTarjeta } from './EncabezadoTarjeta';
 
@@ -239,5 +240,34 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
         </div>
     );
 };
+
+/**
+ * La bandeja mientras llegan sus pendientes (diseno.md §9.17): encabezado de verdad; el conteo, los grupos (cuáles hay
+ * depende de los datos) y sus filas, en gris.
+ */
+export const BandejaDelDiaSilueta: React.FC<{ titulo?: string }> = ({ titulo = 'Bandeja del día' }) => (
+    <div>
+        <EncabezadoTarjeta icon={Inbox} titulo={titulo} extra={<Skeleton className="h-3.5 w-24" />} />
+        <Cargando que="los pendientes">
+            {[3, 1].map((filas, g) => (
+                <div key={g} className="mt-1" aria-hidden="true">
+                    <div className="flex items-center gap-2 py-1.5">
+                        <Skeleton className="h-3.5 w-3.5 rounded" />
+                        <Skeleton className={cn('h-3', g ? 'w-20' : 'w-28')} />
+                    </div>
+                    {Array.from({ length: filas }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-3 border-t border-border py-2.5">
+                            <Skeleton className="h-4 w-4 shrink-0 rounded" />
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                                <Skeleton className={cn('h-4', i % 2 ? 'w-1/2' : 'w-3/4')} />
+                                <Skeleton className="h-3 w-2/5" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ))}
+        </Cargando>
+    </div>
+);
 
 export default BandejaDelDia;

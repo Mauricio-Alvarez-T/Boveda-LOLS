@@ -4,7 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useObra } from '../../../context/ObraContext';
 import { cn } from '../../../utils/cn';
 import { Button } from '../../ui/Button';
-import { SkeletonText } from '../../ui/Skeleton';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { DetalleModulo } from './DetalleModulo';
 import type { EstadoInventarioPerfil } from './inventarioPerfil/cargaInventarioPerfil';
 import { TARJETA } from './inventarioPerfil/formato';
@@ -99,9 +99,30 @@ const ConCarga: React.FC<{
             </div>
         );
     }
+    // Cada perfil tiene su vista (circuito, por aprobar, lo de su obra): va lo que comparten, el rótulo y las filas de
+    // solicitudes, en gris.
     return (
         <div className={TARJETA} aria-busy="true">
-            <SkeletonText lines={6} />
+            <Cargando que="las solicitudes de inventario">
+                <div aria-hidden="true">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                        <Skeleton className="h-3 w-56 max-w-full" />
+                        <Skeleton className="h-3 w-40 max-w-full" />
+                    </div>
+                    <ul className="mt-3 divide-y divide-border">
+                        {[0, 1, 2, 3, 4].map(i => (
+                            <li key={i} className="flex items-center gap-3 py-3">
+                                <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+                                <div className="min-w-0 flex-1 space-y-1.5">
+                                    <Skeleton className={cn('h-4', i % 2 ? 'w-1/2' : 'w-3/4')} />
+                                    <Skeleton className={cn('h-3', i % 3 === 1 ? 'w-1/3' : 'w-1/2')} />
+                                </div>
+                                <Skeleton className="h-6 w-20 shrink-0 rounded-full" />
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </Cargando>
         </div>
     );
 };

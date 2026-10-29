@@ -4,6 +4,8 @@ import { History } from 'lucide-react';
 import api from '../../services/api';
 import { cn } from '../../utils/cn';
 import { movimientoTipoConfig, type MovimientoTipo } from '../../utils/statusConfig';
+import { Cargando } from '../ui/Skeleton';
+import { TarjetaMovimientoSilueta } from './siluetas';
 
 interface Movimiento {
     id: number;
@@ -63,9 +65,11 @@ export const MovimientosItem: React.FC<{ itemId: number; unidad?: string | null 
             {error ? (
                 <p className="px-3 py-6 text-center text-xs text-muted-foreground">No se pudieron cargar los movimientos.</p>
             ) : !movs ? (
-                <div className="space-y-2 p-3">
-                    {[0, 1, 2].map(i => <div key={i} className="h-8 rounded-lg bg-muted/40" />)}
-                </div>
+                <Cargando que="los movimientos">
+                    <ul className="divide-y divide-border" aria-hidden="true">
+                        {[0, 1, 2].map(i => <TarjetaMovimientoSilueta key={i} i={i} />)}
+                    </ul>
+                </Cargando>
             ) : movs.length === 0 ? (
                 <div className="py-6 text-center">
                     <History className="mx-auto mb-2 h-8 w-8 text-muted-foreground/15" />

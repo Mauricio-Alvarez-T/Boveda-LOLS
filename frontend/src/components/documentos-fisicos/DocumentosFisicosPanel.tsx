@@ -20,6 +20,7 @@ import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { EmptyState } from '../ui/EmptyState';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { NuevoLoteModal } from './NuevoLoteModal';
 import { LoteDetalleModal } from './LoteDetalleModal';
 import { AlertasDocumentosStrip } from './AlertasDocumentosStrip';
@@ -214,6 +215,41 @@ export const DocumentosFisicosPanel: React.FC = () => {
         );
     };
 
+    // Silueta de un carril mientras llegan los lotes: el título, el punto y la frase son de verdad; el conteo y las
+    // tarjetas (portador, lote, cuántos documentos, resumen) van en gris. En el teléfono, solo el carril elegido.
+    const renderCarrilSilueta = (estado: LoteEstado) => (
+        <div key={estado} aria-hidden="true"
+            className={cn('min-h-0 flex-col lg:rounded-2xl lg:bg-muted/60 lg:border lg:border-border/60', carrilMovil === estado ? 'flex' : 'hidden lg:flex')}>
+            <div className="shrink-0 px-1 pb-2 lg:px-3.5 lg:pt-3">
+                <div className="hidden lg:flex items-center gap-2">
+                    <span className={cn('h-2.5 w-2.5 rounded-full', CARRIL_ESTILO[estado].punto)} />
+                    <h3 className="text-section font-bold text-brand-dark">{LOTE_ESTADO_TITULO[estado]}</h3>
+                    <Skeleton className="ml-auto h-5 w-6 rounded-full" />
+                </div>
+                <p className="mt-0.5 text-caption text-muted-foreground">{CARRIL_HINT[estado][rol]}</p>
+            </div>
+            <div className="flex-1 min-h-0 overflow-hidden lg:px-2.5 pb-2.5 space-y-2">
+                {[0, 1].map(i => (
+                    <div key={i} className="rounded-2xl border border-border bg-card p-3 lg:p-3.5 shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <Skeleton className="h-9 w-9 shrink-0 rounded-xl lg:h-10 lg:w-10" />
+                            <div className="min-w-0 flex-1 space-y-2">
+                                <Skeleton className={cn('h-4', i ? 'w-2/5' : 'w-1/2')} />
+                                <Skeleton className="h-3 w-3/4" />
+                            </div>
+                            <div className="flex shrink-0 flex-col items-end gap-1">
+                                <Skeleton className="h-6 w-7" />
+                                <Skeleton className="h-2.5 w-8" />
+                            </div>
+                        </div>
+                        <Skeleton className="mt-3 h-3 w-4/5" />
+                        <Skeleton className="mt-3 ml-auto h-3 w-20" />
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
     return (
         <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
             {/* Cabecera: impresos sin lote (RRHH) + acciones; en móvil, selector de carril */}
@@ -248,7 +284,8 @@ export const DocumentosFisicosPanel: React.FC = () => {
                     </div>
                 )}
                 <div className="flex shrink-0 items-center gap-1.5 lg:gap-2">
-                    <IconButton variant="ghost" size="sm" aria-label="Recargar" title="Recargar" onClick={() => cargar()} icon={<RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />} />
+                    {/* Gira solo al recargar con datos a la vista; en la primera carga ya avisa la silueta. */}
+                    <IconButton variant="ghost" size="sm" aria-label="Recargar" title="Recargar" onClick={() => cargar()} icon={<RefreshCw className={cn('h-4 w-4', loading && lotes.length > 0 && 'animate-spin')} />} />
                     {botonNuevoFranja}
                 </div>
                 <div className="lg:hidden flex w-full items-center rounded-2xl bg-muted p-1">
@@ -264,10 +301,13 @@ export const DocumentosFisicosPanel: React.FC = () => {
                         render={({ key: e }, sobreIndicador) => (
                             <>
                                 {LOTE_ESTADO_LABEL[e]}
-                                <span className={cn('flex h-5 min-w-5 px-1 items-center justify-center rounded-full text-micro font-bold tabular-nums',
-                                    sobreIndicador ? CARRIL_ESTILO[e].sobreVerde : CARRIL_ESTILO[e].conteo)}>
-                                    {carriles[e].length}
-                                </span>
+                                {/* En la primera carga no va el número: sería un 0 falso (los carriles aún son silueta). */}
+                                {!(loading && lotes.length === 0) && (
+                                    <span className={cn('flex h-5 min-w-5 px-1 items-center justify-center rounded-full text-micro font-bold tabular-nums',
+                                        sobreIndicador ? CARRIL_ESTILO[e].sobreVerde : CARRIL_ESTILO[e].conteo)}>
+                                        {carriles[e].length}
+                                    </span>
+                                )}
                             </>
                         )}
                     />
@@ -278,9 +318,9 @@ export const DocumentosFisicosPanel: React.FC = () => {
                 {/* B7: documentos y lotes que superaron su umbral (solo RRHH; el hook devuelve null sin permiso). */}
                 {puedeRegistrar && <div className="shrink-0 [&>div]:mb-0"><AlertasDocumentosStrip onAbrirLote={setAbierto} /></div>}
                 {loading && lotes.length === 0 ? (
-                    <div className="grid flex-1 grid-cols-1 lg:grid-cols-3 gap-3">
-                        {LOTE_ESTADOS.map(e => <div key={e} className="rounded-2xl bg-muted/60 border border-border/60 min-h-40" />)}
-                    </div>
+                    <Cargando que="los lotes" className="grid flex-1 min-h-0 grid-cols-1 lg:grid-cols-3 gap-3">
+                        {LOTE_ESTADOS.map(renderCarrilSilueta)}
+                    </Cargando>
                 ) : lotes.length === 0 ? (
                     <EmptyState icon={Truck} className="flex-1 justify-center"
                         title="Ningún documento en circulación"

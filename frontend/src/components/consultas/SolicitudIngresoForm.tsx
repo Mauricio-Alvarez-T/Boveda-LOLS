@@ -15,7 +15,9 @@ import { Button } from '../ui/Button';
 import { MarcaEstado } from '../ui/MarcaEstado';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import { showApiError } from '../../utils/toastUtils';
-import { DatosPersonalesFields } from '../workers/DatosPersonalesFields';
+import { DatosPersonalesFields, DatosPersonalesSilueta } from '../workers/DatosPersonalesFields';
+import { CampoSilueta } from '../workers/CampoSilueta';
+import { Cargando } from '../ui/Skeleton';
 import { avisoDesvinculacion, detalleDesvinculacion, type UltimaDesvinculacion } from '../workers/desvinculacionSchema';
 import { cn } from '../../utils/cn';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
@@ -215,12 +217,29 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onEnviada, onClose, onCa
         );
     }
 
+    // Silueta de la ficha (mismos rótulos y columnas) mientras llegan obras y cargos.
     if (initializing) {
         return (
-            <div className="py-20 flex flex-col items-center justify-center text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin text-brand-primary mb-2" />
-                <p>Preparando ficha...</p>
-            </div>
+            <Cargando que="la ficha de ingreso" className="space-y-6">
+                <p className="text-xs text-muted-foreground" aria-hidden="true">
+                    La ficha llega a administración, que la revisa y crea al trabajador. La empresa la asigna la oficina.
+                </p>
+                <CampoSilueta label="RUT" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <CampoSilueta label="Nombres" />
+                    <CampoSilueta label="Apellido paterno" />
+                    <CampoSilueta label="Apellido materno" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <CampoSilueta label="Cargo" />
+                    <CampoSilueta label="Obra" />
+                    <CampoSilueta label="Fecha de ingreso" />
+                </div>
+                <div className="space-y-4 pt-2 border-t border-border">
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground" aria-hidden="true">Datos personales</p>
+                    <DatosPersonalesSilueta />
+                </div>
+            </Cargando>
         );
     }
 

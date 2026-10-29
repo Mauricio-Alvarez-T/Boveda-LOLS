@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, FileText, ExternalLink, Download, Paperclip, AlertTriangle, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { FileText, ExternalLink, Download, Paperclip, AlertTriangle, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { Modal } from './Modal';
 import { IconButton } from './IconButton';
+import { Cargando, Skeleton } from './Skeleton';
 import { cn } from '../../utils/cn';
 import { navegadorMuestraPdf, formatearTamano } from '../../utils/archivos';
 
@@ -121,7 +122,13 @@ export const VisorAdjunto: React.FC<Props> = ({ url, mime, nombre, size = 0, des
                 </span>
             }
             footer={
-                cargando ? <div className="h-10" aria-hidden /> : url && !error ? (
+                cargando ? (
+                    // Los dos botones del pie, en gris, en el mismo lugar (al llegar no salta nada).
+                    <div className="flex flex-wrap items-center justify-end gap-2" aria-hidden>
+                        <Skeleton className="h-10 w-32 rounded-full" />
+                        <Skeleton className="h-10 w-28 rounded-full" />
+                    </div>
+                ) : url && !error ? (
                     <div className="flex flex-wrap items-center justify-end gap-2">
                         <a href={url} target="_blank" rel="noopener noreferrer"
                             className={cn('inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-full',
@@ -145,10 +152,9 @@ export const VisorAdjunto: React.FC<Props> = ({ url, mime, nombre, size = 0, des
                 {cargando ? (
                     // Mismo alto que la foto ya cargada (idea: Refine Frame de React Bits): al llegar no
                     // salta nada, ni el pie con los botones (que también se reserva, abajo).
-                    <div className="h-[70dvh] md:h-[72vh] flex flex-col items-center justify-center gap-2" role="status">
-                        <Loader2 className="h-6 w-6 motion-safe:animate-spin text-muted-foreground" />
-                        <span className="text-caption text-muted-foreground">Cargando…</span>
-                    </div>
+                    <Cargando que="el archivo">
+                        <Skeleton className="h-[70dvh] w-full rounded-none md:h-[72vh]" />
+                    </Cargando>
                 ) : error ? (
                     <div className="h-[40dvh] flex flex-col items-center justify-center gap-2 px-6 text-center">
                         <AlertTriangle className="h-6 w-6 text-amber-700 dark:text-amber-300" />

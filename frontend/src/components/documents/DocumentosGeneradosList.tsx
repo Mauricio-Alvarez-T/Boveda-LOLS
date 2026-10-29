@@ -16,6 +16,7 @@ import { cn } from '../../utils/cn';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { StatusBadge } from '../ui/StatusBadge';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { EmitirAmonestacionModal } from './EmitirAmonestacionModal';
 import { EmitirKitModal } from './EmitirKitModal';
 import { EmitirFiniquitoModal } from './EmitirFiniquitoModal';
@@ -99,7 +100,24 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
             </div>
 
             {loading && docs.length === 0 ? (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground py-3"><Loader2 className="h-4 w-4 animate-spin" /> Cargando…</div>
+                // Silueta de las filas: nombre y fecha · estado · Imprimir / Descargar.
+                <Cargando que="los documentos laborales">
+                    <ul className="space-y-2" aria-hidden="true">
+                        {[0, 1].map(i => (
+                            <li key={i} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 rounded-xl bg-background px-3 py-2">
+                                <div className="min-w-0 flex-1 basis-48 space-y-1.5">
+                                    <Skeleton className={cn('h-3.5 max-w-full', i ? 'w-36' : 'w-44')} />
+                                    <Skeleton className="h-3 w-56 max-w-full" />
+                                </div>
+                                <Skeleton className="h-6 w-24 rounded-full" />
+                                <div className="flex shrink-0 gap-1">
+                                    <Skeleton className="h-8 w-8 rounded-full" />
+                                    <Skeleton className="h-8 w-8 rounded-full" />
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </Cargando>
             ) : docs.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-background px-4 py-5 text-center">
                     <FileText className="h-6 w-6 mx-auto text-muted-foreground" />

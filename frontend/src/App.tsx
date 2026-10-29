@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { MainLayout } from './components/layout/MainLayout';
+import { SiluetaLogin } from './components/layout/SiluetaApp';
 import { CargaIsotipo } from './components/ui/CargaIsotipo';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { cargarPagina } from './paginas';
@@ -27,8 +28,10 @@ const CostosPage = lazyWithRetry(cargarPagina.costos);
 const SoportePage = lazyWithRetry(cargarPagina.soporte);
 
 // Mientras abre (Marcos 2026-10-30, reemplaza a la rueda verde): el isotipo de LOLS se arma al centro
-// (diseno.md §9.18). El Suspense de arriba solo espera la primera pantalla (las secciones tienen el suyo
-// en MainLayout).
+// (diseno.md §9.18). En /login sigue la silueta del formulario. El Suspense de arriba solo espera la
+// pantalla de inicio de sesión (las secciones tienen el suyo, con siluetas, en MainLayout).
+const PantallaInicial: React.FC = () => (window.location.pathname.startsWith('/login') ? <SiluetaLogin /> : <CargaIsotipo />);
+
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -46,7 +49,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <Suspense fallback={<CargaIsotipo />}>
+      <Suspense fallback={<PantallaInicial />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
 

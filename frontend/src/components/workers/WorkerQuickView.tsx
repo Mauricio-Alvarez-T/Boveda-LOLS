@@ -9,6 +9,7 @@ import type { UltimaDesvinculacion } from './desvinculacionSchema';
 import { listarDatosPersonales } from '../consultas/solicitudIngresoSchema';
 import { IconButton } from '../ui/IconButton';
 import { Chip } from '../ui/Chip';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { cn } from '../../utils/cn';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
 import { WorkerCalendarModal } from '../attendance/WorkerCalendarModal';
@@ -286,9 +287,67 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                             )}
 
                             {loading ? (
-                                <div className="flex flex-col items-center justify-center py-20">
-                                    <Loader2 className="h-8 w-8 animate-spin text-brand-primary mb-3" />
-                                    <p className="text-sm text-muted-foreground">Cargando información...</p>
+                                // Silueta de la ficha: misma cabecera (identidad, acciones, pestañas en «Resumen») y las
+                                // secciones del resumen con sus títulos de verdad. Cerrar sigue disponible.
+                                <div className="flex min-h-0 flex-1 flex-col">
+                                    <div className={cn('shrink-0 border-b border-border px-5 pt-4', isMobile && 'rounded-t-[32px] pt-2')}>
+                                        <div className="flex items-start gap-3">
+                                            <Skeleton className="h-12 w-12 shrink-0 rounded-2xl" />
+                                            <div className="min-w-0 flex-1 space-y-2 pt-0.5" aria-hidden="true">
+                                                <Skeleton className="h-6 w-56 max-w-full" />
+                                                <Skeleton className="h-3 w-24" />
+                                            </div>
+                                            <IconButton
+                                                variant="ghost"
+                                                aria-label="Cerrar ficha"
+                                                onClick={onClose}
+                                                className="-mr-1 -mt-1 shrink-0"
+                                                icon={<X className="h-5 w-5" />}
+                                            />
+                                        </div>
+                                        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground" aria-hidden="true">
+                                            {[Briefcase, MapPin, Building2].map((Icono, i) => (
+                                                <span key={i} className="flex items-center gap-1.5"><Icono className="h-3.5 w-3.5 shrink-0" /><Skeleton className="h-3 w-20" /></span>
+                                            ))}
+                                        </div>
+                                        {/* Los botones de verdad, desactivados: su texto no depende de datos. */}
+                                        <div className="mt-3 flex gap-2" aria-hidden="true">
+                                            <Button size="sm" variant="glass" className="flex-1" leftIcon={<Pencil className="h-4 w-4" />} disabled tabIndex={-1}>Editar</Button>
+                                            <Button size="sm" variant="glass" className="flex-1" leftIcon={<Calendar className="h-4 w-4" />} disabled tabIndex={-1}>Asistencia</Button>
+                                        </div>
+                                        {/* Pestañas dibujadas quietas: la ficha siempre abre en «Resumen». */}
+                                        <div className="mt-3 flex gap-1 rounded-2xl bg-muted p-1" aria-hidden="true">
+                                            {TABS.map(t => (
+                                                <span key={t.id} className={cn('flex h-9 flex-1 items-center justify-center rounded-xl text-section font-semibold',
+                                                    t.id === 'resumen' ? 'bg-brand-primary text-white' : 'text-muted-foreground')}>{t.label}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {/* La región que anuncia la carga va aquí y no en toda la ficha: así «Cerrar» queda fuera de ella. */}
+                                    <Cargando que="la ficha del trabajador" className="flex-1 space-y-4 overflow-hidden p-5">
+                                        <section className="rounded-2xl border border-border bg-background p-4" aria-hidden="true">
+                                            <p className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Contrato</p>
+                                            <div className="mt-2.5 grid grid-cols-2 gap-3">
+                                                {['Inicio', 'Término', 'Antigüedad'].map(l => (
+                                                    <div key={l} className="min-w-0">
+                                                        <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{l}</p>
+                                                        <Skeleton className="mt-1.5 h-3.5 w-24 max-w-full" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </section>
+                                        <section className="rounded-2xl border border-border bg-background p-4" aria-hidden="true">
+                                            <p className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Asistencia registrada</p>
+                                            <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-3">
+                                                {['Días trabajados', 'Faltas'].map(l => (
+                                                    <div key={l}>
+                                                        <Skeleton className="h-6 w-12" />
+                                                        <p className="mt-1 text-micro font-bold uppercase tracking-wide text-muted-foreground">{l}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </section>
+                                    </Cargando>
                                 </div>
                             ) : worker ? (<>
                                 {/* ── Cabecera fija: identidad + acciones + pestañas ── */}

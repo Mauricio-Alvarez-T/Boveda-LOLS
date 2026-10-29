@@ -3,6 +3,7 @@ import api from '../../services/api';
 import { useObra } from '../../context/ObraContext';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { Save, Clock, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ConfiguracionHorario } from '../../types/entities';
@@ -97,7 +98,57 @@ export const HorariosConfigPanel: React.FC = () => {
     }
 
     if (loading) {
-        return <div className="p-8 text-center text-muted-foreground">Cargando configuración...</div>;
+        // Encabezado, días y rótulos son fijos: van de verdad; solo las horas (y el botón) en gris.
+        return (
+            <Cargando que="los horarios" className="bg-card rounded-2xl border border-border overflow-hidden">
+                <div className="p-4 md:p-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 className="text-lg font-bold text-brand-dark flex items-center gap-2">
+                            <Clock className="h-5 w-5 text-brand-primary" />
+                            Horarios por Defecto
+                        </h2>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Configura los horarios estándar semanales para la obra <strong>{selectedObra.nombre}</strong>.
+                        </p>
+                    </div>
+                    <Skeleton className="h-11 w-full rounded-full sm:w-44" />
+                </div>
+                <div className="p-3 md:p-6 bg-background/30" aria-hidden="true">
+                    <div className="hidden md:block">
+                        <div className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 mb-4 px-4 py-2 bg-brand-primary rounded-xl text-xs font-bold text-white uppercase tracking-wider">
+                            <div>Día</div>
+                            <div>Entrada</div>
+                            <div>Salida</div>
+                            <div>Inicio Colación</div>
+                            <div>Fin Colación</div>
+                        </div>
+                        <div className="space-y-3">
+                            {diasSemana.map(dia => (
+                                <div key={dia.key} className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 items-center px-4 py-3 rounded-xl bg-card border border-border shadow-sm">
+                                    <div className="font-semibold text-brand-dark capitalize">{dia.label}</div>
+                                    {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full rounded-xl" />)}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="md:hidden space-y-4">
+                        {diasSemana.map(dia => (
+                            <div key={dia.key} className="bg-card p-4 rounded-xl border border-border shadow-sm space-y-3">
+                                <h3 className="font-bold text-brand-dark capitalize border-b border-background pb-2 mb-3">{dia.label}</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {['Entrada', 'Salida', 'Inicio Col.', 'Fin Col.'].map(r => (
+                                        <div key={r} className="space-y-1">
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">{r}</p>
+                                            <Skeleton className="h-10 w-full rounded-xl" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </Cargando>
+        );
     }
 
     return (

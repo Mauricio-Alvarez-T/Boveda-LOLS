@@ -10,6 +10,7 @@ import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
+import { Cargando, Skeleton, SkeletonCirculo } from '../ui/Skeleton';
 import { cn } from '../../utils/cn';
 import {
     normalizeLogDetail, getLabel, getModuloLabel, describeAccion,
@@ -710,11 +711,23 @@ export const ActivityLogsPanel: React.FC = () => {
             {/* ═══ Tabla de logs ═══ */}
             <div className="space-y-2">
                 {loading && logs.length === 0 ? (
-                    <div className="space-y-2">
-                        {[1, 2, 3, 4, 5].map(i => (
-                            <div key={i} className="h-16 bg-card rounded-2xl border border-border" />
+                    // La forma de cada registro: la persona, acción + quién + módulo, el resumen y la hora.
+                    <Cargando que="los registros" className="space-y-2">
+                        {[0, 1, 2, 3, 4].map(i => (
+                            <div key={i} className="bg-card rounded-2xl border border-border p-3 flex items-center gap-3" aria-hidden="true">
+                                <SkeletonCirculo className="h-9 w-9" />
+                                <div className="flex-1 min-w-0 space-y-2">
+                                    <div className="flex items-center gap-1.5">
+                                        <Skeleton className="h-4 w-14 rounded" />
+                                        <Skeleton className={cn('h-3.5', i % 2 ? 'w-28' : 'w-36')} />
+                                        <Skeleton className="h-3 w-16 max-sm:hidden" />
+                                    </div>
+                                    <Skeleton className={cn('h-3', i % 3 === 1 ? 'w-2/5' : 'w-3/5')} />
+                                </div>
+                                <Skeleton className="h-3 w-20 shrink-0" />
+                            </div>
                         ))}
-                    </div>
+                    </Cargando>
                 ) : logs.length === 0 ? (
                     <div className="h-40 flex flex-col items-center justify-center text-center p-8 bg-card rounded-2xl border border-border border-dashed">
                         <History className="h-8 w-8 text-border mb-2" />

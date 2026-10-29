@@ -4,12 +4,30 @@ import type { VehiculoVenta } from '../../types/entities';
 import { formatCLP } from '../../utils/currency';
 import { cn } from '../../utils/cn';
 import { EmptyState } from '../ui/EmptyState';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 
 const fmtDate = (d: string) =>
     new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 
-const Skeleton: React.FC = () => (
-    <div className="rounded-2xl border border-border bg-card h-44" />
+/** Una venta mientras llega: patente, modelo, empresa y fecha en gris; «Compra» y «Venta» de verdad. */
+const VentaSilueta: React.FC = () => (
+    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm" aria-hidden="true">
+        <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1 space-y-1.5"><Skeleton className="h-4 w-20" /><Skeleton className="h-3 w-32" /></div>
+            <Skeleton className="h-5 w-14 shrink-0 rounded-md" />
+        </div>
+        <Skeleton className="h-5 w-28 rounded-full" />
+        <Skeleton className="h-3 w-36" />
+        <div className="grid grid-cols-2 gap-2 text-sm">
+            {['Compra', 'Venta'].map(r => (
+                <div key={r} className="space-y-1 rounded-xl bg-muted/40 px-2.5 py-1.5">
+                    <p className="text-micro uppercase font-bold text-muted-foreground tracking-wide">{r}</p>
+                    <Skeleton className="h-4 w-20" style={{ backgroundColor: 'var(--color-border)' }} />
+                </div>
+            ))}
+        </div>
+        <Skeleton className="h-9 w-full rounded-xl" />
+    </div>
 );
 
 /**
@@ -47,9 +65,9 @@ export const VehiculosVendidos: React.FC<Props> = ({ ventas, loading }) => {
 
             <div className="flex-1 min-h-0 overflow-y-auto">
                 {loading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                        {[1, 2, 3].map(i => <Skeleton key={i} />)}
-                    </div>
+                    <Cargando que="los vehículos vendidos" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {[1, 2, 3].map(i => <VentaSilueta key={i} />)}
+                    </Cargando>
                 ) : ventas.length === 0 ? (
                     <EmptyState
                         icon={Banknote}

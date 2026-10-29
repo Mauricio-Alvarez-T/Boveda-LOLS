@@ -3,6 +3,7 @@ import { ArrowRight, Plus, UserPlus } from 'lucide-react';
 
 import { cn } from '../../../utils/cn';
 import { Button } from '../../ui/Button';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { EncabezadoTarjeta, CifraTarjeta } from './EncabezadoTarjeta';
 import { BotonVerMas } from './BotonVerMas';
 import type { FilaSolicitud, GrupoSolicitud, ResumenTusSolicitudes } from './resumenTusSolicitudes';
@@ -51,6 +52,32 @@ const GRUPOS: { g: GrupoSolicitud; titulo: string; acento: string; vacio: string
     { g: 'pendiente', titulo: 'Esperando revisión', acento: 'border-t-amber-500', vacio: 'Nada esperando revisión.' },
     { g: 'aprobada', titulo: 'Aprobadas (últimos 30 días)', acento: 'border-t-green-700', vacio: 'Ninguna aprobada en los últimos 30 días.' },
 ];
+
+/** El detalle mientras llegan tus solicitudes (diseno.md §9.17): las tres columnas con su título de verdad; cifras y fichas en gris. */
+export const DetalleTusSolicitudesSilueta: React.FC<{ onIr: () => void }> = ({ onIr }) => (
+    <div className="space-y-4">
+        <Cargando que="tus solicitudes" className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {GRUPOS.map(({ g, titulo, acento }) => (
+                <section key={g} className={cn('overflow-hidden rounded-2xl border border-border border-t-4 bg-card', acento)} aria-hidden="true">
+                    <header className="flex items-center justify-between gap-3 px-4 py-3">
+                        <h4 className="text-sm font-bold text-foreground">{titulo}</h4>
+                        <Skeleton className="h-6 w-6 shrink-0" />
+                    </header>
+                    {[0, 1].map(i => (
+                        <div key={i} className="space-y-1.5 border-t border-border px-4 py-2.5">
+                            <Skeleton className={cn('h-4', i ? 'w-1/2' : 'w-2/3')} />
+                            <Skeleton className="h-3 w-2/5" />
+                            <Skeleton className="h-3 w-1/3" />
+                        </div>
+                    ))}
+                </section>
+            ))}
+        </Cargando>
+        <div className="flex justify-end">
+            <Button variant="ghost" size="sm" rightIcon={<ArrowRight className="h-4 w-4" />} onClick={onIr}>Ir a Solicitudes</Button>
+        </div>
+    </div>
+);
 
 /** Detalle: todas tus solicitudes por estado, en tres columnas. */
 export const DetalleTusSolicitudes: React.FC<{ resumen: ResumenTusSolicitudes; onIr: () => void }> = ({ resumen: r, onIr }) => (

@@ -3,6 +3,7 @@ import { ArrowRight, Clock, CheckCircle2, Truck, PackageCheck, XCircle, Ban, Sea
 import { cn } from '../../utils/cn';
 import type { Transferencia } from '../../types/entities';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import StatusFilterBar from './StatusFilterBar';
 
 interface Props {
@@ -79,7 +80,22 @@ const TransferenciasList: React.FC<Props> = ({
             {/* Lista estilo master (Vehículos) — borde izquierdo coloreado por estado + separadores */}
             <div className="flex-1 min-h-0 overflow-y-auto">
                 {loading ? (
-                    <div className="py-8 text-center text-muted-foreground text-xs">Cargando...</div>
+                    // Silueta de las filas: código, estado y fecha; abajo el destino. Borde izquierdo neutro (sin estado aún).
+                    <Cargando que="las solicitudes">
+                        {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
+                            <div key={i} className="px-3 md:px-4 py-1.5 border-l-[3px] border-l-border border-b border-b-border/50 last:border-b-0" aria-hidden="true">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    <Skeleton className="h-3.5 w-24 shrink-0" />
+                                    <Skeleton className="h-4 w-16 shrink-0 rounded" />
+                                    <Skeleton className="ml-auto h-3 w-10 shrink-0" />
+                                </div>
+                                <div className="flex items-center gap-1 mt-1 min-w-0">
+                                    <ArrowRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40" />
+                                    <Skeleton className={cn('h-3', i % 3 === 1 ? 'w-2/5' : 'w-3/5')} />
+                                </div>
+                            </div>
+                        ))}
+                    </Cargando>
                 ) : filtered.length === 0 ? (
                     <div className="py-12 text-center text-muted-foreground">
                         <Truck className="h-8 w-8 mx-auto opacity-20 mb-2" />

@@ -17,7 +17,9 @@ import { avisoDesvinculacion, detalleDesvinculacion, type UltimaDesvinculacion }
 import { cn } from '../../utils/cn';
 import type { Trabajador, Empresa, Obra, Cargo } from '../../types/entities';
 import type { ApiResponse } from '../../types';
-import { DatosPersonalesFields } from './DatosPersonalesFields';
+import { DatosPersonalesFields, DatosPersonalesSilueta } from './DatosPersonalesFields';
+import { CampoSilueta } from './CampoSilueta';
+import { Cargando } from '../ui/Skeleton';
 import {
     datosPersonalesSchema, datosPersonalesDefaults, normalizarDatosPersonales,
 } from '../consultas/solicitudIngresoSchema';
@@ -207,12 +209,40 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
         }
     };
 
+    // Silueta del formulario (mismos rótulos y columnas) mientras llegan empresas, obras y cargos.
     if (initializing) {
         return (
-            <div className="py-20 flex flex-col items-center justify-center text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin text-brand-primary mb-2" />
-                <p>Preparando formulario...</p>
-            </div>
+            <Cargando que="el formulario" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <CampoSilueta label="RUT" />
+                    <CampoSilueta label="Nombres" />
+                    <CampoSilueta label="Apellido Paterno" />
+                    <CampoSilueta label="Apellido Materno" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <CampoSilueta label="Correo Electrónico" />
+                    <CampoSilueta label="Teléfono" />
+                </div>
+                <div className="h-px bg-white/5 my-2" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <CampoSilueta label="Empresa" />
+                    <CampoSilueta label="Obra" />
+                    <CampoSilueta label="Cargo" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <CampoSilueta label="Categoría Reporte" />
+                    <CampoSilueta label="Fecha Ingreso" />
+                    <CampoSilueta label="Fecha de término del contrato" className="md:col-start-2" />
+                </div>
+                <div className="h-px bg-white/5 my-1" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <CampoSilueta label="Clase de Licencia" />
+                    <CampoSilueta label="Vencimiento Licencia" />
+                </div>
+                <div className="h-px bg-white/5 my-1" />
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground" aria-hidden="true">Datos personales</p>
+                <DatosPersonalesSilueta incluirTelefono={false} />
+            </Cargando>
         );
     }
 

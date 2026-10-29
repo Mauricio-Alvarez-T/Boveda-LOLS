@@ -4,6 +4,7 @@ import type { Control, FieldErrors, UseFormRegister } from 'react-hook-form';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { CampoSilueta } from './CampoSilueta';
 import { ESTADO_CIVIL_OPTIONS } from '../consultas/solicitudIngresoSchema';
 import {
     COMUNAS_RM, AFP_OPTIONS, SALUD_OPTIONS, toSelectOptions,
@@ -32,6 +33,24 @@ const msg = (e: unknown): string | undefined => (e as { message?: string } | und
 /** Subtítulo neutro de bloque (DS: sin tinte; el verde es solo para acción). */
 const Subtitulo: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground pt-1">{children}</p>
+);
+
+/**
+ * Silueta del primer bloque de `DatosPersonalesFields` (mismos rótulos y grilla) mientras el formulario padre
+ * espera sus catálogos. Va dentro del `<Cargando>` del padre. Si cambia el bloque de abajo, cambia esto.
+ */
+export const DatosPersonalesSilueta: React.FC<{ incluirTelefono?: boolean }> = ({ incluirTelefono = true }) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CampoSilueta label="Fecha de nacimiento" />
+        <CampoSilueta label="Estado civil" />
+        <CampoSilueta label="Dirección" className="md:col-span-2" />
+        <CampoSilueta label="Comuna" />
+        <CampoSilueta label="Nacionalidad" />
+        <CampoSilueta label="AFP" />
+        <CampoSilueta label="Salud" />
+        {incluirTelefono && <CampoSilueta label="Teléfono" />}
+        <CampoSilueta label="Cargas familiares" />
+    </div>
 );
 
 /**

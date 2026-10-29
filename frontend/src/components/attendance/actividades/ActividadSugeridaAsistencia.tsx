@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Button } from '../../ui/Button';
 import { StatusBadge } from '../../ui/StatusBadge';
 import { Chip } from '../../ui/Chip';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { cn } from '../../../utils/cn';
 import { flagOn } from '../../../utils/flags';
 import { fmtSemana } from '../../../utils/semanas';
@@ -20,6 +21,9 @@ interface Props {
     actividadId: number;
     onBack: () => void;
 }
+
+// Sobre la barra verde del cargo la silueta toma el blanco del texto, translúcido (el gris no se lee ahí).
+const SOBRE_BARRA: React.CSSProperties = { backgroundColor: 'color-mix(in srgb, currentColor 30%, transparent)' };
 
 /**
  * Shape unificado: contiene los datos del trabajador directamente en la fila.
@@ -202,8 +206,65 @@ const ActividadSugeridaAsistencia: React.FC<Props> = ({ actividadId, onBack }) =
     }, [rows]);
 
     if (loading || !current) {
+        // Silueta del detalle: «Volver», los rótulos y las barras verdes de cargo van de verdad; lo de la lista, en gris.
         return (
-            <div className="py-12 text-center text-sm text-muted-foreground">Cargando...</div>
+            <div className="flex flex-col gap-4 pb-24 md:pb-4">
+                <div className="flex items-center gap-3">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onBack}
+                        leftIcon={<ChevronLeft className="h-4 w-4" />}
+                        className="text-sm text-muted-foreground hover:text-brand-dark"
+                    >
+                        Volver
+                    </Button>
+                </div>
+                <Cargando que="la lista" className="flex flex-col gap-4">
+                    <div aria-hidden="true" className="bg-card border border-border rounded-2xl p-4 md:p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex-1 min-w-0 space-y-2">
+                                <Skeleton className="h-6 w-64 max-w-full" />
+                                <Skeleton className="h-3 w-72 max-w-full" />
+                            </div>
+                            <Skeleton className="h-6 w-24 shrink-0 rounded-full" />
+                        </div>
+                    </div>
+                    <div aria-hidden="true" className="bg-card border border-border rounded-2xl p-4 md:p-5">
+                        <div className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5">
+                            Observación general
+                        </div>
+                        <Skeleton className="h-10 w-full rounded-xl" />
+                    </div>
+                    <div aria-hidden="true" className="px-1 flex items-center gap-1 text-xs font-bold text-brand-dark">
+                        Asistieron: <Skeleton className="h-3.5 w-12" />
+                    </div>
+                    <div aria-hidden="true" className="flex flex-col gap-3">
+                        {[3, 2].map((filas, g) => (
+                            <div key={g} className="border border-border rounded-2xl overflow-hidden bg-card">
+                                <div className="bg-brand-primary px-4 py-2.5 text-white">
+                                    <Skeleton className="h-4 w-36" style={SOBRE_BARRA} />
+                                </div>
+                                <div className="divide-y divide-border">
+                                    {Array.from({ length: filas }).map((_, i) => (
+                                        <div key={i} className="px-4 py-3 flex flex-wrap items-center gap-3">
+                                            <div className="flex-1 min-w-[160px] space-y-1.5">
+                                                <Skeleton className={i % 2 ? 'h-4 w-1/2' : 'h-4 w-3/5'} />
+                                                <Skeleton className="h-3 w-1/4" />
+                                            </div>
+                                            <div className="flex gap-1 shrink-0">
+                                                <Skeleton className="h-9 w-[70px] rounded-lg" />
+                                                <Skeleton className="h-9 w-10 rounded-lg" />
+                                            </div>
+                                            <Skeleton className="h-9 flex-1 min-w-[120px] rounded-lg" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Cargando>
+            </div>
         );
     }
 

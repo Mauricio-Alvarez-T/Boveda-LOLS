@@ -18,6 +18,7 @@ import { EmptyState } from '../ui/EmptyState';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
 import { BarraPaginada } from '../ui/BarraPaginada';
 import { StatusBadge } from '../ui/StatusBadge';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { RevisarSolicitudModal, type SolicitudAccion } from './RevisarSolicitudModal';
 import {
     FILTROS_SOLICITUDES, contarPorEstado, filtrar, diasDesde, tonoEspera, textoEspera, agruparPorObra,
@@ -230,18 +231,32 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
             {/* Lista */}
             <div className={cn('flex-1 overflow-y-auto custom-scrollbar bg-muted/60 p-3 md:p-4', aparece)}>
                 {loading ? (
-                    <div className="flex flex-col gap-3">
-                        {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="h-20 w-full bg-card rounded-2xl border border-border flex items-center p-4 gap-4">
-                                <div className="h-11 w-11 rounded-2xl bg-muted shrink-0" />
-                                <div className="flex-1 space-y-2">
-                                    <div className="h-4 w-1/3 bg-muted rounded" />
-                                    <div className="h-3 w-1/2 bg-muted rounded" />
+                    // Silueta de las filas reales (iniciales, nombre, datos, espera y «Revisar»); en «Pendientes» va
+                    // con su rótulo de obra arriba, como la lista agrupada.
+                    <Cargando que="las solicitudes" className="flex flex-col gap-2.5">
+                        {filtro === 'pendiente' && (
+                            <div className="flex items-center gap-2 px-1" aria-hidden="true">
+                                <MapPin className="h-3.5 w-3.5 text-brand-primary" />
+                                <Skeleton className="h-3 w-32" />
+                            </div>
+                        )}
+                        {[0, 1, 2, 3].map(i => (
+                            <div key={i} className="w-full rounded-2xl border border-border border-l-4 bg-card p-3.5 shadow-sm sm:p-4" aria-hidden="true">
+                                <div className="flex items-center gap-3 sm:gap-4">
+                                    <Skeleton className="h-11 w-11 shrink-0 rounded-2xl" />
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                        <Skeleton className={cn('h-4', i % 2 ? 'w-2/5' : 'w-1/2 sm:w-1/3')} />
+                                        <Skeleton className="h-3 w-3/4 sm:w-1/2" />
+                                        <Skeleton className="h-3 w-2/5 sm:w-1/4" />
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-2">
+                                        <Skeleton className="hidden h-9 w-20 rounded-full sm:block" />
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                    </div>
                                 </div>
-                                <div className="hidden sm:flex h-9 w-20 bg-muted rounded-full ml-auto" />
                             </div>
                         ))}
-                    </div>
+                    </Cargando>
                 ) : items.length === 0 ? (
                     <EmptyState
                         icon={UserPlus}

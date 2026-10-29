@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { History, Plus, Pencil, Trash2, FileSpreadsheet, Lock, LockOpen } from 'lucide-react';
 import api from '../../services/api';
 import { EmptyState } from '../ui/EmptyState';
+import { Cargando, Skeleton } from '../ui/Skeleton';
+import { cn } from '../../utils/cn';
 import { fmtMoney } from '../../utils/format';
 import { fmtFechaHora } from '../../utils/fechas';
 import { nombreCategoria, ESTADOS_PAGO, TIPOS_DOC } from './costosConfig';
@@ -32,6 +34,23 @@ function valor(campo: string, v: unknown, partidas: Map<number, string>): string
     return String(v).slice(0, 120);
 }
 
+/** El historial mientras carga (también mientras llega la obra): el ícono de la acción, qué pasó y quién · cuándo. */
+export const HistorialSilueta: React.FC = () => (
+    <Cargando que="el historial">
+        <ol className="flex flex-col divide-y divide-border rounded-card border border-border bg-card" aria-hidden="true">
+            {[0, 1, 2, 3, 4, 5].map(i => (
+                <li key={i} className="flex items-start gap-3 px-4 py-3">
+                    <Skeleton className="mt-0.5 h-7 w-7 shrink-0 rounded-lg" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                        <Skeleton className={cn('h-3.5', i % 3 === 1 ? 'w-2/5' : 'w-3/5')} />
+                        <Skeleton className="h-3 w-40 max-w-full" />
+                    </div>
+                </li>
+            ))}
+        </ol>
+    </Cargando>
+);
+
 /**
  * Quién cambió qué y cuándo. Las ediciones muestran el antes → después de cada
  * campo: lo que hoy se pierde al llevarlo de memoria o en un Excel sin historial.
@@ -50,7 +69,7 @@ export const HistorialObra: React.FC<{ obraId: number; version: number; partidas
     }, [obraId, version]);
 
     if (error) return <EmptyState icon={History} title="No se pudo cargar el historial" description="Vuelve a intentarlo en un momento." />;
-    if (!filas) return <div className="h-64 rounded-card border border-border bg-card" />;
+    if (!filas) return <HistorialSilueta />;
     if (!filas.length) return <EmptyState icon={History} title="Sin movimientos todavía" description="Cada partida, gasto o cambio de porcentaje queda anotado aquí con quién lo hizo." />;
 
     return (

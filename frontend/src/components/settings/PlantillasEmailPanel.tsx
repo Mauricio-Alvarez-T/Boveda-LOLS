@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Star, StarOff, Loader2, Mail, Save, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Star, StarOff, Mail, Save, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
+import { Cargando, Skeleton } from '../ui/Skeleton';
+import { TarjetaCorreoSilueta } from './SiluetasConfig';
 import { showDeleteToast } from '../../utils/toastUtils';
 import api from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -159,9 +161,15 @@ const PlantillasEmailPanel: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
-            </div>
+            <Cargando que="las plantillas de correo" className="space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" aria-hidden="true">
+                    <Skeleton className="h-4 w-44" />
+                    <Skeleton className="h-9 w-24 rounded-full sm:w-40" />
+                </div>
+                <div className="space-y-3">
+                    {[0, 1, 2].map(i => <TarjetaCorreoSilueta key={i} botones={3} lineas={2} className="p-5" />)}
+                </div>
+            </Cargando>
         );
     }
 

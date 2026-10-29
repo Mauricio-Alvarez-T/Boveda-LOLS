@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useStandardHeader } from '../components/ui/PageHeader';
 import { EstadoPill } from '../components/ideas/Meta';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Cargando, Skeleton, SkeletonCirculo } from '../components/ui/Skeleton';
 import { SearchBar } from '../components/ui/SearchBar';
 import { PestanasElasticas } from '../components/ui/PestanasElasticas';
 import { BarraPaginada } from '../components/ui/BarraPaginada';
@@ -41,7 +42,9 @@ const OPCIONES_TIPO: { key: IdeaTipo | 'todos'; label: string; icon?: React.Elem
 const RESUMEN_VACIO: IdeasResumenBandeja = { pendiente: 0, aceptada: 0, desechada: 0, hecha: 0, pendiente_mas_antigua: null };
 
 /** Tarjeta de número de la cabecera: neutra, el número manda (design system: KPI). */
-const Kpi: React.FC<{ icon: React.ElementType; label: string; valor: number; nota?: string; activo?: boolean; onClick: () => void }> = ({ icon: Icon, label, valor, nota, activo, onClick }) => (
+// `valor` null = todavía cargando: la cifra (y su nota) van en silueta, nunca un 0 falso (§9.4). Dentro de un botón,
+// la silueta es un <span> con la clase `.silueta` (un <div> no va dentro de <button>).
+const Kpi: React.FC<{ icon: React.ElementType; label: string; valor: number | null; nota?: string; activo?: boolean; onClick: () => void }> = ({ icon: Icon, label, valor, nota, activo, onClick }) => (
     // eslint-disable-next-line no-restricted-syntax -- tarjeta KPI clicable que filtra la lista; Button no soporta este layout
     <button type="button" onClick={onClick}
         className={cn('flex flex-col items-start gap-1 rounded-card border bg-card p-4 text-left transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40',
@@ -49,8 +52,12 @@ const Kpi: React.FC<{ icon: React.ElementType; label: string; valor: number; not
         <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
             <Icon className="h-3.5 w-3.5" /> {label}
         </span>
-        <span className="text-title md:text-headline font-bold tracking-headline text-brand-dark tabular-nums leading-none">{valor}</span>
-        {nota && <span className="text-caption text-muted-foreground">{nota}</span>}
+        {valor === null
+            ? <span aria-hidden="true" className="silueta block h-7 w-12 rounded-md md:h-9" />
+            : <span className="text-title md:text-headline font-bold tracking-headline text-brand-dark tabular-nums leading-none">{valor}</span>}
+        {nota && (valor === null
+            ? <span aria-hidden="true" className="silueta mt-0.5 block h-3 w-32 max-w-full rounded-md" />
+            : <span className="text-caption text-muted-foreground">{nota}</span>)}
     </button>
 );
 
@@ -152,11 +159,11 @@ const IdeasPage: React.FC = () => {
         <div className="flex flex-col gap-5">
             {/* Números (en el celular se ocultan mientras se lee una idea) */}
             <div className={cn('grid grid-cols-2 lg:grid-cols-4 gap-3', verDetalleMovil && 'hidden lg:grid')}>
-                <Kpi icon={Inbox} label="Pendientes" valor={resumen.pendiente} activo={filtro === 'pendiente'}
+                <Kpi icon={Inbox} label="Pendientes" valor={cargando ? null : resumen.pendiente} activo={filtro === 'pendiente'}
                     nota={resumen.pendiente ? `La más antigua llegó ${diasMasAntigua}` : 'Bandeja al día'} onClick={() => setFiltro('pendiente')} />
-                <Kpi icon={Hourglass} label="Aceptadas · por hacer" valor={resumen.aceptada} activo={filtro === 'aceptada'} onClick={() => setFiltro('aceptada')} />
-                <Kpi icon={CheckCheck} label="Hechas" valor={resumen.hecha} activo={filtro === 'hecha'} onClick={() => setFiltro('hecha')} />
-                <Kpi icon={Archive} label="Desechadas" valor={resumen.desechada} activo={filtro === 'desechada'} onClick={() => setFiltro('desechada')} />
+                <Kpi icon={Hourglass} label="Aceptadas · por hacer" valor={cargando ? null : resumen.aceptada} activo={filtro === 'aceptada'} onClick={() => setFiltro('aceptada')} />
+                <Kpi icon={CheckCheck} label="Hechas" valor={cargando ? null : resumen.hecha} activo={filtro === 'hecha'} onClick={() => setFiltro('hecha')} />
+                <Kpi icon={Archive} label="Desechadas" valor={cargando ? null : resumen.desechada} activo={filtro === 'desechada'} onClick={() => setFiltro('desechada')} />
             </div>
 
             {/* Filtros */}
@@ -176,7 +183,7 @@ const IdeasPage: React.FC = () => {
                         render={(f) => (
                             <>
                                 {f.label}
-                                {f.key !== 'todas' && <span className="ml-1.5 opacity-70 tabular-nums">{resumen[f.key as IdeaEstado]}</span>}
+                                {f.key !== 'todas' && !cargando && <span className="ml-1.5 opacity-70 tabular-nums">{resumen[f.key as IdeaEstado]}</span>}
                             </>
                         )}
                     />
@@ -211,10 +218,47 @@ const IdeasPage: React.FC = () => {
             </div>
 
             {cargando ? (
-                <div className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] gap-4">
-                    <div className="rounded-card border border-border bg-card h-96" />
-                    <div className="hidden lg:block rounded-card border border-border bg-card h-96" />
-                </div>
+                // Lista (ícono del tipo, título, quién · pantalla, cuándo) y, en el computador, el detalle de la primera.
+                <Cargando que="las ideas" className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] gap-4 items-start">
+                    <ul className="flex flex-col gap-2" aria-hidden="true">
+                        {[0, 1, 2, 3, 4].map(i => (
+                            <li key={i} className="flex items-start gap-3 rounded-card border border-border bg-card p-3.5">
+                                <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+                                <div className="min-w-0 flex-1 space-y-2">
+                                    <Skeleton className={cn('h-4', i % 2 ? 'w-3/5' : 'w-4/5')} />
+                                    <Skeleton className="h-3 w-1/2" />
+                                    <div className="flex gap-1.5 pt-0.5"><Skeleton className="h-2.5 w-14" /><Skeleton className="h-2.5 w-20" /></div>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="hidden lg:flex flex-col gap-4" aria-hidden="true">
+                        <section className="rounded-card border border-border bg-card p-4 md:p-5">
+                            <div className="flex items-start gap-3">
+                                <SkeletonCirculo className="h-11 w-11" />
+                                <div className="min-w-0 flex-1 space-y-2">
+                                    <div className="flex items-center gap-2"><Skeleton className="h-4 w-40" /><Skeleton className="h-5 w-20 rounded-full" /></div>
+                                    <Skeleton className="h-3 w-56 max-w-full" />
+                                </div>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                                {['w-20', 'w-28', 'w-24', 'w-32'].map(w => <Skeleton key={w} className={cn('h-6 rounded-full', w)} />)}
+                            </div>
+                        </section>
+                        <section className="space-y-2.5 rounded-card border border-border bg-card p-4 md:p-5">
+                            <Skeleton className="h-3 w-28" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-2/3" />
+                        </section>
+                        <section className="space-y-3 rounded-card border border-border bg-card p-4">
+                            <Skeleton className="h-3 w-40" />
+                            <Skeleton className="h-16 w-full rounded-xl" />
+                            <Skeleton className="h-3 w-32" />
+                            <Skeleton className="h-16 w-full rounded-xl" />
+                        </section>
+                    </div>
+                </Cargando>
             ) : !visibles.length ? (
                 <EmptyState
                     icon={filtro === 'pendiente' ? CheckCheck : Inbox}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAparecer } from '../hooks/useAparecer';
-import { SkeletonFilas } from '../components/ui/Skeleton';
+import { Cargando, Skeleton, SkeletonCirculo } from '../components/ui/Skeleton';
 import { useSearchParams } from 'react-router-dom';
 import { useIsPresent } from 'framer-motion';
 import {
@@ -38,6 +38,10 @@ const SIN_EMPRESA_COLOR = '#94a3b8';
 const VENDIDOS_COLOR = '#059669';
 // Fondo suave a partir de un hex de 6 dígitos (~10% alpha).
 const softBg = (hex: string) => `${hex}1a`;
+/** Una cifra que todavía no llega: un trazo gris en su lugar, no un 0 falso (diseno.md §9.4, §9.17). */
+const CifraSilueta: React.FC<{ className?: string }> = ({ className }) => (
+    <span aria-hidden="true" className={cn('silueta inline-block rounded-md align-middle', className)} />
+);
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
@@ -255,6 +259,11 @@ const VehiculosPage: React.FC = () => {
         : empresaActiva?.color ?? SIN_EMPRESA_COLOR;
     // Contador del nivel 2: vehículos de la empresa, o ventas si es el grupo "vendidos".
     const nivel2Count = esVendidos ? ventas.length : vehiculosEmpresa.length;
+    // `loading` parte en false: hasta la primera respuesta se cuenta como cargando (si no, se asoma «Sin empresas»).
+    const cargandoVehiculos = loading || !vehiculosCargados;
+    // Ventas que todavía no llegan: su cifra va en gris (chip, tarjeta y cabecera de «Vendidos»).
+    const cargandoVentas = loadingVentas && ventas.length === 0;
+    const cargandoNivel2 = esVendidos ? cargandoVentas : cargandoVehiculos;
 
     const headerTitle = useMemo(() => {
         if (!enNivel2) {
@@ -265,7 +274,7 @@ const VehiculosPage: React.FC = () => {
                         <h1 className="text-lg font-bold text-brand-dark">
                             Vehículos
                             <span className="ml-2 text-xs font-black bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-md align-middle">
-                                {vehiculos.length}
+                                {cargandoVehiculos ? <CifraSilueta className="h-3 w-4 rounded-sm" /> : vehiculos.length}
                             </span>
                         </h1>
                         <p className="text-muted-foreground text-xs">Empresas de flota</p>
@@ -287,14 +296,14 @@ const VehiculosPage: React.FC = () => {
                             <span className="truncate">{empresaActivaNombre}</span>
                         </span>
                         <span className="text-xs font-black bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-md align-middle shrink-0">
-                            {nivel2Count}
+                            {cargandoNivel2 ? <CifraSilueta className="h-3 w-4 rounded-sm" /> : nivel2Count}
                         </span>
                     </h1>
                     <p className="text-muted-foreground text-xs">{esVendidos ? 'Historial de ventas' : 'Vehículos de la empresa'}</p>
                 </div>
             </div>
         );
-    }, [enNivel2, vehiculos.length, nivel2Count, esVendidos, empresaActivaNombre, empresaActivaColor, volverANivel1]);
+    }, [enNivel2, vehiculos.length, nivel2Count, cargandoVehiculos, cargandoNivel2, esVendidos, empresaActivaNombre, empresaActivaColor, volverANivel1]);
 
     const headerActions = useMemo(() => (
         <div className="flex items-center gap-2">
@@ -417,7 +426,7 @@ const VehiculosPage: React.FC = () => {
         key: React.Key,
         nombre: string,
         color: string,
-        count: number,
+        count: number | null,   // null = todavía no llega (cifra en gris)
         activa: boolean,
         onEnter: () => void,
         acciones?: React.ReactNode,
@@ -456,7 +465,7 @@ const VehiculosPage: React.FC = () => {
                 <div className="flex items-center gap-2.5 rounded-xl bg-brand-primary/5 border border-brand-primary/15 px-3 py-2">
                     {React.createElement(opts?.icon ?? Truck, { className: 'h-4 w-4 text-brand-primary shrink-0' })}
                     <div className="leading-tight">
-                        <p className="text-lg font-black text-brand-dark">{count}</p>
+                        <p className="text-lg font-black text-brand-dark">{count ?? <CifraSilueta className="my-1 block h-5 w-6" />}</p>
                         <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide">
                             {count === 1 ? (opts?.unidad?.[0] ?? 'vehículo') : (opts?.unidad?.[1] ?? 'vehículos')}
                         </p>
@@ -485,8 +494,20 @@ const VehiculosPage: React.FC = () => {
 
     const EmpresasList = (
         <div className={cn('flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0', aparece)}>
-            {loading ? (
-                <SkeletonFilas filas={4} className="px-3 md:px-4" />
+            {cargandoVehiculos || !empresasCargadas ? (
+                // Espera también las empresas (como los chips del teléfono): sin ellas todo se contaría «Sin empresa».
+                // La forma de cada empresa: punto + nombre arriba y la caja con la cantidad de vehículos.
+                <Cargando que="las empresas" className="flex flex-col gap-3 px-3 md:px-4">
+                    {[0, 1, 2].map(i => (
+                        <div key={i} className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-hidden="true">
+                            <div className="flex items-center gap-2 border-b border-border/60 p-3.5 pb-2.5">
+                                <SkeletonCirculo className="h-2.5 w-2.5" />
+                                <Skeleton className={cn('h-3.5', i % 2 ? 'w-24' : 'w-32')} />
+                            </div>
+                            <div className="p-3.5 pt-3"><Skeleton className="h-14 w-full rounded-xl" /></div>
+                        </div>
+                    ))}
+                </Cargando>
             ) : empresas.length === 0 && conteos.sin === 0 && ventas.length === 0 ? (
                 <EmptyState icon={Building2} title="Sin empresas registradas"
                     description={'Haz clic en "Nueva empresa" para comenzar'}
@@ -533,7 +554,7 @@ const VehiculosPage: React.FC = () => {
 
                     {/* Grupo "Vehículos vendidos": card fija al final (misma pinta que
                         una empresa); clic → historial de ventas en el panel principal. */}
-                    {renderEmpresaCard('vendidos', 'Vehículos vendidos', VENDIDOS_COLOR, ventas.length,
+                    {renderEmpresaCard('vendidos', 'Vehículos vendidos', VENDIDOS_COLOR, cargandoVentas ? null : ventas.length,
                         esVendidos, () => entrarEmpresa('vendidos'), undefined,
                         { icon: Banknote, unidad: ['vendido', 'vendidos'] })}
                     </div>
@@ -545,8 +566,22 @@ const VehiculosPage: React.FC = () => {
     // ── Nivel 2: vista lista ──────────────────────────────────────────────────
     const ListView = (
         <div className={cn('flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0', aparece)}>
-            {loading ? (
-                <SkeletonFilas filas={4} className="px-3 md:px-4" />
+            {cargandoVehiculos ? (
+                // La forma de cada vehículo: marca · patente, modelo + tipo + km, y las acciones a la derecha.
+                <Cargando que="los vehículos">
+                    {[0, 1, 2, 3].map(i => (
+                        <div key={i} className="flex items-center justify-between gap-3 border-b border-b-border/50 border-l-[3px] border-l-transparent px-4 py-3 last:border-b-0 md:px-6" aria-hidden="true">
+                            <div className="min-w-0 flex-1 space-y-2">
+                                <div className="flex items-center gap-2"><Skeleton className="h-3.5 w-16" /><Skeleton className="h-3.5 w-20" /></div>
+                                <div className="flex items-center gap-3"><Skeleton className="h-3 w-24" /><Skeleton className="h-4 w-14 rounded-md" /><Skeleton className="h-3 w-16" /></div>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                                <Skeleton className="h-10 w-10 rounded-full sm:h-8 sm:w-8" />
+                                <Skeleton className="h-10 w-10 rounded-full sm:h-8 sm:w-8" />
+                            </div>
+                        </div>
+                    ))}
+                </Cargando>
             ) : vehiculosEmpresa.length === 0 ? (
                 <EmptyState icon={Truck} title="Sin vehículos en esta empresa"
                     description={'Haz clic en "Nuevo vehículo" para agregar el primero'}
@@ -819,6 +854,14 @@ const VehiculosPage: React.FC = () => {
                         <div className="shrink-0 border-b border-border">
                             <div className="p-3">
                                 <div className="flex w-fit min-w-0 max-w-full rounded-2xl bg-muted p-1">
+                                {!vehiculosCargados || !empresasCargadas ? (
+                                    // Solo la primera vez (al recargar quedan los de antes): chips en gris, un tono más oscuro que la barra.
+                                    <div className="flex gap-1 overflow-hidden" aria-hidden="true">
+                                        {['w-24', 'w-20', 'w-24'].map((w, i) => (
+                                            <Skeleton key={i} className={cn('h-8 shrink-0 rounded-xl', w)} style={{ backgroundColor: 'var(--color-border)' }} />
+                                        ))}
+                                    </div>
+                                ) : (
                                 <BarraPaginada fondo="muted">{p => (
                                     <PestanasElasticas estiloOpcion={p.estiloOpcion} revelar={p.revelar}
                                         opciones={chipsEmpresa}
@@ -834,11 +877,14 @@ const VehiculosPage: React.FC = () => {
                                             <>
                                                 <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: sobreIndicador ? '#ffffff' : c.color }} />
                                                 <span>{c.nombre}</span>
-                                                <span className={cn('rounded-full px-1.5 text-xs', sobreIndicador ? 'bg-white/25' : 'bg-card text-muted-foreground')}>{c.count}</span>
+                                                {c.key === 'vendidos' && cargandoVentas
+                                                    ? <CifraSilueta className="h-4 w-5 rounded-full" />
+                                                    : <span className={cn('rounded-full px-1.5 text-xs', sobreIndicador ? 'bg-white/25' : 'bg-card text-muted-foreground')}>{c.count}</span>}
                                             </>
                                         )}
                                     />
                                 )}</BarraPaginada>
+                                )}
                                 </div>
                             </div>
                         </div>

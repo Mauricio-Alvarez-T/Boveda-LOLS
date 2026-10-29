@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
+import { Cargando, Skeleton } from '../ui/Skeleton';
+import { TarjetaCorreoSilueta, TarjetaReglaSilueta } from './SiluetasConfig';
 import { showDeleteToast } from '../../utils/toastUtils';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -100,7 +102,31 @@ const AvisosPanel: React.FC = () => {
     };
 
     if (loading) {
-        return <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-brand-primary" /></div>;
+        return (
+            <Cargando que="la configuración de avisos" className="space-y-8">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                        Resumen automático por email cada mañana (08:00) con las novedades del día anterior.
+                    </p>
+                    {puedeGestionar && <Skeleton className="h-9 w-24 shrink-0 rounded-full sm:w-36" />}
+                </div>
+                <div className="space-y-3" aria-hidden="true">
+                    <h4 className="text-xs font-black text-brand-dark/60 uppercase tracking-widest flex items-center gap-1.5">
+                        <Bell className="h-3.5 w-3.5 text-brand-primary" /> Categorías a vigilar
+                    </h4>
+                    {[0, 1, 2].map(i => <TarjetaReglaSilueta key={i} enLinea="Umbral" />)}
+                </div>
+                <div className="space-y-3" aria-hidden="true">
+                    <div className="flex items-center justify-between gap-2">
+                        <h4 className="text-xs font-black text-brand-dark/60 uppercase tracking-widest flex items-center gap-1.5">
+                            <Mail className="h-3.5 w-3.5 text-brand-primary" /> Destinatarios
+                        </h4>
+                        {puedeGestionar && <Skeleton className="h-9 w-24 rounded-full sm:w-44" />}
+                    </div>
+                    {[0, 1].map(i => <TarjetaCorreoSilueta key={i} botones={puedeGestionar ? 4 : 0} />)}
+                </div>
+            </Cargando>
+        );
     }
 
     return (

@@ -14,6 +14,8 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { EmptyState } from '../ui/EmptyState';
+import { Cargando, Skeleton } from '../ui/Skeleton';
+import { CampoSilueta } from '../workers/CampoSilueta';
 import { showApiError } from '../../utils/toastUtils';
 import { fmtFecha } from '../../utils/format';
 import { cn } from '../../utils/cn';
@@ -128,9 +130,15 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
             <div className="space-y-4">
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Select label="Quién retira" value={portadorId} onChange={e => setPortadorId(e.target.value)} disabled={cargando}
-                        options={[{ value: '', label: portadores.length ? 'Selecciona al portador…' : (cargando ? 'Cargando…' : 'Nadie tiene el permiso "Portar Documentos Físicos"') },
-                            ...portadores.map(p => ({ value: String(p.id), label: p.nombre }))]} />
+                    {/* Mientras llegan los portadores, el campo es su silueta (con su rótulo), no un select vacío.
+                        Sin <Cargando> propio: llegan en la misma petición que la lista, que ya anuncia la carga. */}
+                    {cargando ? (
+                        <CampoSilueta label="Quién retira" />
+                    ) : (
+                        <Select label="Quién retira" value={portadorId} onChange={e => setPortadorId(e.target.value)}
+                            options={[{ value: '', label: portadores.length ? 'Selecciona al portador…' : 'Nadie tiene el permiso "Portar Documentos Físicos"' },
+                                ...portadores.map(p => ({ value: String(p.id), label: p.nombre }))]} />
+                    )}
                     <Input label="Observación (opcional)" value={observacion} maxLength={500} placeholder="Ej: kit de ingreso obra Central" onChange={e => setObservacion(e.target.value)} />
                 </div>
 
@@ -146,14 +154,48 @@ export const NuevoLoteModal: React.FC<Props> = ({ isOpen, onClose, onCreado }) =
                     <Input placeholder="Buscar nombre, RUT u obra" aria-label="Buscar por nombre, RUT, tipo de documento u obra" value={q} onChange={e => setQ(e.target.value)} leftIcon={<Search className="h-4 w-4" />} />
                     {/* Filtro opcional, NO un campo a completar. Las obras salen de los documentos
                         disponibles (no del catálogo): una obra sin nada impreso por retirar no tiene qué
-                        filtrar, así que no aparece. */}
-                    <Select value={obraId} onChange={e => setObraId(e.target.value)}
-                        aria-label="Filtrar por obra"
-                        options={[{ value: '', label: obras.length ? 'Todas las obras' : 'Sin obras por filtrar' }, ...obras]} />
+                        filtrar, así que no aparece. Mientras cargan, su silueta: «Sin obras» sería un vacío falso. */}
+                    {cargando ? (
+                        <Skeleton className="h-11 w-full rounded-xl" />
+                    ) : (
+                        <Select value={obraId} onChange={e => setObraId(e.target.value)}
+                            aria-label="Filtrar por obra"
+                            options={[{ value: '', label: obras.length ? 'Todas las obras' : 'Sin obras por filtrar' }, ...obras]} />
+                    )}
                 </div>
 
                 {cargando ? (
-                    <p className="text-sm text-muted-foreground py-6 text-center">Cargando documentos impresos…</p>
+                    // Silueta de la lista agrupada: conteo, una obra con sus trabajadores y los documentos de cada uno.
+                    <Cargando que="los documentos impresos" className="space-y-3">
+                        <Skeleton className="h-3 w-56 max-w-full" />
+                        {[2, 1].map((n, o) => (
+                            <div key={o} className="rounded-2xl border border-border overflow-hidden" aria-hidden="true">
+                                <Skeleton className="h-7 rounded-none" />
+                                <ul className="divide-y divide-border">
+                                    {Array.from({ length: n }).map((_, i) => (
+                                        <li key={i} className="px-3 py-2">
+                                            <div className="flex items-center gap-3">
+                                                <Skeleton className="h-4 w-4 shrink-0 rounded" />
+                                                <div className="min-w-0 flex-1 space-y-1.5">
+                                                    <Skeleton className={cn('h-3.5 max-w-full', i ? 'w-36' : 'w-44')} />
+                                                    <Skeleton className="h-3 w-28" />
+                                                </div>
+                                            </div>
+                                            <div className="mt-1.5 ml-7 space-y-1">
+                                                {[0, 1].map(d => (
+                                                    <div key={d} className="flex items-center gap-2 px-2 py-1">
+                                                        <Skeleton className="h-4 w-4 shrink-0 rounded" />
+                                                        <Skeleton className="h-3 flex-1" />
+                                                        <Skeleton className="h-3 w-20 shrink-0" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))}
+                    </Cargando>
                 ) : docs.length === 0 ? (
                     <EmptyState title="Nada impreso esperando salir"
                         description="Aparecen aquí los documentos generados por Bóveda que ya se descargaron o imprimieron y aún no están en un lote." />

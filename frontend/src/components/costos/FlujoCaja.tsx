@@ -5,10 +5,11 @@ import { Button } from '../ui/Button';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { EmptyState } from '../ui/EmptyState';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
+import { Skeleton } from '../ui/Skeleton';
 import { fmtMoney, fmtMoneyCompacto, fmtFechaCorta } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import { CAMPO } from './costosConfig';
-import { Kpi, Aviso } from './piezas';
+import { Kpi, KpiSilueta, Aviso, TablaSilueta } from './piezas';
 import type { CostoBaldeFlujo, CostoFlujo, CostoObraLista } from '../../types/entities';
 
 type Horizonte = '8' | '12' | '26';
@@ -29,6 +30,46 @@ function rango(desde: string | null, hasta: string | null) {
 const conSigno = (n: number) => (n < 0 ? `−${fmtMoney(Math.abs(n))}` : fmtMoney(n) || '$0');
 
 interface Fila { balde: CostoBaldeFlujo; titulo: string; saldo: number }
+
+/** Lo que va bajo los controles mientras llega el flujo: las cuatro cifras (rótulos de verdad), el gráfico y la tabla. */
+const CuerpoSilueta: React.FC<{ conSaldo: boolean }> = ({ conSaldo }) => (
+    <>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <KpiSilueta icon={ArrowDownLeft} label="Entra" nota="cobros esperados en el periodo" />
+            <KpiSilueta icon={ArrowUpRight} label="Sale" nota="facturas por pagar, con IVA" />
+            <KpiSilueta icon={AlertTriangle} label="Atrasado" />
+            <KpiSilueta icon={Wallet} label="Semana más justa" />
+        </div>
+        <Skeleton className="h-56 w-full rounded-card" />
+        <TablaSilueta que="el flujo de caja" columnas={['Semana', 'Entra', 'Sale', 'Neto', conSaldo ? 'Saldo' : 'Acumulado']} filas={6} />
+    </>
+);
+
+/**
+ * El flujo entero mientras la portada todavía no tiene las obras: los horizontes y rótulos de verdad (sin tocar), los
+ * campos en gris y el cuerpo de arriba.
+ */
+export const FlujoCajaSilueta: React.FC = () => (
+    <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-end" aria-hidden="true">
+            <div className="flex w-fit max-w-full shrink-0 gap-1 overflow-hidden rounded-2xl border border-border bg-card p-1">
+                {HORIZONTES.map((h, i) => (
+                    <span key={h.key} className={cn('inline-flex h-8 shrink-0 items-center justify-center rounded-xl px-3 font-medium whitespace-nowrap',
+                        i === 0 ? 'bg-brand-primary text-white' : 'text-muted-foreground')}>{h.label}</span>
+                ))}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:ml-auto xl:w-[34rem]">
+                {['Obra', 'Saldo en el banco hoy (opcional)'].map(r => (
+                    <div key={r} className="space-y-1.5">
+                        <p className="ml-0.5 text-sm font-medium text-muted-foreground">{r}</p>
+                        <Skeleton className="h-11 w-full rounded-control" />
+                    </div>
+                ))}
+            </div>
+        </div>
+        <CuerpoSilueta conSaldo={false} />
+    </div>
+);
 
 /**
  * Flujo de caja de las próximas semanas: lo que entra (cobros por cobrar, por fecha esperada) contra
@@ -66,8 +107,45 @@ export const FlujoCaja: React.FC<{ obras: CostoObraLista[]; onIrObra: (obraId: n
         return out;
     }, [flujo, saldoInicial]);
 
+    // Horizonte, obra y saldo no dependen del flujo: se ven (y se usan) también mientras carga.
+    const controles = (
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+            <div className="flex items-center overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0 [scrollbar-width:none]">
+                <div className="flex shrink-0 rounded-2xl border border-border bg-card p-1">
+                    <PestanasElasticas
+                        opciones={HORIZONTES}
+                        activa={horizonte}
+                        onCambiar={setHorizonte}
+                        aria-label="Horizonte del flujo"
+                        claseFila="gap-1"
+                        claseOpcion="inline-flex h-8 shrink-0 items-center justify-center rounded-xl px-3 font-medium whitespace-nowrap"
+                        claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark"
+                        render={o => o.label}
+                    />
+                </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:ml-auto xl:w-[34rem]">
+                <div>
+                    <label htmlFor="flujo-obra" className="ml-0.5 text-sm font-medium text-muted-foreground">Obra</label>
+                    <select id="flujo-obra" value={obraId} onChange={e => setObraId(e.target.value ? Number(e.target.value) : '')} className={CAMPO + ' mt-1.5'}>
+                        <option value="">Todas las obras</option>
+                        {obras.map(o => <option key={o.obra_id} value={o.obra_id}>{o.obra_nombre}</option>)}
+                    </select>
+                </div>
+                <CurrencyInput label="Saldo en el banco hoy (opcional)" value={saldoInicial} onChange={setSaldoInicial} placeholder="No se guarda" />
+            </div>
+        </div>
+    );
+
     if (falla && !flujo) return <EmptyState icon={Wallet} title="No se pudo cargar el flujo de caja" description="Vuelve a intentarlo en un momento." />;
-    if (!flujo) return <div className="h-96 rounded-card border border-border bg-card" />;
+    if (!flujo) {
+        return (
+            <div className="flex flex-col gap-4">
+                {controles}
+                <CuerpoSilueta conSaldo={!!saldoInicial} />
+            </div>
+        );
+    }
 
     const vacio = !filas.some(f => f.balde.items.length) && !flujo.sin_fecha.items.length && !flujo.mas_adelante.items.length;
     const peor = filas.reduce<Fila | null>((m, f) => (!m || f.saldo < m.saldo ? f : m), null);
@@ -76,33 +154,7 @@ export const FlujoCaja: React.FC<{ obras: CostoObraLista[]; onIrObra: (obraId: n
 
     return (
         <div className="flex flex-col gap-4">
-            {/* Controles */}
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
-                <div className="flex items-center overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0 [scrollbar-width:none]">
-                    <div className="flex shrink-0 rounded-2xl border border-border bg-card p-1">
-                        <PestanasElasticas
-                            opciones={HORIZONTES}
-                            activa={horizonte}
-                            onCambiar={setHorizonte}
-                            aria-label="Horizonte del flujo"
-                            claseFila="gap-1"
-                            claseOpcion="inline-flex h-8 shrink-0 items-center justify-center rounded-xl px-3 font-medium whitespace-nowrap"
-                            claseInactiva="text-muted-foreground hover:bg-background hover:text-brand-dark"
-                            render={o => o.label}
-                        />
-                    </div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:ml-auto xl:w-[34rem]">
-                    <div>
-                        <label htmlFor="flujo-obra" className="ml-0.5 text-sm font-medium text-muted-foreground">Obra</label>
-                        <select id="flujo-obra" value={obraId} onChange={e => setObraId(e.target.value ? Number(e.target.value) : '')} className={CAMPO + ' mt-1.5'}>
-                            <option value="">Todas las obras</option>
-                            {obras.map(o => <option key={o.obra_id} value={o.obra_id}>{o.obra_nombre}</option>)}
-                        </select>
-                    </div>
-                    <CurrencyInput label="Saldo en el banco hoy (opcional)" value={saldoInicial} onChange={setSaldoInicial} placeholder="No se guarda" />
-                </div>
-            </div>
+            {controles}
 
             {vacio ? (
                 <EmptyState icon={CalendarClock} title="Nada por pagar ni por cobrar"

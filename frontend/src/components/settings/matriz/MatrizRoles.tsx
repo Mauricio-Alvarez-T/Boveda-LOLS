@@ -8,6 +8,7 @@ import { GRUPOS, PANTALLAS, ROL_SUPER_ADMIN, clavesPantalla, nivelDe } from '../
 import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
 import { Modal } from '../../ui/Modal';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { RolForm } from '../RolForm';
 import { showDeleteToast } from '../../../utils/toastUtils';
 import { cn } from '../../../utils/cn';
@@ -80,7 +81,24 @@ const MatrizRoles: React.FC = () => {
     };
 
     if (state.loading) {
-        return <div className="py-16 text-center text-ui text-muted-foreground">Cargando roles…</div>;
+        // Silueta de la matriz (diseno.md §9.17): el texto de arriba va de verdad; pantallas y celdas, en gris.
+        return (
+            <Cargando que="los roles" className="flex flex-col gap-4">
+                <p className="max-w-2xl text-ui text-muted-foreground">
+                    Todos los roles de un vistazo. Toca una celda para ver qué incluye y cambiar el nivel.
+                </p>
+                <div className="overflow-hidden rounded-card border border-border bg-card" aria-hidden="true">
+                    {Array.from({ length: 9 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-3 border-t border-border px-4 py-2.5 first:border-t-0">
+                            <Skeleton className={cn('h-4 shrink-0', i === 0 ? 'w-24' : i % 2 ? 'w-32' : 'w-40')} />
+                            {[0, 1, 2, 3, 4, 5].map(j => (
+                                <Skeleton key={j} className={cn('w-20 shrink-0', i === 0 ? 'h-4' : 'h-8 rounded-lg')} />
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            </Cargando>
+        );
     }
 
     const gemelos = state.gemelos[0];

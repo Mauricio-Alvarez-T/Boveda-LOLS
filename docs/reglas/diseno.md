@@ -367,7 +367,8 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
 2. **El movimiento informa o no va.** Se permite solo cuando confirma una acción (guardó, falló, llegó),
    dice hacia dónde cambió algo (la cifra sube o baja, el paso avanza o retrocede) o revela contenido
    oculto (borde de scroll). Nada decorativo: sin fondos animados, brillos, partículas, texto que se
-   desordena ni loops infinitos sobre etiquetas. **Única excepción a «sin fondos animados»: la
+   desordena ni loops infinitos sobre etiquetas. (El brillo de la silueta de carga, §9.17, no es decoración:
+   informa que algo está llegando y desaparece con los datos.) **Única excepción a «sin fondos animados»: la
    faena de madrugada del panel oscuro del inicio de sesión** (`auth/FondoFaena`, §9.19; Marcos 2026-10-30): va
    fuera de la app, solo en escritorio, detrás de un texto fijo y sin tapar ningún dato. No abre la puerta a
    fondos animados dentro de Bóveda. El hover sigue sin escalar (§7.5): por eso salieron
@@ -381,9 +382,10 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    `AnimatePresence` montaba la página nueva dos veces). Las pestañas internas (Inventario, Configuración),
    igual. El código de todas las secciones se precarga en reposo (`paginas.ts` → `precargarSecciones`) y el
    `Suspense` del layout no muestra nada mientras tanto: nunca el círculo a pantalla completa. **Carga =
-   contorno quieto; datos con fundido solo si llegaron después:** `Skeleton`/`SkeletonFilas` sin pulso; el
+   silueta con brillo suave (§9.17; hasta el 2026-10-29 era el contorno quieto); datos con fundido solo si
+   llegaron después:** `Skeleton` y su kit, sin pulso; el
    contenedor de datos lleva `hooks/useAparecer(cargando)` → `.datos-aparecen` (160 ms) únicamente si antes se
-   vio el contorno; con datos en caché aparecen en seco. El contenedor debe tener SOLO datos (no barras ni
+   vio la silueta; con datos en caché aparecen en seco. El contenedor debe tener SOLO datos (no barras ni
    encabezados, que se desvanecerían con ellos). Nada de círculos girando ni «Cargando…» como estado de una
    sección; el giro queda para botones que el usuario apretó (guardar, actualizar a mano). No hay reveals por scroll en
    pantallas de datos ni stagger sobre filas de datos.
@@ -757,8 +759,27 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       «Quien aprueba» = permiso efectivo de `inventario.transferencias.aprobar` sin el rol 1 (hoy, Leonardo).
     - Teléfono (bajo 768 px): una columna, todo objetivo de 44 px; el WhatsApp sigue arriba a la derecha (el título
       parte línea si no cabe).
-<!-- 16 (permisos en frases) y 17 (siluetas de carga) están en test (develop) y todavía no en producción;
-     por eso aquí la lista salta de 15 a 18. Los números se dejan iguales a los de develop y del código. -->
+<!-- 16 (permisos en frases) está en test (develop) y todavía no en producción; por eso aquí la lista
+     salta de 15 a 17. Los números se dejan iguales a los de develop y del código. -->
+17. **Siluetas de carga en toda la Bóveda (Marcos 2026-10-29: «que en toda la página, cada apartado… cuando no se
+    cargue muestre este skeleton», y eligió «con brillo suave que dé la sensación de carga de pantalla»).**
+    Reemplaza al contorno QUIETO del 2026-10-22 (§9.3). Mientras un apartado espera sus datos se dibuja la forma de
+    lo que va a llegar en gris neutro (`bg-muted`) con un **reflejo que lo cruza de izquierda a derecha** (`.silueta`
+    en `index.css`: `::after` con `transform`, 1,5 s en bucle — lo mueve la tarjeta gráfica, no repinta; con «reducir
+    movimiento» queda quieto). No es un pulso (todo el bloque prendiendo y apagando, que se leía como lentitud).
+    - **Al abrir Bóveda** (`App.tsx` mientras se revisa la sesión): el isotipo al centro (`ui/CargaIsotipo`,
+      §9.18). En `/login`, mientras llega la pantalla, `SiluetaLogin` (panel oscuro con logo + formulario en
+      gris). `layout/SiluetaApp` (logo, menú, barra y tarjetas en gris) estuvo en test del 29 al 30-10 y queda
+      en el código sin uso. Antes: una rueda verde en medio de la pantalla vacía.
+    - **Cada apartado** (listas, tablas, tarjetas, fichas, ventanas, formularios): las piezas de `ui/Skeleton`
+      (`Skeleton`, `SkeletonCirculo`, `Cargando`, `SkeletonFilas`, `SkeletonText`, `SkeletonLista`,
+      `SkeletonTarjeta(s)`, `SkeletonFicha`, `SkeletonFormulario`), imitando el diseño real del componente. Lo que no
+      depende de datos (títulos, pestañas, rótulos, barras verdes de sección) se dibuja de verdad desde el primer
+      momento; solo va en gris lo que viene del servidor. Cada silueta lleva `role="status"` («Cargando …» para el
+      lector de pantalla).
+    - **Se quedan las ruedas de botón** (Guardar, Enviar, `MarcaEstado`, progreso de subida): avisan que un clic se
+      está procesando, no que la página carga. Y el cambio de sección sigue EN SECO (§9.3): el menú y la barra no se
+      repintan; solo el contenido que espera datos muestra su silueta.
 18. **Isotipo al centro mientras abre Bóveda: `ui/CargaIsotipo` (Marcos 2026-10-30, elegido en el lienzo de
     ideas: «el logo ocupa el centro de la pantalla mientras se carga»).** El isotipo de LOLS se arma **al
     centro**, pieza por pieza —losa de abajo, muro, bloque, ventanas, losa de arriba— en un ciclo de 2,6 s, con
@@ -767,7 +788,7 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     y **al iniciar sesión** (`Login` lo monta encima, `fixed inset-0`, mientras se verifica, con
     «Verificando tus datos…» y «Abriendo tu obra…»; al entrar lo releva el de la sesión, sin blanco entre
     medio; en escritorio aparece a los 1,2 s para dejar ver el amanecer de la faena, §9.19). Dentro de cada
-    apartado sigue su contorno de carga (§9.3) y en los botones sus ruedas. Es el mismo dibujo
+    apartado siguen las siluetas (§9.17) y en los botones sus ruedas. Es el mismo dibujo
     de `Logo` (viewBox 220×240), en `text-brand-primary`. El loop es CSS (`.isotipo-carga` de `index.css`,
     §9.1) y solo existe sin reduce-motion: con «reducir movimiento» el logo aparece completo y quieto. **Las
     frases avanzan cada ~1,1 s y se quedan en la última**: no dan vueltas (§9.2) y no inventan trabajo que no se

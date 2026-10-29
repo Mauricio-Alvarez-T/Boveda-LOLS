@@ -14,6 +14,7 @@ import { VisorAdjunto } from '../ui/VisorAdjunto';
 import { comprimirMiniatura, type Miniatura } from '../../utils/compressImage';
 import { formatearTamano } from '../../utils/archivos';
 import { EmptyState } from '../ui/EmptyState';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -470,7 +471,34 @@ const MisIdeas: React.FC<{ onProponer: () => void; onVistas: () => void }> = ({ 
     }, [onVistas]);
 
     if (ideas === null) {
-        return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+        // La forma de cada idea: ícono del tipo, título + estado, pantalla · cuándo y el recorrido.
+        return (
+            <Cargando que="tus ideas">
+                <ul className="flex flex-col gap-2.5" aria-hidden="true">
+                    {[0, 1, 2].map(i => (
+                        <li key={i} className="rounded-card border border-border bg-card p-3.5">
+                            <div className="flex items-start gap-3">
+                                <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+                                <div className="min-w-0 flex-1 space-y-2">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <Skeleton className={cn('h-4', i % 2 ? 'w-1/2' : 'w-2/3')} />
+                                        <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
+                                    </div>
+                                    <Skeleton className="h-3 w-2/5" />
+                                    <div className="flex items-center gap-1.5 pt-1">
+                                        <Skeleton className="h-2.5 w-14" />
+                                        <span className="h-px flex-1 bg-border" />
+                                        <Skeleton className="h-2.5 w-16" />
+                                        <span className="h-px flex-1 bg-border" />
+                                        <Skeleton className="h-2.5 w-10" />
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </Cargando>
+        );
     }
     if (!ideas.length) {
         return (

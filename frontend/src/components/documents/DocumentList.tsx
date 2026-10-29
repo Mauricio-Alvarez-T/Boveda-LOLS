@@ -6,7 +6,6 @@ import {
     Calendar,
     AlertCircle,
     CheckCircle2,
-    Loader2,
     Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,6 +14,7 @@ import { showDeleteToast } from '../../utils/toastUtils';
 import { useAuth } from '../../context/AuthContext';
 
 import { IconButton } from '../ui/IconButton';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import api from '../../services/api';
 import type { Documento } from '../../types/entities';
 import type { ApiResponse } from '../../types';
@@ -83,12 +83,28 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
         return new Date(date) < new Date();
     };
 
+    // Silueta de la tabla de documentos: ícono, tipo y archivo, fecha y estado (desde sm) y las dos acciones.
     if (loading) {
         return (
-            <div className="py-20 flex flex-col items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-                <p className="text-muted-foreground text-sm mt-4">Consultando boveda...</p>
-            </div>
+            <Cargando que="los documentos" className="bg-card rounded-2xl border border-border overflow-hidden">
+                <ul className="divide-y divide-border" aria-hidden="true">
+                    {[0, 1, 2, 3].map(i => (
+                        <li key={i} className="flex items-center gap-3 border-l-4 border-l-transparent px-4 py-3">
+                            <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
+                            <div className="min-w-0 flex-1 space-y-2">
+                                <Skeleton className={cn('h-3.5', i % 2 ? 'w-2/5' : 'w-1/2')} />
+                                <Skeleton className="h-3 w-3/4 sm:w-1/2" />
+                            </div>
+                            <Skeleton className="hidden h-6 w-20 shrink-0 rounded-md sm:block" />
+                            <Skeleton className="hidden h-6 w-16 shrink-0 rounded-md sm:block" />
+                            <div className="flex shrink-0 gap-2 sm:ml-5">
+                                <Skeleton className="h-11 w-11 rounded-full md:h-9 md:w-9" />
+                                <Skeleton className="h-11 w-11 rounded-full md:h-9 md:w-9" />
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </Cargando>
         );
     }
 

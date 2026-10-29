@@ -29,7 +29,7 @@ import api from '../../services/api';
 
 // Nuevos hooks y componentes modulares
 import { useAttendanceData, useAttendanceActions, useAttendanceExport } from '../../hooks/attendance';
-import { AttendanceHeaderActions, AttendanceSummaryRow } from './ui';
+import { AttendanceHeaderActions, AttendanceSummaryRow, SiluetaRegistroDiario } from './ui';
 
 import type { Trabajador, Asistencia } from '../../types/entities';
 import { conDuracion } from '../../utils/avisos';
@@ -354,15 +354,9 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                 )}
             </AnimatePresence>
 
-            {loading ? (
-                <div className="flex flex-col gap-3 p-4">
-                    {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <div key={i} className="h-20 w-full bg-card rounded-2xl border border-border flex items-center p-4 gap-4 shadow-sm">
-                            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-muted shrink-0" />
-                            <div className="flex-1 space-y-2"><div className="h-4 w-1/3 bg-slate-100 dark:bg-muted rounded" /><div className="h-3 w-1/4 bg-slate-50 dark:bg-muted rounded" /></div>
-                        </div>
-                    ))}
-                </div>
+            {/* Sin estados el hook aún no pide los trabajadores (loading sigue en false): también es carga, no «sin trabajadores». */}
+            {loading || estados.length === 0 ? (
+                <SiluetaRegistroDiario date={date} horasExtra={verHorasExtra} conActividades={!!onGoActividades} />
             ) : workers.length === 0 ? (
                 <div className="bg-card rounded-2xl border border-border">
                     <EmptyState icon={Users} title="No hay trabajadores asignados a esta obra." />

@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Clock, FileText, Wrench, ShieldCheck, ScrollText, CalendarClock, ChevronRight } from 'lucide-react';
 import { Modal } from '../ui/Modal';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { cn } from '../../utils/cn';
 import { textoVencimiento, etiquetaVencimiento } from '../../utils/vencimientos';
 import type { VehiculoVencimiento, VehiculoVencimientosResumen } from '../../types/entities';
@@ -76,7 +77,20 @@ export const VencimientosPanel: React.FC<Props> = ({ isOpen, onClose, resumen, l
                 <span className="text-xs font-normal text-muted-foreground">próximos {resumen.dias} días</span>
             </span>}>
             {loading && resumen.total === 0 ? (
-                <p className="py-8 text-center text-xs text-muted-foreground">Cargando…</p>
+                // La forma de cada vencimiento: ícono, patente + qué vence, y cuánto falta a la derecha.
+                <Cargando que="los vencimientos" className="space-y-1.5">
+                    <Skeleton className="mb-1 h-3 w-28" />
+                    {[0, 1, 2, 3].map(i => (
+                        <div key={i} className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5" aria-hidden="true">
+                            <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                                <Skeleton className="h-3.5 w-20" />
+                                <Skeleton className={cn('h-3', i % 2 ? 'w-2/5' : 'w-3/5')} />
+                            </div>
+                            <div className="flex shrink-0 flex-col items-end gap-1.5"><Skeleton className="h-3 w-16" /><Skeleton className="h-2.5 w-12" /></div>
+                        </div>
+                    ))}
+                </Cargando>
             ) : resumen.total === 0 ? (
                 <div className="py-10 text-center">
                     <ShieldCheck className="h-10 w-10 mx-auto text-brand-primary/30 mb-3" />

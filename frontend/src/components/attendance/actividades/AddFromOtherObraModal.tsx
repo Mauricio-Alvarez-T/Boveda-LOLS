@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../../ui/Modal';
 import { Button } from '../../ui/Button';
 import api from '../../../services/api';
-import WorkerCheckList from './WorkerCheckList';
+import WorkerCheckList, { SiluetaWorkerCheckList } from './WorkerCheckList';
 import type { Trabajador } from '../../../types/entities';
 
 interface Obra {
@@ -118,7 +118,7 @@ const AddFromOtherObraModal: React.FC<Props> = ({
                 {selectedObraId && (
                     <div>
                         {loading ? (
-                            <div className="py-8 text-center text-xs text-muted-foreground">Cargando trabajadores...</div>
+                            <SiluetaWorkerCheckList />
                         ) : workers.length === 0 ? (
                             <div className="py-6 text-center text-xs text-muted-foreground">
                                 No hay trabajadores disponibles en esta obra
