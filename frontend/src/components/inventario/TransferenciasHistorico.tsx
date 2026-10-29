@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { cn } from '../../utils/cn';
 import { useAparecer } from '../../hooks/useAparecer';
-import { SkeletonFilas } from '../ui/Skeleton';
+import { Cargando } from '../ui/Skeleton';
+import { FilasTablaSilueta } from './siluetas';
 import { RefreshCw, History, Search, ArrowRight } from 'lucide-react';
 import api from '../../services/api';
 import { Button } from '../ui/Button';
@@ -29,6 +30,20 @@ const fmtFecha = (s: string) => {
         hour: '2-digit', minute: '2-digit',
     });
 };
+
+// Encabezado verde de la tabla: lo usan la tabla y su silueta de carga.
+const ENCABEZADO_TABLA = (
+    <thead className="sticky top-0 bg-brand-primary border-b border-border z-10">
+        <tr className="text-caption font-bold text-white uppercase tracking-wide">
+            <th className="text-left px-3 py-2.5">Código</th>
+            <th className="text-left px-3 py-2.5">Estado</th>
+            <th className="text-left px-3 py-2.5">Tipo</th>
+            <th className="text-left px-3 py-2.5">Origen → Destino</th>
+            <th className="text-left px-3 py-2.5">Solicitante</th>
+            <th className="text-left px-3 py-2.5">Fecha</th>
+        </tr>
+    </thead>
+);
 
 interface Props {
     canVerTodas: boolean;
@@ -170,7 +185,17 @@ const TransferenciasHistorico: React.FC<Props> = ({ canVerTodas, solicitantes, o
             {/* Tabla */}
             <div className={cn('flex-1 min-h-0 overflow-auto custom-scrollbar bg-card border border-border rounded-2xl', aparece)}>
                 {loading ? (
-                    <SkeletonFilas />
+                    // Silueta de la tabla: el encabezado verde de verdad y filas en gris. Mismo ancho mínimo que la tabla,
+                    // pero recortada: en el teléfono no se corre de lado.
+                    <Cargando que="el histórico" className="overflow-hidden">
+                        <table className="w-full min-w-[760px] text-sm" aria-hidden="true">
+                            {ENCABEZADO_TABLA}
+                            <FilasTablaSilueta
+                                celda="px-3 py-2.5"
+                                anchos={['w-24', 'h-5 w-20 rounded-full', 'h-5 w-20 rounded-full', 'texto', 'w-24', 'w-28']}
+                            />
+                        </table>
+                    </Cargando>
                 ) : error ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center px-4">
                         <History className="h-10 w-10 text-muted-foreground/40" />
@@ -184,16 +209,7 @@ const TransferenciasHistorico: React.FC<Props> = ({ canVerTodas, solicitantes, o
                     </div>
                 ) : (
                     <table className="w-full min-w-[760px] text-sm">
-                        <thead className="sticky top-0 bg-brand-primary border-b border-border z-10">
-                            <tr className="text-caption font-bold text-white uppercase tracking-wide">
-                                <th className="text-left px-3 py-2.5">Código</th>
-                                <th className="text-left px-3 py-2.5">Estado</th>
-                                <th className="text-left px-3 py-2.5">Tipo</th>
-                                <th className="text-left px-3 py-2.5">Origen → Destino</th>
-                                <th className="text-left px-3 py-2.5">Solicitante</th>
-                                <th className="text-left px-3 py-2.5">Fecha</th>
-                            </tr>
-                        </thead>
+                        {ENCABEZADO_TABLA}
                         <tbody>
                             {rows.map((t) => {
                                 const ruta = transferenciaRoute(t);

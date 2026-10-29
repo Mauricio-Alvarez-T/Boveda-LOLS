@@ -49,6 +49,15 @@ export interface PasoFlujo {
     filas: FilaFlujo[];
 }
 
+/** Las cinco etapas, en orden, con su nombre (fijo: la silueta de carga del flujo lo dibuja de verdad). */
+export const NOMBRE_PASO: Record<PasoFlujo['key'], string> = {
+    sin_imprimir: 'Sin imprimir',
+    impresos: 'Impreso, sin portador',
+    en_oficina: 'En oficina, esperando retiro',
+    en_terreno: 'En terreno',
+    firmados: 'Firmados esta semana',
+};
+
 const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
 export const diasTexto = (n: number) => (n <= 0 ? 'hoy' : `${n} ${plural(n, 'día', 'días')}`);
 
@@ -91,11 +100,11 @@ export function pasosFlujo(f: FlujoRespuesta, alertas: AlertasDocumentos | null,
     }));
 
     return [
-        { key: 'sin_imprimir', nombre: 'Sin imprimir', unidad: plural(f.sin_imprimir.n, 'documento', 'documentos'), n: f.sin_imprimir.n, fuera: fuera(sin), listo: false, accion: 'Se imprimen desde la ficha del trabajador', filas: sin },
-        { key: 'impresos', nombre: 'Impreso, sin portador', unidad: plural(f.impresos.n, 'documento', 'documentos'), n: f.impresos.n, fuera: fuera(imp), listo: false, accion: 'Hay que prepararles un lote a un portador', filas: imp },
-        { key: 'en_oficina', nombre: 'En oficina, esperando retiro', unidad: plural(ofi.length, 'lote', 'lotes'), n: ofi.length, fuera: fuera(ofi), listo: false, accion: 'El portador aún no pasa a buscarlos', filas: ofi },
-        { key: 'en_terreno', nombre: 'En terreno', unidad: plural(ter.length, 'lote', 'lotes'), n: ter.length, fuera: ter.filter(x => x.tono === 'critico').length, listo: false, accion: 'Esperando que vuelvan firmados · máximo 4 días hábiles', filas: ter },
-        { key: 'firmados', nombre: 'Firmados esta semana', unidad: plural(f.firmados.n, 'documento', 'documentos'), n: f.firmados.n, fuera: 0, listo: true, accion: 'Volvieron firmados y quedaron en la ficha', filas: fir },
+        { key: 'sin_imprimir', nombre: NOMBRE_PASO.sin_imprimir, unidad: plural(f.sin_imprimir.n, 'documento', 'documentos'), n: f.sin_imprimir.n, fuera: fuera(sin), listo: false, accion: 'Se imprimen desde la ficha del trabajador', filas: sin },
+        { key: 'impresos', nombre: NOMBRE_PASO.impresos, unidad: plural(f.impresos.n, 'documento', 'documentos'), n: f.impresos.n, fuera: fuera(imp), listo: false, accion: 'Hay que prepararles un lote a un portador', filas: imp },
+        { key: 'en_oficina', nombre: NOMBRE_PASO.en_oficina, unidad: plural(ofi.length, 'lote', 'lotes'), n: ofi.length, fuera: fuera(ofi), listo: false, accion: 'El portador aún no pasa a buscarlos', filas: ofi },
+        { key: 'en_terreno', nombre: NOMBRE_PASO.en_terreno, unidad: plural(ter.length, 'lote', 'lotes'), n: ter.length, fuera: ter.filter(x => x.tono === 'critico').length, listo: false, accion: 'Esperando que vuelvan firmados · máximo 4 días hábiles', filas: ter },
+        { key: 'firmados', nombre: NOMBRE_PASO.firmados, unidad: plural(f.firmados.n, 'documento', 'documentos'), n: f.firmados.n, fuera: 0, listo: true, accion: 'Volvieron firmados y quedaron en la ficha', filas: fir },
     ];
 }
 

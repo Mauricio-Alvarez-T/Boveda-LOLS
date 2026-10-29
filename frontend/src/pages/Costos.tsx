@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Calculator, ChevronLeft, Building2, AlertTriangle, Plus, Sparkles, Lock } from 'lucide-react';
+import { Calculator, ChevronLeft, Building2, AlertTriangle, Plus, Sparkles, Lock, Wallet, Receipt, PiggyBank, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useStandardHeader } from '../components/ui/PageHeader';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -10,16 +10,18 @@ import { Button } from '../components/ui/Button';
 import { Chip } from '../components/ui/Chip';
 import { PestanasElasticas } from '../components/ui/PestanasElasticas';
 import { BarraPaginada } from '../components/ui/BarraPaginada';
+import { Cargando, Skeleton, SkeletonLista } from '../components/ui/Skeleton';
 import { fmtMoney, fmtFechaCorta } from '../utils/format';
+import { cn } from '../utils/cn';
 import api from '../services/api';
-import { BarraAvance, PctGastado, Aviso } from '../components/costos/piezas';
+import { BarraAvance, PctGastado, Aviso, KpiSilueta } from '../components/costos/piezas';
 import { mensajeError } from '../components/costos/costosConfig';
 import { ResumenObra } from '../components/costos/ResumenObra';
-import { PresupuestoObra } from '../components/costos/PresupuestoObra';
+import { PresupuestoObra, PresupuestoSilueta } from '../components/costos/PresupuestoObra';
 import { GastosObra, type FiltroGastos } from '../components/costos/GastosObra';
 import { CobrosObra } from '../components/costos/CobrosObra';
-import { CierreObra } from '../components/costos/CierreObra';
-import { HistorialObra } from '../components/costos/HistorialObra';
+import { CierreObra, CierreSilueta } from '../components/costos/CierreObra';
+import { HistorialObra, HistorialSilueta } from '../components/costos/HistorialObra';
 import { GastoModal } from '../components/costos/GastoModal';
 import { CobroModal } from '../components/costos/CobroModal';
 import { PartidaModal } from '../components/costos/PartidaModal';
@@ -27,7 +29,7 @@ import { PorcentajesModal } from '../components/costos/PorcentajesModal';
 import { ImportarExcelModal } from '../components/costos/ImportarExcelModal';
 import { AgregarObraModal } from '../components/costos/AgregarObraModal';
 import { FotoGastoViewer } from '../components/costos/FotoGastoViewer';
-import { FlujoCaja } from '../components/costos/FlujoCaja';
+import { FlujoCaja, FlujoCajaSilueta } from '../components/costos/FlujoCaja';
 import { CompararObras } from '../components/costos/CompararObras';
 import { DetalleCostos, type VistaDetalle, type AccionesDetalle } from '../components/costos/DetalleCostos';
 import type { CostoCategoria, CostoCobro, CostoDetalleObra, CostoGasto, CostoObraLista, CostoPartida } from '../types/entities';
@@ -39,6 +41,25 @@ import type { CostoCategoria, CostoCobro, CostoDetalleObra, CostoGasto, CostoObr
  */
 const ES_STAGING = import.meta.env.VITE_ENTORNO === 'staging';
 const PropuestaCostos = ES_STAGING ? lazy(() => import('../components/costos/propuesta/PropuestaCostos')) : null;
+
+/** «Lo que viene» mientras baja su código (solo en test): la cabecera de verdad; el aviso, la obra de ejemplo y su tabla, en gris. */
+const PropuestaSilueta: React.FC<{ onVolver: () => void }> = ({ onVolver }) => (
+    <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={onVolver} leftIcon={<ChevronLeft className="h-4 w-4" />} className="-ml-2 shrink-0">Presupuestos</Button>
+            <h2 className="min-w-0 text-lg font-bold tracking-headline text-brand-dark">Lo que viene</h2>
+            <Chip tone="warning" label="Ejemplo" />
+        </div>
+        <Cargando que="el ejemplo" className="flex flex-col gap-4">
+            <Skeleton className="h-12 w-full rounded-xl" />
+            <div className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 md:flex-row md:items-end md:justify-between" aria-hidden="true">
+                <div className="min-w-0 space-y-2"><Skeleton className="h-6 w-48 max-w-full" /><Skeleton className="h-3.5 w-72 max-w-full" /></div>
+                <div className="grid grid-cols-3 gap-2">{[0, 1, 2].map(i => <Skeleton key={i} className="h-14 w-24 max-w-full rounded-xl" />)}</div>
+            </div>
+            <Skeleton className="h-72 w-full rounded-card" />
+        </Cargando>
+    </div>
+);
 
 type Vista = 'obras' | 'flujo' | 'comparar';
 const VISTAS: { key: Vista; label: string }[] = [
@@ -89,7 +110,7 @@ const CostosPage: React.FC = () => {
 
     if (PropuestaCostos && params.get('vista') === 'propuesta') {
         return (
-            <Suspense fallback={<div className="h-96 rounded-card border border-border bg-card" />}>
+            <Suspense fallback={<PropuestaSilueta onVolver={() => setParams({})} />}>
                 <PropuestaCostos onVolver={() => setParams({})} />
             </Suspense>
         );
@@ -138,7 +159,7 @@ const Portada: React.FC<{
             {vista === 'obras' && <ListaObras obras={obras} onAbrir={id => onAbrir(id)} onPropuesta={onPropuesta} />}
             {vista === 'flujo' && (obras
                 ? <FlujoCaja obras={obras} onIrObra={(id, tab) => onAbrir(id, tab, tab === 'gastos' ? { filtro: 'pagar' } : undefined)} />
-                : <div className="h-96 rounded-card border border-border bg-card" />)}
+                : <FlujoCajaSilueta />)}
             {vista === 'comparar' && <CompararObras onIrObra={id => onAbrir(id)} />}
         </div>
     );
@@ -155,10 +176,25 @@ const ListaObras: React.FC<{ obras: CostoObraLista[] | null; onAbrir: (id: numbe
     }, [obras, busqueda]);
 
     if (!obras) {
+        // La frase de arriba es fija; el botón y cada tarjeta (nombre, montos, % y barra) van en gris.
         return (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {[0, 1, 2].map(i => <div key={i} className="h-40 rounded-card border border-border bg-card" />)}
-            </div>
+            <Cargando que="las obras" className="flex flex-col gap-5">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                    <p className="text-sm text-muted-foreground md:mr-auto">Elige una obra para ver su presupuesto, cargar gastos y cobros, y cerrarla al terminar.</p>
+                    <Skeleton className="h-11 w-full rounded-full md:w-40" />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
+                    {[0, 1, 2, 3, 4, 5].map(i => (
+                        <div key={i} className="flex min-w-0 flex-col gap-3 rounded-card border border-border bg-card p-4">
+                            <Skeleton className={cn('h-5', i % 3 === 1 ? 'w-2/5' : 'w-3/5')} />
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between gap-2"><Skeleton className="h-3 w-36" /><Skeleton className="h-3 w-8" /></div>
+                                <Skeleton className="h-2 w-full rounded-full" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </Cargando>
         );
     }
     const modalAgregar = agregando && <AgregarObraModal onClose={() => setAgregando(false)} onAgregada={onAbrir} />;
@@ -297,7 +333,53 @@ const ObraCostos: React.FC<{
                 action={<Button variant="glass" onClick={() => setParams({})}>Volver a las obras</Button>} />
         );
     }
-    if (!detalle) return <div className="h-96 rounded-card border border-border bg-card" />;
+    if (!detalle) {
+        // Volver y las pestañas no dependen de la obra: van de verdad (sin los conteos); el nombre, el botón y el
+        // contenido de la pestaña, en gris.
+        return (
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="flex min-w-0 items-center gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => setParams({})} leftIcon={<ChevronLeft className="h-4 w-4" />} className="-ml-2 shrink-0">
+                            Obras
+                        </Button>
+                        <Skeleton className="h-6 w-48 max-w-full" />
+                    </div>
+                    <Skeleton className="h-11 w-full rounded-full md:w-40" />
+                </div>
+                <div className="flex items-center min-w-0">
+                    <div className="flex w-fit min-w-0 max-w-full rounded-2xl border border-border bg-card p-1">
+                    <BarraPaginada>{p => (
+                        <PestanasElasticas estiloOpcion={p.estiloOpcion} revelar={p.revelar}
+                            opciones={PESTANAS}
+                            activa={pestana}
+                            onCambiar={k => ir(k)}
+                            aria-label="Secciones de la obra"
+                            claseFila="gap-1"
+                            claseOpcion={CLASE_TAB}
+                            claseInactiva={CLASE_INACTIVA}
+                            render={o => o.label}
+                        />
+                    )}</BarraPaginada>
+                    </div>
+                </div>
+                {pestana === 'resumen' ? (
+                    <Cargando que="la obra" className="flex flex-col gap-4">
+                        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                            <KpiSilueta icon={Wallet} label="Presupuesto de costo" />
+                            <KpiSilueta icon={Receipt} label="Gastado (neto)" />
+                            <KpiSilueta icon={PiggyBank} label="Queda" />
+                            <KpiSilueta icon={Clock} label="Por pagar" />
+                        </div>
+                        <Skeleton className="h-64 w-full rounded-card" />
+                    </Cargando>
+                ) : pestana === 'presupuesto' ? <PresupuestoSilueta />
+                  : pestana === 'historial' ? <HistorialSilueta />
+                  : pestana === 'cierre' ? <CierreSilueta />
+                  : <SkeletonLista filas={6} que={pestana === 'gastos' ? 'los gastos' : 'los cobros'} />}
+            </div>
+        );
+    }
 
     const acciones: AccionesDetalle = {
         cargarFactura: ({ partidaId = null, categoria = null }) => setModal({ tipo: 'gasto', gasto: null, partidaInicial: partidaId, categoriaInicial: categoria }),

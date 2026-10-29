@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { BellOff, BellRing, Send, Smartphone, Stethoscope } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import {
     FalloActivar, activarAvisos, avisoLocal, desactivarAvisos, estadoServidor, leerEstado, probarAviso,
     type CelularServidor, type EstadoAvisos,
@@ -82,7 +83,19 @@ export const AvisosCelular: React.FC = () => {
         }
     };
 
-    if (estado === null) return null;
+    if (estado === null) {
+        // Mientras se lee el estado de este equipo: la misma tarjeta, con el texto y el botón en gris.
+        return (
+            <Cargando que="los avisos de este celular" className="flex flex-col gap-3 rounded-card border border-border bg-card px-4 py-3 sm:flex-row sm:items-center">
+                <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                    <p className="text-sm font-semibold text-brand-dark">Avisos en este celular <span className="font-normal text-muted-foreground">· prueba</span></p>
+                    <Skeleton className="h-3 w-3/4 max-w-sm" />
+                </div>
+                <Skeleton className="h-9 w-36 rounded-full" />
+            </Cargando>
+        );
+    }
     const activo = estado === 'activo';
 
     return (

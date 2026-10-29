@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { AlertTriangle, ChevronLeft, Info, LayoutDashboard, ScanEye, ShieldCheck } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Chip } from '../ui/Chip';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { cn } from '../../utils/cn';
 import { fmtFechaHora } from '../../utils/fechas';
 import { PERMISO_HIERARCHY } from '../../config/permisosHierarchy';
@@ -47,6 +48,67 @@ const Etiquetas: React.FC<{ items: string[]; vacio: string }> = ({ items, vacio 
             ))}
         </ul>
     ) : <span className="text-muted-foreground">{vacio}</span>
+);
+
+/**
+ * La ficha mientras llega (diseno.md §9.17): las mismas tres tarjetas, con los títulos y rótulos de verdad («Qué ve»,
+ * «Permisos efectivos»…) y en gris lo que es de la persona.
+ */
+export const SiluetaFichaPersona: React.FC = () => (
+    <Cargando que="la ficha" className="flex flex-col gap-4">
+        <section aria-hidden="true" className="rounded-card border border-border bg-card p-5 md:p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="min-w-0 flex-1 space-y-2.5">
+                    <Skeleton className="h-7 w-56 max-w-full" />
+                    <Skeleton className="h-4 w-44 max-w-full" />
+                    <div className="flex gap-1.5 pt-1"><Skeleton className="h-6 w-28 rounded-full" /></div>
+                    <Skeleton className="h-4 w-40 max-w-full" />
+                </div>
+                <div className="flex shrink-0 flex-col items-stretch gap-1.5 md:items-end">
+                    <Skeleton className="h-11 w-full rounded-full md:w-56" />
+                    <Skeleton className="h-3 w-48 max-w-full" />
+                </div>
+            </div>
+        </section>
+
+        <section aria-hidden="true" className="rounded-card border border-border bg-card px-5 py-2">
+            <dl>
+                {['Inicio', 'Menú', 'Pestañas de Inventario', 'Gestiones', 'Último ingreso'].map((t, i) => (
+                    <Fila key={t} titulo={t}>
+                        {i === 1 || i === 2 ? (
+                            <span className="flex flex-wrap gap-1.5">
+                                {[0, 1, 2, 3].map(j => <Skeleton key={j} className={cn('h-5 rounded-full', j % 2 ? 'w-20' : 'w-16')} />)}
+                            </span>
+                        ) : <Skeleton className={cn('h-4', i === 4 ? 'w-32' : 'w-3/5')} />}
+                    </Fila>
+                ))}
+            </dl>
+        </section>
+
+        <section aria-hidden="true" className="rounded-card border border-border bg-card">
+            <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                    <h3 className="text-section font-semibold text-brand-dark">Permisos efectivos</h3>
+                    <Skeleton className="h-3 w-48" />
+                    <p className="text-xs text-muted-foreground">Sin marca = {TEXTO_ORIGEN.rol}. «$» = permiso de montos.</p>
+                </div>
+                <Skeleton className="h-9 w-56 rounded-full" />
+            </div>
+            {[0, 1].map(g => (
+                <div key={g} className="border-t border-border first:border-t-0 px-5 py-4">
+                    <Skeleton className="h-4 w-28" />
+                    <ul className="mt-3 flex flex-col gap-3">
+                        {[0, 1, 2].map(i => (
+                            <li key={i} className="space-y-1.5">
+                                <Skeleton className={cn('h-3.5', i % 2 ? 'w-2/5' : 'w-1/2')} />
+                                <Skeleton className="h-3 w-1/3" />
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ))}
+        </section>
+    </Cargando>
 );
 
 export const FichaPersona: React.FC<Props> = ({ ficha, onVerComo, abriendo, onVolver, textoVolver = 'Volver a la lista' }) => {

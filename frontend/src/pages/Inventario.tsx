@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { SkeletonFilas } from '../components/ui/Skeleton';
-import { Package, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, ArrowRight, LayoutGrid, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt, Eye, EyeOff } from 'lucide-react';
+import { SiluetaTablaStock, type ColumnaSilueta } from '../components/inventario/siluetas';
+import { Package, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, ArrowRight, LayoutGrid, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt, Eye, EyeOff, ImageIcon } from 'lucide-react';
 import { MixerTruck } from '../components/icons/MixerTruck';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
@@ -147,8 +147,8 @@ const InventarioPage: React.FC = () => {
         fetchResumen, fetchStockObra, fetchStockBodega,
     } = useInventarioData(bodegaVirtualModo);
     // Loading combinado: solo una sección se monta a la vez, alcanza con un OR.
-    // El hook expone flags granulares por endpoint para casos futuros (spinner
-    // independiente por tab), pero la UI actual usa un único spinner.
+    // El hook expone flags granulares por endpoint para casos futuros (carga
+    // independiente por tab), pero la UI actual usa una única silueta.
     const loading = resumenLoading || stockObraLoading || stockBodegaLoading;
     const { updateStock, updateDescuento } = useInventarioActions();
     // Lazy init: arrancar en el PRIMER tab al que el usuario tenga acceso.
@@ -328,6 +328,37 @@ const InventarioPage: React.FC = () => {
         return stockObra;
     }, [isBodega, stockBodega, stockObra]);
 
+    // Siluetas de Resumen y Obra/Bodega mientras cargan: las columnas de sus tablas (con o sin valores $, mismos
+    // permisos que ResumenMensualTable y StockUbicacionTable). Las de obra/bodega del Resumen traen el nombre del servidor.
+    const verValoresResumen = hasPermission('inventario.resumen.ver_valores');
+    const verCostosUbic = hasPermission('inventario.costos.ver');
+    // Obra: «Cant» y, con valores, «Total»; bodega: solo «Cant». La de imagen parte oculta (ícono al 50 %, celda vacía).
+    const subsObraResumen = verValoresResumen ? ['Cant', 'Total'] : ['Cant'];
+    const columnasSiluetaResumen: ColumnaSilueta[] = [
+        { texto: '#', clase: 'w-8 text-left', barra: 'w-5' },
+        { texto: <ImageIcon className="h-3.5 w-3.5 mx-auto text-white/50" />, clase: 'w-8 text-center', barra: '' },
+        { texto: 'Descripción', clase: 'min-w-[220px] text-left', barra: 'texto' },
+        { texto: 'M²', clase: 'w-12 text-center', barra: 'w-6 mx-auto' },
+        ...(verValoresResumen ? [
+            { texto: 'V. Arriendo', clase: 'w-16 text-right', barra: 'w-12 ml-auto' },
+            { texto: 'V. Compra', clase: 'w-16 text-right', barra: 'w-12 ml-auto' },
+        ] : []),
+        { nombre: true, tono: 'obra', subs: subsObraResumen, barra: 'w-6 mx-auto' },
+        { nombre: true, tono: 'obra', subs: subsObraResumen, barra: 'w-6 mx-auto' },
+        { nombre: true, tono: 'bodega', subs: ['Cant'], barra: 'w-6 mx-auto' },
+        ...(verValoresResumen ? [{ texto: 'Total Arriendo', clase: 'text-right', barra: 'w-16 ml-auto' }] : []),
+        { texto: 'Total Unid.', clase: 'text-right', barra: 'w-8 ml-auto' },
+    ];
+    const columnasSiluetaUbic: ColumnaSilueta[] = [
+        { texto: '#', clase: 'w-8 text-left', barra: 'w-5' },
+        { texto: 'Descripción', clase: 'min-w-[200px] text-left', barra: 'texto' },
+        { texto: 'M2', clase: 'w-14 text-right', barra: 'w-8 ml-auto' },
+        ...(verCostosUbic ? [{ texto: 'V. Arriendo', clase: 'w-24 text-right', barra: 'w-14 ml-auto' }] : []),
+        { texto: 'UN', clase: 'w-10 text-center', barra: 'w-4 mx-auto' },
+        { texto: 'Cantidad', clase: 'w-16 text-right', barra: 'w-8 ml-auto' },
+        ...(verCostosUbic ? [{ texto: 'Total', clase: 'w-24 text-right', barra: 'w-16 ml-auto' }] : []),
+    ];
+
     return (
         <div className="flex flex-col flex-1 min-h-0 gap-2">
             {/* Tab Navigation — estilo Configuración: ícono pequeño al lado del texto */}
@@ -422,7 +453,14 @@ const InventarioPage: React.FC = () => {
                 {/* ── RESUMEN ── */}
                 {activeTab === 'resumen' && (
                     loading ? (
-                        <SkeletonFilas filas={8} className="p-0" />
+                        <SiluetaTablaStock
+                            que="el resumen"
+                            columnas={columnasSiluetaResumen}
+                            rotulo="Resumen General"
+                            cifras={verValoresResumen ? ['Unidades', 'Arriendo', 'Items'] : ['Unidades', 'Items']}
+                            claseCifras={verValoresResumen ? 'grid-cols-1 gap-1.5 sm:grid-cols-3 sm:gap-3' : 'grid-cols-2 gap-3'}
+                            conBarra
+                        />
                     ) : resumen && resumen.categorias.length > 0 ? (
                         <ResumenMensualTable
                             data={resumen}
@@ -495,7 +533,13 @@ const InventarioPage: React.FC = () => {
                         </div>
 
                         {loading ? (
-                            <SkeletonFilas filas={8} className="p-0" />
+                            <SiluetaTablaStock
+                                que="el stock"
+                                columnas={columnasSiluetaUbic}
+                                rotulo={isBodega ? 'Bodega' : 'Obra'}
+                                cifras={!isBodega && verCostosUbic ? ['Facturación', 'Descuento', 'Total Final'] : []}
+                                conLugar
+                            />
                         ) : currentStockData ? (
                             <StockUbicacionTable
                                 data={currentStockData}

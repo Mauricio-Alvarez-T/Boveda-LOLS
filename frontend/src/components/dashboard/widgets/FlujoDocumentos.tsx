@@ -6,14 +6,14 @@ import { useAuth } from '../../../context/AuthContext';
 import { cn } from '../../../utils/cn';
 import { shareViaWhatsApp } from '../../../utils/whatsappShare';
 import { Button } from '../../ui/Button';
-import { SkeletonText } from '../../ui/Skeleton';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
 import { abrirGenerado } from '../../documents/abrirDocumentoGenerado';
 import { LoteDetalleModal } from '../../documentos-fisicos/LoteDetalleModal';
 import { NuevoLoteModal } from '../../documentos-fisicos/NuevoLoteModal';
 import type { AlertasDocumentos } from '../../documentos-fisicos/documentosAlertas';
 import { EnlaceFicha } from './FichaInicio';
-import { estadoPaso, pasoInicial, pasosFlujo, type FilaFlujo, type FlujoRespuesta, type PasoFlujo, type TonoFila } from './pasosFlujoDocumentos';
+import { NOMBRE_PASO, estadoPaso, pasoInicial, pasosFlujo, type FilaFlujo, type FlujoRespuesta, type PasoFlujo, type TonoFila } from './pasosFlujoDocumentos';
 
 const VISIBLES = 8;
 
@@ -25,6 +25,46 @@ const CHIP: Record<TonoFila, string> = {
 };
 
 const ICONO = 'h-4 w-4 shrink-0';
+
+/**
+ * El flujo mientras llega (diseno.md §9.17): las cinco etapas con su número y nombre de verdad (sin elegida: cuál se
+ * abre depende de los datos) y sus cifras en gris; el panel de la etapa con sus filas en gris y su enlace de verdad.
+ */
+const FlujoSilueta: React.FC<{ onIr: () => void }> = ({ onIr }) => (
+    <div className="space-y-4">
+        <Cargando que="el flujo de documentos" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            {Object.values(NOMBRE_PASO).map((nombre, i) => (
+                <div key={nombre} className="flex flex-col items-start gap-1 rounded-2xl border border-border bg-card p-3" aria-hidden="true">
+                    <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">Paso {i + 1}</span>
+                    <span className="text-sm font-semibold leading-tight">{nombre}</span>
+                    <div className="flex items-end gap-1.5"><Skeleton className="h-6 w-7" /><Skeleton className="h-3 w-16" /></div>
+                    <Skeleton className="mt-0.5 h-3 w-20" />
+                </div>
+            ))}
+        </Cargando>
+        <section className="rounded-2xl border border-border bg-card">
+            <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border px-4 py-3">
+                <div className="min-w-0 space-y-1.5" aria-hidden="true">
+                    <Skeleton className="h-4 w-48 max-w-full" />
+                    <Skeleton className="h-3 w-64 max-w-full" />
+                </div>
+                <Button variant="ghost" size="sm" rightIcon={<ArrowRight className="h-4 w-4" />} onClick={onIr}>Ir a Documentos físicos</Button>
+            </header>
+            <ul aria-hidden="true">
+                {[0, 1, 2, 3].map(i => (
+                    <li key={i} className="flex items-center gap-x-3 border-t border-border px-4 py-2.5 first:border-t-0">
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                            <Skeleton className={cn('h-4', i % 2 ? 'w-1/2' : 'w-3/4')} />
+                            <Skeleton className="h-3 w-2/5" />
+                        </div>
+                        <Skeleton className="h-3 w-12 shrink-0 max-sm:hidden" />
+                        <Skeleton className="h-5 w-14 shrink-0 rounded-full" />
+                    </li>
+                ))}
+            </ul>
+        </section>
+    </div>
+);
 
 /**
  * Detalle de Gestiones para RRHH (detalle D del lienzo, dueño 2026-10-21): el flujo de los documentos
@@ -85,7 +125,7 @@ const FlujoDocumentos: React.FC<Props> = ({ alertas, onIr, onCambio, paso: pasoP
 
     const pasos = useMemo(() => (flujo ? pasosFlujo(flujo, alertas) : []), [flujo, alertas]);
     if (error && !flujo) return <p className="text-sm text-muted-foreground">No se pudo cargar el flujo de documentos.</p>;
-    if (!flujo) return <SkeletonText lines={6} />;
+    if (!flujo) return <FlujoSilueta onIr={onIr} />;
 
     const elegidoKey = pasoPedido !== undefined ? pasoPedido : propio;
     const elegir = (k: PasoFlujo['key']) => (onPaso ? onPaso(k) : setPropio(k));

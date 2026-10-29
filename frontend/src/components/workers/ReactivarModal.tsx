@@ -13,6 +13,7 @@ import { AlertTriangle, History, UserCheck } from 'lucide-react';
 
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import api from '../../services/api';
 import { fmtFecha } from '../../utils/format';
 import { showApiError } from '../../utils/toastUtils';
@@ -87,7 +88,19 @@ export const ReactivarModal: React.FC<Props> = ({ isOpen, worker, onClose, onDon
                 )}
 
                 {cargando ? (
-                    <p className="text-sm text-muted-foreground">Cargando antecedentes…</p>
+                    // Silueta del recuadro «Última desvinculación»: rótulos de verdad, valores en gris.
+                    <Cargando que="los antecedentes" className="rounded-xl border border-border bg-card p-4 text-sm">
+                        <div aria-hidden="true">
+                            <p className="mb-2 flex items-center gap-1.5 text-caption font-black uppercase tracking-widest text-brand-dark/50">
+                                <History className="h-3.5 w-3.5" /> Última desvinculación
+                            </p>
+                            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                                <dt className="text-muted-foreground">Fecha</dt><dd className="flex items-center"><Skeleton className="h-3.5 w-24" /></dd>
+                                <dt className="text-muted-foreground">Causal</dt><dd className="flex items-center"><Skeleton className="h-3.5 w-48 max-w-full" /></dd>
+                                <dt className="text-muted-foreground">Por</dt><dd className="flex items-center"><Skeleton className="h-3.5 w-32 max-w-full" /></dd>
+                            </dl>
+                        </div>
+                    </Cargando>
                 ) : ultima ? (
                     <div className="rounded-xl border border-border bg-card p-4 text-sm">
                         <p className="mb-2 flex items-center gap-1.5 text-caption font-black uppercase tracking-widest text-brand-dark/50">

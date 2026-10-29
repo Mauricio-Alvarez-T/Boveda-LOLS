@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowRight, PackageX, Search, X, MapPin, Warehouse } fro
 import { cn } from '../../utils/cn';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
 import { IconButton } from '../ui/IconButton';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import type { TransferenciaConDiscrepancias } from '../../types/entities';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
 import { esReglaAnterior } from './mensajeDiferencia';
@@ -89,7 +90,31 @@ const DiscrepanciasList: React.FC<Props> = ({
             {/* Card list */}
             <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
                 {loading ? (
-                    <div className="py-8 text-center text-muted-foreground text-xs">Cargando diferencias…</div>
+                    // Silueta de las tarjetas: código y fecha, ruta y los dos recuadros (Ítems / Diferencia).
+                    <Cargando que="las diferencias" className="space-y-2">
+                        {[0, 1, 2, 3].map(i => (
+                            <div key={i} className="px-3 py-2.5 rounded-xl border border-border" aria-hidden="true">
+                                <div className="flex items-center justify-between gap-2 mb-1.5">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                        <div className="w-6 h-6 rounded-lg bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 flex items-center justify-center shrink-0">
+                                            <AlertTriangle className="h-3 w-3" />
+                                        </div>
+                                        <Skeleton className="h-3.5 w-28" />
+                                    </div>
+                                    <Skeleton className="h-2.5 w-14 shrink-0" />
+                                </div>
+                                <Skeleton className={cn('h-3 mb-2', i % 2 ? 'w-2/3' : 'w-3/4')} />
+                                <div className="grid grid-cols-2 gap-2">
+                                    {['Ítems', 'Diferencia'].map(r => (
+                                        <div key={r} className="min-w-0 px-2 py-1 rounded-lg border border-border">
+                                            <p className="text-micro text-muted-foreground uppercase font-bold leading-none mb-1">{r}</p>
+                                            <Skeleton className="h-3.5 w-10" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </Cargando>
                 ) : filtered.length === 0 ? (
                     <div className="py-12 text-center text-muted-foreground">
                         <PackageX className="h-10 w-10 mx-auto opacity-20 mb-3" />

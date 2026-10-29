@@ -5,9 +5,72 @@ import { Chip } from '../ui/Chip';
 import { SearchBar } from '../ui/SearchBar';
 import { EmptyState } from '../ui/EmptyState';
 import { fmtMoney, fmtNumber } from '../../utils/format';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { BarraAvance, PctGastado } from './piezas';
 import { cn } from '../../utils/cn';
 import type { CostoDetalleObra, CostoPartida } from '../../types/entities';
+
+/** Sobre la barra verde del capítulo el gris se vería como un parche: ahí la silueta va en blanco tenue. */
+const SOBRE_VERDE: React.CSSProperties = { backgroundColor: 'rgb(255 255 255 / 0.28)' };
+
+/**
+ * El presupuesto mientras llega la obra (diseno.md §9.17): botones y buscador en gris (cuáles hay depende de si la
+ * obra está cerrada); por capítulo, la barra verde de verdad, en el escritorio la tabla con sus columnas de verdad y
+ * en el celular las tarjetas, con las cifras en gris.
+ */
+export const PresupuestoSilueta: React.FC = () => (
+    <Cargando que="el presupuesto" className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between" aria-hidden="true">
+            <div className="flex flex-wrap items-center gap-2">
+                {['w-36', 'w-32', 'w-32'].map((w, i) => <Skeleton key={i} className={cn('h-9 rounded-full', w)} />)}
+            </div>
+            <Skeleton className="h-[42px] w-full rounded-control md:w-64" />
+        </div>
+        {[4, 3].map((filas, s) => (
+            <section key={s} className="overflow-hidden rounded-card border border-border bg-card" aria-hidden="true">
+                <header className="flex h-10 items-center justify-between gap-4 bg-brand-primary px-4">
+                    <Skeleton className={cn('h-3.5 max-w-[55%]', s ? 'w-32' : 'w-44')} style={SOBRE_VERDE} />
+                    <Skeleton className="h-3 w-36 max-w-[40%]" style={SOBRE_VERDE} />
+                </header>
+                <table className="hidden w-full text-xs lg:table">
+                    <thead>
+                        <tr className="border-b border-border text-muted-foreground">
+                            <th className="w-14 px-4 py-2 text-left font-semibold">Ítem</th>
+                            <th className="px-2 py-2 text-left font-semibold">Descripción</th>
+                            <th className="w-24 px-2 py-2 text-right font-semibold">Cantidad</th>
+                            <th className="w-24 px-2 py-2 text-right font-semibold">P. unitario</th>
+                            <th className="w-28 px-2 py-2 text-right font-semibold">Total</th>
+                            <th className="w-40 px-4 py-2 text-left font-semibold">Gastado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {Array.from({ length: filas }).map((_, i) => (
+                            <tr key={i} className="border-b border-border last:border-0">
+                                <td className="px-4 py-3"><Skeleton className="h-3 w-6" /></td>
+                                <td className="px-2 py-3"><Skeleton className={cn('h-3.5', i % 2 ? 'w-2/5' : 'w-3/5')} /></td>
+                                <td className="px-2 py-3"><Skeleton className="ml-auto h-3 w-12" /></td>
+                                <td className="px-2 py-3"><Skeleton className="ml-auto h-3 w-16" /></td>
+                                <td className="px-2 py-3"><Skeleton className="ml-auto h-3.5 w-20" /></td>
+                                <td className="px-4 py-3"><Skeleton className="mb-1.5 h-3 w-20" /><Skeleton className="h-1.5 w-full rounded-full" /></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                <ul className="divide-y divide-border lg:hidden">
+                    {Array.from({ length: filas }).map((_, i) => (
+                        <li key={i} className="flex flex-col gap-2 px-4 py-3">
+                            <div className="flex items-start justify-between gap-3">
+                                <Skeleton className={cn('h-4', i % 2 ? 'w-2/5' : 'w-3/5')} />
+                                <Skeleton className="h-4 w-20 shrink-0" />
+                            </div>
+                            <Skeleton className="h-3 w-32 max-w-full" />
+                        </li>
+                    ))}
+                </ul>
+            </section>
+        ))}
+    </Cargando>
+);
 
 interface Props {
     detalle: CostoDetalleObra;

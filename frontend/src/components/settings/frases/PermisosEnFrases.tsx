@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Check, Lock, Pencil, RotateCcw } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { ICONO_MENU } from '../../soporte/iconosMenu';
 import { ETIQUETA_NADA, GRUPOS, PANTALLAS, nivelDe, type Grupo, type ItemPantalla, type Pantalla } from '../../../config/permisosPantallas';
 import {
@@ -328,6 +329,55 @@ function corte(pesos: number[]): number {
     }
     return mejor;
 }
+
+/**
+ * La vista en frases mientras llegan los permisos (diseno.md §9.17): las mismas tarjetas, con la barra verde, el ícono
+ * y el nombre de cada módulo y de cada pantalla (son fijos, de `permisosPantallas`); en gris solo lo que depende de los
+ * permisos (la frase, «ve X de Y» y el botón). Mismas dos columnas en pantalla ancha.
+ */
+export const SiluetaFrases: React.FC<{ que?: string }> = ({ que = 'los permisos' }) => {
+    const dosColumnas = useDosColumnas();
+    const grupos = GRUPOS.map(g => ({ g, pantallas: PANTALLAS.filter(p => p.grupo === g.id) })).filter(x => x.pantallas.length > 0);
+    const tarjeta = ({ g, pantallas }: (typeof grupos)[number]) => {
+        const Icono = ICONO_MENU[g.id];
+        return (
+            <section key={g.id} aria-hidden="true" className="overflow-hidden rounded-card border border-border bg-card">
+                <header className="flex items-center gap-3 bg-brand-primary px-4 py-2.5 text-white">
+                    <Icono className="h-4 w-4 shrink-0" />
+                    <h3 className="flex-1 text-sm font-bold">{g.nombre}</h3>
+                    {/* «ve X de Y» sobre el verde: el gris neutro no se vería, va un blanco translúcido. */}
+                    <Skeleton className="h-3 w-16" style={{ backgroundColor: 'rgb(255 255 255 / 0.3)' }} />
+                </header>
+                <ul className="divide-y divide-border">
+                    {pantallas.map((p, i) => (
+                        <li key={p.id} className="px-4 py-3.5 sm:px-5">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-ui font-semibold text-brand-dark">
+                                        {p.nombre}
+                                        {p.dinero && <span className="ml-1 font-bold text-amber-600 dark:text-amber-400">$</span>}
+                                    </p>
+                                    <Skeleton className={cn('mt-1.5 h-3.5', i % 3 === 1 ? 'w-3/5' : 'w-4/5')} />
+                                </div>
+                                <Skeleton className="h-11 w-24 shrink-0 rounded-full" />
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </section>
+        );
+    };
+    if (!dosColumnas) {
+        return <Cargando que={que} className="flex flex-col gap-4">{grupos.map(tarjeta)}</Cargando>;
+    }
+    const i = corte(grupos.map(x => x.pantallas.length + 1));
+    return (
+        <Cargando que={que} className="grid grid-cols-2 items-start gap-4">
+            <div className="flex min-w-0 flex-col gap-4">{grupos.slice(0, i).map(tarjeta)}</div>
+            <div className="flex min-w-0 flex-col gap-4">{grupos.slice(i).map(tarjeta)}</div>
+        </Cargando>
+    );
+};
 
 export const PermisosEnFrases: React.FC<Props> = props => {
     const { perms, rol, soloDistinto } = props;

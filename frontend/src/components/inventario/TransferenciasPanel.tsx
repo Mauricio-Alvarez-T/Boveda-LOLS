@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import StatusFilterBar from './StatusFilterBar';
 import TransferenciasList from './TransferenciasList';
 import TransferenciaDetail from './TransferenciaDetail';
+import { SiluetaDetalleSolicitud } from './siluetas';
 import { NuevoMovimientoWizard } from './nuevo-movimiento/NuevoMovimientoWizard';
 import type { MovimientoResuelto } from '../../utils/inferMovimiento';
 import type { RespaldoRehacer } from '../../hooks/inventario/useTransferencias';
@@ -496,6 +497,9 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             onCancelar={handleCancelar}
                             onEliminar={handleEliminar}
                         />
+                    ) : trfHook.loading ? (
+                        // Llega la lista o la solicitud abierta: su silueta, no «Selecciona una transferencia».
+                        <SiluetaDetalleSolicitud />
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center text-center">
                             <ArrowLeftRight className="h-10 w-10 text-muted-foreground/30 mb-3" />

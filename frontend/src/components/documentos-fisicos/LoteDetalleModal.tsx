@@ -17,6 +17,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Chip } from '../ui/Chip';
 import { EmptyState } from '../ui/EmptyState';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { showApiError } from '../../utils/toastUtils';
 import { fmtFechaHora } from '../../utils/fechas';
 import { cn } from '../../utils/cn';
@@ -142,7 +143,38 @@ export const LoteDetalleModal: React.FC<Props> = ({ loteId, onClose, onCambio })
     return (
         <Modal isOpen={loteId != null} onClose={onClose} title={titulo} description={descripcion} icon={Truck} size="lg" footer={footer}>
             {cargando || !lote ? (
-                <p className="text-sm text-muted-foreground py-6 text-center">Cargando lote…</p>
+                // Silueta del lote: el recuadro de resumen y una obra con sus trabajadores y documentos.
+                <Cargando que="el lote" className="space-y-4">
+                    <div className="bg-background rounded-2xl p-4 border border-border space-y-2" aria-hidden="true">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Skeleton className="h-6 w-28 rounded-full" />
+                            <Skeleton className="h-4 w-44 max-w-full" />
+                        </div>
+                        <Skeleton className="h-3 w-72 max-w-full" />
+                        <Skeleton className="h-3 w-48 max-w-full" />
+                    </div>
+                    <div className="rounded-2xl border border-border overflow-hidden" aria-hidden="true">
+                        <Skeleton className="h-7 rounded-none" />
+                        <ul className="divide-y divide-border">
+                            {[0, 1].map(i => (
+                                <li key={i} className="px-3 py-2">
+                                    <div className="space-y-1.5">
+                                        <Skeleton className={cn('h-3.5 max-w-full', i ? 'w-36' : 'w-44')} />
+                                        <Skeleton className="h-3 w-28" />
+                                    </div>
+                                    <div className="mt-1.5 space-y-1">
+                                        {[0, 1].map(d => (
+                                            <div key={d} className="flex items-center gap-2 rounded-lg bg-background px-2 py-1.5">
+                                                <Skeleton className="h-3 flex-1" />
+                                                <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </Cargando>
             ) : (
                 <div className="space-y-4">
                     <div className="bg-background rounded-2xl p-4 border border-border text-sm space-y-1">

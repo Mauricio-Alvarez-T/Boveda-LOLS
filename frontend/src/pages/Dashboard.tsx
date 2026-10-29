@@ -10,13 +10,12 @@ import { cn } from '../utils/cn';
 import { useSetCentroMovil, useSetPageHeader } from '../context/PageHeaderContext';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
-import { SkeletonText } from '../components/ui/Skeleton';
 import { Button } from '../components/ui/Button';
 import { CheckSquare, FileText, FileWarning, Package, RefreshCw, SearchCheck, Truck, UserPlus } from 'lucide-react';
 
 // Widgets
 import VehicleExpiries from '../components/dashboard/widgets/VehicleExpiries';
-import BandejaDelDia, { type PendingTask, type BandejaItem } from '../components/dashboard/widgets/BandejaDelDia';
+import BandejaDelDia, { BandejaDelDiaSilueta, type PendingTask, type BandejaItem } from '../components/dashboard/widgets/BandejaDelDia';
 import { useVencimientosVehiculos } from '../hooks/useVencimientosVehiculos';
 import { useSolicitudesIngreso } from '../hooks/useSolicitudesIngreso';
 import { useLotesPendientes } from '../hooks/useLotesPendientes';
@@ -24,12 +23,12 @@ import { filasBandejaLotes } from '../components/documentos-fisicos/documentosFi
 import { useDocumentosAlertas } from '../hooks/useDocumentosAlertas';
 import { filasBandejaAlertas } from '../components/documentos-fisicos/documentosAlertas';
 import type { DashboardAlerta } from '../hooks/inventario/useDashboardEjecutivo';
-import ObraRanking from '../components/dashboard/widgets/ObraRanking';
+import ObraRanking, { ObraRankingSilueta } from '../components/dashboard/widgets/ObraRanking';
 import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
 import DocumentosInicio from '../components/dashboard/widgets/DocumentosInicio';
 import { resumenDocumentosInicio } from '../components/dashboard/widgets/resumenDocumentosInicio';
 import type { PasoFlujo } from '../components/dashboard/widgets/pasosFlujoDocumentos';
-import AsistenciaInicio from '../components/dashboard/widgets/AsistenciaInicio';
+import AsistenciaInicio, { AsistenciaInicioSilueta } from '../components/dashboard/widgets/AsistenciaInicio';
 import DetalleAsistencia from '../components/dashboard/widgets/DetalleAsistencia';
 import type { AusentesHoy } from '../components/dashboard/widgets/resumenAsistenciaHoy';
 import type { DetalleAsistenciaApi } from '../components/dashboard/widgets/resumenAsistenciaDetalle';
@@ -41,9 +40,9 @@ import { resumenInventarioInicio, type FilaInventario, type ResumenInventarioApi
 import TarjetaPendientes from '../components/dashboard/widgets/TarjetaPendientes';
 import FlujoDocumentos from '../components/dashboard/widgets/FlujoDocumentos';
 import { InicioMarca } from '../components/dashboard/widgets/InicioMarca';
-import { DetalleTusDocumentos, TusDocumentosInicio } from '../components/dashboard/widgets/TusDocumentos';
+import { DetalleTusDocumentos, DetalleTusDocumentosSilueta, TusDocumentosInicio } from '../components/dashboard/widgets/TusDocumentos';
 import { resumenTusDocumentos } from '../components/dashboard/widgets/resumenTusDocumentos';
-import { DetalleTusSolicitudes, TusSolicitudesInicio } from '../components/dashboard/widgets/TusSolicitudes';
+import { DetalleTusSolicitudes, DetalleTusSolicitudesSilueta, TusSolicitudesInicio } from '../components/dashboard/widgets/TusSolicitudes';
 import { resumenTusSolicitudes } from '../components/dashboard/widgets/resumenTusSolicitudes';
 import type { SolicitudIngreso } from '../types/entities';
 import type { MisLotesRespuesta } from '../components/documentos-fisicos/documentosFisicos';
@@ -51,7 +50,8 @@ import { DetalleModulo } from '../components/dashboard/widgets/DetalleModulo';
 import { EncabezadoTarjeta } from '../components/dashboard/widgets/EncabezadoTarjeta';
 import { TarjetaActiva, type TonoTarjeta } from '../components/dashboard/widgets/tarjetaActiva';
 import { BarraModulos, ColaGota, ModuloEnCurso, TarjetaCompacta, type AccesoModulo } from '../components/dashboard/widgets/TarjetaCompacta';
-import { ID_DETALLE_INICIO } from '../components/dashboard/widgets/BotonVerMas';
+import { BotonVerMas, ID_DETALLE_INICIO } from '../components/dashboard/widgets/BotonVerMas';
+import { TarjetaInicioSilueta } from '../components/dashboard/widgets/SiluetasInicio';
 import { nombreMes, type FaltasMesData, type TrabajadorFaltas } from '../components/dashboard/widgets/resumenFaltasMes';
 import { contarBandeja } from '../components/dashboard/widgets/bandejaConteo';
 import { fechaDelDia, resumenDelDia } from '../utils/resumenInicio';
@@ -586,7 +586,8 @@ const Dashboard: React.FC = () => {
                                     fechaTexto={fechaDelDia(hoy)} mesNombre={mes}
                                     onTrabajador={irATrabajador} onObras={() => navigate('/asistencia')} onSeccion={abrirSeccion}
                                     activo={activo === 'asistencia'} onVerMas={() => verMas('asistencia')} />
-                                : <SkeletonText lines={5} />}
+                                : <AsistenciaInicioSilueta fechaTexto={fechaDelDia(hoy)} mesNombre={mes}
+                                    activo={activo === 'asistencia'} onVerMas={() => verMas('asistencia')} />}
                         </Panel>
                     )}
                     {verGestiones && (
@@ -603,7 +604,9 @@ const Dashboard: React.FC = () => {
                                     ? <TarjetaPendientes icon={SearchCheck} titulo="Gestiones" subtitulo="Trabajadores, solicitudes y documentos"
                                         items={gestionesItems} total={totalGestiones} onNavigate={(r) => navigate(r)}
                                         activo={activo === 'gestiones'} onVerMas={() => verMas('gestiones')} modulo="Gestiones" />
-                                    : <SkeletonText lines={5} />}
+                                    : <TarjetaInicioSilueta icon={SearchCheck} titulo="Gestiones" subtitulo="Trabajadores, solicitudes y documentos"
+                                        icono que="los pendientes de Gestiones"
+                                        pie={<BotonVerMas activo={activo === 'gestiones'} onClick={() => verMas('gestiones')} modulo="Gestiones" />} />}
                         </Panel>
                     )}
                     {canInventario && (
@@ -617,7 +620,9 @@ const Dashboard: React.FC = () => {
                         <Panel className="h-full" activa={activo === 'vehiculos'} onClick={() => verMas('vehiculos')}
                             compacta={activo !== null} resumen={compactas.vehiculos} cola={colaVisible}>
                             {vencimientos.loading && vencimientos.items.length === 0
-                                ? <SkeletonText lines={5} />
+                                ? <TarjetaInicioSilueta icon={Truck} titulo="Vehículos" subtitulo="Vencimientos en los próximos 30 días"
+                                    pildora que="los vencimientos de vehículos"
+                                    pie={<BotonVerMas activo={activo === 'vehiculos'} onClick={() => verMas('vehiculos')} modulo="Vehículos" />} />
                                 : <VehicleExpiries data={vencimientos.items} onNavigate={() => navigate('/vehiculos')}
                                     activo={activo === 'vehiculos'} onVerMas={() => verMas('vehiculos')} />}
                         </Panel>
@@ -657,7 +662,7 @@ const Dashboard: React.FC = () => {
                                     <Panel className={canActividades ? undefined : 'lg:col-span-2'}>
                                         {ready && data
                                             ? <ObraRanking data={data.obraRanking ?? []} onNavigate={(id) => navigate(`/consultas?obra_id=${id}`)} />
-                                            : <SkeletonText lines={5} />}
+                                            : <ObraRankingSilueta />}
                                     </Panel>
                                 )}
                             </div>
@@ -672,7 +677,7 @@ const Dashboard: React.FC = () => {
                     accion={{ texto: 'Ir a Documentos físicos', onClick: () => navigate('/consultas?tab=fisicos') }}>
                     <div className="grid grid-cols-1 gap-6">
                         <Panel>
-                            {misLotes ? <DetalleTusDocumentos mis={misLotes} onIr={() => navigate('/consultas?tab=fisicos')} onCambio={refreshDocumentos} /> : <SkeletonText lines={6} />}
+                            {misLotes ? <DetalleTusDocumentos mis={misLotes} onIr={() => navigate('/consultas?tab=fisicos')} onCambio={refreshDocumentos} /> : <DetalleTusDocumentosSilueta onIr={() => navigate('/consultas?tab=fisicos')} />}
                         </Panel>
                         {/* El portador que además envía fichas de ingreso ve aquí cómo van. */}
                         {creaFichas && resumenSol && (
@@ -690,7 +695,7 @@ const Dashboard: React.FC = () => {
                     descripcion="Todas tus fichas por estado"
                     accion={{ texto: 'Ir a Solicitudes', onClick: () => navigate('/consultas?tab=solicitudes') }}>
                     <Panel>
-                        {resumenSol ? <DetalleTusSolicitudes resumen={resumenSol} onIr={() => navigate('/consultas?tab=solicitudes')} /> : <SkeletonText lines={6} />}
+                        {resumenSol ? <DetalleTusSolicitudes resumen={resumenSol} onIr={() => navigate('/consultas?tab=solicitudes')} /> : <DetalleTusSolicitudesSilueta onIr={() => navigate('/consultas?tab=solicitudes')} />}
                     </Panel>
                 </DetalleModulo>
             )}
@@ -720,7 +725,7 @@ const Dashboard: React.FC = () => {
                                     documentosFisicosItems={canRegistrarEntregas ? [] : documentosFisicosItems}
                                     onNavigate={(route) => navigate(route)}
                                 />
-                                : <SkeletonText lines={6} />}
+                                : <BandejaDelDiaSilueta titulo="Otros pendientes" />}
                         </Panel>
                     </div>
                 </DetalleModulo>

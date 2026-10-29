@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { Check, LogIn } from 'lucide-react';
-import { SkeletonFilas } from '../ui/Skeleton';
+import { Cargando, Skeleton, SkeletonCirculo } from '../ui/Skeleton';
 import { useAparecer } from '../../hooks/useAparecer';
+import { cn } from '../../utils/cn';
 import { ETIQUETA_BUZON_IDEAS } from '../ideas/ideasConfig';
 import { entroHoy, lugarUsuario, textoIngreso } from './fichaUsuario';
 import { ICONO_MENU } from './iconosMenu';
@@ -89,6 +90,66 @@ const Fila: React.FC<{ f: FilaPanorama; columnas: ColumnaPanorama[]; onElegir: (
     );
 };
 
+/**
+ * La tabla mientras llegan las personas: el encabezado verde con las secciones del menú es fijo (va de verdad); los
+ * totales, el rol, los nombres y las marcas van en gris. Se desplaza dentro de su caja, igual que la tabla.
+ */
+const PanoramaSilueta: React.FC<{ columnas: ColumnaPanorama[] }> = ({ columnas }) => (
+    <Cargando que="el panorama" className="max-h-[calc(100dvh-15rem)] min-h-72 overflow-auto rounded-b-card">
+        <table className="min-w-full border-separate border-spacing-0 text-sm" aria-hidden="true">
+            <thead>
+                <tr>
+                    <th scope="col" className={`${TH_COLUMNA} sticky left-0 z-30 border-r px-3 text-left`}>
+                        <span className="text-xs">Persona</span>
+                    </th>
+                    <th scope="col" className={`${TH_COLUMNA} min-w-22`}>
+                        <span className="flex flex-col items-center gap-1">
+                            <LogIn aria-hidden className="h-4 w-4" />
+                            <span className="text-xs leading-tight">Último ingreso</span>
+                        </span>
+                    </th>
+                    {columnas.map(c => <Encabezado key={c.clave} c={c} />)}
+                </tr>
+                <tr>
+                    <th scope="row" className="sticky left-0 z-30 border-b border-r border-border bg-card px-3 py-1.5 text-left text-xs font-semibold text-muted-foreground">
+                        Personas que la ven
+                    </th>
+                    <td className="border-b border-border bg-card px-1 py-1.5"><Skeleton className="mx-auto h-3 w-10" /></td>
+                    {columnas.map(c => (
+                        <td key={c.clave} className="border-b border-border bg-card px-1 py-1.5"><Skeleton className="mx-auto h-3 w-5" /></td>
+                    ))}
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th scope="rowgroup" colSpan={columnas.length + 2} className="border-b border-border bg-muted p-0 text-left">
+                        {/* Sobre el gris del grupo, la silueta va un tono más oscura (el borde) para que se vea. */}
+                        <span className="sticky left-0 block w-fit px-3 py-2"><Skeleton className="h-3 w-32" style={{ backgroundColor: 'var(--color-border)' }} /></span>
+                    </th>
+                </tr>
+                {[0, 1, 2, 3, 4, 5].map(i => (
+                    <tr key={i}>
+                        <th scope="row" className="sticky left-0 z-10 border-b border-r border-border bg-card px-3 py-2 text-left font-normal">
+                            <span className="block w-28 space-y-1.5 sm:w-40">
+                                <Skeleton className={cn('h-3.5', i % 2 ? 'w-20 sm:w-28' : 'w-24 sm:w-32')} />
+                                <Skeleton className="h-3 w-16 sm:w-24" />
+                            </span>
+                        </th>
+                        <td className={CELDA}><Skeleton className="mx-auto h-3 w-14" /></td>
+                        {columnas.map(c => (
+                            <td key={c.clave} className={CELDA}>
+                                {c.clave === 'inicio'
+                                    ? <Skeleton className="mx-auto h-5 w-16 rounded-full" />
+                                    : <SkeletonCirculo className="mx-auto h-6 w-6" />}
+                            </td>
+                        ))}
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    </Cargando>
+);
+
 export const PanoramaPermisos: React.FC<Props> = ({ datos, texto, rolId, filtros, onElegir }) => {
     const p = useMemo(() => armarPanorama(datos ?? [], texto, rolId, ETIQUETA_BUZON_IDEAS), [datos, texto, rolId]);
     const aparece = useAparecer(datos === null);
@@ -100,13 +161,15 @@ export const PanoramaPermisos: React.FC<Props> = ({ datos, texto, rolId, filtros
             <div className="flex flex-col gap-2 border-b border-border p-3 md:flex-row md:items-center">
                 <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_16rem]">{filtros}</div>
                 <p className="text-xs text-muted-foreground md:max-w-xs md:text-right">
-                    {datos === null ? 'Cargando…' : `${textoPersonas(p.personas)}${p.personas !== total ? ` de ${total}` : ''}`}
+                    {datos === null
+                        ? <span aria-hidden="true" className="silueta inline-block h-3 w-20 rounded-md align-middle" />
+                        : `${textoPersonas(p.personas)}${p.personas !== total ? ` de ${total}` : ''}`}
                     {' · '}✓ = la ve en su menú lateral · toca a una persona para ver su ficha
                 </p>
             </div>
 
             {datos === null ? (
-                <SkeletonFilas filas={8} />
+                <PanoramaSilueta columnas={p.columnas} />
             ) : !p.grupos.length ? (
                 <p className="px-4 py-8 text-center text-sm text-muted-foreground">Nadie con ese filtro.</p>
             ) : (

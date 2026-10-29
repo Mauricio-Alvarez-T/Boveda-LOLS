@@ -2,6 +2,7 @@ import React from 'react';
 import { CheckSquare } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { NumeroRodante } from '../../ui/NumeroRodante';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { EncabezadoTarjeta } from './EncabezadoTarjeta';
 import { CIFRA_SOBRE_VERDE, useTarjetaActiva, type TonoTarjeta } from './tarjetaActiva';
 import { BotonVerMas } from './BotonVerMas';
@@ -140,5 +141,48 @@ const AsistenciaInicio: React.FC<Props> = ({
         </div>
     );
 };
+
+/**
+ * La tarjeta «Asistencia» mientras llega el resumen (diseno.md §9.17): encabezado, rótulos de las dos cifras y «Ver
+ * más» de verdad; la barra de obras guardadas, las cifras y los reiterados, en gris.
+ */
+export const AsistenciaInicioSilueta: React.FC<{ fechaTexto: string; mesNombre: string; activo: boolean; onVerMas: () => void }> = ({
+    fechaTexto, mesNombre, activo, onVerMas,
+}) => (
+    <div className="flex h-full flex-col">
+        <EncabezadoTarjeta icon={CheckSquare} titulo="Asistencia" subtitulo={`Hoy · ${fechaTexto}`} />
+        <Cargando que="la asistencia de hoy">
+            <div className="mb-4 space-y-2 py-1" aria-hidden="true">
+                <div className="flex items-center justify-between gap-2"><Skeleton className="h-3 w-28" /><Skeleton className="h-3.5 w-24" /></div>
+                <Skeleton className="h-2 w-full rounded-full" />
+                <Skeleton className="h-3 w-40 max-w-full" />
+            </div>
+            <div className="mb-3 grid grid-cols-2 border-y border-border" aria-hidden="true">
+                <div className="py-3 pr-3">
+                    <Skeleton className="h-8 w-10" />
+                    <span className="mt-1.5 block text-xs font-semibold text-foreground">Ausentes hoy</span>
+                    <Skeleton className="mt-1 h-3 w-24 max-w-full" />
+                </div>
+                <div className="border-l border-border py-3 pl-4">
+                    <Skeleton className="h-8 w-10" />
+                    <span className="mt-1.5 block text-xs font-semibold text-foreground">Faltas reiteradas</span>
+                    <span className="mt-0.5 block text-label text-muted-foreground">en {mesNombre}</span>
+                </div>
+            </div>
+            <div aria-hidden="true">
+                {['w-3/5', 'w-1/2', 'w-2/3'].map(w => (
+                    <div key={w} className="flex min-h-10 items-center gap-2 py-2">
+                        <Skeleton className={cn('h-4', w)} />
+                        <span className="flex-1" />
+                        <Skeleton className="h-5 w-24 shrink-0 rounded-full" />
+                    </div>
+                ))}
+            </div>
+        </Cargando>
+        <div className="mt-auto flex items-center justify-end gap-3 pt-3">
+            <BotonVerMas activo={activo} onClick={onVerMas} modulo="Asistencia" />
+        </div>
+    </div>
+);
 
 export default AsistenciaInicio;

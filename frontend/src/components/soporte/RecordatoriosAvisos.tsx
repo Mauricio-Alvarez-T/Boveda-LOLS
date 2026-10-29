@@ -3,6 +3,8 @@ import { BellOff, BellRing, ChevronDown, ChevronRight, Monitor, Smartphone } fro
 import {
     avisosEnviados, estadoDelAviso, resumenRecordatorios, type AvisoEnviado, type PersonaRecordatorios,
 } from '../../services/avisosCelular';
+import { Cargando, Skeleton } from '../ui/Skeleton';
+import { cn } from '../../utils/cn';
 import { textoIngreso } from './fichaUsuario';
 
 /**
@@ -60,7 +62,29 @@ export const RecordatoriosAvisos: React.FC = () => {
         return m;
     }, [avisos]);
 
-    if (!lista || !personas.length) return null;
+    if (!lista) {
+        // Mientras llega: la tarjeta con su título de verdad y las personas en gris (si llega vacía, no se muestra).
+        return (
+            <Cargando que="el centro de avisos" className="rounded-card border border-border bg-card">
+                <div className="space-y-1.5 border-b border-border px-4 py-3">
+                    <p className="text-sm font-semibold text-brand-dark">Centro de avisos</p>
+                    <Skeleton className="h-3 w-4/5" />
+                </div>
+                <ul className="divide-y divide-border" aria-hidden="true">
+                    {[0, 1, 2].map(i => (
+                        <li key={i} className="flex items-start gap-3 px-4 py-2.5">
+                            <Skeleton className="mt-0.5 h-4 w-4 rounded-full" />
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                                <Skeleton className={cn('h-3.5', i % 2 ? 'w-40' : 'w-52 max-w-full')} />
+                                <Skeleton className="h-3 w-3/5" />
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </Cargando>
+        );
+    }
+    if (!personas.length) return null;
     const enHorario = lista.length;
     const activos = lista.filter(p => p.celulares > 0).length;
 

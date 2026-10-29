@@ -9,7 +9,7 @@ import { flagOff } from '../../../../utils/flags';
 import TransferenciaDetail from '../../../inventario/TransferenciaDetail';
 import { Button } from '../../../ui/Button';
 import { IconButton } from '../../../ui/IconButton';
-import { SkeletonText } from '../../../ui/Skeleton';
+import { SiluetaDetalleSolicitud } from '../../../inventario/siluetas';
 import { ROTULO_FICHAS } from '../fichasInicio';
 import { ROTULO_RESOLVER, type AccionResuelta } from './leonardo.modelo';
 
@@ -154,8 +154,9 @@ const ResolverSolicitud: React.FC<Props> = ({ id, ruta, nota, onCerrar, onResuel
                     />
                 </div>
             ) : (
-                <div className="px-3 py-4 md:px-6" aria-busy="true">
-                    <SkeletonText lines={5} />
+                // La silueta del mismo detalle de Inventario (con su relleno), mientras llega la solicitud.
+                <div className="md:-mt-3">
+                    <SiluetaDetalleSolicitud />
                 </div>
             )}
         </div>

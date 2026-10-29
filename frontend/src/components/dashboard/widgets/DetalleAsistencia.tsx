@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '../../../utils/cn';
 import { shareViaWhatsApp } from '../../../utils/whatsappShare';
 import { NumeroRodante } from '../../ui/NumeroRodante';
-import { SkeletonText } from '../../ui/Skeleton';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
 import AsistenciaPendiente from './AsistenciaPendiente';
 import { EnlaceFicha } from './FichaInicio';
@@ -16,6 +16,63 @@ import { colorEstado, gruposAusentes, ID_SECCION, type AusentesHoy, type ObrasHo
 const CARD = 'rounded-3xl bg-card p-6 text-foreground shadow-[var(--shadow-md)]';
 const ROTULO = 'text-label font-bold uppercase tracking-[0.08em] text-muted-foreground';
 const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
+
+// ── Siluetas de carga (diseno.md §9.17): los rótulos de sección van de verdad; lo que trae el servidor, en gris ──
+
+/** Una ficha de reiterado: círculo, nombre y obra, la cifra a la derecha, la frase y la tira del mes. */
+const FichaReiteradoSilueta: React.FC<{ className?: string }> = ({ className }) => (
+    <li className={cn('flex flex-col gap-3.5 rounded-[20px] bg-card p-5 shadow-[var(--shadow-sm)]', className)}>
+        <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-1.5"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-1/2" /></div>
+            <Skeleton className="h-8 w-8 shrink-0" />
+        </div>
+        <Skeleton className="h-3.5 w-4/5" />
+        <div className="flex gap-1.5"><Skeleton className="h-5 w-20 rounded-full" /><Skeleton className="h-5 w-16 rounded-full" /></div>
+        <Skeleton className="h-4 w-full rounded" />
+    </li>
+);
+
+/** Una tarjeta con cifra grande y su etiqueta, y filas debajo (ausentes por motivo, descuentos, horas extra). */
+const CifraYFilasSilueta: React.FC<{ filas?: number; className?: string }> = ({ filas = 4, className }) => (
+    <div className={cn(CARD, className)} aria-hidden="true">
+        <div className="mb-4 flex items-end gap-2"><Skeleton className="h-9 w-12" /><Skeleton className="mb-0.5 h-3.5 w-32" /></div>
+        <ul>
+            {Array.from({ length: filas }).map((_, i) => (
+                <li key={i} className="flex items-center gap-3 border-t border-border py-2.5 first:border-t-0">
+                    <Skeleton className="h-2.5 w-2.5 shrink-0 rounded-[3px]" />
+                    <Skeleton className={cn('h-4', i % 2 ? 'w-1/3' : 'w-1/2')} />
+                    <span className="flex-1" />
+                    <Skeleton className="h-4 w-6 shrink-0" />
+                </li>
+            ))}
+        </ul>
+    </div>
+);
+
+/** Próximos 14 días: cada evento con su bloque de fecha y qué pasa. */
+const ProximosSilueta: React.FC = () => (
+    <Cargando que="los próximos días">
+        <div className={cn(CARD, 'py-3')} aria-hidden="true">
+            {[0, 1, 2, 3, 4].map(i => (
+                <div key={i} className="flex items-center gap-3 border-t border-border py-2.5 first:border-t-0">
+                    <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                    <div className="min-w-0 flex-1 space-y-1.5"><Skeleton className={cn('h-4', i % 2 ? 'w-1/2' : 'w-3/4')} /><Skeleton className="h-3 w-2/5" /></div>
+                </div>
+            ))}
+        </div>
+    </Cargando>
+);
+
+/** Tendencia: la cifra del mes y el gráfico de 6 meses en gris. */
+const TendenciaSilueta: React.FC = () => (
+    <Cargando que="la tendencia">
+        <div className={CARD} aria-hidden="true">
+            <div className="mb-4 flex items-end gap-2"><Skeleton className="h-9 w-20" /><Skeleton className="mb-0.5 h-3.5 w-40 max-w-full" /></div>
+            <Skeleton className="h-[200px] w-full rounded-2xl" />
+        </div>
+    </Cargando>
+);
 
 interface Props {
     faltas: FaltasMesData | null;
@@ -50,7 +107,34 @@ const DetalleAsistencia: React.FC<Props> = ({
     const grupos = ausentes ? gruposAusentes(ausentes) : [];
     const hoyIso = `${anio}-${String(mes).padStart(2, '0')}-${String(hoyDia).padStart(2, '0')}`;
 
-    if (cargando) return <div className={CARD}><SkeletonText lines={6} /></div>;
+    if (cargando) {
+        return (
+            <Cargando que="el detalle de asistencia" className="space-y-8">
+                <section className="space-y-3">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                        <h3 className={ROTULO}>Requiere acción · faltas reiteradas de {mesNombre}</h3>
+                        <span className="text-xs text-muted-foreground">Art. 160 N°3: 2 días seguidos, 2 lunes o 3 días en el mes</span>
+                    </div>
+                    <ul className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
+                        <FichaReiteradoSilueta />
+                        <FichaReiteradoSilueta className="max-md:hidden" />
+                    </ul>
+                </section>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                    <section className="min-w-0 space-y-3">
+                        <h3 className={ROTULO}>Hoy · ausentes por motivo</h3>
+                        <CifraYFilasSilueta filas={3} />
+                    </section>
+                    {cargandoMes && (
+                        <section className="flex min-w-0 flex-col gap-3">
+                            <h3 className={ROTULO}>Próximos 14 días</h3>
+                            <ProximosSilueta />
+                        </section>
+                    )}
+                </div>
+            </Cargando>
+        );
+    }
 
     return (
         <div className="space-y-8">
@@ -124,7 +208,7 @@ const DetalleAsistencia: React.FC<Props> = ({
                         <h3 id="inicio-asistencia-proximos-t" className={ROTULO}>Próximos 14 días</h3>
                         {mesExtra?.proximos
                             ? <ProximosDias datos={mesExtra.proximos} hoy={mesExtra.hoy} />
-                            : <div className={CARD}><SkeletonText lines={5} /></div>}
+                            : <ProximosSilueta />}
                     </section>
                 )}
             </div>
@@ -133,7 +217,7 @@ const DetalleAsistencia: React.FC<Props> = ({
                 <section className="space-y-3" aria-labelledby="inicio-asistencia-mes-t">
                     <h3 id="inicio-asistencia-mes-t" className={ROTULO}>{`Este mes · ${mesNombre}`}</h3>
                     {cargandoMes && !mesExtra ? (
-                        <div className={CARD}><SkeletonText lines={6} /></div>
+                        <Cargando que="los descuentos del mes"><CifraYFilasSilueta filas={5} /></Cargando>
                     ) : (
                         <div className={cn('grid grid-cols-1 gap-6',
                             mesExtra?.descuentos && mesExtra?.horasExtra && 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]')}>
@@ -150,7 +234,7 @@ const DetalleAsistencia: React.FC<Props> = ({
                 <section className="space-y-3" aria-labelledby="inicio-asistencia-tendencia-t">
                     <h3 id="inicio-asistencia-tendencia-t" className={ROTULO}>Tendencia y obras</h3>
                     {cargandoMes && !mesExtra ? (
-                        <div className={CARD}><SkeletonText lines={6} /></div>
+                        <TendenciaSilueta />
                     ) : (mesExtra?.tendencia || mesExtra?.faltasObra) && (
                         <div className={cn('grid grid-cols-1 gap-6',
                             mesExtra?.tendencia && mesExtra?.faltasObra && 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]')}>

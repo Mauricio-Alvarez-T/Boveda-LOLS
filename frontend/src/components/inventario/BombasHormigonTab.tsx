@@ -16,6 +16,7 @@ import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { NumeroRodante } from '../ui/NumeroRodante';
 import { fmtMoneyExacto } from '../../utils/format';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 
 interface Props {
     /** Ya no se usa: el tab fetchea sus obras filtradas por participa_bombas. */
@@ -96,6 +97,8 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false, canDel
     // muestran «—»: un 0 de relleno que después "rueda" a N dramatiza un dato falso (diseno.md §9.4).
     // Cambiar de obra no lo apaga: `registros` no se vacía antes del refetch, así que N→M es real.
     const [cargado, setCargado] = useState(false);
+    // Primera carga en curso: las cifras van en silueta (tras un error quedan en «—»).
+    const primeraCarga = loading && !cargado;
     const [filterObraId, setFilterObraId] = useState<number | ''>('');
     const [searchQuery, setSearchQuery] = useState('');
     // Mes abierto en el historial (drill-down). null = vista de lista de meses.
@@ -353,18 +356,21 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false, canDel
                         icon={MixerTruck}
                         label="Total Bombeos"
                         value={cargado ? stats.total : '—'}
+                        cargando={primeraCarga}
                         color="bg-muted text-muted-foreground"
                     />
                     <StatCard
                         icon={Building2}
                         label="Empresa"
                         value={cargado ? stats.propias : '—'}
+                        cargando={primeraCarga}
                         color="bg-muted text-muted-foreground"
                     />
                     <StatCard
                         icon={Truck}
                         label="Externas"
                         value={cargado ? stats.externas : '—'}
+                        cargando={primeraCarga}
                         color="bg-muted text-muted-foreground"
                     />
                     {verCostos && (
@@ -372,6 +378,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false, canDel
                             icon={DollarSign}
                             label="Costo Total"
                             value={stats.costoTotal > 0 ? fmtMoney(stats.costoTotal) : '—'}
+                            cargando={primeraCarga}
                             color="bg-muted text-muted-foreground"
                         />
                     )}
@@ -381,7 +388,21 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false, canDel
             {/* List */}
             <div className="flex-1 min-h-0 overflow-y-auto">
                 {loading ? (
-                    <div className="py-12 text-center text-muted-foreground text-xs">Cargando...</div>
+                    // Silueta de la lista de meses (la vista de entrada).
+                    <Cargando que="los bombeos" className="space-y-2">
+                        {[0, 1, 2, 3].map(i => (
+                            <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card" aria-hidden="true">
+                                <div className="shrink-0 h-10 w-10 rounded-xl bg-muted flex items-center justify-center">
+                                    <Calendar className="h-5 w-5 text-muted-foreground" />
+                                </div>
+                                <div className="flex-1 min-w-0 space-y-1.5">
+                                    <Skeleton className="h-4 w-32 max-w-full" />
+                                    <Skeleton className={i % 2 ? 'h-3 w-48 max-w-full' : 'h-3 w-56 max-w-full'} />
+                                </div>
+                                <ChevronRight className="shrink-0 h-4 w-4 text-muted-foreground/40" />
+                            </div>
+                        ))}
+                    </Cargando>
                 ) : filtered.length === 0 ? (
                     <div className="py-16 text-center text-muted-foreground">
                         <MixerTruck className="h-10 w-10 mx-auto opacity-20 mb-3" />
@@ -739,14 +760,16 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false, canDel
 /* ─── Stat card ───
    Conteos (number) ruedan con NumeroRodante al filtrar; el dinero llega ya formateado
    (string) y queda estático: los montos nunca se animan (diseno.md §9). */
-const StatCard: React.FC<{ icon: React.ElementType; label: string; value: string | number; color: string }> = ({ icon: Icon, label, value, color }) => (
+const StatCard: React.FC<{ icon: React.ElementType; label: string; value: string | number; color: string; cargando?: boolean }> = ({ icon: Icon, label, value, color, cargando = false }) => (
     <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border bg-card">
         <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", color)}>
             <Icon className="h-3.5 w-3.5" />
         </div>
         <div className="min-w-0">
             <p className="text-caption text-muted-foreground leading-tight">{label}</p>
-            <p className="text-sm font-bold text-brand-dark leading-tight truncate">{typeof value === 'number' ? <NumeroRodante value={value} /> : value}</p>
+            {cargando
+                ? <Skeleton className="mt-0.5 h-4 w-10" />
+                : <p className="text-sm font-bold text-brand-dark leading-tight truncate">{typeof value === 'number' ? <NumeroRodante value={value} /> : value}</p>}
         </div>
     </div>
 );

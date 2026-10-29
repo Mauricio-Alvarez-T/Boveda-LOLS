@@ -11,11 +11,11 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { PestanasElasticas } from '../components/ui/PestanasElasticas';
 import { SearchBar } from '../components/ui/SearchBar';
 import { Select } from '../components/ui/Select';
-import { Skeleton, SkeletonFilas } from '../components/ui/Skeleton';
+import { Cargando, Skeleton, SkeletonCirculo } from '../components/ui/Skeleton';
 import { useAparecer } from '../hooks/useAparecer';
 import { cn } from '../utils/cn';
 import { esSuperAdmin } from '../components/dashboard/widgets/inventarioPerfil/perfil';
-import { FichaPersona } from '../components/soporte/FichaPersona';
+import { FichaPersona, SiluetaFichaPersona } from '../components/soporte/FichaPersona';
 import { filtrarUsuarios, lugarUsuario, rolesDeLista, textoIngreso, type FichaSoporte, type UsuarioSoporte } from '../components/soporte/fichaUsuario';
 import { fichaParaVerComo } from '../components/soporte/accesosPerfil';
 import { PanoramaPermisos } from '../components/soporte/PanoramaPermisos';
@@ -183,7 +183,8 @@ const SoportePage: React.FC = () => {
                 aria-label="Filtrar por rol"
                 value={rolId ?? ''}
                 onChange={e => setRolId(e.target.value ? Number(e.target.value) : null)}
-                options={[{ value: '', label: `Todos los roles (${usuarios.length})` }, ...roles.map(r => ({ value: r.id, label: `${r.nombre} (${r.n})` }))]}
+                // Sin el «(0)» mientras llega la lista: no es un cero de verdad (§9.4).
+                options={[{ value: '', label: cargando ? 'Todos los roles' : `Todos los roles (${usuarios.length})` }, ...roles.map(r => ({ value: r.id, label: `${r.nombre} (${r.n})` }))]}
                 className="h-[42px] text-sm"
             />
         </>
@@ -241,7 +242,24 @@ const SoportePage: React.FC = () => {
                         {filtros}
                     </div>
                     {cargando ? (
-                        <SkeletonFilas filas={8} />
+                        // La forma de cada persona: inicial, nombre + último ingreso, rol y correo.
+                        <Cargando que="las personas">
+                            <ul className="flex flex-col gap-1 p-2" aria-hidden="true">
+                                {[0, 1, 2, 3, 4, 5, 6].map(i => (
+                                    <li key={i} className="flex items-start gap-3 rounded-xl border border-transparent px-3 py-2.5">
+                                        <SkeletonCirculo className="mt-0.5 h-8 w-8" />
+                                        <div className="min-w-0 flex-1 space-y-1.5">
+                                            <div className="flex items-center gap-2">
+                                                <Skeleton className={cn('h-3.5', i % 3 === 1 ? 'w-24' : 'w-32')} />
+                                                <Skeleton className="ml-auto h-3 w-16" />
+                                            </div>
+                                            <Skeleton className={cn('h-3', i % 2 ? 'w-2/5' : 'w-3/5')} />
+                                            <Skeleton className="h-3 w-1/2" />
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </Cargando>
                     ) : !visibles.length ? (
                         <p className="px-4 py-8 text-center text-sm text-muted-foreground">Nadie con ese filtro.</p>
                     ) : (
@@ -283,12 +301,7 @@ const SoportePage: React.FC = () => {
                             onVolver={desdePanorama ? () => navigate(-1) : () => setVerFichaMovil(false)}
                             textoVolver={desdePanorama ? 'Volver al panorama' : undefined} />
                     ) : cargando || cargandoFicha ? (
-                        <div className="flex flex-col gap-4" role="status">
-                            <span className="sr-only">Cargando…</span>
-                            <div className="rounded-card border border-border bg-card p-6"><Skeleton className="h-7 w-56" /><Skeleton className="mt-3 h-4 w-40" /></div>
-                            <div className="h-40 rounded-card border border-border bg-card" />
-                            <div className="h-72 rounded-card border border-border bg-card" />
-                        </div>
+                        <SiluetaFichaPersona />
                     ) : (
                         <EmptyState icon={UserSearch} title="Elige a una persona" description="Su ficha muestra qué ve y por qué; desde ahí puedes ver la app como ella." />
                     )}

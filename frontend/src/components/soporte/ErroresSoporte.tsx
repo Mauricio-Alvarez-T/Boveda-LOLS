@@ -11,7 +11,7 @@ import { Chip } from '../ui/Chip';
 import { EmptyState } from '../ui/EmptyState';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
 import { SearchBar } from '../ui/SearchBar';
-import { SkeletonFilas } from '../ui/Skeleton';
+import { Cargando, Skeleton, SkeletonCirculo } from '../ui/Skeleton';
 import { useErroresSoporte } from '../../hooks/useErroresSoporte';
 import { cn } from '../../utils/cn';
 import { textoIngreso } from './fichaUsuario';
@@ -70,7 +70,7 @@ const FotoAviso: React.FC<{ e: ErrorSoporte }> = ({ e }) => {
     const sinFoto = porQueSinFoto(e);
     if (sinFoto) return <p className="rounded-xl border border-dashed border-border bg-background px-3 py-2.5 text-xs text-muted-foreground">{sinFoto}</p>;
     if (falla) return <p className="text-xs text-muted-foreground">No se pudo cargar la foto.</p>;
-    if (!url) return <div className="h-64 animate-pulse rounded-xl bg-muted" />;
+    if (!url) return <Cargando que="la foto"><Skeleton className="h-64 rounded-xl" /></Cargando>;
     return (
         <a href={url} target="_blank" rel="noreferrer" title="Abrir la foto en grande" className="block">
             <img src={url} alt={`Foto de la pantalla de ${e.usuario_nombre}`}
@@ -177,6 +177,54 @@ const Detalle: React.FC<{ e: ErrorSoporte; onRevisado: (estado: ErrorSoporte['es
     );
 };
 
+/** La lista de avisos mientras llega: iniciales, persona + hora, mensaje, pantalla y las marcas. */
+const ListaErroresSilueta: React.FC = () => (
+    <Cargando que="los avisos de error">
+        <ul className="flex flex-col gap-1 p-2" aria-hidden="true">
+            {[0, 1, 2, 3, 4].map(i => (
+                <li key={i} className="flex items-start gap-3 rounded-xl border border-transparent px-3 py-2.5">
+                    <SkeletonCirculo className="h-9 w-9" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                            <Skeleton className={cn('h-3.5', i % 2 ? 'w-24' : 'w-32')} />
+                            <Skeleton className="ml-auto h-3 w-14" />
+                        </div>
+                        <Skeleton className={cn('h-3', i % 3 === 1 ? 'w-3/5' : 'w-4/5')} />
+                        <Skeleton className="h-3 w-2/5" />
+                        <div className="flex gap-1.5 pt-1"><Skeleton className="h-5 w-16 rounded-full" /><Skeleton className="h-5 w-20 rounded-full" /></div>
+                    </div>
+                </li>
+            ))}
+        </ul>
+    </Cargando>
+);
+
+/** El detalle mientras llega la lista: la persona, el mensaje, la foto y los datos (rótulos de verdad). */
+const DetalleSilueta: React.FC = () => (
+    <Cargando que="el detalle del error" className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3" aria-hidden="true">
+            <div className="flex min-w-0 items-center gap-3">
+                <SkeletonCirculo className="h-9 w-9" />
+                <div className="min-w-0 space-y-2"><Skeleton className="h-4 w-40 max-w-full" /><Skeleton className="h-3 w-28" /></div>
+            </div>
+            <div className="flex gap-1.5"><Skeleton className="h-5 w-16 rounded-full" /><Skeleton className="h-5 w-20 rounded-full" /></div>
+        </div>
+        <div className="space-y-2 rounded-xl border border-border bg-background px-3 py-2.5" aria-hidden="true">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="ml-6 h-3 w-1/2" />
+        </div>
+        <Skeleton className="h-64 rounded-xl" />
+        <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm" aria-hidden="true">
+            {['Pantalla', 'Cuándo', 'Veces', 'Desde'].map((r, i) => (
+                <React.Fragment key={r}>
+                    <dt className="text-muted-foreground">{r}</dt>
+                    <dd className="flex items-center"><Skeleton className={cn('h-3.5', i === 2 ? 'w-8' : i === 1 ? 'w-40 max-w-full' : 'w-32 max-w-full')} /></dd>
+                </React.Fragment>
+            ))}
+        </dl>
+    </Cargando>
+);
+
 export const ErroresSoporte: React.FC = () => {
     const navigate = useNavigate();
     const resumen = useErroresSoporte();
@@ -264,7 +312,7 @@ export const ErroresSoporte: React.FC = () => {
                             <SearchBar value={texto} onChange={setTexto} placeholder="Buscar persona, mensaje, pantalla…" />
                         </div>
                         {lista === null ? (
-                            <SkeletonFilas filas={5} />
+                            <ListaErroresSilueta />
                         ) : !visibles.length ? (
                             <p className="px-4 py-8 text-center text-sm text-muted-foreground">
                                 {texto ? 'Nada con esa búsqueda.' : vista === 'revisar' ? 'No hay errores por revisar. Todo tranquilo.' : 'Nada por aquí.'}
@@ -304,7 +352,9 @@ export const ErroresSoporte: React.FC = () => {
                             </Button>
                         )}
                         <section aria-label="Detalle del error" className="rounded-card border border-border bg-card p-5">
-                            {elegido ? (
+                            {lista === null ? (
+                                <DetalleSilueta />
+                            ) : elegido ? (
                                 <Detalle e={elegido} onRevisado={(estado, nota) => revisar(elegido, estado, nota)}
                                     onVerFicha={() => navigate(`/soporte?u=${elegido.usuario_id}`)} />
                             ) : (

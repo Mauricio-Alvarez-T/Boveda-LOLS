@@ -14,6 +14,8 @@ import type { ItemInventario } from '../../types/entities';
 import type { StockLocation } from '../../hooks/inventario/useItemDetail';
 import { fmtMoneyExacto } from '../../utils/format';
 import { MovimientosItem } from './MovimientosItem';
+import { Cargando, Skeleton } from '../ui/Skeleton';
+import { TarjetaMovimientoSilueta } from './siluetas';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
@@ -47,8 +49,19 @@ interface Props {
     onSaved?: (patch: Partial<ItemInventario>) => void;
 }
 
-const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
-    <div className={cn("bg-muted/40 rounded-lg", className)} />
+/** Filas de «Ubicaciones» mientras llega el stock: ícono, nombre y la cifra. */
+const FilasUbicacionSilueta: React.FC = () => (
+    <div className="divide-y divide-border" aria-hidden="true">
+        {[0, 1, 2].map(i => (
+            <div key={i} className="flex items-center gap-2.5 px-3 py-2">
+                <Skeleton className="w-6 h-6 shrink-0 rounded-lg" />
+                <div className="flex-1 min-w-0">
+                    <Skeleton className={cn('h-3', i === 1 ? 'w-1/2' : 'w-2/3')} />
+                </div>
+                <Skeleton className="h-5 w-8 shrink-0 rounded-full" />
+            </div>
+        ))}
+    </div>
 );
 
 const ItemDetailModal: React.FC<Props> = ({
@@ -154,28 +167,55 @@ const ItemDetailModal: React.FC<Props> = ({
                 isOpen={isOpen}
                 onClose={() => { onClose(); setImageZoom(false); }}
                 title={
-                    loading ? (
-                        <Skeleton className="h-5 w-48" />
-                    ) : (
-                        <div className="flex items-center gap-2 min-w-0">
-                            <Package className="h-4 w-4 text-brand-primary shrink-0" />
-                            <span className="break-words">{item?.descripcion || 'Cargando...'}</span>
-                        </div>
-                    )
+                    // El ícono va de verdad; el nombre, en silueta mientras carga (si no llegó, un texto fijo: no brilla sin fin).
+                    <div className="flex items-center gap-2 min-w-0">
+                        <Package className="h-4 w-4 text-brand-primary shrink-0" />
+                        {loading
+                            ? <Skeleton className="h-5 w-48 max-w-full" />
+                            : <span className="break-words">{item?.descripcion || 'Ítem no disponible'}</span>}
+                    </div>
                 }
                 size={canMovimientos ? 'xl' : 'md'}
             >
                 {loading ? (
-                    /* ── Loading skeleton ── */
-                    <div className="space-y-4 p-1">
-                        <Skeleton className="w-full h-48 rounded-xl" />
-                        <div className="grid grid-cols-3 gap-2">
-                            <Skeleton className="h-16" />
-                            <Skeleton className="h-16" />
-                            <Skeleton className="h-16" />
+                    /* ── Silueta: imagen, etiquetas, cifras y los recuadros Ubicaciones | Movimientos ── */
+                    <Cargando que="el ítem" className="space-y-4 p-1">
+                        <div className="space-y-4" aria-hidden="true">
+                            <Skeleton className="w-full h-64 sm:h-72 rounded-xl" />
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <Skeleton className="h-6 w-24 rounded-full" />
+                                    <Skeleton className="h-6 w-14 rounded-lg" />
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    {['V. Arriendo', 'Unidad'].map(r => (
+                                        <div key={r} className="rounded-xl border border-border bg-muted/40 px-3 py-2">
+                                            <p className="text-micro text-muted-foreground uppercase font-bold mb-1">{r}</p>
+                                            <Skeleton className="h-4 w-16 max-w-full" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className={cn('grid grid-cols-1 gap-3', canMovimientos && 'md:grid-cols-2 md:items-start')}>
+                                <div className="rounded-xl border border-border overflow-hidden">
+                                    <div className="px-3 py-2 bg-muted border-b border-border">
+                                        <span className="text-caption font-black uppercase tracking-wider text-brand-dark">Ubicaciones</span>
+                                    </div>
+                                    <FilasUbicacionSilueta />
+                                </div>
+                                {canMovimientos && (
+                                    <div className="overflow-hidden rounded-xl border border-border">
+                                        <div className="border-b border-border bg-muted px-3 py-2">
+                                            <span className="text-caption font-black uppercase tracking-wider text-brand-dark">Movimientos</span>
+                                        </div>
+                                        <ul className="divide-y divide-border">
+                                            {[0, 1].map(i => <TarjetaMovimientoSilueta key={i} i={i} />)}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <Skeleton className="h-32" />
-                    </div>
+                    </Cargando>
                 ) : item ? (
                     <div className="space-y-4 p-1">
                         {/* ═══ IMAGEN ═══ */}
@@ -358,11 +398,9 @@ const ItemDetailModal: React.FC<Props> = ({
                             </div>
 
                             {stockLoading ? (
-                                <div className="p-3 space-y-2">
-                                    <Skeleton className="h-8 w-full" />
-                                    <Skeleton className="h-8 w-full" />
-                                    <Skeleton className="h-8 w-3/4" />
-                                </div>
+                                <Cargando que="las ubicaciones">
+                                    <FilasUbicacionSilueta />
+                                </Cargando>
                             ) : stockLocations.length === 0 ? (
                                 <div className="py-6 text-center">
                                     <Package className="h-8 w-8 text-muted-foreground/15 mx-auto mb-2" />

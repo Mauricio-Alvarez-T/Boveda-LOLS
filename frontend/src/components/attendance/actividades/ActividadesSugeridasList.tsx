@@ -4,6 +4,7 @@ import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
 import { StatusBadge } from '../../ui/StatusBadge';
 import { EmptyState } from '../../ui/EmptyState';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { useObra } from '../../../context/ObraContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useActividadesSugeridas } from '../../../hooks/attendance/useActividadesSugeridas';
@@ -13,6 +14,9 @@ interface Props {
     onSelect: (id: number) => void;
     onCreate: () => void;
 }
+
+// Dentro del sello verde de la semana la silueta toma el verde del texto, translúcido (el gris no combina).
+const SOBRE_SELLO: React.CSSProperties = { backgroundColor: 'color-mix(in srgb, currentColor 25%, transparent)' };
 
 const MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
@@ -77,7 +81,31 @@ const ActividadesSugeridasList: React.FC<Props> = ({ onSelect, onCreate }) => {
             )}
 
             {loading ? (
-                <div className="py-12 text-center text-sm text-muted-foreground">Cargando...</div>
+                // Silueta de las tarjetas de lista: el sello «Semana» y «En lista» van de verdad; lo demás, en gris.
+                <Cargando que="las listas" className="flex flex-col gap-2">
+                    {[0, 1, 2, 3].map(i => (
+                        <div key={i} aria-hidden="true" className="bg-card border border-border rounded-2xl p-4 flex flex-wrap items-center gap-4">
+                            <div className="flex flex-col items-center justify-center gap-1 min-w-14 h-14 px-2 rounded-xl bg-brand-primary/10 text-brand-primary shrink-0">
+                                <span className="text-micro font-bold uppercase">Semana</span>
+                                <Skeleton className="h-3 w-10" style={SOBRE_SELLO} />
+                            </div>
+                            <div className="flex-1 min-w-0 space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <Skeleton className={i % 2 ? 'h-4 w-1/3' : 'h-4 w-2/5'} />
+                                    <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
+                                </div>
+                                <Skeleton className="h-3 w-3/4" />
+                            </div>
+                            <div className="text-center shrink-0">
+                                <div className="flex items-center justify-center gap-1">
+                                    <Users className="h-3.5 w-3.5 text-brand-primary" />
+                                    <Skeleton className="h-3.5 w-5" />
+                                </div>
+                                <div className="text-micro text-muted-foreground uppercase font-bold mt-0.5">En lista</div>
+                            </div>
+                        </div>
+                    ))}
+                </Cargando>
             ) : list.length === 0 ? (
                 <div className="bg-card border border-border rounded-2xl">
                     <EmptyState

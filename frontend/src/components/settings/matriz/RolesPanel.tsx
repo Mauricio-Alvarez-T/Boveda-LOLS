@@ -7,9 +7,12 @@ import { useMatrizRoles, type RolMatriz } from '../../../hooks/useMatrizRoles';
 import { ROL_SUPER_ADMIN } from '../../../config/permisosPantallas';
 import { Button } from '../../ui/Button';
 import { Modal } from '../../ui/Modal';
+import { Skeleton, SkeletonCirculo } from '../../ui/Skeleton';
 import { RolForm } from '../RolForm';
 import { showDeleteToast } from '../../../utils/toastUtils';
+import { cn } from '../../../utils/cn';
 import { RolesEnFrases } from '../frases/RolesEnFrases';
+import { LeyendaFrases, SiluetaFrases } from '../frases/PermisosEnFrases';
 import { PieCambios } from './PieCambios';
 
 /**
@@ -84,7 +87,34 @@ const RolesPanel: React.FC = () => {
     };
 
     if (state.loading) {
-        return <div className="py-16 text-center text-ui text-muted-foreground">Cargando roles…</div>;
+        // Lo mismo que se ve con los datos: el botón, la tarjeta del rol (selector, nombre y personas en gris), la
+        // leyenda y las tarjetas de cada módulo con sus pantallas.
+        return (
+            <div className="flex flex-col gap-4">
+                {puedeCrear && (
+                    <div className="flex justify-end"><Skeleton className="h-11 w-32 rounded-full" /></div>
+                )}
+                <section aria-hidden="true" className="rounded-card border border-border bg-card p-4 sm:p-5">
+                    <div className="flex flex-wrap gap-1.5">
+                        {['w-28', 'w-36', 'w-24', 'w-32', 'w-20', 'w-40', 'w-28'].map((w, i) => (
+                            <Skeleton key={i} className={cn('h-11 rounded-full sm:h-9', w)} />
+                        ))}
+                    </div>
+                    <div className="mt-4 flex min-w-0 items-center gap-3">
+                        <SkeletonCirculo className="h-11 w-11" />
+                        <div className="min-w-0 flex-1 space-y-2">
+                            <Skeleton className="h-6 w-48 max-w-full" />
+                            <Skeleton className="h-3.5 w-4/5 max-w-sm" />
+                        </div>
+                    </div>
+                </section>
+                <LeyendaFrases conMarcas={false} soloLectura={soloLectura} />
+                {soloLectura && (
+                    <p className="text-sm text-muted-foreground">Puedes mirar, pero cambiar permisos requiere «Cambiar permisos».</p>
+                )}
+                <SiluetaFrases que="los roles" />
+            </div>
+        );
     }
 
     // Sin elección (o el elegido ya no existe): el primer rol que se edita; el Super Administrador va al final.

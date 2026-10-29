@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { SkeletonFilas } from '../ui/Skeleton';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { Plus, Minus, FileText, Trash2, Receipt, PackagePlus, Eye, Pencil, History } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
@@ -337,24 +337,51 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
     };
 
     /* ── Render ── */
-    if (loading) return <div className="py-8 text-center text-muted-foreground text-sm">Cargando facturas...</div>;
+    // Header + Create button (también sobre la silueta de carga, apagado: la ventana se monta recién con la lista).
+    const encabezado = (
+        <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-brand-dark">Facturas de Inventario</h3>
+            {canCreate && (
+                <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={loading}
+                    onClick={() => setShowModal(true)}
+                    leftIcon={<Plus className="h-3.5 w-3.5" />}
+                >
+                    Nueva Factura
+                </Button>
+            )}
+        </div>
+    );
+
+    if (loading) return (
+        <div className="space-y-4">
+            {encabezado}
+            {/* Silueta de las filas: número y proveedor, fecha y monto, y sus botones. */}
+            <Cargando que="las facturas" className="space-y-2">
+                {[0, 1, 2, 3, 4].map(i => (
+                    <div key={i} className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-border" aria-hidden="true">
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex items-center gap-2">
+                                <Skeleton className="h-3.5 w-16 shrink-0" />
+                                <Skeleton className={i % 2 ? 'h-3 w-24' : 'h-3 w-32'} />
+                            </div>
+                            <Skeleton className="h-3 w-40 max-w-full" />
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <Skeleton className="h-8 w-8 rounded-lg" />
+                            {canCreate && <Skeleton className="h-8 w-8 rounded-lg" />}
+                        </div>
+                    </div>
+                ))}
+            </Cargando>
+        </div>
+    );
 
     return (
         <div className="space-y-4">
-            {/* Header + Create button */}
-            <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-brand-dark">Facturas de Inventario</h3>
-                {canCreate && (
-                    <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => setShowModal(true)}
-                        leftIcon={<Plus className="h-3.5 w-3.5" />}
-                    >
-                        Nueva Factura
-                    </Button>
-                )}
-            </div>
+            {encabezado}
 
             {/* List */}
             {facturas.length === 0 ? (
@@ -441,7 +468,39 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                 size="lg"
             >
                 {!detalle ? (
-                    <SkeletonFilas filas={5} className="p-0" />
+                    // Silueta de la vista previa: cabecera, «Ítems» y «Total Neto» con sus rótulos de verdad.
+                    <Cargando que="la factura" className="space-y-4">
+                        <div className="bg-muted/40 rounded-xl border border-border p-4" aria-hidden="true">
+                            <div className="flex h-5 items-center"><Skeleton className="h-4 w-24" /></div>
+                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                                {([['Proveedor:', 'w-28'], ['Fecha:', 'w-20'], ['Registró:', 'w-24']] as const).map(([r, ancho]) => (
+                                    <p key={r} className="text-muted-foreground flex items-center gap-1 min-w-0">
+                                        {r} <Skeleton className={cn('h-3 max-w-full', ancho)} />
+                                    </p>
+                                ))}
+                            </div>
+                        </div>
+                        <div aria-hidden="true">
+                            <p className="text-xs font-bold text-brand-dark mb-2">Ítems</p>
+                            <div className="space-y-2">
+                                {[0, 1, 2].map(i => (
+                                    <div key={i} className="flex items-start justify-between gap-3 px-3 py-2 rounded-xl border border-border">
+                                        <div className="flex-1 min-w-0 space-y-1.5">
+                                            <Skeleton className={i === 1 ? 'h-3.5 w-1/2' : 'h-3.5 w-3/4'} />
+                                            <Skeleton className="h-3 w-2/5" />
+                                        </div>
+                                        <Skeleton className="h-3.5 w-16 shrink-0" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between bg-muted/40 rounded-xl px-4 py-3 border border-border" aria-hidden="true">
+                            <span className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
+                                <Receipt className="h-3.5 w-3.5 text-brand-primary" /> Total Neto
+                            </span>
+                            <Skeleton className="h-4 w-24" />
+                        </div>
+                    </Cargando>
                 ) : (
                     <div className="space-y-4 datos-aparecen">
                         {/* Cabecera */}

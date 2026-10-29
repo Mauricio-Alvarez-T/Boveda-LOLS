@@ -2,11 +2,13 @@ import React from 'react';
 import { ClipboardList, FileDown } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { Select } from '../../ui/Select';
-import { SkeletonText } from '../../ui/Skeleton';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { useAuth } from '../../../context/AuthContext';
 import { useInformeActividades } from '../../../hooks/attendance/useInformeActividades';
 import { fmtSemana } from '../../../utils/semanas';
+import { cn } from '../../../utils/cn';
 import { EncabezadoTarjeta, CifraTarjeta } from './EncabezadoTarjeta';
+import { CifraTarjetaSilueta } from './SiluetasInicio';
 
 /**
  * Inicio / Gestiones — "Asistencia a actividades sugeridas".
@@ -43,7 +45,26 @@ const ActividadesSemana: React.FC = () => {
     );
 
     if (loading && !resumen) {
-        return <div>{header}<SkeletonText lines={4} /></div>;
+        // Encabezado y «asistieron» de verdad; el selector de semana, la cifra y las barras por cargo, en gris.
+        return (
+            <div className="flex h-full flex-col">
+                <EncabezadoTarjeta icon={ClipboardList} tono="azul" titulo="Actividades sugeridas" subtitulo="Asistencia de la semana"
+                    extra={<Skeleton className="h-11 w-full rounded-control sm:w-72" />} />
+                <Cargando que="las actividades de la semana">
+                    <CifraTarjetaSilueta etiqueta="asistieron" className="mb-1" />
+                    <Skeleton className="mb-4 h-3 w-48 max-w-full" />
+                    <ul className="flex flex-col gap-2.5" aria-hidden="true">
+                        {['w-2/5', 'w-1/3', 'w-1/2', 'w-1/4'].map(w => (
+                            <li key={w} className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between gap-3"><Skeleton className={cn('h-4', w)} /><Skeleton className="h-4 w-6" /></div>
+                                <Skeleton className="h-2 w-full rounded-full" />
+                            </li>
+                        ))}
+                    </ul>
+                </Cargando>
+                {puedeDescargar && <div className="mt-auto pt-4"><Skeleton className="h-9 w-52 rounded-full" /></div>}
+            </div>
+        );
     }
 
     if (!resumen || !resumen.semana || resumen.por_cargo.length === 0) {

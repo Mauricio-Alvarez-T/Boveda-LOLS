@@ -24,6 +24,7 @@ import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type Dashboa
 import { useAuth } from '../../context/AuthContext';
 import { FormError } from '../ui/FormError';
 import { Button } from '../ui/Button';
+import { Skeleton } from '../ui/Skeleton';
 import { fmtMoney, fmtMoneyCompacto } from '../../utils/format';
 
 interface ObraOpcion { id: number; nombre: string; }
@@ -123,9 +124,11 @@ interface KpiCardProps {
     historico?: KpiHistorico;
     /** true cuando subir = malo (pendientes, estancados, discrepancias, en_transito). Default false (valor_obras sube = bueno). */
     invertDelta?: boolean;
+    /** Primera carga: la tarjeta (color, ícono, rótulo) va de verdad y la cifra en silueta; no se puede apretar. */
+    cargando?: boolean;
 }
 
-const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline, onClick, disabled, tooltip, historico, invertDelta }) => {
+const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline, onClick, disabled, tooltip, historico, invertDelta, cargando = false }) => {
     const toneClasses: Record<KpiCardProps['tone'], string> = {
         amber:  'bg-amber-50  border-amber-200  hover:border-amber-400  text-amber-900 dark:bg-amber-950/40 dark:border-amber-900 dark:hover:border-amber-700 dark:text-amber-200',
         red:    'bg-red-50    border-red-200    hover:border-red-400    text-red-900 dark:bg-red-950/40 dark:border-red-900 dark:hover:border-red-700 dark:text-red-200',
@@ -144,19 +147,20 @@ const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline
     };
 
     // card clickable: la KPI completa actúa como botón (elemento dinámico, no <button> JSX)
-    const Wrapper: any = onClick && !disabled ? 'button' : 'div';
+    const activa = !!onClick && !disabled && !cargando;
+    const Wrapper: any = activa ? 'button' : 'div';
     return (
         <Wrapper
-            type={onClick && !disabled ? 'button' : undefined}
-            onClick={onClick && !disabled ? onClick : undefined}
+            type={activa ? 'button' : undefined}
+            onClick={activa ? onClick : undefined}
             title={tooltip}
-            aria-label={onClick && !disabled ? `${label}: ${value}. Click para ver detalle.` : undefined}
+            aria-label={activa ? `${label}: ${value}. Click para ver detalle.` : undefined}
             className={cn(
                 'relative flex flex-col gap-3 p-5 md:p-6 rounded-2xl border-2 transition-all text-left w-full',
                 toneClasses[tone],
-                onClick && !disabled && 'cursor-pointer hover:shadow-lg active:scale-[0.99]',
+                activa && 'cursor-pointer hover:shadow-lg active:scale-[0.99]',
                 !onClick && tooltip && 'cursor-help',
-                disabled && 'opacity-60'
+                disabled && !cargando && 'opacity-60'
             )}
         >
             <div className="flex items-center gap-3">
@@ -170,6 +174,7 @@ const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline
             <div className="flex items-end justify-between gap-2">
                 {/* Tamaño adaptativo al largo: los contadores ("6") quedan grandes,
                     los montos completos ("$14.901.523.456") bajan para no desbordar. */}
+                {cargando ? <Skeleton className="h-9 md:h-10 w-28 max-w-full" /> : (
                 <div className={cn(
                     'font-black leading-none tabular-nums whitespace-nowrap',
                     value.length <= 6 ? 'text-4xl md:text-5xl'
@@ -178,6 +183,7 @@ const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline
                 )}>
                     {value}
                 </div>
+                )}
                 {historico?.sparkline && historico.sparkline.length >= 2 && (
                     <Sparkline data={historico.sparkline} tone={tone} />
                 )}
@@ -192,7 +198,7 @@ const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline
                     <ComparativaChip delta_pct={historico.delta_pct} invertColor={invertDelta} />
                 )}
             </div>
-            {onClick && !disabled && (
+            {activa && (
                 <ChevronRight className="absolute top-4 right-4 h-5 w-5 opacity-40" />
             )}
         </Wrapper>
@@ -454,13 +460,6 @@ const RechazoItem: React.FC<RechazoItemProps> = ({ rechazo, onClick }) => {
 };
 
 // ────────────────────────────────────────────────────────
-// Skeleton (mantiene layout para no saltar)
-// ────────────────────────────────────────────────────────
-const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
-    <div className={cn('bg-muted rounded-xl', className)} />
-);
-
-// ────────────────────────────────────────────────────────
 // Panel principal
 // ────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────
@@ -540,9 +539,12 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
     const maxValor = data?.top_obras.reduce((m, o) => Math.max(m, o.valor_mensual), 0) || 0;
     const relTime = formatRelativeTime(lastUpdated, now);
     const obraSeleccionada = obras.find(o => o.id === obraFilter);
+    // Primera carga (sin datos aún): cada sección dibuja su silueta; un solo aviso para el lector de pantalla.
+    const cargandoInicio = loading && !data;
 
     return (
         <div className="flex flex-col gap-5 flex-1 min-h-0 overflow-y-auto -mr-2 pr-2">
+            {cargandoInicio && <span role="status" className="sr-only">Cargando el resumen…</span>}
             {/* Header */}
             <div className="flex items-center justify-between shrink-0 gap-3">
                 <div className="min-w-0">
@@ -622,84 +624,90 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             )}
 
             {/* KPI Cards */}
+            {/* Mientras carga, las mismas tarjetas (color, ícono y rótulo de verdad) con la cifra en silueta. */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4 shrink-0">
-                {loading && !data ? (
-                    <>
-                        <Skeleton className="h-[148px]" />
-                        <Skeleton className="h-[148px]" />
-                        <Skeleton className="h-[148px]" />
-                        <Skeleton className="h-[148px]" />
-                        <Skeleton className="h-[148px]" />
-                    </>
-                ) : (
-                    <>
-                        <KpiCard
-                            tone="amber"
-                            icon={<FileClock className="h-5 w-5" />}
-                            label="Por aprobar"
-                            value={String(data?.kpis.transferencias_pendientes ?? 0)}
-                            subline={(data?.kpis.transferencias_pendientes ?? 0) === 1 ? 'solicitud' : 'solicitudes'}
-                            onClick={() => onNavigateTransferencias({ estado: 'pendiente' })}
-                            disabled={(data?.kpis.transferencias_pendientes ?? 0) === 0}
-                            tooltip="Solicitudes de transferencia esperando tu aprobación. Click para ir a la lista y aprobarlas."
-                            historico={data?.historico?.pendientes}
-                            invertDelta
-                        />
-                        {verValoresResumen && (
-                            <KpiCard
-                                tone="green"
-                                icon={<Wallet className="h-5 w-5" />}
-                                label="Valor obras"
-                                value={fmtMoney(data?.kpis.valor_total_obras ?? 0)}
-                                subline="arriendo mensual"
-                                tooltip="Valor total mensual de arriendo de todos los items asignados a obras activas. Ya incluye los descuentos aplicados a cada obra."
-                                historico={data?.historico?.valor_obras}
-                            />
-                        )}
-                        {verValoresResumen && (
-                            <KpiCard
-                                tone="blue"
-                                icon={<Landmark className="h-5 w-5" />}
-                                label="Inventario"
-                                value={fmtMoney(data?.kpis.valor_inventario ?? 0)}
-                                subline="valor de compra"
-                                tooltip="Lo invertido en compra del inventario: suma de (cantidad × valor de compra) de todos los ítems —andamios, alzaprimas, moldajes, maquinaria y vigas— en obras y bodegas. No incluye vehículos."
-                            />
-                        )}
-                        {!obraFilter && verValoresResumen && (
-                            <KpiCard
-                                tone="slate"
-                                icon={<Truck className="h-5 w-5" />}
-                                label="Vehículos"
-                                value={fmtMoney(data?.kpis.valor_vehiculos ?? 0)}
-                                subline="valor de compra"
-                                tooltip="Lo invertido en compra de todos los vehículos activos (suma del valor de cada vehículo). El detalle por empresa y por auto está más abajo en 'Inversión en vehículos'."
-                            />
-                        )}
-                        {!obraFilter && verValoresResumen && (
-                            <KpiCard
-                                tone="indigo"
-                                icon={<Coins className="h-5 w-5" />}
-                                label="Total"
-                                value={fmtMoney((data?.kpis.valor_inventario ?? 0) + (data?.kpis.valor_vehiculos ?? 0))}
-                                subline="inventario + vehículos"
-                                tooltip="Total invertido en compra: suma del valor de compra del inventario más el de todos los vehículos."
-                            />
-                        )}
-                    </>
+                <KpiCard
+                    tone="amber"
+                    icon={<FileClock className="h-5 w-5" />}
+                    label="Por aprobar"
+                    value={String(data?.kpis.transferencias_pendientes ?? 0)}
+                    subline={(data?.kpis.transferencias_pendientes ?? 0) === 1 ? 'solicitud' : 'solicitudes'}
+                    onClick={() => onNavigateTransferencias({ estado: 'pendiente' })}
+                    disabled={(data?.kpis.transferencias_pendientes ?? 0) === 0}
+                    tooltip="Solicitudes de transferencia esperando tu aprobación. Click para ir a la lista y aprobarlas."
+                    historico={data?.historico?.pendientes}
+                    invertDelta
+                    cargando={cargandoInicio}
+                />
+                {verValoresResumen && (
+                    <KpiCard
+                        tone="green"
+                        icon={<Wallet className="h-5 w-5" />}
+                        label="Valor obras"
+                        value={fmtMoney(data?.kpis.valor_total_obras ?? 0)}
+                        subline="arriendo mensual"
+                        tooltip="Valor total mensual de arriendo de todos los items asignados a obras activas. Ya incluye los descuentos aplicados a cada obra."
+                        historico={data?.historico?.valor_obras}
+                        cargando={cargandoInicio}
+                    />
+                )}
+                {verValoresResumen && (
+                    <KpiCard
+                        tone="blue"
+                        icon={<Landmark className="h-5 w-5" />}
+                        label="Inventario"
+                        value={fmtMoney(data?.kpis.valor_inventario ?? 0)}
+                        subline="valor de compra"
+                        tooltip="Lo invertido en compra del inventario: suma de (cantidad × valor de compra) de todos los ítems —andamios, alzaprimas, moldajes, maquinaria y vigas— en obras y bodegas. No incluye vehículos."
+                        cargando={cargandoInicio}
+                    />
+                )}
+                {!obraFilter && verValoresResumen && (
+                    <KpiCard
+                        tone="slate"
+                        icon={<Truck className="h-5 w-5" />}
+                        label="Vehículos"
+                        value={fmtMoney(data?.kpis.valor_vehiculos ?? 0)}
+                        subline="valor de compra"
+                        tooltip="Lo invertido en compra de todos los vehículos activos (suma del valor de cada vehículo). El detalle por empresa y por auto está más abajo en 'Inversión en vehículos'."
+                        cargando={cargandoInicio}
+                    />
+                )}
+                {!obraFilter && verValoresResumen && (
+                    <KpiCard
+                        tone="indigo"
+                        icon={<Coins className="h-5 w-5" />}
+                        label="Total"
+                        value={fmtMoney((data?.kpis.valor_inventario ?? 0) + (data?.kpis.valor_vehiculos ?? 0))}
+                        subline="inventario + vehículos"
+                        tooltip="Total invertido en compra: suma del valor de compra del inventario más el de todos los vehículos."
+                        cargando={cargandoInicio}
+                    />
                 )}
             </div>
 
             {/* Patrimonio por empresa (Dedalius=inventario, LOLS/TRANSPORTE=vehículos).
                 Solo en la vista "Todas las obras" (los vehículos son globales) y con
                 permiso de valores. El total ya está en la tarjeta Patrimonio. */}
-            {!obraFilter && verValoresResumen && (data?.patrimonio_por_empresa?.length ?? 0) > 0 && (
+            {/* Mientras carga también va (en silueta): así no aparece después empujando lo de abajo. */}
+            {!obraFilter && verValoresResumen && (cargandoInicio || (data?.patrimonio_por_empresa?.length ?? 0) > 0) && (
             <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
                 <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-3">
                     Patrimonio por empresa
                 </h3>
                 <div className="flex flex-col gap-3">
-                    {(() => {
+                    {cargandoInicio ? [0, 1, 2].map(i => (
+                        <div key={i} aria-hidden="true">
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="flex items-center gap-2 min-w-0">
+                                    <Skeleton className="shrink-0 w-2.5 h-2.5 rounded-full" />
+                                    <Skeleton className={i === 1 ? 'h-3.5 w-24' : 'h-3.5 w-32'} />
+                                </span>
+                                <Skeleton className="shrink-0 h-3.5 w-24" />
+                            </div>
+                            <Skeleton className="mt-1.5 h-2 w-full rounded-full" />
+                        </div>
+                    )) : (() => {
                         const lista = data!.patrimonio_por_empresa;
                         const maxPat = Math.max(1, ...lista.map(e => e.valor));
                         return lista.map(e => (
@@ -729,7 +737,36 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                 <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-3">
                     Inversión en vehículos
                 </h3>
-                {(data?.inversion_vehiculos?.length ?? 0) === 0 ? (
+                {cargandoInicio ? (
+                    // Silueta (antes, mientras cargaba, se leía «Aún no hay vehículos…»): rótulos de verdad, gráfico y cifras en gris.
+                    <div aria-hidden="true">
+                        <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-2">Inversión acumulada</p>
+                        <Skeleton className="h-[240px] w-full mb-5 rounded-xl" />
+                        <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-2">Por tipo de vehículo</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 mb-5">
+                            {[0, 1, 2, 3].map(i => (
+                                <div key={i} className="rounded-lg border border-border px-2.5 py-2 min-w-0 space-y-1.5">
+                                    <Skeleton className="h-3 w-16 max-w-full" />
+                                    <Skeleton className="h-4 w-24 max-w-full" />
+                                    <Skeleton className="h-2.5 w-20 max-w-full" />
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-1">Detalle por auto</p>
+                        <div className="divide-y divide-border">
+                            {[0, 1, 2].map(i => (
+                                <div key={i} className="flex items-center gap-3 py-2.5">
+                                    <Skeleton className="shrink-0 h-3 w-4" />
+                                    <Skeleton className="shrink-0 w-2.5 h-2.5 rounded-full" />
+                                    <div className="flex-1 min-w-0">
+                                        <Skeleton className={i === 1 ? 'h-3.5 w-1/3' : 'h-3.5 w-1/2'} />
+                                    </div>
+                                    <Skeleton className="shrink-0 h-3.5 w-24" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : (data?.inversion_vehiculos?.length ?? 0) === 0 ? (
                     <div className="py-10 text-center text-muted-foreground">
                         <Truck className="h-10 w-10 mx-auto mb-2 opacity-30" />
                         <p className="text-sm font-medium">Aún no hay vehículos con valor cargado.</p>
@@ -848,10 +885,25 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             <span><Landmark className="inline h-3.5 w-3.5 mr-0.5 -mt-0.5" /> Costo: <span className="text-brand-dark font-black">{fmtMoney(data.kpis.valor_total_costo_obras)}</span></span>
                         </div>
                     )}
+                    {cargandoInicio && <Skeleton className="h-3 w-56 max-w-full" />}
                 </div>
-                {loading && !data ? (
-                    <div className="space-y-2">
-                        {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-14" />)}
+                {cargandoInicio ? (
+                    // Silueta de las filas: posición, nombre y monto, la barra y Arriendo · Costo.
+                    <div className="flex flex-col gap-1" aria-hidden="true">
+                        {[0, 1, 2, 3].map(i => (
+                            <div key={i} className="flex items-center gap-3 w-full p-3">
+                                <Skeleton className="shrink-0 w-7 h-7 rounded-lg" />
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <Skeleton className={i % 2 ? 'h-3.5 w-1/3' : 'h-3.5 w-1/2'} />
+                                        <Skeleton className="shrink-0 h-3.5 w-20" />
+                                    </div>
+                                    <Skeleton className="mt-2 h-2 w-full rounded-full" />
+                                    <Skeleton className="mt-2 h-2.5 w-48 max-w-full" />
+                                </div>
+                                <ChevronRight className="shrink-0 h-4 w-4 text-muted-foreground/40" />
+                            </div>
+                        ))}
                     </div>
                 ) : !data?.top_obras.length ? (
                     <div className="py-8 text-center">
@@ -888,10 +940,26 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                 Total: {fmtMoney(data.valor_por_categoria.reduce((s, c) => s + c.valor, 0))}
                             </span>
                         )}
+                        {cargandoInicio && <Skeleton className="h-3 w-28" />}
                     </div>
-                    {loading && !data ? (
-                        <div className="space-y-3">
-                            {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-10" />)}
+                    {cargandoInicio ? (
+                        // Silueta de las barras: color, nombre, % y monto; abajo la barra.
+                        <div className="flex flex-col gap-3" aria-hidden="true">
+                            {[0, 1, 2, 3].map(i => (
+                                <div key={i}>
+                                    <div className="flex items-center justify-between gap-3 mb-1.5">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <Skeleton className="shrink-0 w-2.5 h-2.5 rounded-sm" />
+                                            <Skeleton className={i % 2 ? 'h-3.5 w-24' : 'h-3.5 w-32'} />
+                                        </div>
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            <Skeleton className="h-3 w-8" />
+                                            <Skeleton className="h-3.5 w-24" />
+                                        </div>
+                                    </div>
+                                    <Skeleton className="h-2.5 w-full rounded-full" />
+                                </div>
+                            ))}
                         </div>
                     ) : (
                         (() => {
@@ -961,8 +1029,16 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             {new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}
                         </span>
                     </div>
-                    {loading && !data ? (
-                        <Skeleton className="h-[80px]" />
+                    {cargandoInicio ? (
+                        // Los mismos recuadros con su rótulo; la cifra en silueta.
+                        <div className={`grid gap-3 ${verCostosBombas ? 'grid-cols-3' : 'grid-cols-2'}`} aria-hidden="true">
+                            {['Bombeos', 'Obras', ...(verCostosBombas ? ['Costo ext.'] : [])].map(r => (
+                                <div key={r} className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100 dark:bg-cyan-950/40 dark:border-cyan-900">
+                                    <span className="text-caption font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">{r}</span>
+                                    <Skeleton className="mt-1.5 h-7 w-12 max-w-full" />
+                                </div>
+                            ))}
+                        </div>
                     ) : (
                         // Sin permiso de ver costos de bombas: layout pasa a 2
                         // columnas (Bombeos + Obras), oculta "Costo ext.".
@@ -1000,9 +1076,19 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                 <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-3">
                     Requiere tu atención
                 </h3>
-                {loading && !data ? (
-                    <div className="space-y-2">
-                        {[0, 1, 2].map(i => <Skeleton key={i} className="h-[72px]" />)}
+                {cargandoInicio ? (
+                    // Silueta de los avisos: ícono, título y detalle, y el botón a la derecha.
+                    <div className="flex flex-col gap-2" aria-hidden="true">
+                        {[0, 1, 2].map(i => (
+                            <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-2 p-3.5 rounded-xl border-2 border-border">
+                                <Skeleton className="shrink-0 h-8 w-8 rounded-lg" />
+                                <div className="flex-1 min-w-0 basis-40 space-y-1.5">
+                                    <Skeleton className={i === 1 ? 'h-3.5 w-1/2' : 'h-3.5 w-2/3'} />
+                                    <Skeleton className="h-3 w-3/4" />
+                                </div>
+                                <Skeleton className="shrink-0 ml-auto h-8 w-20 rounded-lg" />
+                            </div>
+                        ))}
                     </div>
                 ) : !data?.alertas.length ? (
                     <div className="py-10 flex flex-col items-center text-center">

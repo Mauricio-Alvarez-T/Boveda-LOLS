@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Lock, CheckCircle2, AlertCircle, Save, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, CheckCircle2, AlertCircle, Save, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { Cargando, Skeleton } from '../ui/Skeleton';
+import { CampoSilueta } from './SiluetasConfig';
 import api from '../../services/api';
 
 interface EmailConfigFormProps { }
@@ -53,10 +55,19 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = () => {
     };
 
     if (loading) {
+        // El aviso de arriba y el rótulo de la contraseña dependen de si ya hay credenciales: van en gris.
         return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
-            </div>
+            <Cargando que="la configuración de correo" className="max-w-lg space-y-6">
+                <Skeleton className="h-[4.5rem] w-full rounded-xl" />
+                <div className="space-y-4">
+                    <CampoSilueta label="Correo Corporativo" />
+                    <CampoSilueta />
+                    <p className="text-xs text-muted-foreground bg-background rounded-xl p-3 leading-relaxed">
+                        🔒 Tu contraseña se encripta con AES-256 antes de guardarse. Nadie en el sistema, ni siquiera los administradores, pueden leerla.
+                    </p>
+                    <Skeleton className="h-11 w-full rounded-full" />
+                </div>
+            </Cargando>
         );
     }
 

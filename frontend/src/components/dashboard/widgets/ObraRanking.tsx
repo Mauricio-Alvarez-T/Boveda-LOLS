@@ -1,6 +1,8 @@
 import React from 'react';
 import { ClipboardCheck } from 'lucide-react';
 import { EmptyState } from '../../ui/EmptyState';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
+import { cn } from '../../../utils/cn';
 import { EncabezadoTarjeta } from './EncabezadoTarjeta';
 
 interface ObraRankingItem {
@@ -85,5 +87,23 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
         </div>
     );
 };
+
+/** «Asistencia por obra» mientras llega (diseno.md §9.17): encabezado de verdad; cada obra y su estado, en gris. */
+export const ObraRankingSilueta: React.FC = () => (
+    <div>
+        <EncabezadoTarjeta icon={ClipboardCheck} titulo="Asistencia por obra"
+            extra={<span className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Hoy</span>} />
+        <Cargando que="la asistencia por obra">
+            <div aria-hidden="true">
+                {['w-3/5', 'w-1/2', 'w-2/3', 'w-2/5', 'w-1/2'].map((w, i) => (
+                    <div key={i} className="flex items-center justify-between gap-3 border-t border-border py-2.5">
+                        <Skeleton className={cn('h-4', w)} />
+                        <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
+                    </div>
+                ))}
+            </div>
+        </Cargando>
+    </div>
+);
 
 export default ObraRanking;

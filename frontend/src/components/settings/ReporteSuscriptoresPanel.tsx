@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
+import { Cargando, Skeleton } from '../ui/Skeleton';
+import { TarjetaCorreoSilueta } from './SiluetasConfig';
 import { showDeleteToast } from '../../utils/toastUtils';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -145,10 +147,32 @@ const ReporteSuscriptoresPanel: React.FC = () => {
     };
 
     if (loading) {
+        // Los controles de prueba no dependen de los datos, pero son acciones: van en gris hasta que llegue la lista.
         return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
-            </div>
+            <Cargando que="los suscriptores" className="space-y-5">
+                <div className="space-y-2" aria-hidden="true">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <Skeleton className="h-4 w-72 max-w-full" />
+                        {puedeGestionar && (
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                <Skeleton className="h-11 w-full rounded-control sm:w-60" />
+                                <div className="flex gap-2">
+                                    <Skeleton className="h-9 w-24 rounded-full sm:w-36" />
+                                    <Skeleton className="h-9 w-24 rounded-full sm:w-40" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    {puedeGestionar && (
+                        <p className="text-xs text-muted-foreground">
+                            "Probar" envía el reporte real: con el campo vacío va a tu correo de acceso{user?.email ? ` (${user.email})` : ''}; o escribe otra dirección para enviarlo ahí.
+                        </p>
+                    )}
+                </div>
+                <div className="space-y-3">
+                    {[0, 1, 2].map(i => <TarjetaCorreoSilueta key={i} botones={puedeGestionar ? 4 : 0} className="p-5" />)}
+                </div>
+            </Cargando>
         );
     }
 

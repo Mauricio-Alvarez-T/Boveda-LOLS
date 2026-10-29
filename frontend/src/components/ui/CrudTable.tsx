@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAparecer } from '../../hooks/useAparecer';
-import { SkeletonFilas } from './Skeleton';
+import { Cargando, Skeleton, SkeletonCirculo } from './Skeleton';
 import {
     Search,
     Plus,
@@ -221,7 +221,30 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
             {/* ─── MOBILE: Card list ─── */}
             <div className={cn('md:hidden space-y-3', aparece)}>
                 {loading ? (
-                    <SkeletonFilas filas={5} className="p-0" />
+                    // La tarjeta de cada fila: título y acciones en gris, los rótulos de las columnas de verdad.
+                    <Cargando que={entityNamePlural.toLowerCase()} className="space-y-3">
+                        {[0, 1, 2, 3].map(i => (
+                            <div key={i} className="bg-card rounded-2xl border border-border/60 p-5 shadow-sm" aria-hidden="true">
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                    <Skeleton className={cn('h-4', i % 2 ? 'w-2/5' : 'w-1/2')} />
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <SkeletonCirculo className="h-9 w-9" />
+                                        <SkeletonCirculo className="h-9 w-9" />
+                                    </div>
+                                </div>
+                                {detailCols.length > 0 && (
+                                    <div className="space-y-1.5">
+                                        {detailCols.map(col => (
+                                            <div key={String(col.key)} className="flex items-center justify-between gap-3 text-xs">
+                                                <span className="text-muted-foreground">{col.label}</span>
+                                                <Skeleton className="h-3 w-20" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </Cargando>
                 ) : rows.length === 0 ? (
                     <div className="py-16 text-center">
                         <AlertCircle className="h-5 w-5 mx-auto text-muted mb-2" />
@@ -304,11 +327,23 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                         </thead>
                         <tbody className={cn('divide-y divide-border', aparece)}>
                             {loading ? (
-                                <tr>
-                                    <td colSpan={columns.length + 1} className="p-2">
-                                        <SkeletonFilas filas={5} />
-                                    </td>
-                                </tr>
+                                // Filas con las mismas celdas de la tabla; el aviso para el lector de pantalla va en la primera.
+                                [0, 1, 2, 3, 4].map(i => (
+                                    <tr key={`silueta-${i}`}>
+                                        {columns.map((col, c) => (
+                                            <td key={String(col.key)} className={cn('px-6 py-4', col.className)}>
+                                                {i === 0 && c === 0 && <span role="status" className="sr-only">Cargando {entityNamePlural.toLowerCase()}…</span>}
+                                                <Skeleton className={cn('h-4', c === 0 ? (i % 2 ? 'w-28' : 'w-36') : 'w-20')} />
+                                            </td>
+                                        ))}
+                                        <td className="px-6 py-4">
+                                            <div className="flex justify-end gap-2">
+                                                <SkeletonCirculo className="h-9 w-9" />
+                                                <SkeletonCirculo className="h-9 w-9" />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
                             ) : rows.length === 0 ? (
                                 <tr>
                                     <td colSpan={columns.length + 1} className="px-5 py-16 text-center">

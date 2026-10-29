@@ -7,7 +7,8 @@ import { EmptyState } from '../ui/EmptyState';
 import { fmtMoney, fmtNumber } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import { GRUPOS_CATEGORIA, grupoDe } from './costosConfig';
-import { Kpi, Aviso } from './piezas';
+import { Kpi, KpiSilueta, Aviso, TablaSilueta } from './piezas';
+import { Skeleton } from '../ui/Skeleton';
 import type { CostoComparacion } from '../../types/entities';
 
 const pct = (n: number | null | undefined, signo = false) =>
@@ -27,6 +28,19 @@ function porGrupo(porCategoria: Record<string, number>): Record<string, number> 
 }
 const COLUMNAS: { clave: string; nombre: string }[] = [...GRUPOS_CATEGORIA.map(g => ({ clave: g.clave, nombre: g.nombre })), { clave: 'sin_categoria', nombre: 'Sin categoría' }];
 
+const PIE_TABLA = 'Desviación = costo real contra costo presupuestado. Margen real = venta (lo cobrado; sin cobros, el presupuesto) menos el costo real. Los dos se calculan al cerrar la obra.';
+/** La celda del costo por m² mientras carga: las dos barras (presupuestado y real) con su cifra, en gris. */
+const BARRAS_SILUETA = (
+    <div className="flex flex-col gap-1">
+        {['w-28', 'w-20'].map(w => (
+            <div key={w} className="flex items-center gap-2">
+                <Skeleton className="h-2 flex-1 rounded-full" />
+                <Skeleton className={cn('h-3 shrink-0', w)} />
+            </div>
+        ))}
+    </div>
+);
+
 /**
  * Obras lado a lado con su costo por m². Las CERRADAS usan sus números finales y forman el promedio
  * (la base para cotizar); las en curso muestran lo de hoy, marcado como PARCIAL.
@@ -42,7 +56,22 @@ export const CompararObras: React.FC<{ onIrObra: (obraId: number) => void }> = (
     }, []);
 
     if (falla) return <EmptyState icon={Scale} title="No se pudo cargar la comparación" description="Vuelve a intentarlo en un momento." />;
-    if (!datos) return <div className="h-96 rounded-card border border-border bg-card" />;
+    if (!datos) {
+        return (
+            <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                    <KpiSilueta icon={Ruler} label="Costo real promedio por m²" />
+                    <KpiSilueta icon={Ruler} label="Presupuestado promedio por m²" nota="lo que se había calculado para esas obras" />
+                    <KpiSilueta icon={Percent} label="Margen real promedio" nota="de las obras cerradas" />
+                </div>
+                <TablaSilueta que="la comparación" pie={PIE_TABLA} columnas={[
+                    { label: 'Obra', className: 'min-w-[11rem]' }, 'm²',
+                    { label: 'Costo por m² · presupuestado vs real', alinear: 'izq', className: 'min-w-[17rem]', celda: BARRAS_SILUETA },
+                    'Desviación', 'Margen presupuestado', 'Margen real',
+                ]} />
+            </div>
+        );
+    }
     if (!datos.obras.length) return <EmptyState icon={Scale} title="Todavía no hay obras para comparar" description="Agrega obras a Presupuestos y carga su presupuesto." />;
 
     const p = datos.promedio_cerradas;
@@ -117,9 +146,7 @@ export const CompararObras: React.FC<{ onIrObra: (obraId: number) => void }> = (
                         </tbody>
                     </table>
                 </div>
-                <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
-                    Desviación = costo real contra costo presupuestado. Margen real = venta (lo cobrado; sin cobros, el presupuesto) menos el costo real. Los dos se calculan al cerrar la obra.
-                </p>
+                <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">{PIE_TABLA}</p>
             </section>
 
             {columnas.length > 0 && (

@@ -6,6 +6,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { FormError } from '../ui/FormError';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { mensajeError } from './costosConfig';
 
 interface ObraDisponible { id: number; nombre: string; finalizada: boolean }
@@ -59,7 +60,11 @@ export const AgregarObraModal: React.FC<{ onClose: () => void; onAgregada: (obra
         >
             <div className="flex flex-col gap-3">
                 {obras === null ? (
-                    <div className="h-11 rounded-xl bg-muted" />
+                    // El rótulo de verdad y la caja del buscador en gris mientras llegan las obras.
+                    <Cargando que="las obras" className="w-full space-y-1.5">
+                        <p className="ml-0.5 text-sm font-medium text-muted-foreground" aria-hidden="true">Obra</p>
+                        <Skeleton className="h-11 w-full rounded-control" />
+                    </Cargando>
                 ) : obras.length ? (
                     <SearchableSelect
                         label="Obra"

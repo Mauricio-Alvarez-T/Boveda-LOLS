@@ -5,18 +5,22 @@
  * Las alertas son SOLO in-app (Bandeja del Día + Documentos físicos): no envían correo.
  */
 import React, { useEffect, useState } from 'react';
-import { Loader2, Power, PowerOff, FileWarning, Truck } from 'lucide-react';
+import { Power, PowerOff, FileWarning, Truck } from 'lucide-react';
 
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
 import { EmptyState } from '../ui/EmptyState';
+import { Cargando } from '../ui/Skeleton';
+import { TarjetaReglaSilueta } from './SiluetasConfig';
 import { showApiError } from '../../utils/toastUtils';
 import { cn } from '../../utils/cn';
 import { esCategoriaLote, validarUmbrales, type AlertaConfig } from '../documentos-fisicos/documentosAlertas';
 
 const PERMISO = 'sistema.alertas_documentos.gestionar';
+/** Rótulos de los dos campos de días de cada tarjeta (fijos: la silueta los dibuja de verdad). */
+const ROTULOS_DIAS = ['Aviso', 'Crítico'];
 
 export const AlertasDocumentosPanel: React.FC = () => {
     const { hasPermission } = useAuth();
@@ -61,7 +65,30 @@ export const AlertasDocumentosPanel: React.FC = () => {
         if (n !== r[campo]) void guardar(r, { [campo]: n });
     };
 
-    if (loading) return <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-brand-primary" /></div>;
+    if (loading) {
+        // El texto y los títulos de grupo son fijos: van de verdad; las tarjetas (días de cada categoría), en gris.
+        return (
+            <Cargando que="las alertas de documentos" className="space-y-8">
+                <p className="text-sm text-muted-foreground">
+                    Aparecen en la <b>Bandeja del Día</b> y en <b>Gestiones → Documentos físicos</b> para quien registra entregas. No envían correo.
+                    Los días de un documento se cuentan desde que se emitió (volver a imprimirlo no reinicia el aviso); los de un lote, desde que
+                    se creó (sin confirmar) o desde que el portador lo retiró (en terreno).
+                </p>
+                <div className="space-y-3" aria-hidden="true">
+                    <h4 className="text-xs font-black text-brand-dark/60 uppercase tracking-widest flex items-center gap-1.5">
+                        <FileWarning className="h-3.5 w-3.5 text-brand-primary" /> Documentos sin firmar
+                    </h4>
+                    {[0, 1, 2].map(i => <TarjetaReglaSilueta key={i} rotulos={ROTULOS_DIAS} boton="h-11 w-11" />)}
+                </div>
+                <div className="space-y-3" aria-hidden="true">
+                    <h4 className="text-xs font-black text-brand-dark/60 uppercase tracking-widest flex items-center gap-1.5">
+                        <Truck className="h-3.5 w-3.5 text-brand-primary" /> Lotes de custodia
+                    </h4>
+                    {[0, 1].map(i => <TarjetaReglaSilueta key={i} rotulos={ROTULOS_DIAS} boton="h-11 w-11" />)}
+                </div>
+            </Cargando>
+        );
+    }
     if (!reglas.length) {
         return <EmptyState icon={FileWarning} title="Sin categorías de alerta" description="La migración 115 crea las categorías por tipo de documento y por lote. Avisa a TI si sigue vacío tras el deploy." />;
     }

@@ -3,6 +3,7 @@ import { ArrowRight, FileText, PackageCheck } from 'lucide-react';
 
 import { cn } from '../../../utils/cn';
 import { Button } from '../../ui/Button';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { EncabezadoTarjeta, CifraTarjeta } from './EncabezadoTarjeta';
 import { BotonVerMas } from './BotonVerMas';
 import { BarraTenencia } from '../../documentos-fisicos/BarraTenencia';
@@ -69,6 +70,37 @@ const TarjetaLote: React.FC<{ l: LoteConDocumentos; enMano: boolean; onConfirmar
             </div>
         )}
     </article>
+);
+
+/** Un lote mientras llega: título, cuándo y sus documentos, en gris (la forma de `TarjetaLote`). */
+const LoteSilueta: React.FC<{ docs: number }> = ({ docs }) => (
+    <div className="flex flex-col rounded-2xl border border-border bg-card p-4" aria-hidden="true">
+        <Skeleton className="h-5 w-44 max-w-full" />
+        <Skeleton className="mt-1.5 h-3 w-36 max-w-full" />
+        <div className="mt-3 space-y-1">
+            {Array.from({ length: docs }).map((_, i) => <Skeleton key={i} className="h-7 w-full rounded-lg" />)}
+        </div>
+    </div>
+);
+
+/** El detalle de «Tus documentos» mientras llegan tus lotes (diseno.md §9.17): los dos títulos de verdad, los lotes en gris. */
+export const DetalleTusDocumentosSilueta: React.FC<{ onIr: () => void }> = ({ onIr }) => (
+    <div className="space-y-6">
+        <Cargando que="tus documentos" className="space-y-6">
+            <section>
+                <h3 className="mb-3 text-section font-bold text-foreground">En tus manos · llévalos a firmar y devuélvelos</h3>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"><LoteSilueta docs={3} /><div className="max-md:hidden"><LoteSilueta docs={2} /></div></div>
+            </section>
+            <section>
+                <h3 className="mb-3 text-section font-bold text-foreground">Te esperan en la oficina</h3>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"><LoteSilueta docs={2} /></div>
+            </section>
+        </Cargando>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <Skeleton className="h-3.5 w-64 max-w-full" />
+            <Button variant="ghost" size="sm" rightIcon={<ArrowRight className="h-4 w-4" />} onClick={onIr}>Ir a Documentos físicos</Button>
+        </div>
+    </div>
 );
 
 /** Detalle de «Tus documentos»: en tus manos (con tenencia) y lo que te espera en oficina. */

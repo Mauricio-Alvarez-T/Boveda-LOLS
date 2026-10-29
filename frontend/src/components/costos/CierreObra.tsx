@@ -6,6 +6,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Section } from '../ui/Section';
 import { FormError } from '../ui/FormError';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { fmtMoney, fmtNumber, fmtFechaCorta } from '../../utils/format';
 import { cn } from '../../utils/cn';
 import { nombreCategoria, CAMPO, ETIQUETA, mensajeError } from './costosConfig';
@@ -28,6 +29,35 @@ function pendientesDe(d: CostoDetalleObra) {
     if (r.gastado_estimado) lista.push('Hay facturas con el neto estimado (total ÷ 1,19).');
     return lista;
 }
+
+/**
+ * La pestaña «Cierre» mientras llega la obra (diseno.md §9.17). Hasta tener los datos no se sabe si la obra está
+ * cerrada, y eso cambia todo lo que se ve: va la forma del informe (tarjeta de estado y cifras) con los rótulos en
+ * gris, para no anunciar «Venta», «Margen»… en una obra que resulta estar abierta.
+ */
+export const CierreSilueta: React.FC = () => (
+    <Cargando que="el cierre" className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 md:flex-row md:items-center md:justify-between" aria-hidden="true">
+            <div className="flex min-w-0 items-start gap-3">
+                <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+                <div className="min-w-0 flex-1 space-y-2 pt-0.5">
+                    <Skeleton className="h-3.5 w-56 max-w-full" />
+                    <Skeleton className="h-3 w-72 max-w-full" />
+                </div>
+            </div>
+            <Skeleton className="h-9 w-28 shrink-0 rounded-full" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-hidden="true">
+            {[0, 1, 2, 3].map(i => (
+                <div key={i} className="flex min-w-0 flex-col gap-1 rounded-card border border-border bg-card p-4">
+                    <Skeleton className="h-3 w-24 max-w-full" />
+                    <Skeleton className="my-0.5 h-6 w-28 max-w-full md:h-7" />
+                    <Skeleton className="mt-0.5 h-3 w-3/4" />
+                </div>
+            ))}
+        </div>
+    </Cargando>
+);
 
 /**
  * Pestaña «Cierre». Abierta: explica qué hace cerrar y lo que conviene revisar antes. Cerrada: el

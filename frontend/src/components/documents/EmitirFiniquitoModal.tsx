@@ -20,6 +20,7 @@ import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { CurrencyInput } from '../ui/CurrencyInput';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import { showApiError } from '../../utils/toastUtils';
 import { formatCLP } from '../../utils/currency';
 import { fmtFecha } from '../../utils/format';
@@ -225,7 +226,12 @@ export const EmitirFiniquitoModal: React.FC<Props> = ({ isOpen, onClose, worker,
                             {baja.articulo_texto ? ` (${baja.articulo_texto})` : ''}
                         </p>
                     )}
-                    {cargandoBaja && <p className="mt-2 text-xs text-muted-foreground">Leyendo la desvinculación…</p>}
+                    {/* Silueta de la línea «Baja del … · Causal: …» mientras se lee. */}
+                    {cargandoBaja && (
+                        <Cargando que="la desvinculación" className="mt-2">
+                            <Skeleton className="h-3.5 w-72 max-w-full" />
+                        </Cargando>
+                    )}
                     <p className="text-label text-brand-primary font-semibold mt-2">Empresa, representante legal, fechas y causal se completan solos en el documento.</p>
                 </div>
 

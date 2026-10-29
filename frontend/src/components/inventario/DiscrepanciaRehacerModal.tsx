@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowDown, ArrowUp, Loader2, RotateCcw } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, RotateCcw } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { Cargando, Skeleton } from '../ui/Skeleton';
 import type { RehacerDiscrepanciaPlan, TransferenciaDiscrepanciaItem } from '../../types/entities';
 import type { RehacerDiscrepanciaRespuesta, RespaldoRehacer } from '../../hooks/inventario/useTransferencias';
 import {
@@ -125,10 +126,24 @@ const DiscrepanciaRehacerModal: React.FC<Props> = ({ item, codigo, onClose, onRe
                 </p>
 
                 {fase.tipo === 'cargando' && (
-                    <p role="status" className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-3.5 w-3.5 shrink-0 motion-safe:animate-spin" aria-hidden="true" />
-                        Calculando qué cambia en el stock…
-                    </p>
+                    // Silueta del plan: el resumen y «Qué cambia en el stock» con sus filas en gris.
+                    <Cargando que="qué cambia en el stock" className="space-y-3">
+                        <div className="bg-muted/40 rounded-xl p-3 space-y-2" aria-hidden="true">
+                            <Skeleton className="h-3 w-4/5" />
+                            <Skeleton className="h-3 w-2/5" />
+                        </div>
+                        <div aria-hidden="true">
+                            <p className="font-bold text-brand-dark mb-1.5">Qué cambia en el stock</p>
+                            <ul className="space-y-2">
+                                {[0, 1].map(i => (
+                                    <li key={i} className="flex items-center gap-1.5">
+                                        <Skeleton className="h-3.5 w-3.5 shrink-0 rounded-sm" />
+                                        <Skeleton className={i ? 'h-3 w-1/2' : 'h-3 w-3/4'} />
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </Cargando>
                 )}
 
                 {plan && (

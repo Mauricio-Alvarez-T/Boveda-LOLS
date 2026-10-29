@@ -5,8 +5,9 @@ import { usePermisosPersona } from '../../../hooks/usePermisosPersona';
 import { ROL_SUPER_ADMIN } from '../../../config/permisosPantallas';
 import { cosasDistintasPersona } from '../../../config/frasesPermisos';
 import { Button } from '../../ui/Button';
+import { Skeleton } from '../../ui/Skeleton';
 import { cn } from '../../../utils/cn';
-import { LeyendaFrases, PermisosEnFrases } from './PermisosEnFrases';
+import { LeyendaFrases, PermisosEnFrases, SiluetaFrases } from './PermisosEnFrases';
 
 /**
  * «Permisos de <persona>» (Configuración › Usuarios, opción E, Marcos 2026-10-28): la misma vista en frases que un rol,
@@ -37,7 +38,18 @@ const PermisosPersonaPanel: React.FC<Props> = ({ usuarioId, usuarioNombre, rolId
         );
     }
     if (ed.loading) {
-        return <div className="py-16 text-center text-ui text-muted-foreground">Cargando permisos…</div>;
+        // La misma vista en frases, con el resumen (cuántas cosas distintas) en gris hasta que llegan sus permisos.
+        return (
+            <div className="flex h-full min-h-0 flex-col">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+                    <div className="flex flex-col gap-4">
+                        <Skeleton className="h-4 w-full max-w-md" />
+                        <LeyendaFrases conMarcas />
+                        <SiluetaFrases que={`los permisos de ${primer}`} />
+                    </div>
+                </div>
+            </div>
+        );
     }
     if (ed.error) {
         return <p className="px-4 py-10 text-center text-sm text-muted-foreground sm:px-6">{ed.error}</p>;

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Eraser, Search, Loader2, AlertTriangle } from 'lucide-react';
 import { Modal } from '../../ui/Modal';
 import { Button } from '../../ui/Button';
+import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { cn } from '../../../utils/cn';
 import api from '../../../services/api';
 
@@ -106,6 +107,21 @@ export const BorrarAsistenciaModal: React.FC<Props> = ({ isOpen, onClose, fecha,
         onConfirm(ids);
     };
 
+    // El aviso no depende de la lista: se ve igual mientras carga (silueta) y con los registros.
+    const aviso = (
+        <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <p className="text-xs text-brand-dark">
+                Borra el registro guardado de los trabajadores que marques — para corregir un día
+                anotado por error. {obraNombre
+                    ? <>Borra el <b>día completo</b> del trabajador: si tiene un registro de este día
+                        guardado en otra obra (p.ej. lo marcaron antes de un traslado), también se
+                        borra. Solo los traslados <b>TO</b> de otras obras se conservan.</>
+                    : <>Estás en el <b>Reporte Global</b>: borra el día completo del trabajador en todas las obras.</>}
+            </p>
+        </div>
+    );
+
     return (
         <Modal isOpen={isOpen} onClose={onClose} size="md"
             title={
@@ -115,26 +131,51 @@ export const BorrarAsistenciaModal: React.FC<Props> = ({ isOpen, onClose, fecha,
                 </span>
             }>
             {cargando ? (
-                <p className="py-8 text-center text-sm text-muted-foreground inline-flex w-full items-center justify-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Buscando registros del día…
-                </p>
+                // Silueta de la lista de registros del día: aviso, buscador y pie de verdad; filas y cantidades en gris.
+                <div className="space-y-3">
+                    {aviso}
+                    <Cargando que="los registros del día" className="space-y-3">
+                        <div aria-hidden="true" className="flex items-center gap-2">
+                            <div className="relative flex-1 min-w-0 pl-8 pr-3 py-2 text-sm border border-border rounded-xl bg-card text-muted-foreground truncate">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                Buscar nombre o RUT...
+                            </div>
+                            <Skeleton className="h-9 w-40 shrink-0 rounded-full" />
+                        </div>
+                        <div aria-hidden="true" className="rounded-xl border border-border divide-y divide-border/60">
+                            {['w-1/2', 'w-2/5', 'w-3/5', 'w-1/2', 'w-2/5'].map((w, i) => (
+                                <div key={i} className="flex items-center gap-3 px-3 py-2">
+                                    <Skeleton className="h-4 w-4 shrink-0 rounded" />
+                                    <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
+                                        <Skeleton className={`h-3.5 ${w}`} />
+                                        <Skeleton className="h-3 w-1/4" />
+                                    </div>
+                                    <Skeleton className="h-5 w-8 shrink-0 rounded-full" />
+                                </div>
+                            ))}
+                        </div>
+                    </Cargando>
+                    {/* Pie fuera de la silueta: «Cancelar» funciona mientras carga; la selección parte en 0
+                        (se vacía al abrir), así que «Borrar» se ve tal cual llega: deshabilitado. */}
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                        <span aria-hidden="true" className="flex items-center gap-1 text-caption text-muted-foreground tabular-nums">
+                            {seleccion.size} de <Skeleton className="h-3 w-6" /> seleccionado(s)
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="sm" onClick={onClose} disabled={busy}>Cancelar</Button>
+                            <Button variant="destructive" size="sm" disabled leftIcon={<Eraser className="h-4 w-4" />}>
+                                Borrar asistencia ({seleccion.size})
+                            </Button>
+                        </div>
+                    </div>
+                </div>
             ) : items.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
                     No hay asistencia guardada este día — no hay nada que borrar.
                 </p>
             ) : (
                 <div className="space-y-3">
-                    <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
-                        <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                        <p className="text-xs text-brand-dark">
-                            Borra el registro guardado de los trabajadores que marques — para corregir un día
-                            anotado por error. {obraNombre
-                                ? <>Borra el <b>día completo</b> del trabajador: si tiene un registro de este día
-                                    guardado en otra obra (p.ej. lo marcaron antes de un traslado), también se
-                                    borra. Solo los traslados <b>TO</b> de otras obras se conservan.</>
-                                : <>Estás en el <b>Reporte Global</b>: borra el día completo del trabajador en todas las obras.</>}
-                        </p>
-                    </div>
+                    {aviso}
 
                     <div className="flex items-center gap-2">
                         <div className="relative flex-1">

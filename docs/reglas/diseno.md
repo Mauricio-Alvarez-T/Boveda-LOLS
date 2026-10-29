@@ -366,7 +366,8 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
 2. **El movimiento informa o no va.** Se permite solo cuando confirma una acción (guardó, falló, llegó),
    dice hacia dónde cambió algo (la cifra sube o baja, el paso avanza o retrocede) o revela contenido
    oculto (borde de scroll). Nada decorativo: sin fondos animados, brillos, partículas, texto que se
-   desordena ni loops infinitos sobre etiquetas. El hover sigue sin escalar (§7.5): por eso salieron
+   desordena ni loops infinitos sobre etiquetas. (El brillo de la silueta de carga, §9.17, no es decoración:
+   informa que algo está llegando y desaparece con los datos.) El hover sigue sin escalar (§7.5): por eso salieron
    `whileHover={{ scale: 1.05 }}` de `ui/IconButton` y `hover:scale-110` de `VencimientosBadge`; el
    `whileTap` sí se queda, porque confirma el toque.
 3. **Nunca retrasar la lectura.** Cada animación de feedback dura 250 ms o menos y ninguna tapa un dato
@@ -377,9 +378,10 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    `AnimatePresence` montaba la página nueva dos veces). Las pestañas internas (Inventario, Configuración),
    igual. El código de todas las secciones se precarga en reposo (`paginas.ts` → `precargarSecciones`) y el
    `Suspense` del layout no muestra nada mientras tanto: nunca el círculo a pantalla completa. **Carga =
-   contorno quieto; datos con fundido solo si llegaron después:** `Skeleton`/`SkeletonFilas` sin pulso; el
+   silueta con brillo suave (§9.17; hasta el 2026-10-29 era el contorno quieto); datos con fundido solo si
+   llegaron después:** `Skeleton` y su kit, sin pulso; el
    contenedor de datos lleva `hooks/useAparecer(cargando)` → `.datos-aparecen` (160 ms) únicamente si antes se
-   vio el contorno; con datos en caché aparecen en seco. El contenedor debe tener SOLO datos (no barras ni
+   vio la silueta; con datos en caché aparecen en seco. El contenedor debe tener SOLO datos (no barras ni
    encabezados, que se desvanecerían con ellos). Nada de círculos girando ni «Cargando…» como estado de una
    sección; el giro queda para botones que el usuario apretó (guardar, actualizar a mano). No hay reveals por scroll en
    pantallas de datos ni stagger sobre filas de datos.
@@ -806,3 +808,21 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       rol» (sin personas) y el aviso de roles gemelos. Es la **única** vista de Roles: la tabla de todos los roles
       juntos (la matriz) se quitó el 2026-10-29 (Marcos: «la vista que tiene que permanecer es la nueva»). El estado
       de todos los roles vive en `RolesPanel`: lo cambiado en un rol queda marcado aunque se elija otro.
+17. **Siluetas de carga en toda la Bóveda (Marcos 2026-10-29: «que en toda la página, cada apartado… cuando no se
+    cargue muestre este skeleton», y eligió «con brillo suave que dé la sensación de carga de pantalla»).**
+    Reemplaza al contorno QUIETO del 2026-10-22 (§9.3). Mientras un apartado espera sus datos se dibuja la forma de
+    lo que va a llegar en gris neutro (`bg-muted`) con un **reflejo que lo cruza de izquierda a derecha** (`.silueta`
+    en `index.css`: `::after` con `transform`, 1,5 s en bucle — lo mueve la tarjeta gráfica, no repinta; con «reducir
+    movimiento» queda quieto). No es un pulso (todo el bloque prendiendo y apagando, que se leía como lentitud).
+    - **Al abrir Bóveda** (`App.tsx` mientras se revisa la sesión): `layout/SiluetaApp` — logo de verdad, menú
+      lateral, barra de arriba y tarjetas del Inicio en gris; en `/login`, `SiluetaLogin` (panel oscuro con logo +
+      formulario en gris). Antes: una rueda verde en medio de la pantalla vacía.
+    - **Cada apartado** (listas, tablas, tarjetas, fichas, ventanas, formularios): las piezas de `ui/Skeleton`
+      (`Skeleton`, `SkeletonCirculo`, `Cargando`, `SkeletonFilas`, `SkeletonText`, `SkeletonLista`,
+      `SkeletonTarjeta(s)`, `SkeletonFicha`, `SkeletonFormulario`), imitando el diseño real del componente. Lo que no
+      depende de datos (títulos, pestañas, rótulos, barras verdes de sección) se dibuja de verdad desde el primer
+      momento; solo va en gris lo que viene del servidor. Cada silueta lleva `role="status"` («Cargando …» para el
+      lector de pantalla).
+    - **Se quedan las ruedas de botón** (Guardar, Enviar, `MarcaEstado`, progreso de subida): avisan que un clic se
+      está procesando, no que la página carga. Y el cambio de sección sigue EN SECO (§9.3): el menú y la barra no se
+      repintan; solo el contenido que espera datos muestra su silueta.
