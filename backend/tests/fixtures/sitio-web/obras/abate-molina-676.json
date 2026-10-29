@@ -1,0 +1,22 @@
+{
+  "slug": "abate-molina-676",
+  "orden": 30,
+  "estado": "terminado",
+  "nombre": "Abate Molina 676",
+  "titular": "Locales comerciales y bodegas, 3 pisos y 1 subterráneo.",
+  "tipo": "Edificio comercial",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Abate Molina 676",
+  "superficieM2": 1282,
+  "anio": 2026,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [],
+  "referencia": "fotosObrasEjemplo/abate-molina-676"
+}

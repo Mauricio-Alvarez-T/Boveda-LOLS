@@ -108,6 +108,43 @@ function carpetasHuerfanas(idsVigentes, baseDir = UPLOADS_DIR) {
         .map(d => d.name);
 }
 
+/**
+ * Sitio web (mig 147): `uploads/sitio-web/<sitio_obra_id>/` de obras del sitio que ya no están en la base, y lo
+ * que quedó en `tmp/` (subidas a medio procesar). `idsVigentes` = las obras que quedan tras el saneo. Devuelve
+ * cuántas carpetas borró.
+ */
+function borrarSitioWebHuerfano(idsVigentes, baseDir = UPLOADS_DIR) {
+    const dirSitio = path.resolve(baseDir, 'sitio-web');
+    if (!fs.existsSync(dirSitio)) return 0;
+    const vigentes = new Set((idsVigentes || []).map(String));
+    let carpetas = 0;
+    for (const d of fs.readdirSync(dirSitio, { withFileTypes: true })) {
+        if (!d.isDirectory()) continue;
+        if (!(d.name === 'tmp' || (/^\d+$/.test(d.name) && !vigentes.has(d.name)))) continue;
+        fs.rmSync(path.join(dirSitio, d.name), { recursive: true, force: true });
+        carpetas += 1;
+    }
+    return carpetas;
+}
+
+/**
+ * Sitio web (mig 147): los ZIP de simulación (`uploads/sitio-web/paquetes/<publicacion_id>.zip`) de publicaciones que
+ * ya no están en la base. `idsVigentes` = las publicaciones que quedan tras el saneo. Devuelve cuántos borró.
+ */
+function borrarPaquetesSitioWebHuerfanos(idsVigentes, baseDir = UPLOADS_DIR) {
+    const dir = path.resolve(baseDir, 'sitio-web', 'paquetes');
+    if (!fs.existsSync(dir)) return 0;
+    const vigentes = new Set((idsVigentes || []).map(String));
+    let borrados = 0;
+    for (const d of fs.readdirSync(dir, { withFileTypes: true })) {
+        const m = d.isFile() && d.name.match(/^(\d+)\.zip$/);
+        if (!m || vigentes.has(m[1])) continue;
+        fs.rmSync(path.join(dir, d.name), { force: true });
+        borrados += 1;
+    }
+    return borrados;
+}
+
 module.exports = {
     UPLOADS_DIR,
     TEXTO_MARCADOR,
@@ -118,4 +155,6 @@ module.exports = {
     borrarArchivo,
     borrarCarpetasDeTrabajadores,
     carpetasHuerfanas,
+    borrarSitioWebHuerfano,
+    borrarPaquetesSitioWebHuerfanos,
 };

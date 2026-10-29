@@ -17,6 +17,11 @@ interface Props {
     cargando?: boolean;
     error?: string | null;
     onClose: () => void;
+    /**
+     * Botones propios del pie en lugar de «Abrir aparte» / «Descargar» (ej. Aprobar / Rechazar la portada del sitio
+     * web: se decide mirando la foto con zoom). Se muestran también mientras carga o si falló.
+     */
+    pie?: React.ReactNode;
 }
 
 const ZOOM_MIN = 1;
@@ -40,7 +45,7 @@ const clamp = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
  * El PDF se embebe donde el navegador sabe pintarlo y, donde no (Chrome
  * Android), queda la ficha con Abrir / Descargar, igual que en vehículos.
  */
-export const VisorAdjunto: React.FC<Props> = ({ url, mime, nombre, size = 0, descripcion, cargando = false, error = null, onClose }) => {
+export const VisorAdjunto: React.FC<Props> = ({ url, mime, nombre, size = 0, descripcion, cargando = false, error = null, onClose, pie }) => {
     const [zoom, setZoom] = useState(1);
     const contenedorRef = useRef<HTMLDivElement>(null);
     const pellizcoRef = useRef<{ distancia: number; zoom: number } | null>(null);
@@ -122,7 +127,7 @@ export const VisorAdjunto: React.FC<Props> = ({ url, mime, nombre, size = 0, des
                 </span>
             }
             footer={
-                cargando ? (
+                pie ? pie : cargando ? (
                     // Los dos botones del pie, en gris, en el mismo lugar (al llegar no salta nada).
                     <div className="flex flex-wrap items-center justify-end gap-2" aria-hidden>
                         <Skeleton className="h-10 w-32 rounded-full" />

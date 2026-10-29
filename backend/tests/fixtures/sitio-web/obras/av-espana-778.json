@@ -1,0 +1,26 @@
+{
+  "slug": "av-espana-778",
+  "orden": 120,
+  "estado": "terminado",
+  "nombre": "Av. España 778",
+  "titular": null,
+  "tipo": null,
+  "mandante": "Broncerías Camille Ltda.",
+  "comuna": "Santiago",
+  "direccion": "Av. España 778, esquina Blanco Encalada 2385 al 2393",
+  "superficieM2": null,
+  "anio": 2014,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/av-espana-778/1.jpg",
+      "alt": "Edificio de Av. España 778, obra terminada por LOLS en 2014"
+    }
+  ]
+}

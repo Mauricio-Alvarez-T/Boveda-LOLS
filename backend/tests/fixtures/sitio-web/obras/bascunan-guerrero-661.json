@@ -1,0 +1,26 @@
+{
+  "slug": "bascunan-guerrero-661",
+  "orden": 10,
+  "estado": "en-curso",
+  "nombre": "Bascuñán Guerrero 661",
+  "titular": "Locales comerciales y bodegas para arriendo, 4 pisos y 1 subterráneo.",
+  "tipo": "Edificio comercial",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Bascuñán Guerrero 661",
+  "superficieM2": 6220,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/bascunan-guerrero-661/1.jpg",
+      "alt": "Render del edificio en la esquina de Bascuñán Guerrero y Sazié"
+    }
+  ]
+}

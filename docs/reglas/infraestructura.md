@@ -20,7 +20,8 @@
   el mapeo CageFS del intérprete de ambos venv — reparación solo desde root). Editar la línea
   del `.htaccess` a mano; SAVE solo para reconstruir el entorno, con el startup file corregido
   a `index.js` en la misma sesión (RUNBOOK §6).
-- El deploy NO corre migraciones ni toca `.env`.
+- El deploy corre solo las migraciones nuevas (bloque `auto-migrate`, desde 2026-08-27; verificar
+  `https://<host>/migrate-status.txt`) y NO toca `.env`.
 
 ## Migraciones
 
@@ -32,11 +33,15 @@
 - **Bootstrap** (RUNBOOK § 3.3): en BD existente sin `schema_migrations`, marca ≤023 como aplicadas
   SIN ejecutarlas. Leer antes de migrar prod por primera vez; fix:
   `scripts/fix_prod_migrations.js`.
-- Correr en prod/staging: cPanel → Setup Node.js App → Run JS script → `migrate`.
+- Prod/staging: las aplica el deploy (`auto-migrate`). El camino del panel (Run JS script → `migrate`) está ROTO
+  desde el restore del 2026-08-24: no recomendarlo (RUNBOOK § 3.2).
 - Tras migraciones que tocan permisos: **re-login** (JWT acuña permisos al login).
 
 ## Cron
 
+- **Nada en segundo plano después de responder** (`setImmediate`, promesas sueltas): Passenger puede congelar o
+  matar el proceso. Por eso «Publicar» del Sitio web (mig 147) es síncrono dentro de la request, con `GET_LOCK` y una
+  conciliación al publicar de nuevo como red si el proceso muere a mitad.
 - **NUNCA node-cron** (Passenger duerme el proceso). Solo cPanel Cron Jobs:
   `cd ~/APP && /home/lolscl/nodevenv/APP/20/bin/node scripts/foo.js >> ~/foo.log 2>&1`.
 - Activos: snapshot dashboard (00:05), reporte semanal RRHH (lunes 08:00), alertas vehículos
@@ -45,7 +50,16 @@
 ## Variables de entorno
 
 - `.env` vive en el servidor (`/boveda/`, `/test-boveda/`), nunca en el repo.
-- Requeridas: DB_*, JWT_SECRET, NODE_ENV, PORT. Opcionales: MAIL_* (nodemailer), REPORTE_TO.
+- Requeridas: DB_*, JWT_SECRET, NODE_ENV, PORT. Opcionales: MAIL_* (nodemailer), REPORTE_TO,
+  `GITHUB_*_SITIO` y `SITIO_WEB_*` (Sitio web, mig 147: **sin token ⇒ simulación; solo en el `.env` de cPanel de
+  producción**; staging nunca publica en el repo público aunque las copie — `sitioWebGuarda.modoEfectivo`). No van en
+  el REQUIRED de `env-validator.js`. `GITHUB_AUTOR_EMAIL_SITIO` es el correo (público) del autor de los commits;
+  `SITIO_WEB_URL` es de donde se lee `build.txt` (solo https). Lista completa en `backend/.env.example`.
+- **Riesgo aceptado (D2, Sitio web):** `modoEfectivo` impide que el CÓDIGO de staging publique, pero staging corre con
+  el mismo usuario de cPanel y un proceso de staging comprometido podría leer `~/boveda/.env` (y su
+  `GITHUB_TOKEN_SITIO`). Por eso el token es fine-grained, solo del repo lols.cl, con 90 días de vida y solo
+  Contents (lectura/escritura) + Actions (lectura): lo peor que permite es tocar ese repo, que tiene historial y
+  `git revert`.
 
 ## Pre-deploy checks (obligatorios antes de todo push)
 
@@ -93,6 +107,11 @@ cd backend && npm test          # 373+ tests, mocks de DB
   `--aplicar` + `SANEO_STAGING=1`. Sin flags, dry-run.
 - **Red de seguridad**: bloque `sanear-datos` en `scripts/cpanel-deploy-staging.sh` (NO en el de producción),
   con gracia de 48 h sobre `created_at`; publica `datos-status.txt` en el docroot.
+- **Sitio web (mig 147)**: el mismo saneo borra obras, publicaciones e historial del sitio con más de 48 h
+  (`saneoStaging.limpiarSitioWeb`), las carpetas `uploads/sitio-web/` de obras que ya no están, `tmp/` y los ZIP de
+  simulación (`uploads/sitio-web/paquetes/`) de publicaciones borradas. En `--auto` lo mira aparte de los foráneos
+  (`saneoStaging.pendienteSitioWeb`): lo copiado de producción que estaba dentro de la gracia en una pasada se borra en
+  otra aunque ya no haya foráneos (si es lo único pendiente, se limpia solo eso, sin purga ni siembra).
 - **No se usa `es_prueba`** para esto: esa bandera esconde las filas de reportes y KPIs (mig 066) y dejaría el QA vacío.
 - **Franja de entorno**: `VITE_ENTORNO=staging` en el build de staging → `components/layout/EntornoBanner.tsx`.
 - Detalle completo y comandos de cron: `docs/RUNBOOK.md § 19`.

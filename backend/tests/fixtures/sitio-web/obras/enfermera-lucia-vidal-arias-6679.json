@@ -1,0 +1,26 @@
+{
+  "slug": "enfermera-lucia-vidal-arias-6679",
+  "orden": 60,
+  "estado": "terminado",
+  "nombre": "Enfermera Lucía Vidal Arias 6679",
+  "titular": "Locales comerciales y bodegas, 3 pisos.",
+  "tipo": "Centro de bodegas",
+  "mandante": null,
+  "comuna": "Cerrillos",
+  "direccion": "Enfermera Lucía Vidal Arias 6679",
+  "superficieM2": 5192,
+  "anio": 2022,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/enfermera-lucia-vidal-arias-6679/1.jpg",
+      "alt": "Centro de bodegas de techo rojo en Enfermera Lucía Vidal Arias 6679, Cerrillos"
+    }
+  ]
+}

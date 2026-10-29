@@ -1,0 +1,22 @@
+{
+  "slug": "domeyko-2432",
+  "orden": 80,
+  "estado": "en-curso",
+  "nombre": "Domeyko 2432",
+  "titular": "Locales comerciales, bodegas y vivienda, 4 pisos.",
+  "tipo": "Edificio comercial",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Domeyko 2432",
+  "superficieM2": 873,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [],
+  "referencia": "rendersEjemplo/domeyko-2432"
+}

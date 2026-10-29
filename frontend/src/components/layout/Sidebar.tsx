@@ -18,6 +18,7 @@ import {
     Lightbulb,
     Inbox,
     Calculator,
+    Globe,
     UserSearch
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -33,6 +34,8 @@ import { IconButton } from '../ui/IconButton';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { useMisIdeasResumen, useIdeasPendientes } from '../../hooks/useIdeas';
 import { useErroresSoporte } from '../../hooks/useErroresSoporte';
+import { useSitioWebPendientes } from '../../hooks/useSitioWebPendientes';
+import { pedirSalida } from '../../utils/salidaProtegida';
 import { ETIQUETA_BUZON_IDEAS } from '../ideas/ideasConfig';
 import { menuVisible, veBuzonIdeas, type ClaveMenu } from './menuLateral';
 
@@ -64,6 +67,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
     const ideasPendientes = useIdeasPendientes();
     // Errores de Soporte (mig 141): avisos por revisar (solo el Super Administrador; 0 para el resto).
     const erroresSoporte = useErroresSoporte();
+    // Sitio web (mig 147): fotos por aprobar + obras que la próxima publicación cambia (solo quien publica).
+    const sitioWeb = useSitioWebPendientes();
     const [showIdeas, setShowIdeas] = React.useState(false);
     // El buzón se baja recién la primera vez que se abre y queda montado (para su animación de cierre).
     const [ideasCargado, setIdeasCargado] = React.useState(false);
@@ -88,6 +93,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
         /** Qué hace el clic en el NÚMERO (menú expandido). Sin él abre el panel de vencimientos. */
         onBadgeClick?: (e: React.MouseEvent) => void;
     };
+    // Navegar desde un número del menú. Si la pantalla abierta tiene cambios sin guardar (la obra del Sitio web), ella
+    // pregunta primero y navega si se acepta (utils/salidaProtegida).
+    const ir = (destino: string) => { setMobileOpen(false); if (!pedirSalida(destino)) navigate(destino); };
+
     const extras: Record<ClaveMenu, ExtraMenu> = {
         inicio: { icon: LayoutDashboard },
         asistencia: { icon: CheckSquare },
@@ -98,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             badgeUrgente: false,
             badgeTitle: `${solicitudes.pendientes} solicitud${solicitudes.pendientes === 1 ? '' : 'es'} de ingreso pendiente${solicitudes.pendientes === 1 ? '' : 's'}`,
             badgeAriaLabel: 'Ver solicitudes de ingreso pendientes',
-            onBadgeClick: () => { setMobileOpen(false); navigate('/consultas?tab=solicitudes'); },
+            onBadgeClick: () => ir('/consultas?tab=solicitudes'),
         },
         inventario: { icon: Package },
         vehiculos: {
@@ -109,6 +118,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
         },
         obras_finalizadas: { icon: Archive },
         presupuestos: { icon: Calculator },
+        sitio_web: {
+            icon: Globe,
+            // Por hacer = ÁMBAR. El clic lleva a la lista filtrada («acción en el lugar»).
+            badge: sitioWeb.pendientes,
+            badgeUrgente: false,
+            badgeTitle: `${sitioWeb.pendientes} pendiente${sitioWeb.pendientes === 1 ? '' : 's'} del sitio web (fotos por aprobar u obras por publicar)`,
+            badgeAriaLabel: 'Ver lo pendiente del sitio web',
+            onBadgeClick: () => ir('/sitio-web?filtro=pendientes'),
+        },
         ayuda: { icon: BookOpen },
         revisar_ideas: {
             icon: Inbox,
@@ -117,7 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             badgeUrgente: false,
             badgeTitle: `${ideasPendientes.pendientes} idea${ideasPendientes.pendientes === 1 ? '' : 's'} por revisar`,
             badgeAriaLabel: 'Ver ideas por revisar',
-            onBadgeClick: () => { setMobileOpen(false); navigate('/ideas'); },
+            onBadgeClick: () => ir('/ideas'),
         },
         soporte: {
             icon: UserSearch,
@@ -126,7 +144,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             badgeUrgente: false,
             badgeTitle: `${erroresSoporte.pendientes} error${erroresSoporte.pendientes === 1 ? '' : 'es'} por revisar`,
             badgeAriaLabel: 'Ver errores por revisar',
-            onBadgeClick: () => { setMobileOpen(false); navigate('/soporte?vista=errores'); },
+            onBadgeClick: () => ir('/soporte?vista=errores'),
         },
         configuracion: { icon: Settings },
     };
@@ -165,6 +183,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                     <NavLink
                         key={item.path}
                         to={item.path}
+                        // Con cambios sin guardar en la pantalla abierta, ella pregunta antes de salir.
+                        onClick={e => { if (pedirSalida(item.path)) { e.preventDefault(); setMobileOpen(false); } }}
                         className={({ isActive }) => cn(
                             "flex items-center rounded-xl transition-all group relative text-base whitespace-nowrap overflow-hidden h-12",
                             (!isMobile && isCollapsed) ? "justify-center px-0 w-12 mx-auto" : "justify-start pl-[18px] pr-4 w-full gap-[14px]",

@@ -1,0 +1,22 @@
+{
+  "slug": "abate-molina-80",
+  "orden": 20,
+  "estado": "terminado",
+  "nombre": "Abate Molina 80",
+  "titular": "Locales comerciales, bodegas y oficinas, 2 pisos.",
+  "tipo": "Edificio y oficinas",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Abate Molina 80",
+  "superficieM2": 1867,
+  "anio": 2026,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [],
+  "referencia": "fotosObrasEjemplo/abate-molina-80"
+}

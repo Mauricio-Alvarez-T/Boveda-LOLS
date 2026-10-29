@@ -1,3 +1,7 @@
 # Los scripts de shell DEBEN tener line-endings LF: corren en el servidor Linux
 # (cPanel) y un CRLF rompe el shebang ("bad interpreter: /bin/bash^M").
 *.sh text eol=lf
+
+# Copias byte a byte de src/content/obras de lols.cl (que va en LF): el test de ida y vuelta
+# las compara con lo que serializa la Bóveda, así que un checkout en Windows no puede pasarlas a CRLF.
+backend/tests/fixtures/sitio-web/** text eol=lf

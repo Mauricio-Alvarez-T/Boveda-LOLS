@@ -17,11 +17,13 @@
  *
  *  Flags:
  *    (sin flags)  dry-run: informa y NO escribe. Es el default a propósito.
- *    --aplicar    purga los trabajadores foráneos y sus rastros. Exige SANEO_STAGING=1.
+ *    --aplicar    purga los trabajadores foráneos y sus rastros, y lo del Sitio web (obras, fotos y
+ *                 publicaciones) que no sea de un QA reciente. Exige SANEO_STAGING=1.
  *    --sembrar    además siembra el set ficticio (empresas, obras, cargos, trabajadores,
  *                 asistencia y documentos con su archivo marcador) y las 3 obras de ejemplo de
  *                 Presupuestos (Obra demo 1, 2 y 3, saneoCostos.service), una sola vez.
- *    --auto       modo desatendido para el cron de deploy: sin foráneos termina en silencio (rc 0).
+ *    --auto       modo desatendido para el cron de deploy: sin foráneos (ni nada del Sitio web fuera de la
+ *                 gracia) termina en silencio (rc 0).
  *    --gracia=N   horas de gracia sobre created_at (default 48).
  *
  *  GUARDAS (las tres, siempre):
@@ -89,8 +91,12 @@ async function main() {
     // Si en modo desatendido lo ÚNICO pendiente son las obras de ejemplo de Presupuestos, se
     // siembran solas: sin purga ni siembra general (esa vuelve a insertar las obras demo).
     const soloCostos = AUTO && !det.total && !haySiembraPendiente && hayCostosPendientes;
+    // Sitio web (mig 147): lo copiado de producción que estaba dentro de la gracia en una pasada se limpia en otra,
+    // aunque ya no haya foráneos. Si es lo ÚNICO pendiente, se limpia solo eso (sin purga ni siembra).
+    const haySitioPendiente = (await saneo.pendienteSitioWeb(db, { graciaHoras: GRACIA })) > 0;
+    const soloSitio = AUTO && !det.total && !haySiembraPendiente && !hayCostosPendientes && haySitioPendiente;
 
-    if (AUTO && !det.total && !haySiembraPendiente && !hayCostosPendientes) {
+    if (AUTO && !det.total && !haySiembraPendiente && !hayCostosPendientes && !haySitioPendiente) {
         log.ok(`Sin datos foráneos (${det.ficticios} trabajadores ficticios). Nada que hacer.`);
         console.log(`RESUMEN · OK · 0 foráneos · ${det.ficticios} ficticios`);
         return;
@@ -107,10 +113,24 @@ async function main() {
         process.exit(1);
     }
 
+    // Sitio web (mig 147): borradores, fotos y publicaciones que no sean de un QA reciente, y sus carpetas.
+    const limpiarSitio = async () => {
+        const sitioWeb = await saneo.limpiarSitioWeb(db, { graciaHoras: GRACIA });
+        let obrasSitio = [];
+        try { [obrasSitio] = await db.query('SELECT id FROM sitio_obras'); } catch (e) { if (e.errno !== 1146) throw e; }
+        const carpetasSitio = archivos.borrarSitioWebHuerfano(obrasSitio.map(o => o.id));
+        let pubsSitio = [];
+        try { [pubsSitio] = await db.query('SELECT id FROM sitio_publicaciones'); } catch (e) { if (e.errno !== 1146) throw e; }
+        const paquetesSitio = archivos.borrarPaquetesSitioWebHuerfanos(pubsSitio.map(p => p.id));
+        log.ok(`Sitio web: ${resumir(sitioWeb)} · ${carpetasSitio} carpeta(s) de fotos y ${paquetesSitio} ZIP de simulación borrados`);
+    };
+
     // ── Purga ──
     let purgados = 0;
     let sembrados = 0;
-    if (!soloCostos) {
+    if (soloCostos || soloSitio) {
+        await limpiarSitio();
+    } else {
         if (det.total) {
             const { borrados, rutas } = await saneo.purgar(db, { ids: det.ids });
             purgados = det.total;
@@ -127,6 +147,8 @@ async function main() {
 
         const correo = await saneo.neutralizarCorreo(db);
         log.ok(`Correo saliente neutralizado: ${resumir(correo)}`);
+
+        await limpiarSitio();
 
         // Carpetas de uploads sin trabajador (restos de purgas anteriores o de importaciones).
         const [vigentes] = await db.query('SELECT id FROM trabajadores');

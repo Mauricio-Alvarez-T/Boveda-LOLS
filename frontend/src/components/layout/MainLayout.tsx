@@ -19,7 +19,7 @@ import { precargarSecciones } from '../../paginas';
  * (Marcos 2026-10-21: «acá no es necesario su uso»), así la barra respira. En el computador sigue visible.
  * Las demás páginas pueden ocultarlo igual con `useSetCentroMovil(…, { ocultarObra: true })`.
  */
-const SIN_OBRA_EN_CELULAR = ['/configuracion', '/ideas', '/ayuda', '/costos', '/obras-finalizadas', '/vehiculos', '/soporte'];
+const SIN_OBRA_EN_CELULAR = ['/configuracion', '/ideas', '/ayuda', '/costos', '/sitio-web', '/obras-finalizadas', '/vehiculos', '/soporte'];
 
 export const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);

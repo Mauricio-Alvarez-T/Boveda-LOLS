@@ -153,7 +153,8 @@ describe('accesosPerfil: su menú y lo que puede hacer en cada parte', () => {
         expect(r.tarjetas.some(t => t.clave === 'otros')).toBe(false);
         // revisar_ideas: quien revisa no ve «Comparte tu idea».
         expect(r.tarjetas.map(t => t.clave)).toEqual([
-            'inicio', 'asistencia', 'gestiones', 'inventario', 'vehiculos', 'obras_finalizadas', 'presupuestos', 'ayuda', 'revisar_ideas', 'configuracion',
+            'inicio', 'asistencia', 'gestiones', 'inventario', 'vehiculos', 'obras_finalizadas', 'presupuestos', 'sitio_web', 'ayuda', 'revisar_ideas',
+            'configuracion',
         ]);
     });
 
@@ -233,6 +234,9 @@ describe('dónde se usa cada permiso del catálogo', () => {
         expect(menuDePermiso('obras.crear', 'Obras')).toEqual(['configuracion', 'obras_finalizadas']);
         expect(menuDePermiso('ideas.revisar', 'Sistema')).toEqual(['revisar_ideas']);
         expect(menuDePermiso('costos.gestionar', 'Sistema')).toEqual(['presupuestos']);
+        // Sitio web (mig 147): su propia sección, con o sin la ficha.
+        expect(menuDePermiso('sitio_web.publicar', 'Sitio web')).toEqual(['sitio_web']);
+        expect(menuDePermiso('sitio_web.ver')).toEqual(['sitio_web']);
         expect(menuDePermiso('cargos.ver', 'Cargos')).toEqual(['configuracion', 'gestiones']);
         expect(menuDePermiso('cargos.crear', 'Cargos')).toEqual(['configuracion']);
         expect(menuDePermiso('conductores.ver', 'Conductores')).toEqual(['configuracion', 'vehiculos']);

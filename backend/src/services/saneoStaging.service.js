@@ -212,6 +212,45 @@ async function neutralizarCorreo(db) {
     return out;
 }
 
+/**
+ * Sitio web (mig 147): obras del sitio, sus fotos, publicaciones e historial. Una importación desde producción
+ * traería borradores reales a un staging accesible desde internet (mandantes sin autorizar, fotos que nadie
+ * aprobó). Se borra lo creado hace más de `graciaHoras`, como los trabajadores: lo cargado a mano en un QA
+ * reciente queda. Las fotos caen por CASCADE con su obra; sus carpetas (uploads/sitio-web/<id>) las borra el
+ * script con `saneoArchivos.borrarSitioWebHuerfano`. Sin la migración (1146) no aborta.
+ */
+async function limpiarSitioWeb(db, { graciaHoras = GRACIA_HORAS } = {}) {
+    const out = {};
+    await ejecutar(db, out, 'sitio_obras',
+        'DELETE FROM sitio_obras WHERE created_at < (NOW() - INTERVAL ? HOUR)', [graciaHoras]);
+    await ejecutar(db, out, 'sitio_publicaciones',
+        'DELETE FROM sitio_publicaciones WHERE created_at < (NOW() - INTERVAL ? HOUR)', [graciaHoras]);
+    await ejecutar(db, out, 'sitio_web_historial',
+        `DELETE FROM sitio_web_historial
+          WHERE created_at < (NOW() - INTERVAL ? HOUR)
+             OR (sitio_obra_id IS NOT NULL AND sitio_obra_id NOT IN (SELECT id FROM sitio_obras))`, [graciaHoras]);
+    return out;
+}
+
+/**
+ * ¿Queda algo del Sitio web fuera de la gracia? (obras o publicaciones con más de `graciaHoras`). El cron desatendido
+ * (--auto) lo mira aparte de los trabajadores foráneos: una copia de producción que entró dentro de la gracia se
+ * limpia en una pasada posterior aunque ya no haya foráneos. 0 sin la migración 147.
+ */
+async function pendienteSitioWeb(db, { graciaHoras = GRACIA_HORAS } = {}) {
+    let n = 0;
+    for (const tabla of ['sitio_obras', 'sitio_publicaciones']) {
+        try {
+            const [[r]] = await db.query(`SELECT COUNT(*) AS n FROM ${tabla} WHERE created_at < (NOW() - INTERVAL ? HOUR)`, [graciaHoras]);
+            n += Number(r && r.n) || 0;
+        } catch (err) {
+            if (err && (err.errno === 1146 || err.errno === 1054)) continue;
+            throw err;
+        }
+    }
+    return n;
+}
+
 module.exports = {
     RUT_FICTICIO_DESDE,
     RUT_FICTICIO_HASTA,
@@ -224,5 +263,7 @@ module.exports = {
     purgar,
     limpiarRastros,
     neutralizarCorreo,
+    limpiarSitioWeb,
+    pendienteSitioWeb,
     _interno: { DEPENDIENTES, SQL_RUT_FORANEO },
 };

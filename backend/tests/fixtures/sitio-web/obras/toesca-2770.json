@@ -1,0 +1,26 @@
+{
+  "slug": "toesca-2770",
+  "orden": 30,
+  "estado": "en-curso",
+  "nombre": "Toesca 2770 y 2774",
+  "titular": "Dos edificios de locales comerciales, oficinas y vivienda, de 4 pisos y 1 subterráneo cada uno.",
+  "tipo": "Edificio y oficinas",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Toesca 2770 y 2774",
+  "superficieM2": 996,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/toesca-2770/1.jpg",
+      "alt": "Render de los edificios de Toesca 2770 y 2774"
+    }
+  ]
+}

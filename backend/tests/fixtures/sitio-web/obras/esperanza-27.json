@@ -1,0 +1,26 @@
+{
+  "slug": "esperanza-27",
+  "orden": 100,
+  "estado": "terminado",
+  "nombre": "Esperanza 27",
+  "titular": null,
+  "tipo": null,
+  "mandante": "Inmobiliaria e Inversiones Ventura y Cía. Ltda.",
+  "comuna": "Santiago",
+  "direccion": "Esperanza 27 al 29, esquina Romero 2880 al 2894",
+  "superficieM2": null,
+  "anio": 2017,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/esperanza-27/1.jpg",
+      "alt": "Edificio de Esperanza 27, obra terminada por LOLS en 2017"
+    }
+  ]
+}

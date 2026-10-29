@@ -8,7 +8,7 @@ import { esSuperAdmin } from '../dashboard/widgets/inventarioPerfil/perfil';
  */
 export type ClaveMenu =
     | 'inicio' | 'asistencia' | 'gestiones' | 'inventario' | 'vehiculos' | 'obras_finalizadas'
-    | 'presupuestos' | 'ayuda' | 'revisar_ideas' | 'soporte' | 'configuracion';
+    | 'presupuestos' | 'sitio_web' | 'ayuda' | 'revisar_ideas' | 'soporte' | 'configuracion';
 
 export interface SeccionMenu {
     clave: ClaveMenu;
@@ -31,6 +31,9 @@ export const PERMISOS_MENU_GESTIONES = [
     'documentos.entrega.portar',
 ] as const;
 
+/** «Sitio web» se abre con cualquiera de sus permisos: editar y publicar no traen `ver` solos (checkPermission es OR). */
+export const PERMISOS_MENU_SITIO_WEB = ['sitio_web.ver', 'sitio_web.editar', 'sitio_web.publicar'] as const;
+
 /** Las secciones en el orden del menú, con la condición de cada una. */
 const SECCIONES: readonly (SeccionMenu & { visible: (tiene: Tiene, user: Quien) => boolean })[] = [
     { clave: 'inicio', label: 'Inicio', path: '/', visible: () => true },
@@ -47,6 +50,8 @@ const SECCIONES: readonly (SeccionMenu & { visible: (tiene: Tiene, user: Quien) 
     { clave: 'obras_finalizadas', label: 'Obras Finalizadas', path: '/obras-finalizadas', visible: t => t('obras.ver') },
     // Costos de obra (mig 122): don Luis, Rodrigo y el arquitecto, por usuario.
     { clave: 'presupuestos', label: 'Presupuestos', path: '/costos', visible: t => t('costos.gestionar') },
+    // Sitio web (mig 147): las obras de lols.cl. Con cualquiera de sus tres permisos (ver, editar o publicar).
+    { clave: 'sitio_web', label: 'Sitio web', path: '/sitio-web', visible: t => PERMISOS_MENU_SITIO_WEB.some(p => t(p)) },
     { clave: 'ayuda', label: 'Ayuda', path: '/ayuda', visible: () => true },
     { clave: 'revisar_ideas', label: 'Revisar ideas', path: '/ideas', visible: t => t('ideas.revisar') },
     // Soporte · usuarios (2026-10-23): SOLO el Super Administrador (rol 1, no un permiso). Con «ver como» el rol es el

@@ -5,7 +5,16 @@
 - **Fuente de verdad**: `backend/src/config/permisos.config.js` → `MAESTRO_PERMISOS`
   (~95+ permisos; formato `[clave, módulo, nombre, descripción, orden]`).
 - Módulos: Asistencia, Trabajadores, Documentos, Reportes, Empresas, Obras, Cargos, Usuarios,
-  Inventario (incl. 9 granulares de transferencias + 6 tabs), Financiero, Vehículos, Sistema.
+  Inventario (incl. 9 granulares de transferencias + 6 tabs), Financiero, Vehículos, Sistema, Inicio, Sitio web.
+- **Sitio web (mig 147)**: `sitio_web.ver` (nivel «Mira»), `sitio_web.editar` («Edita») y `sitio_web.publicar`
+  (**delicada**, `sensible: 'critico'`: aprobar fotos y publicar en el repo público de lols.cl; ningún nivel la da).
+  Gates OR por ruta y `obras.ver` para vincular una obra interna. `publicar` además abre la previa, Publicar, Importar
+  las obras del sitio, Resincronizar, los pendientes (badge) y el ZIP de una simulación; ver la lista de publicaciones
+  y su estado basta con `ver`. El token de GitHub (`GITHUB_TOKEN_SITIO`) vive solo en el `.env` de producción y nunca
+  sale en una respuesta, un log ni un error: ver `docs/reglas/sitio-web.md`. Menú: sección propia «Sitio web» con
+  cualquiera de las tres (`PERMISOS_MENU_SITIO_WEB`); en Soporte sus permisos van a esa tarjeta
+  (`MENU_DE_MODULO['Sitio web'] = ['sitio_web']`). En «ver como» la pantalla no ofrece Publicar, Importar ni
+  Resincronizar (el servidor igual corta toda escritura).
 - El catálogo se **sincroniza al correr `migrate`/`maintenance`** (`syncCatalogoEnArranque`; NO en el
   boot del backend): INSERT … ON DUPLICATE KEY UPDATE de nombre/descr/orden; nunca borra claves. Agregar
   un permiso = agregarlo al array + migrate (el auto-migrate del deploy lo hace). Renombrar una clave =

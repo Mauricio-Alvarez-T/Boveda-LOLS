@@ -16,6 +16,7 @@ export const cargarPagina = {
     configuracion: () => import('./pages/Settings'),
     ideas: () => import('./pages/Ideas'),
     costos: () => import('./pages/Costos'),
+    sitioWeb: () => import('./pages/SitioWeb'),
     soporte: () => import('./pages/Soporte'),
 };
 

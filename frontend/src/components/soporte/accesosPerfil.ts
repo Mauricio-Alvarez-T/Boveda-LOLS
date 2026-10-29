@@ -124,6 +124,8 @@ export const MENU_DE_MODULO: Readonly<Record<string, readonly ClaveMenu[]>> = {
     Conductores: ['configuracion'],
     Usuarios: ['configuracion'],
     Sistema: ['configuracion'],
+    // Sitio web (mig 147): su propia sección del menú.
+    'Sitio web': ['sitio_web'],
 };
 
 /** Las claves que no van donde dice su módulo. */
@@ -157,6 +159,7 @@ export const MODULO_DE_PREFIJO: Readonly<Record<string, string>> = {
     sistema: 'Sistema',
     ideas: 'Sistema',
     costos: 'Sistema',
+    sitio_web: 'Sitio web',
 };
 
 /** El módulo del catálogo de una clave, por su comienzo («Otros» si no se conoce). */
@@ -172,7 +175,7 @@ export function menuDePermiso(clave: string, modulo?: string | null): readonly C
 
 /** Orden de los módulos dentro de una tarjeta (Gestiones: trabajadores antes que documentos y reportes). */
 const ORDEN_MODULO = ['Inicio', 'Asistencia', 'Trabajadores', 'Documentos', 'Reportes', 'Inventario', 'Financiero', 'Vehículos',
-    'Empresas', 'Obras', 'Cargos', 'Usuarios', 'Conductores', 'Sistema'];
+    'Empresas', 'Obras', 'Cargos', 'Usuarios', 'Conductores', 'Sistema', 'Sitio web'];
 const rangoModulo = (m: string) => {
     const i = ORDEN_MODULO.indexOf(m);
     return i < 0 ? ORDEN_MODULO.length : i;
@@ -189,6 +192,7 @@ export const DESCRIPCION_MENU: Record<ClaveMenu, string> = {
     vehiculos: 'La flota y sus papeles',
     obras_finalizadas: 'Las obras ya cerradas',
     presupuestos: 'Presupuesto y gastos de cada obra',
+    sitio_web: 'Las obras que muestra lols.cl',
     ayuda: 'Guías paso a paso; la ven todos',
     revisar_ideas: 'Las ideas de mejora que manda la gente',
     soporte: 'Revisar las cuentas de los demás',

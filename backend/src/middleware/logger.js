@@ -275,6 +275,10 @@ const activityLogger = async (req, res, next) => {
             // Soporte · usuarios: el «ver como» (POST) lo registra el service («<Super Admin> vio como <usuario>»);
             // el genérico solo duplicaría un CREATE vacío.
             if (/^\/api\/soporte(\/|$)/.test(req.originalUrl.split('?')[0])) return;
+            // Sitio web (mig 147): las rutas registran a mano crear, borrar, incluir/quitar y aprobar/rechazar fotos
+            // (con el nombre de la obra), y el service deja el detalle en sitio_web_historial. La subida es multipart
+            // y una edición trae textos largos: el log genérico solo sumaría ruido.
+            if (/^\/api\/sitio-web(\/|$)/.test(req.originalUrl.split('?')[0])) return;
 
             try {
                 // «Ver como» (token con `imp`) es solo lectura y auth.js corta antes todo POST/PUT/DELETE; si

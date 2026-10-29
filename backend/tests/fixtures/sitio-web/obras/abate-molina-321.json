@@ -1,0 +1,22 @@
+{
+  "slug": "abate-molina-321",
+  "orden": 50,
+  "estado": "terminado",
+  "nombre": "Abate Molina 321",
+  "titular": "Locales comerciales y bodegas, 4 pisos y 1 subterráneo.",
+  "tipo": "Edificio comercial",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Abate Molina 321",
+  "superficieM2": 1682,
+  "anio": 2025,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [],
+  "referencia": "fotosObrasEjemplo/abate-molina-321"
+}

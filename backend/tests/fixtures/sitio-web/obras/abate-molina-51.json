@@ -1,0 +1,22 @@
+{
+  "slug": "abate-molina-51",
+  "orden": 60,
+  "estado": "contratado",
+  "nombre": "Abate Molina 51",
+  "titular": "Locales comerciales, bodegas y oficinas, 2 pisos.",
+  "tipo": "Edificio y oficinas",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Abate Molina 51",
+  "superficieM2": 3374,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [],
+  "referencia": "rendersContratados/1"
+}

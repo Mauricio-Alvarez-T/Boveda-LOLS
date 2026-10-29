@@ -1,0 +1,26 @@
+{
+  "slug": "monumento-2212",
+  "orden": 40,
+  "estado": "terminado",
+  "nombre": "Monumento 2212",
+  "titular": "Locales comerciales, 2 pisos.",
+  "tipo": "Edificio comercial",
+  "mandante": null,
+  "comuna": "Maipú",
+  "direccion": "Monumento 2212",
+  "superficieM2": 738,
+  "anio": 2026,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/monumento-2212/1.jpg",
+      "alt": "Render del edificio de locales comerciales de Monumento 2212"
+    }
+  ]
+}

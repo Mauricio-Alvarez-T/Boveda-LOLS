@@ -1,0 +1,26 @@
+{
+  "slug": "bascunan-guerrero-818",
+  "orden": 70,
+  "estado": "terminado",
+  "nombre": "Bascuñán Guerrero 818",
+  "titular": "Locales comerciales, oficinas y bodegas, 2 pisos y 1 subterráneo.",
+  "tipo": "Edificio comercial",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Bascuñán Guerrero 818",
+  "superficieM2": 2445,
+  "anio": 2020,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/bascunan-guerrero-818/1.jpg",
+      "alt": "Edificio de esquina de Bascuñán Guerrero 818"
+    }
+  ]
+}

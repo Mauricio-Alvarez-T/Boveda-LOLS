@@ -1,0 +1,22 @@
+{
+  "slug": "conferencia-622",
+  "orden": 70,
+  "estado": "en-curso",
+  "nombre": "Conferencia 622",
+  "titular": "Locales comerciales, bodegas y vivienda, 5 pisos y 1 subterráneo.",
+  "tipo": "Edificio comercial",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Conferencia 622",
+  "superficieM2": 912,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [],
+  "referencia": "rendersEjemplo/conferencia-622"
+}

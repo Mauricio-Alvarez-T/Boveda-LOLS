@@ -1,0 +1,26 @@
+{
+  "slug": "abate-molina-502",
+  "orden": 30,
+  "estado": "contratado",
+  "nombre": "Abate Molina 502",
+  "titular": "Locales comerciales, bodegas y oficinas, 4 pisos y 1 subterráneo.",
+  "tipo": "Edificio y oficinas",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Abate Molina 502",
+  "superficieM2": 2418,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/abate-molina-502/1.jpg",
+      "alt": "Render del edificio de esquina de Abate Molina 502"
+    }
+  ]
+}
