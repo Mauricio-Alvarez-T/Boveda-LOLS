@@ -255,3 +255,58 @@ describe('saneoArchivos — marcadores', () => {
         expect(() => archivos.escribirMarcador('../fuera.pdf')).toThrow(/fuera de uploads/);
     });
 });
+
+describe('saneoStaging — Sitio web (mig 147)', () => {
+    test('borra obras, publicaciones e historial fuera de la gracia; las fotos caen por CASCADE', async () => {
+        const db = { query: jest.fn(async () => [{ affectedRows: 2 }]) };
+        const out = await saneo.limpiarSitioWeb(db, { graciaHoras: 48 });
+        const sql = db.query.mock.calls.map(c => c[0]).join(' | ');
+        expect(sql).toMatch(/DELETE FROM sitio_obras WHERE created_at < \(NOW\(\) - INTERVAL \? HOUR\)/);
+        expect(sql).toMatch(/DELETE FROM sitio_publicaciones WHERE created_at < \(NOW\(\) - INTERVAL \? HOUR\)/);
+        expect(sql).toMatch(/DELETE FROM sitio_web_historial[\s\S]*sitio_obra_id NOT IN \(SELECT id FROM sitio_obras\)/);
+        expect(db.query.mock.calls.every(c => c[1][0] === 48)).toBe(true);
+        expect(out).toEqual({ sitio_obras: 2, sitio_publicaciones: 2, sitio_web_historial: 2 });
+    });
+
+    test('sin la migración 147 (1146) no aborta el saneo', async () => {
+        const db = { query: jest.fn(async () => { const e = new Error("Table doesn't exist"); e.errno = 1146; throw e; }) };
+        expect(await saneo.limpiarSitioWeb(db)).toEqual({ sitio_obras: null, sitio_publicaciones: null, sitio_web_historial: null });
+        expect(await saneo.pendienteSitioWeb(db)).toBe(0);
+    });
+
+    test('pendienteSitioWeb: cuenta obras y publicaciones fuera de la gracia (el cron --auto limpia aunque no haya foráneos)', async () => {
+        const db = { query: jest.fn().mockResolvedValueOnce([[{ n: 2 }]]).mockResolvedValueOnce([[{ n: 3 }]]) };
+        expect(await saneo.pendienteSitioWeb(db, { graciaHoras: 48 })).toBe(5);
+        expect(db.query.mock.calls[0]).toEqual(['SELECT COUNT(*) AS n FROM sitio_obras WHERE created_at < (NOW() - INTERVAL ? HOUR)', [48]]);
+        expect(db.query.mock.calls[1][0]).toMatch(/FROM sitio_publicaciones WHERE created_at < \(NOW\(\) - INTERVAL \? HOUR\)/);
+        const otro = { query: jest.fn(async () => { throw Object.assign(new Error('se cayó'), { errno: 2013 }); }) };
+        await expect(saneo.pendienteSitioWeb(otro)).rejects.toThrow('se cayó');
+    });
+
+    test('archivos: borra las carpetas de obras que ya no están y tmp/, deja las vigentes', () => {
+        const fs = require('fs');
+        const os = require('os');
+        const path = require('path');
+        const base = fs.mkdtempSync(path.join(os.tmpdir(), 'saneo-sitio-'));
+        for (const d of ['3', '4', 'tmp', 'otra']) fs.mkdirSync(path.join(base, 'sitio-web', d), { recursive: true });
+        fs.writeFileSync(path.join(base, 'sitio-web', '4', 'x-maestra.jpg'), 'x');
+        expect(archivos.borrarSitioWebHuerfano([3], base)).toBe(2);
+        expect(fs.readdirSync(path.join(base, 'sitio-web')).sort()).toEqual(['3', 'otra']);
+        expect(archivos.borrarSitioWebHuerfano([3], path.join(base, 'no-existe'))).toBe(0);
+        fs.rmSync(base, { recursive: true, force: true });
+    });
+
+    test('archivos: los ZIP de simulación de publicaciones que ya no están se borran; los vigentes quedan', () => {
+        const fs = require('fs');
+        const os = require('os');
+        const path = require('path');
+        const base = fs.mkdtempSync(path.join(os.tmpdir(), 'saneo-sitio-'));
+        const dir = path.join(base, 'sitio-web', 'paquetes');
+        fs.mkdirSync(dir, { recursive: true });
+        for (const n of ['7.zip', '8.zip', 'leeme.txt']) fs.writeFileSync(path.join(dir, n), 'x');
+        expect(archivos.borrarPaquetesSitioWebHuerfanos([7], base)).toBe(1);
+        expect(fs.readdirSync(dir).sort()).toEqual(['7.zip', 'leeme.txt']);
+        expect(archivos.borrarPaquetesSitioWebHuerfanos([7], path.join(base, 'no-existe'))).toBe(0);
+        fs.rmSync(base, { recursive: true, force: true });
+    });
+});

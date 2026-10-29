@@ -273,4 +273,4 @@ if (require.main === module) {
     main();
 }
 
-module.exports = { findUnexpectedDuplicates, getMigrationNumber, KNOWN_DUPLICATE_PREFIXES };
+module.exports = { findUnexpectedDuplicates, getMigrationNumber, listMigrationFiles, KNOWN_DUPLICATE_PREFIXES };

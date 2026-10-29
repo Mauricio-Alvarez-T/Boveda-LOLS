@@ -94,6 +94,7 @@ export const SECCIONES_META: Record<Seccion, SeccionMeta> = {
             'Obras',
             'Cargos',
             'Sistema',
+            'Sitio web',
         ],
     },
 };
@@ -248,6 +249,11 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'sistema.alertas_documentos.gestionar':    { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar' },
     'ideas.revisar':                           { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar' },
     'costos.gestionar':                        { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar', sensible: 'financiero' },
+
+    // Sitio web (mig 147): publicar en lols.cl es crítico (queda en el historial público del sitio).
+    'sitio_web.ver':                           { seccion: 'configuracion', subseccion: 'Sitio web', verbo: 'ver' },
+    'sitio_web.editar':                        { seccion: 'configuracion', subseccion: 'Sitio web', verbo: 'editar' },
+    'sitio_web.publicar':                      { seccion: 'configuracion', subseccion: 'Sitio web', verbo: 'aprobar', sensible: 'critico' },
 };
 
 /** Etiqueta para claves no mapeadas (fallback safety). */

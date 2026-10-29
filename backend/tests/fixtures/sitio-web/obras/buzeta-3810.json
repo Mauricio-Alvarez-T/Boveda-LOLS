@@ -1,0 +1,26 @@
+{
+  "slug": "buzeta-3810",
+  "orden": 20,
+  "estado": "contratado",
+  "nombre": "Buzeta 3810",
+  "titular": "Centro de bodegas, 2 pisos y 1 subterráneo.",
+  "tipo": "Centro de bodegas",
+  "mandante": null,
+  "comuna": "Estación Central",
+  "direccion": "Buzeta 3810",
+  "superficieM2": 27569,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/buzeta-3810/1.jpg",
+      "alt": "Render del centro de bodegas de Buzeta 3810"
+    }
+  ]
+}

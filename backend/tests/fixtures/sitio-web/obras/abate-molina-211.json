@@ -1,0 +1,26 @@
+{
+  "slug": "abate-molina-211",
+  "orden": 90,
+  "estado": "terminado",
+  "nombre": "Abate Molina 211",
+  "titular": "Locales comerciales y oficinas, 6 pisos.",
+  "tipo": "Edificio y oficinas",
+  "mandante": "Electrónica Kolm Ltda.",
+  "comuna": "Santiago",
+  "direccion": "Abate Molina 211, esquina Sazié 2605",
+  "superficieM2": 581,
+  "anio": 2018,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/abate-molina-211/1.jpg",
+      "alt": "Edificio de seis pisos en la esquina de Abate Molina y Sazié"
+    }
+  ]
+}

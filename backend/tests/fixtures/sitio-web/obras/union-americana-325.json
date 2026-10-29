@@ -1,0 +1,26 @@
+{
+  "slug": "union-americana-325",
+  "orden": 20,
+  "estado": "en-curso",
+  "nombre": "Unión Americana 325",
+  "titular": "Locales comerciales, bodegas y oficinas, 2 pisos.",
+  "tipo": "Edificio y oficinas",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Unión Americana 325",
+  "superficieM2": 1566,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/union-americana-325/1.jpg",
+      "alt": "Render del edificio de Unión Americana 325, con dos locales comerciales"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import type React from 'react';
 import {
-    Archive, BookOpen, Calculator, CheckSquare, Inbox, KeyRound, LayoutDashboard, Lightbulb, Package, SearchCheck, Settings,
+    Archive, BookOpen, Calculator, CheckSquare, Globe, Inbox, KeyRound, LayoutDashboard, Lightbulb, Package, SearchCheck, Settings,
     Truck, UserSearch,
 } from 'lucide-react';
 import type { ClaveTarjeta } from './accesosPerfil';
@@ -17,6 +17,7 @@ export const ICONO_MENU: Record<ClaveTarjeta, React.ElementType> = {
     vehiculos: Truck,
     obras_finalizadas: Archive,
     presupuestos: Calculator,
+    sitio_web: Globe,
     ayuda: BookOpen,
     revisar_ideas: Inbox,
     soporte: UserSearch,

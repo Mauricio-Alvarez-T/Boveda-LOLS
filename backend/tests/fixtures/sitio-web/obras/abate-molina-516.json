@@ -1,0 +1,26 @@
+{
+  "slug": "abate-molina-516",
+  "orden": 50,
+  "estado": "contratado",
+  "nombre": "Abate Molina 516",
+  "titular": "Locales comerciales, bodegas y oficinas, 3 pisos.",
+  "tipo": "Edificio y oficinas",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Abate Molina 516 y 520",
+  "superficieM2": 1245,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/abate-molina-516/1.jpg",
+      "alt": "Render del edificio de Abate Molina 516 y 520"
+    }
+  ]
+}

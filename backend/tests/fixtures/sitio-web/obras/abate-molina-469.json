@@ -1,0 +1,26 @@
+{
+  "slug": "abate-molina-469",
+  "orden": 110,
+  "estado": "terminado",
+  "nombre": "Abate Molina 469",
+  "titular": null,
+  "tipo": null,
+  "mandante": "Comercial Eiffel Ltda.",
+  "comuna": "Santiago",
+  "direccion": "Abate Molina 469",
+  "superficieM2": null,
+  "anio": 2016,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/abate-molina-469/1.jpg",
+      "alt": "Edificio de Abate Molina 469, obra terminada por LOLS en 2016"
+    }
+  ]
+}

@@ -257,6 +257,11 @@ const DEFS: PantallaDef[] = [
         x('usuarios.permisos.gestionar', 'Cambiar permisos')] },
     { id: 'presupuestos', nombre: 'Presupuestos', grupo: 'configuracion', dinero: true, etiquetas: ['Todo'], items: [
         i('costos.gestionar', 'Presupuestos y gastos de cada obra', 1)] },
+    // Sitio web (mig 147). Publicar en lols.cl es delicado: queda en el historial público del sitio y se da a mano.
+    { id: 'sitio_web', nombre: 'Sitio web', grupo: 'configuracion', etiquetas: ['Mira', 'Edita'], items: [
+        i('sitio_web.ver', 'Ver las obras del sitio y su estado', 1),
+        i('sitio_web.editar', 'Editar las obras y subir sus fotos', 2),
+        x('sitio_web.publicar', 'Aprobar fotos y publicar en lols.cl')] },
     { id: 'sistema', nombre: 'Sistema', grupo: 'configuracion', libre: true, sinVer: true, items: [
         i('sistema.logs.ver', 'Ver historial de actividad', 1),
         i('sistema.plantillas.gestionar', 'Plantillas de correo', 3),

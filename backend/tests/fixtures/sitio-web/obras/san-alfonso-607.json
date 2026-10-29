@@ -1,0 +1,22 @@
+{
+  "slug": "san-alfonso-607",
+  "orden": 10,
+  "estado": "terminado",
+  "nombre": "San Alfonso 607",
+  "titular": "Locales comerciales y bodegas para arriendo, 4 pisos y 1 subterráneo.",
+  "tipo": "Edificio comercial",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "San Alfonso 607",
+  "superficieM2": 1436,
+  "anio": 2026,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [],
+  "referencia": "fotosObrasEjemplo/san-alfonso-607"
+}

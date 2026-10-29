@@ -18,9 +18,10 @@ import type { ActividadEstado } from '../types/actividadesSugeridas';
 import type { ElementType } from 'react';
 import {
     Clock, CheckCircle2, Truck, PackageOpen, PackageCheck, XCircle, Ban,
-    ArrowUp, ArrowDown, Download, Upload,
+    ArrowUp, ArrowDown, Download, Upload, PencilLine, CloudUpload, AlertTriangle, MinusCircle, FlaskConical,
 } from 'lucide-react';
 import type { SolicitudIngresoEstado, DocumentoEstado } from '../types/entities';
+import type { EstadoDerivado, EstadoFoto, EstadoPublicacion } from '../types/sitioWeb';
 
 export interface StatusConfigEntry {
     label: string;
@@ -161,6 +162,38 @@ export const solicitudIngresoEstadoConfig: StatusMap<SolicitudIngresoEstado> = {
     rechazada: { label: 'Rechazada', classes: RED,   icon: XCircle,      borderLeft: 'border-l-red-400' },
 };
 
+/* ── Sitio web (lols.cl, mig 147): obra, foto y publicación ─────────── */
+// Color = significado (DS): verde = ya está en el sitio; ámbar = algo espera la próxima publicación o una
+// aprobación; azul = en camino (el sitio se está actualizando) o solo una prueba; rojo = no llegó o falló;
+// neutro = borrador o sin efecto.
+export const sitioWebEstadoConfig: StatusMap<EstadoDerivado> = {
+    borrador:         { label: 'Borrador',             classes: NEUTRAL, icon: PencilLine },
+    listo:            { label: 'Lista para publicar',  classes: AMBER,   icon: Clock },
+    cambios:          { label: 'Cambios sin publicar', classes: AMBER,   icon: Clock },
+    incompleta:       { label: 'Publicada · faltan datos', classes: AMBER, icon: AlertTriangle },
+    retiro_pendiente: { label: 'Se retira al publicar', classes: AMBER,  icon: MinusCircle },
+    publicando:       { label: 'Publicando',           classes: BLUE,    icon: CloudUpload },
+    publicada:        { label: 'Publicada',            classes: GREEN,   icon: CheckCircle2 },
+    no_llego:         { label: 'No llegó al sitio',    classes: RED,     icon: AlertTriangle },
+};
+
+export const sitioWebFotoConfig: StatusMap<EstadoFoto> = {
+    vigente:       { label: 'En la portada', classes: GREEN, icon: CheckCircle2 },
+    aprobada:      { label: 'Aprobada',      classes: GREEN, icon: CheckCircle2 },
+    por_aprobar:   { label: 'Por aprobar',   classes: AMBER, icon: Clock },
+    sin_confirmar: { label: 'Sin confirmar', classes: AMBER, icon: Clock },
+    rechazada:     { label: 'Rechazada',     classes: RED,   icon: XCircle },
+};
+
+export const sitioWebPublicacionConfig: StatusMap<EstadoPublicacion> = {
+    en_curso:     { label: 'En curso',     classes: BLUE,    icon: CloudUpload },
+    ok:           { label: 'Publicada',    classes: GREEN,   icon: CheckCircle2 },
+    sin_cambios:  { label: 'Sin cambios',  classes: NEUTRAL, icon: MinusCircle },
+    simulada:     { label: 'Simulada',     classes: BLUE,    icon: FlaskConical },
+    error:        { label: 'Falló',        classes: RED,     icon: XCircle },
+    interrumpida: { label: 'Interrumpida', classes: NEUTRAL, icon: Ban },
+};
+
 /* ── Registro por dominio (para <StatusBadge domain=... />) ─────────── */
 export const statusDomains = {
     transferencia: transferenciaEstadoConfig,
@@ -174,6 +207,9 @@ export const statusDomains = {
     actividadEstado: actividadEstadoConfig,
     solicitudIngresoEstado: solicitudIngresoEstadoConfig,
     documentoEstado: documentoEstadoConfig,
+    sitioWeb: sitioWebEstadoConfig,
+    sitioWebFoto: sitioWebFotoConfig,
+    sitioWebPublicacion: sitioWebPublicacionConfig,
 } as const;
 
 export type StatusDomain = keyof typeof statusDomains;

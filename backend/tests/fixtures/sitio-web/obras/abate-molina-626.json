@@ -1,0 +1,26 @@
+{
+  "slug": "abate-molina-626",
+  "orden": 40,
+  "estado": "contratado",
+  "nombre": "Abate Molina 626",
+  "titular": "Locales comerciales, bodegas y oficinas, 4 pisos.",
+  "tipo": "Edificio y oficinas",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Abate Molina 626",
+  "superficieM2": 1588,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/abate-molina-626/1.jpg",
+      "alt": "Render del edificio de Abate Molina 626"
+    }
+  ]
+}

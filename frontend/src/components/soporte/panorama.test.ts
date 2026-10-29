@@ -39,7 +39,7 @@ describe('columnasPanorama: las secciones del menú lateral, en su orden, y «Co
         const cols = columnasPanorama('Comparte tu idea');
         expect(cols.map(c => c.clave)).toEqual([...SECCIONES_MENU.map(s => s.clave), 'buzon_ideas']);
         expect(cols.map(c => c.clave)).toEqual([
-            'inicio', 'asistencia', 'gestiones', 'inventario', 'vehiculos', 'obras_finalizadas', 'presupuestos', 'ayuda',
+            'inicio', 'asistencia', 'gestiones', 'inventario', 'vehiculos', 'obras_finalizadas', 'presupuestos', 'sitio_web', 'ayuda',
             'revisar_ideas', 'soporte', 'configuracion', 'buzon_ideas',
         ]);
         expect(cols.find(c => c.clave === 'obras_finalizadas')?.label).toBe('Obras Finalizadas');

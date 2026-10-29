@@ -1,0 +1,22 @@
+{
+  "slug": "maipu-40",
+  "orden": 50,
+  "estado": "en-curso",
+  "nombre": "Maipú 40",
+  "titular": "Locales comerciales y bodegas para arriendo, 4 pisos y 1 subterráneo.",
+  "tipo": "Edificio comercial",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Maipú 40-A y 40-B",
+  "superficieM2": 2686,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [],
+  "referencia": "rendersEjemplo/maipu-40"
+}

@@ -1,0 +1,26 @@
+{
+  "slug": "alameda-2740",
+  "orden": 70,
+  "estado": "contratado",
+  "nombre": "Portal Edwards",
+  "titular": "Locales comerciales y bodegas en el segundo piso del Portal Edwards, en estructura metálica.",
+  "tipo": "Habilitación",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Alameda 2740, piso 2",
+  "superficieM2": null,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/alameda-2740/1.jpg",
+      "alt": "Render del acceso a los locales del segundo piso del Portal Edwards"
+    }
+  ]
+}

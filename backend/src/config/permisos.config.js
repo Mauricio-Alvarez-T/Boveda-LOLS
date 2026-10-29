@@ -172,6 +172,13 @@ const MAESTRO_PERMISOS = [
     // Costos de obra (mig 122): un solo permiso para ver, agregar, modificar y borrar. Se asigna por usuario.
     ['costos.gestionar',             'Sistema', '$ Costos de obra',                'Presupuestos y costos: ver, agregar, modificar y borrar el presupuesto por partidas, los gastos con foto de factura y el resumen de cada obra', 11],
 
+    // SITIO WEB (mig 147): las obras de lols.cl se editan y publican desde la Bóveda. Mismos textos que la migración.
+    // `publicar` es delicada (lo publicado queda en el historial PÚBLICO del sitio): ningún nivel por pantalla de
+    // Configuración › Roles la da sola.
+    ['sitio_web.ver',      'Sitio web', 'Ver sitio web',              'Sitio web: ver las obras de lols.cl, sus fotos, la vista previa y el estado de cada publicación', 1],
+    ['sitio_web.editar',   'Sitio web', 'Editar obras del sitio web', 'Sitio web: crear y editar las obras (borradores), ordenarlas, incluirlas o quitarlas del sitio y subir sus fotos confirmando que no se reconoce a nadie', 2],
+    ['sitio_web.publicar', 'Sitio web', '⚠️ Publicar en lols.cl',     'Sitio web: aprobar y rechazar fotos y publicar en el sitio público lols.cl (lo publicado queda en el historial público del sitio)', 3],
+
     // INICIO (mig 134): el tablero de gerencia arriba del Inicio. Cada tema pide además el permiso de su módulo.
     ['inicio.gerencia',  'Inicio', 'Inicio de gerencia', 'Inicio → tablero «N temas esperan una decisión» arriba de las tarjetas: faltas reiteradas, papeles de vehículos, pérdidas en Inventario, documentos de trabajadores, papeles laborales atrasados y solicitudes trabadas. Cada tema se ve solo con el permiso de su módulo. Los montos de Inventario, solo con "Ver Costos de Inventario" o "Ver Valores en Resumen Ejecutivo".', 1],
 

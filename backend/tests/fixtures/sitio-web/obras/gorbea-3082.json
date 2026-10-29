@@ -1,0 +1,22 @@
+{
+  "slug": "gorbea-3082",
+  "orden": 60,
+  "estado": "en-curso",
+  "nombre": "Gorbea 3082",
+  "titular": "Locales comerciales y bodegas para arriendo, 5 pisos y 1 subterráneo.",
+  "tipo": "Edificio comercial",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Gorbea 3082",
+  "superficieM2": 963,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [],
+  "referencia": "rendersEjemplo/gorbea-3082"
+}

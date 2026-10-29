@@ -105,6 +105,27 @@ describe('aplicarNivel y alternarClave', () => {
     });
 });
 
+describe('Sitio web (mig 147)', () => {
+    test('dos niveles, «Mira» y «Edita»; publicar en lols.cl no lo da ninguno (se marca a mano)', () => {
+        const p = pantalla('sitio_web');
+        expect(p.grupo).toBe('configuracion');
+        expect(p.niveles.map(n => [n.etiqueta, n.claves])).toEqual([
+            ['Mira', ['sitio_web.ver']],
+            ['Edita', ['sitio_web.ver', 'sitio_web.editar']],
+        ]);
+        expect(p.items.find(it => it.clave === 'sitio_web.publicar')?.marca).toBe('delicado');
+        expect(p.dinero).toBeFalsy();
+        expect(p.libre).toBeFalsy();
+    });
+
+    test('«Edita» no trae publicar; publicar suelto marca delicado sin cambiar el nivel', () => {
+        const p = pantalla('sitio_web');
+        expect(aplicarNivel([], p, 2)).not.toContain('sitio_web.publicar');
+        const con = alternarClave(aplicarNivel([], p, 1), p, 'sitio_web.publicar');
+        expect(nivelDe(set(con), p)).toMatchObject({ etiqueta: 'Mira', delicado: true });
+    });
+});
+
 describe('rolesGemelos', () => {
     test('agrupa roles con los mismos permisos, el grupo más grande primero', () => {
         const perms: Record<number, string[]> = { 2: ['a', 'b'], 3: ['b', 'a'], 4: ['a'], 5: ['a', 'b'], 6: ['a'] };

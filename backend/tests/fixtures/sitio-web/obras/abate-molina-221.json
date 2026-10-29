@@ -1,0 +1,26 @@
+{
+  "slug": "abate-molina-221",
+  "orden": 80,
+  "estado": "terminado",
+  "nombre": "Abate Molina 221",
+  "titular": "Locales comerciales y oficinas, 2 pisos y 1 subterráneo.",
+  "tipo": "Edificio y oficinas",
+  "mandante": "Electrónica Kolm Ltda.",
+  "comuna": "Santiago",
+  "direccion": "Abate Molina 221",
+  "superficieM2": 3452,
+  "anio": 2019,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/abate-molina-221/1.jpg",
+      "alt": "Edificio de Electrónica Kolm en Abate Molina 221"
+    }
+  ]
+}

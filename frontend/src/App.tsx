@@ -23,6 +23,8 @@ const CentroAyudaPage = lazyWithRetry(cargarPagina.ayuda);
 const SettingsPage = lazyWithRetry(cargarPagina.configuracion);
 const IdeasPage = lazyWithRetry(cargarPagina.ideas);
 const CostosPage = lazyWithRetry(cargarPagina.costos);
+// Sitio web (mig 147): las obras de lols.cl.
+const SitioWebPage = lazyWithRetry(cargarPagina.sitioWeb);
 // Soporte · usuarios (2026-10-23): solo Super Administrador; el servidor lo verifica en cada petición.
 const SoportePage = lazyWithRetry(cargarPagina.soporte);
 
@@ -70,6 +72,7 @@ const App: React.FC = () => {
             <Route path="configuracion" element={<SettingsPage />} />
             <Route path="ideas" element={<IdeasPage />} />
             <Route path="costos" element={<CostosPage />} />
+            <Route path="sitio-web" element={<SitioWebPage />} />
             <Route path="soporte" element={<SoportePage />} />
           </Route>
 

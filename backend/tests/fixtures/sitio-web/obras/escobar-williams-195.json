@@ -1,0 +1,22 @@
+{
+  "slug": "escobar-williams-195",
+  "orden": 40,
+  "estado": "en-curso",
+  "nombre": "Escobar Williams 195",
+  "titular": "Locales comerciales y bodegas para arriendo, 2 pisos y altillo.",
+  "tipo": "Edificio comercial",
+  "mandante": null,
+  "comuna": "Cerrillos",
+  "direccion": "Escobar Williams 195",
+  "superficieM2": 5377,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [],
+  "referencia": "rendersEjemplo/escobar-williams-195"
+}

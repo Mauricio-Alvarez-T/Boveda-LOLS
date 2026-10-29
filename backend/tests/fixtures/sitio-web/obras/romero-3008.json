@@ -1,0 +1,26 @@
+{
+  "slug": "romero-3008",
+  "orden": 10,
+  "estado": "contratado",
+  "nombre": "Romero 3008",
+  "titular": "Locales comerciales y oficinas, 3 pisos y 2 subterráneos.",
+  "tipo": "Edificio y oficinas",
+  "mandante": null,
+  "comuna": "Santiago",
+  "direccion": "Romero 3008",
+  "superficieM2": 4301,
+  "anio": null,
+  "inicio": null,
+  "servicios": [
+    "construccion"
+  ],
+  "desafio": null,
+  "solucion": null,
+  "resultado": null,
+  "fotos": [
+    {
+      "src": "/proyectos/romero-3008/1.jpg",
+      "alt": "Render del edificio de esquina de Romero 3008"
+    }
+  ]
+}
