@@ -1,0 +1,40 @@
+{
+  "id": "/",
+  "name": "Bóveda TEST",
+  "short_name": "Bóveda TEST",
+  "description": "Entorno de pruebas (datos ficticios). Asistencia, gestiones, inventario y vehículos de LOLS Ingeniería.",
+  "lang": "es-CL",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#F59E0B",
+  "icons": [
+    {
+      "src": "/icon-test-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-test-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-test-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-test-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es" translate="no">
+
+<head>
+  <meta name="google" content="notranslate" />
+  <meta charset="UTF-8" />
+  <script>
+    // Anti-FOUC: aplica el tema guardado antes del primer paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('sgdl_theme');
+        var sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        // Default = claro. Sólo aplicamos oscuro si el usuario eligió 'dark',
+        // o eligió 'system' y su SO está en oscuro. Sin preferencia → claro.
+        if (t === 'dark' || (t === 'system' && sysDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) { /* noop */ }
+    })();
+  </script>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon-test.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F59E0B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bóveda TEST">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Inter (familia UI, con optical sizing para titulares grandes estilo SF Pro)
+       + DM Sans 700 SOLO para el wordmark del Logo (Logo.tsx usa DM Sans en su SVG).
+       Sin bloquear (2026-10-21, celular lento): como hoja normal de otro dominio, el navegador no corría la
+       app hasta bajarla. Se pide como `preload` y se aplica al llegar; mientras, la letra del sistema
+       (display=swap ya lo permitía). -->
+  <link rel="preload" as="style"
+    href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=DM+Sans:wght@700&display=swap"
+    onload="this.onload=null;this.rel='stylesheet'">
+  <noscript>
+    <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=DM+Sans:wght@700&display=swap">
+  </noscript>
+  <title>Bóveda LOLS</title>
+  <script type="module" crossorigin src="/assets/index-Dd-yBR_3.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/vendor-react-C3_AWBhA.js">
+  <link rel="modulepreload" crossorigin href="/assets/vendor-movimiento-DqwAnGlF.js">
+  <link rel="modulepreload" crossorigin href="/assets/vendor-base-BjvgenFJ.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-CATejI4e.css">
+</head>
+
+<body>
+  <div id="root"></div>
+</body>
+
+</html>
