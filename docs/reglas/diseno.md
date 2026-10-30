@@ -91,6 +91,7 @@ Tokens en `index.css` (`@theme inline` + `:root`/`.dark`): `brand-primary`,
 | `StatusBadge` | estado de **dominio** (transferencia, obra, stock…) | `domain`+`status`+`showIcon`, o `tone`+`label` |
 | `EmptyState` | listado/grid sin datos | icon, title, description, action |
 | `Section` | card con título + cuerpo | title, action, children |
+| `CargaIsotipo` | pantalla completa mientras abre Bóveda o se inicia sesión (§9.18) | mensajes, className |
 | `Input`/`Select`/`SearchableSelect`/`Modal`/`SearchBar`/`PageHeader` | (existentes) | — |
 
 **Anti-pattern:** `<button>` crudo. Usar `Button` (texto) o `IconButton` (icono).
@@ -814,9 +815,10 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     lo que va a llegar en gris neutro (`bg-muted`) con un **reflejo que lo cruza de izquierda a derecha** (`.silueta`
     en `index.css`: `::after` con `transform`, 1,5 s en bucle — lo mueve la tarjeta gráfica, no repinta; con «reducir
     movimiento» queda quieto). No es un pulso (todo el bloque prendiendo y apagando, que se leía como lentitud).
-    - **Al abrir Bóveda** (`App.tsx` mientras se revisa la sesión): `layout/SiluetaApp` — logo de verdad, menú
-      lateral, barra de arriba y tarjetas del Inicio en gris; en `/login`, `SiluetaLogin` (panel oscuro con logo +
-      formulario en gris). Antes: una rueda verde en medio de la pantalla vacía.
+    - **Al abrir Bóveda** (`App.tsx` mientras se revisa la sesión): desde el 2026-10-30 el isotipo al centro
+      (`ui/CargaIsotipo`, §9.18); del 29 al 30-10 fue `layout/SiluetaApp` (logo, menú, barra y tarjetas en gris),
+      que queda en el código sin uso en `App.tsx`. En `/login`, mientras llega la pantalla, sigue `SiluetaLogin`
+      (panel oscuro con logo + formulario en gris). Antes del 29-10: una rueda verde en medio de la pantalla vacía.
     - **Cada apartado** (listas, tablas, tarjetas, fichas, ventanas, formularios): las piezas de `ui/Skeleton`
       (`Skeleton`, `SkeletonCirculo`, `Cargando`, `SkeletonFilas`, `SkeletonText`, `SkeletonLista`,
       `SkeletonTarjeta(s)`, `SkeletonFicha`, `SkeletonFormulario`), imitando el diseño real del componente. Lo que no
@@ -826,3 +828,16 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     - **Se quedan las ruedas de botón** (Guardar, Enviar, `MarcaEstado`, progreso de subida): avisan que un clic se
       está procesando, no que la página carga. Y el cambio de sección sigue EN SECO (§9.3): el menú y la barra no se
       repintan; solo el contenido que espera datos muestra su silueta.
+18. **Isotipo al centro mientras abre Bóveda: `ui/CargaIsotipo` (Marcos 2026-10-30, elegido en el lienzo de
+    ideas: «el logo ocupa el centro de la pantalla mientras se carga»).** El isotipo de LOLS se arma **al
+    centro**, pieza por pieza —losa de abajo, muro, bloque, ventanas, losa de arriba— en un ciclo de 2,6 s, con
+    «Bóveda» debajo y una frase de lo que está pasando. Se ve en dos momentos: **al abrir Bóveda** mientras se
+    revisa la sesión (`ProtectedRoute` y el `Suspense` de arriba fuera de `/login`; reemplaza a `SiluetaApp`,
+    §9.17) y **al iniciar sesión** (`Login` lo monta encima, `fixed inset-0`, mientras `isLoading`, con
+    «Verificando tus datos…» y «Abriendo tu obra…»; al entrar lo releva el de la sesión, sin blanco entre
+    medio). Dentro de cada apartado siguen las siluetas (§9.17) y en los botones sus ruedas. Es el mismo dibujo
+    de `Logo` (viewBox 220×240), en `text-brand-primary`. El loop es CSS (`.isotipo-carga` de `index.css`,
+    §9.1) y solo existe sin reduce-motion: con «reducir movimiento» el logo aparece completo y quieto. **Las
+    frases avanzan cada ~1,1 s y se quedan en la última**: no dan vueltas (§9.2) y no inventan trabajo que no se
+    hace. No agrega espera: se ve solo mientras la carga dura de verdad (§9.3). Los fondos animados del login que
+    se mostraron en el mismo lienzo quedaron sin elegir y siguen fuera (§9.2).

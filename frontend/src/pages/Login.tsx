@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, ExternalLink } from 'lucide-react';
 
 import { Button } from '../components/ui/Button';
+import { CargaIsotipo } from '../components/ui/CargaIsotipo';
 import { IconButton } from '../components/ui/IconButton';
 import { Input } from '../components/ui/Input';
 import { Logo } from '../components/ui/Logo';
@@ -182,6 +183,15 @@ const LoginPage: React.FC = () => {
                     </div>
                 </motion.div>
             </main>
+
+            {/* Mientras se verifica la cuenta, el isotipo ocupa la pantalla (diseno.md §9.18); al
+                entrar lo releva el de la carga de la sesión, sin una pantalla en blanco entre medio. */}
+            {isLoading && (
+                <CargaIsotipo
+                    className="fixed inset-0 z-50"
+                    mensajes={['Verificando tus datos…', 'Abriendo tu obra…']}
+                />
+            )}
         </div>
     );
 };
