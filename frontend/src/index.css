@@ -105,6 +105,46 @@
     .mensaje-carga { animation: mensaje-carga 250ms var(--ease-apple, cubic-bezier(0.25, 0.1, 0.25, 1)) both; }
 }
 
+/* FondoFaena (diseno.md §9.19): la obra de madrugada del panel oscuro del inicio de sesión. Las plumas
+   de las grúas giran (un scaleX que las da vuelta como vistas de lado), las cargas se mecen, las
+   balizas parpadean y las estrellas titilan; todo en CSS. Cada pieza que gira está dibujada con su
+   eje en (0,0) dentro de un `translate`, así el origen por defecto de SVG es el eje. Con «reducir
+   movimiento» no hay clases: la escena queda quieta. */
+@keyframes faena-gira {
+    0%, 100% { transform: scaleX(1); }
+    50%      { transform: scaleX(-1); }
+}
+@keyframes faena-pendulo {
+    0%, 100% { transform: rotate(-4deg); }
+    50%      { transform: rotate(4deg); }
+}
+@keyframes faena-baliza {
+    0%, 60%, 100% { opacity: 0.15; }
+    70%, 85%      { opacity: 1; }
+}
+@keyframes faena-titila {
+    0%, 100% { opacity: 0.2; }
+    50%      { opacity: 0.9; }
+}
+@keyframes faena-chispa {
+    from { transform: scale(0.2); opacity: 1; }
+    to   { transform: scale(2.4); opacity: 0; }
+}
+@keyframes faena-sube {
+    from { transform: translateY(12px); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .faena-gira-1 { animation: faena-gira 20s ease-in-out infinite; }
+    .faena-gira-2 { animation: faena-gira 26s ease-in-out -9s infinite; }
+    .faena-gira-3 { animation: faena-gira 16s ease-in-out -4s infinite; }
+    .faena-pendulo { animation: faena-pendulo 3.4s ease-in-out infinite; }
+    .faena-baliza { animation: faena-baliza 1.8s linear infinite; }
+    .faena-titila { animation: faena-titila 3s ease-in-out infinite; }
+    .faena-chispa { transform-box: fill-box; transform-origin: center; animation: faena-chispa 0.6s ease-out both; }
+    .faena-sube { animation: faena-sube 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+}
+
 /* Datos que reemplazan al contorno de carga (dueño 2026-10-22: «solo cargar el contorno de cada apartado
    primero y con un efecto rápido y de fade que aparezcan los datos»). El contorno (Skeleton y afines) va
    QUIETO, sin pulso; los datos llegan con este fundido de 160 ms, sin movimiento. Lo pone `hooks/useAparecer`

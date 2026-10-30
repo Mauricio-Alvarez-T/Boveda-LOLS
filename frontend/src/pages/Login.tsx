@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,12 +7,14 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Eye, EyeOff, ExternalLink } from 'lucide-react';
 
+import { FondoFaena } from '../components/auth/FondoFaena';
 import { Button } from '../components/ui/Button';
 import { CargaIsotipo } from '../components/ui/CargaIsotipo';
 import { IconButton } from '../components/ui/IconButton';
 import { Input } from '../components/ui/Input';
 import { Logo } from '../components/ui/Logo';
 import { useAuth } from '../context/AuthContext';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import api from '../services/api';
 import { cn } from '../utils/cn';
 import type { AuthResponse } from '../types';
@@ -40,13 +42,25 @@ const EnlacePaginaWeb: React.FC<{ className: string }> = ({ className }) => (
     </a>
 );
 
+/**
+ * Con la faena a la vista, el isotipo de carga espera a que amanezca en la obra (0,8 s) y asome el sol antes
+ * de tapar la pantalla (diseno.md §9.19). No agrega espera: si el servidor responde antes, se entra directo.
+ */
+const DEMORA_ISOTIPO_MS = 1200;
+
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
     const { login } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
+    const [verCarga, setVerCarga] = useState(false);
+    const demoraCarga = useRef<number | undefined>(undefined);
+    const formulario = useRef<HTMLFormElement>(null);
     /** El ojito: muestra la contraseña mientras se escribe (Marcos 2026-10-28). */
     const [verClave, setVerClave] = useState(false);
     const reduceMotion = useReducedMotion();
+    /** El panel oscuro solo existe en escritorio: ahí (y sin «reducir movimiento») corre la faena. */
+    const escritorio = useMediaQuery('(min-width: 1024px)');
+    const conFaena = escritorio && !reduceMotion;
     const year = new Date().getFullYear();
 
     const {
@@ -59,6 +73,8 @@ const LoginPage: React.FC = () => {
 
     const onSubmit = async (data: LoginForm) => {
         setIsLoading(true);
+        if (conFaena) demoraCarga.current = window.setTimeout(() => setVerCarga(true), DEMORA_ISOTIPO_MS);
+        else setVerCarga(true);
         try {
             const response = await api.post<AuthResponse>('/auth/login', data);
             login(response.data);
@@ -68,7 +84,9 @@ const LoginPage: React.FC = () => {
             const axiosError = err as { response?: { data?: { error?: string } } };
             toast.error(axiosError.response?.data?.error || 'Credenciales incorrectas');
         } finally {
+            window.clearTimeout(demoraCarga.current);
             setIsLoading(false);
+            setVerCarga(false);
         }
     };
 
@@ -104,9 +122,12 @@ const LoginPage: React.FC = () => {
                 className="relative hidden flex-col justify-between overflow-hidden p-14 text-white lg:flex"
                 style={{ background: 'radial-gradient(125% 125% at 0% 0%, #0d2c1c 0%, #0a0a0b 58%)' }}
             >
-                <Logo variant="white" className="w-[176px] h-auto" />
+                {/* Detrás del texto, la faena de madrugada (Marcos 2026-10-30, diseno.md §9.19) */}
+                {escritorio && <FondoFaena formulario={formulario} entrando={isLoading} quieto={!!reduceMotion} />}
 
-                <div className="max-w-md">
+                <Logo variant="white" className="relative w-[176px] h-auto" />
+
+                <div className="relative max-w-md">
                     <p className="text-display font-semibold leading-[1.05] tracking-display">
                         Toda tu obra,<br />en orden.
                     </p>
@@ -115,7 +136,7 @@ const LoginPage: React.FC = () => {
                     </p>
                 </div>
 
-                <div className="flex flex-col items-start gap-1 text-ui text-white/40">
+                <div className="relative flex flex-col items-start gap-1 text-ui text-white/40">
                     <p>LOLS Ingeniería © {year}</p>
                     <EnlacePaginaWeb className="text-white/70 hover:text-white focus-visible:ring-white/50" />
                 </div>
@@ -137,7 +158,7 @@ const LoginPage: React.FC = () => {
                         Accede a tu cuenta de Bóveda LOLS.
                     </p>
 
-                    <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
+                    <form ref={formulario} onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
                         <Input
                             label="Correo corporativo"
                             placeholder="nombre@lols.cl"
@@ -185,8 +206,9 @@ const LoginPage: React.FC = () => {
             </main>
 
             {/* Mientras se verifica la cuenta, el isotipo ocupa la pantalla (diseno.md §9.18); al
-                entrar lo releva el de la carga de la sesión, sin una pantalla en blanco entre medio. */}
-            {isLoading && (
+                entrar lo releva el de la carga de la sesión, sin una pantalla en blanco entre medio.
+                En escritorio aparece tras el amanecer de la faena (DEMORA_ISOTIPO_MS). */}
+            {verCarga && (
                 <CargaIsotipo
                     className="fixed inset-0 z-50"
                     mensajes={['Verificando tus datos…', 'Abriendo tu obra…']}
