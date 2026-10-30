@@ -22,10 +22,15 @@ const ESTRELLAS: [number, number][] = [
     [600, 130], [260, 200], [500, 220], [90, 230], [420, 260], [330, 30], [570, 300],
 ];
 
-/** Edificios del fondo: x, ancho y altura del techo. */
+/**
+ * Edificios del fondo: x, ancho y altura del techo. Los de x < 0 y x > 634 quedan fuera del dibujo de la
+ * maqueta: solo se ven cuando la franja es más ancha que la escena (tablet), para que la ciudad siga a los lados.
+ */
 const EDIFICIOS = [
+    { x: -270, w: 74, top: 548 }, { x: -192, w: 92, top: 505 }, { x: -96, w: 92, top: 578 },
     { x: 0, w: 66, top: 560 }, { x: 64, w: 54, top: 520 }, { x: 122, w: 92, top: 590 },
     { x: 326, w: 64, top: 470 }, { x: 396, w: 110, top: 540 }, { x: 588, w: 60, top: 575 },
+    { x: 652, w: 84, top: 522 }, { x: 742, w: 64, top: 566 }, { x: 812, w: 100, top: 498 }, { x: 918, w: 86, top: 584 },
 ];
 
 /** Líneas de losa del edificio en estructura (el de la derecha). */
@@ -33,15 +38,18 @@ const LOSAS_ESTRUCTURA = [1, 2, 3, 4, 5, 6, 7, 8].map((k) => SUELO_Y - ALTO_PISO
 
 const VERDE = '129,215,66';
 
-/** Alto del suelo en px de pantalla: el pie del panel (p-14 + dos líneas) cabe entero adentro. */
-const ALTO_SUELO_PX = 112;
-
 /**
  * Fondo «Faena de madrugada» del panel oscuro del inicio de sesión (Marcos 2026-10-30, diseno.md §9.19):
  * una obra de noche con grúas que giran y cargas que se mecen; el edificio del centro sube piso a piso
  * mientras avanza la hora (05:30 → 07:15). Cada tecla escrita lo empuja y saca una chispa; al entrar
- * amanece. Los giros y balizas son CSS (compositor); React solo mueve la hora cada 100 ms. Va montado
- * solo en escritorio (el panel no existe en el celular) y es decorativo: `aria-hidden`.
+ * amanece. Los giros y balizas son CSS (compositor); React solo mueve la hora cada 100 ms. Es decorativo:
+ * `aria-hidden`.
+ *
+ * Dos formas según el contenedor (`--suelo` es el alto del suelo, en px de pantalla):
+ * - Escritorio (panel izquierdo): la escena escala con el ANCHO y se para sobre un suelo de 112 px, donde cabe
+ *   entero el pie del panel (p-14 + dos líneas) sin edificios detrás.
+ * - Celular y tablet (franja de arriba): la escena llena la franja sobre un suelo de 2rem (`meet`, abajo y al
+ *   centro); si la franja es más ancha que la escena, la ciudad sigue a los lados con los edificios de afuera.
  */
 export const FondoFaena: React.FC<FondoFaenaProps> = ({ formulario, entrando, quieto = false }) => {
     const [estado, setEstado] = React.useState(FAENA_INICIAL);
@@ -70,13 +78,13 @@ export const FondoFaena: React.FC<FondoFaenaProps> = ({ formulario, entrando, qu
     const chispa = posicionChispa(estado.chispas, pisos);
 
     return (
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 [--suelo:2rem] lg:[--suelo:112px]">
             {/* Resplandor del amanecer, desde el horizonte (sobre el suelo) a la derecha */}
             <div
                 className="absolute inset-0 transition-opacity duration-1000"
                 style={{
                     opacity: 0.15 + avance * 0.85,
-                    background: `radial-gradient(70% 45% at 70% calc(100% - ${ALTO_SUELO_PX}px), rgba(${VERDE},0.55), rgba(2,158,77,0.25) 45%, rgba(2,158,77,0) 75%)`,
+                    background: `radial-gradient(70% 45% at 70% calc(100% - var(--suelo)), rgba(${VERDE},0.55), rgba(2,158,77,0.25) 45%, rgba(2,158,77,0) 75%)`,
                 }}
             />
 
@@ -91,8 +99,11 @@ export const FondoFaena: React.FC<FondoFaenaProps> = ({ formulario, entrando, qu
                 ))}
             </div>
 
-            {/* La faena: escala con el ancho del panel y se para sobre el suelo */}
-            <svg viewBox={`0 230 634 ${SUELO_Y - 230}`} className="absolute inset-x-0 h-auto w-full" style={{ bottom: ALTO_SUELO_PX }}>
+            {/* La faena, parada sobre el suelo: en la franja la llena; en el panel escala con el ancho */}
+            <svg
+                viewBox={`0 230 634 ${SUELO_Y - 230}`} preserveAspectRatio="xMidYMax meet"
+                className="absolute inset-x-0 bottom-[var(--suelo)] h-[calc(100%_-_var(--suelo))] w-full lg:h-auto"
+            >
                 <defs>
                     <radialGradient id="faena-sol">
                         <stop offset="0" stopColor="rgb(220,255,190)" stopOpacity="0.95" />
@@ -214,10 +225,10 @@ export const FondoFaena: React.FC<FondoFaenaProps> = ({ formulario, entrando, qu
                 </g>
             </svg>
 
-            {/* El suelo no escala: siempre alcanza para que el pie del panel quede sobre tierra, sin edificios detrás */}
-            <div className="absolute inset-x-0 bottom-0 border-t-2 border-[#22302a] bg-[#070908]" style={{ height: ALTO_SUELO_PX }} />
+            {/* El suelo no escala: en el panel alcanza para que el pie quede sobre tierra, sin edificios detrás */}
+            <div className="absolute inset-x-0 bottom-0 h-[var(--suelo)] border-t-2 border-[#22302a] bg-[#070908]" />
 
-            <p className="absolute bottom-5 right-6 text-section font-semibold tracking-[0.04em] tabular-nums" style={{ color: `rgba(${VERDE},0.85)` }}>
+            <p className="absolute bottom-1.5 right-4 text-section lg:bottom-5 lg:right-6 font-semibold tracking-[0.04em] tabular-nums" style={{ color: `rgba(${VERDE},0.85)` }}>
                 {rotuloFaena(avance)}
             </p>
         </div>

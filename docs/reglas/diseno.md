@@ -774,22 +774,33 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     hace. No agrega espera: se ve solo mientras la carga dura de verdad (§9.3).
 19. **Fondo del inicio de sesión: la faena de madrugada, `auth/FondoFaena` (Marcos 2026-10-30, opción 5 de la
     página «Login · construcción» del lienzo: «me gustó la 5, faena de madrugada»).** En el panel oscuro de la
-    izquierda (solo escritorio, ≥1024 px) hay una obra de noche: dos grúas grandes y una chica cuyas plumas giran,
+    izquierda (escritorio) o en la franja oscura de arriba (celular y tablet) hay una obra de noche: dos grúas grandes y una chica cuyas plumas giran,
     cargas que se mecen, balizas rojas, estrellas, ventanas encendidas y, al centro, un edificio que sube **de 2 a
     10 pisos mientras la hora avanza de 05:30 a 07:15** (rótulo abajo a la derecha). Sola amanece en 40 s, se
     queda 4 s y vuelve a empezar; **cada tecla escrita en el formulario la empuja** (+3,5 %) y saca una chispa de
     soldadura en el piso de arriba; **al pulsar «Iniciar sesión» corre al amanecer en 0,8 s** (resplandor verde en
     el horizonte, sale el sol, se apagan ventanas y estrellas) y a los 1,2 s entra el isotipo (§9.18) si el
-    servidor todavía no respondió. **No agrega espera**: si responde antes, se entra directo.
-    - **Cómo está hecho:** la escena es un SVG (viewBox de la maqueta, 634 de ancho) que escala con el ancho del
-      panel y se para sobre un **suelo de alto fijo (112 px)**, para que el pie («LOLS Ingeniería © · página web»)
-      quede siempre sobre tierra y no encima de los edificios. Giros, vaivenes, balizas, estrellas, chispa y pisos
+    servidor todavía no respondió. **No agrega espera**: si responde antes, se entra directo. Si al pulsar no se ve
+    al menos la mitad de la faena (celular con el teclado abierto: la franja queda arriba, fuera de la pantalla;
+    se mide contra `visualViewport`), el isotipo sale de inmediato.
+    - **Cómo está hecho:** la escena es un SVG (viewBox de la maqueta, 634×422) con `preserveAspectRatio="xMidYMax
+      meet"` que se para sobre un suelo de alto fijo (`--suelo`). En escritorio escala con el ancho del panel y el
+      suelo mide **112 px**, para que el pie («LOLS Ingeniería © · página web») quede siempre sobre tierra y no
+      encima de los edificios. Giros, vaivenes, balizas, estrellas, chispa y pisos
       nuevos son CSS (`.faena-*` de `index.css`, compositor, §9.1); React solo mueve la hora cada 100 ms (y se
       salta los tics con la pestaña oculta). La lógica (avance, pisos, hora, chispa) es pura en `auth/faena.ts`
       con su prueba. Las piezas que giran se dibujan con su eje en (0,0) dentro de un `translate`, así el origen
       por defecto de SVG es el eje.
-    - **Solo escritorio:** `Login` la monta con `useMediaQuery('(min-width: 1024px)')`; en el celular el panel no
-      existe y no corre nada.
+    - **Celular y tablet (<1024 px; Marcos 2026-10-30: «adaptarlo a la versión responsive mobile y tablets»):** el
+      mismo `<aside>` pasa a ser una **franja arriba del formulario**, solo con el logo blanco (120/150 px; el
+      titular y el pie del panel se esconden: el pie ya está abajo del formulario). Alto =
+      `min(66,56vw + 2rem, 42dvh, 400px)`: en el teléfono vertical la escena llena la franja justo (360 px → 272 px);
+      en la tablet o el teléfono acostado se topa y la escena queda al centro con **edificios de más a los lados**
+      (x < 0 y x > 634, fuera de la maqueta: en escritorio no se ven). Suelo de 2rem con el rótulo de la hora. Se
+      quitó el logo verde que iba arriba del formulario.
     - **«Reducir movimiento»:** la escena queda quieta a medio hacer (06:07, cinco pisos), sin reloj, sin teclas y
       sin clases de animación; el isotipo del ingreso aparece de inmediato.
     - Es decorativa: todo va `aria-hidden` y `pointer-events-none`; el texto del panel va encima (`relative`).
+    - Probada en 360×740, 393×852, 740×360, 768×1024, 820×1180, 1024×768, 1440×810 y 1920×1080 (sin scroll horizontal).
+      En el Android viejo de las pruebas, si se siente pesada, lo primero es bajar el reloj a 200 ms o quitar el
+      giro de la grúa chica: los giros de SVG repintan la franja en cada cuadro.
