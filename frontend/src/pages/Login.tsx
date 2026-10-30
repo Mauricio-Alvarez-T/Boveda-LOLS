@@ -14,7 +14,6 @@ import { IconButton } from '../components/ui/IconButton';
 import { Input } from '../components/ui/Input';
 import { Logo } from '../components/ui/Logo';
 import { useAuth } from '../context/AuthContext';
-import { useMediaQuery } from '../hooks/useMediaQuery';
 import api from '../services/api';
 import { cn } from '../utils/cn';
 import type { AuthResponse } from '../types';
@@ -45,6 +44,8 @@ const EnlacePaginaWeb: React.FC<{ className: string }> = ({ className }) => (
 /**
  * Con la faena a la vista, el isotipo de carga espera a que amanezca en la obra (0,8 s) y asome el sol antes
  * de tapar la pantalla (diseno.md §9.19). No agrega espera: si el servidor responde antes, se entra directo.
+ * Si la faena no se ve (celular con el teclado abierto y la franja arriba, fuera de la pantalla), el isotipo
+ * sale de inmediato, como antes.
  */
 const DEMORA_ISOTIPO_MS = 1200;
 
@@ -55,12 +56,10 @@ const LoginPage: React.FC = () => {
     const [verCarga, setVerCarga] = useState(false);
     const demoraCarga = useRef<number | undefined>(undefined);
     const formulario = useRef<HTMLFormElement>(null);
+    const panel = useRef<HTMLElement>(null);
     /** El ojito: muestra la contraseña mientras se escribe (Marcos 2026-10-28). */
     const [verClave, setVerClave] = useState(false);
     const reduceMotion = useReducedMotion();
-    /** El panel oscuro solo existe en escritorio: ahí (y sin «reducir movimiento») corre la faena. */
-    const escritorio = useMediaQuery('(min-width: 1024px)');
-    const conFaena = escritorio && !reduceMotion;
     const year = new Date().getFullYear();
 
     const {
@@ -71,9 +70,19 @@ const LoginPage: React.FC = () => {
         resolver: zodResolver(loginSchema),
     });
 
+    /** ¿Se ve al menos la mitad de la faena? Mide contra lo visible de verdad (`visualViewport`: sin el teclado). */
+    const faenaALaVista = () => {
+        const r = panel.current?.getBoundingClientRect();
+        if (reduceMotion || !r || r.height === 0) return false;
+        const vv = window.visualViewport;
+        const arriba = vv ? vv.offsetTop : 0;
+        const abajo = vv ? vv.offsetTop + vv.height : window.innerHeight;
+        return Math.min(r.bottom, abajo) - Math.max(r.top, arriba) >= r.height / 2;
+    };
+
     const onSubmit = async (data: LoginForm) => {
         setIsLoading(true);
-        if (conFaena) demoraCarga.current = window.setTimeout(() => setVerCarga(true), DEMORA_ISOTIPO_MS);
+        if (faenaALaVista()) demoraCarga.current = window.setTimeout(() => setVerCarga(true), DEMORA_ISOTIPO_MS);
         else setVerCarga(true);
         try {
             const response = await api.post<AuthResponse>('/auth/login', data);
@@ -115,19 +124,23 @@ const LoginPage: React.FC = () => {
     return (
         <div className="min-h-[100dvh] w-full bg-background lg:grid lg:grid-cols-[44%_56%]">
 
-            {/* ── Panel de marca (hero) — solo desktop ───────────────────── */}
-            {/* Superficie deliberadamente oscura con un sutil resplandor verde de marca:
-                neutro dominante + un toque del verde LOLS, estilo hero de apple.com. */}
+            {/* ── Panel de marca (hero) ─────────────────────────────────── */}
+            {/* Superficie deliberadamente oscura con un sutil resplandor verde de marca: neutro dominante + un toque
+                del verde LOLS, estilo hero de apple.com. En escritorio es el panel de la izquierda; en celular y
+                tablet, una franja arriba del formulario solo con el logo (Marcos 2026-10-30). Su alto sigue la
+                forma de la escena (634×422 → 66,56vw) más el suelo de 2rem, con tope en 42dvh y 400 px para que
+                el formulario no quede lejos. */}
             <aside
-                className="relative hidden flex-col justify-between overflow-hidden p-14 text-white lg:flex"
+                ref={panel}
+                className="relative flex h-[min(calc(66.56vw_+_2rem),42dvh,400px)] flex-col overflow-hidden p-5 text-white sm:p-8 lg:h-auto lg:justify-between lg:p-14"
                 style={{ background: 'radial-gradient(125% 125% at 0% 0%, #0d2c1c 0%, #0a0a0b 58%)' }}
             >
                 {/* Detrás del texto, la faena de madrugada (Marcos 2026-10-30, diseno.md §9.19) */}
-                {escritorio && <FondoFaena formulario={formulario} entrando={isLoading} quieto={!!reduceMotion} />}
+                <FondoFaena formulario={formulario} entrando={isLoading} quieto={!!reduceMotion} />
 
-                <Logo variant="white" className="relative w-[176px] h-auto" />
+                <Logo variant="white" className="relative h-auto w-[120px] sm:w-[150px] lg:w-[176px]" />
 
-                <div className="relative max-w-md">
+                <div className="relative hidden max-w-md lg:block">
                     <p className="text-display font-semibold leading-[1.05] tracking-display">
                         Toda tu obra,<br />en orden.
                     </p>
@@ -136,20 +149,15 @@ const LoginPage: React.FC = () => {
                     </p>
                 </div>
 
-                <div className="relative flex flex-col items-start gap-1 text-ui text-white/40">
+                <div className="relative hidden flex-col items-start gap-1 text-ui text-white/40 lg:flex">
                     <p>LOLS Ingeniería © {year}</p>
                     <EnlacePaginaWeb className="text-white/70 hover:text-white focus-visible:ring-white/50" />
                 </div>
             </aside>
 
             {/* ── Panel de formulario ────────────────────────────────────── */}
-            <main className="flex items-center justify-center px-6 py-12 sm:px-12">
+            <main className="flex items-center justify-center px-6 pb-12 pt-8 sm:px-12 sm:pt-10 lg:py-12">
                 <motion.div {...reveal} className="w-full max-w-[400px]">
-
-                    {/* Logo compacto solo en móvil (el hero no se muestra) */}
-                    <div className="mb-12 flex justify-center lg:hidden">
-                        <Logo variant="green" className="w-[176px] h-auto" />
-                    </div>
 
                     <h1 className="text-headline font-semibold tracking-headline text-foreground">
                         Inicia sesión
