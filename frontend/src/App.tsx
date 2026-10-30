@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { MainLayout } from './components/layout/MainLayout';
+import { CargaIsotipo } from './components/ui/CargaIsotipo';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { cargarPagina } from './paginas';
 
@@ -25,17 +26,14 @@ const CostosPage = lazyWithRetry(cargarPagina.costos);
 // Soporte · usuarios (2026-10-23): solo Super Administrador; el servidor lo verifica en cada petición.
 const SoportePage = lazyWithRetry(cargarPagina.soporte);
 
-const FullScreenSpinner: React.FC = () => (
-  <div className="min-h-[100dvh] bg-background flex items-center justify-center">
-    <div className="h-12 w-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
-  </div>
-);
-
+// Mientras abre (Marcos 2026-10-30, reemplaza a la rueda verde): el isotipo de LOLS se arma al centro
+// (diseno.md §9.18). El Suspense de arriba solo espera la primera pantalla (las secciones tienen el suyo
+// en MainLayout).
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return <FullScreenSpinner />;
+    return <CargaIsotipo />;
   }
 
   if (!isAuthenticated) {
@@ -48,7 +46,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <Suspense fallback={<FullScreenSpinner />}>
+      <Suspense fallback={<CargaIsotipo />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
 

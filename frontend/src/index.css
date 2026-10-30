@@ -55,6 +55,56 @@
     .numero-baja { animation: numero-baja 160ms var(--ease-apple, cubic-bezier(0.25, 0.1, 0.25, 1)) both; }
 }
 
+/* CargaIsotipo (diseno.md §9.18): el isotipo de LOLS se arma pieza por pieza mientras algo carga
+   —losa de abajo, muro, bloque, ventanas, losa de arriba— y se desvanece para volver a empezar.
+   Ciclo de 2,6 s en CSS (va en el compositor). Las clases solo existen sin reduce-motion: con
+   «reducir movimiento» el dibujo queda completo y quieto. Los `translateY` van en unidades del
+   viewBox (220×240) porque `transform-box: fill-box` las mide sobre la pieza. */
+@keyframes iso-losa-baja {
+    0%       { transform: scaleX(0); opacity: 1; }
+    12%, 82% { transform: scaleX(1); opacity: 1; }
+    94%, 100% { transform: scaleX(1); opacity: 0; }
+}
+@keyframes iso-muro {
+    0%, 10%  { transform: translateY(-70px); opacity: 0; }
+    26%, 82% { transform: none; opacity: 1; }
+    94%, 100% { transform: none; opacity: 0; }
+}
+@keyframes iso-bloque {
+    0%, 22%  { transform: translateY(-70px); opacity: 0; }
+    38%, 82% { transform: none; opacity: 1; }
+    94%, 100% { transform: none; opacity: 0; }
+}
+@keyframes iso-ventana-1 {
+    0%, 34%  { stroke-dashoffset: 220; opacity: 1; }
+    48%, 82% { stroke-dashoffset: 0; opacity: 1; }
+    94%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes iso-ventana-2 {
+    0%, 42%  { stroke-dashoffset: 220; opacity: 1; }
+    56%, 82% { stroke-dashoffset: 0; opacity: 1; }
+    94%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes iso-losa-alta {
+    0%, 54%  { transform: scaleX(0); opacity: 1; }
+    68%, 82% { transform: scaleX(1); opacity: 1; }
+    94%, 100% { transform: scaleX(1); opacity: 0; }
+}
+@keyframes mensaje-carga {
+    from { transform: translateY(8px); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .isotipo-carga .pieza { transform-box: fill-box; }
+    .isotipo-carga .losa-baja { transform-origin: left center; animation: iso-losa-baja 2.6s cubic-bezier(0.2, 0.7, 0.2, 1) infinite; }
+    .isotipo-carga .muro { animation: iso-muro 2.6s cubic-bezier(0.34, 1.45, 0.64, 1) infinite; }
+    .isotipo-carga .bloque { animation: iso-bloque 2.6s cubic-bezier(0.34, 1.45, 0.64, 1) infinite; }
+    .isotipo-carga .ventana-1 { stroke-dasharray: 220; animation: iso-ventana-1 2.6s ease-out infinite; }
+    .isotipo-carga .ventana-2 { stroke-dasharray: 220; animation: iso-ventana-2 2.6s ease-out infinite; }
+    .isotipo-carga .losa-alta { transform-origin: right center; animation: iso-losa-alta 2.6s cubic-bezier(0.2, 0.7, 0.2, 1) infinite; }
+    .mensaje-carga { animation: mensaje-carga 250ms var(--ease-apple, cubic-bezier(0.25, 0.1, 0.25, 1)) both; }
+}
+
 /* Datos que reemplazan al contorno de carga (dueño 2026-10-22: «solo cargar el contorno de cada apartado
    primero y con un efecto rápido y de fade que aparezcan los datos»). El contorno (Skeleton y afines) va
    QUIETO, sin pulso; los datos llegan con este fundido de 160 ms, sin movimiento. Lo pone `hooks/useAparecer`

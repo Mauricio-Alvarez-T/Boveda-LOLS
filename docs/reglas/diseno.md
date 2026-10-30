@@ -91,6 +91,7 @@ Tokens en `index.css` (`@theme inline` + `:root`/`.dark`): `brand-primary`,
 | `StatusBadge` | estado de **dominio** (transferencia, obra, stock…) | `domain`+`status`+`showIcon`, o `tone`+`label` |
 | `EmptyState` | listado/grid sin datos | icon, title, description, action |
 | `Section` | card con título + cuerpo | title, action, children |
+| `CargaIsotipo` | pantalla completa mientras abre Bóveda o se inicia sesión (§9.18) | mensajes, className |
 | `Input`/`Select`/`SearchableSelect`/`Modal`/`SearchBar`/`PageHeader` | (existentes) | — |
 
 **Anti-pattern:** `<button>` crudo. Usar `Button` (texto) o `IconButton` (icono).
@@ -753,3 +754,18 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       «Quien aprueba» = permiso efectivo de `inventario.transferencias.aprobar` sin el rol 1 (hoy, Leonardo).
     - Teléfono (bajo 768 px): una columna, todo objetivo de 44 px; el WhatsApp sigue arriba a la derecha (el título
       parte línea si no cabe).
+<!-- 16 (permisos en frases) y 17 (siluetas de carga) están en test (develop) y todavía no en producción;
+     por eso aquí la lista salta de 15 a 18. Los números se dejan iguales a los de develop y del código. -->
+18. **Isotipo al centro mientras abre Bóveda: `ui/CargaIsotipo` (Marcos 2026-10-30, elegido en el lienzo de
+    ideas: «el logo ocupa el centro de la pantalla mientras se carga»).** El isotipo de LOLS se arma **al
+    centro**, pieza por pieza —losa de abajo, muro, bloque, ventanas, losa de arriba— en un ciclo de 2,6 s, con
+    «Bóveda» debajo y una frase de lo que está pasando. Se ve en dos momentos: **al abrir Bóveda** mientras se
+    revisa la sesión (`ProtectedRoute` y el `Suspense` de arriba; reemplaza a la rueda verde `FullScreenSpinner`)
+    y **al iniciar sesión** (`Login` lo monta encima, `fixed inset-0`, mientras `isLoading`, con
+    «Verificando tus datos…» y «Abriendo tu obra…»; al entrar lo releva el de la sesión, sin blanco entre
+    medio). Dentro de cada apartado sigue su contorno de carga (§9.3) y en los botones sus ruedas. Es el mismo dibujo
+    de `Logo` (viewBox 220×240), en `text-brand-primary`. El loop es CSS (`.isotipo-carga` de `index.css`,
+    §9.1) y solo existe sin reduce-motion: con «reducir movimiento» el logo aparece completo y quieto. **Las
+    frases avanzan cada ~1,1 s y se quedan en la última**: no dan vueltas (§9.2) y no inventan trabajo que no se
+    hace. No agrega espera: se ve solo mientras la carga dura de verdad (§9.3). Los fondos animados del login que
+    se mostraron en el mismo lienzo quedaron sin elegir y siguen fuera (§9.2).
