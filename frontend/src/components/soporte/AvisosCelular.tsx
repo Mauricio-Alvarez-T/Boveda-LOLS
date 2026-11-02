@@ -1,17 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { BellOff, BellRing, Send, Smartphone, Stethoscope } from 'lucide-react';
+import { BellOff, BellRing, Bug, Send, Smartphone, Stethoscope } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Cargando, Skeleton } from '../ui/Skeleton';
 import {
-    FalloActivar, activarAvisos, avisoLocal, desactivarAvisos, estadoServidor, leerEstado, probarAviso,
+    FalloActivar, activarAvisos, avisoLocal, desactivarAvisos, estadoServidor, leerEstado, probarAviso, simularError,
     type CelularServidor, type EstadoAvisos,
 } from '../../services/avisosCelular';
 import { textoIngreso } from './fichaUsuario';
 
+/** «Simular un error» solo en test: en producción un error de prueba ensuciaría la bandeja de verdad. */
+const SIMULAR_ERROR = import.meta.env.VITE_ENTORNO === 'staging';
+
 /**
  * «Avisos en este celular» (mig 143, prueba piloto: solo el Super Administrador) arriba de Soporte → Errores: activar,
- * mandarse un aviso de prueba o desactivar. Cuando llega una falla real a Errores, el celular suena.
+ * mandarse un aviso de prueba o desactivar. Cuando llega algo por revisar a Errores, el celular suena (y llega un
+ * correo). En test, «Simular un error» manda uno de prueba por el camino real.
  * Para encontrar dónde se pierde un aviso: lo que respondió el servidor la última vez y «Probar solo este celular»
  * (un aviso que muestra el propio teléfono, sin internet).
  */
@@ -35,7 +39,7 @@ function textoServidor(lista: CelularServidor[] | null): string {
 export const AvisosCelular: React.FC = () => {
     const [estado, setEstado] = useState<EstadoAvisos | null>(null);
     const [servidor, setServidor] = useState<CelularServidor[] | null>(null);
-    const [ocupado, setOcupado] = useState<'activar' | 'probar' | 'desactivar' | 'local' | null>(null);
+    const [ocupado, setOcupado] = useState<'activar' | 'probar' | 'desactivar' | 'local' | 'simular' | null>(null);
 
     const leerServidor = useCallback(async () => {
         try { setServidor((await estadoServidor()).lista); } catch { setServidor(null); }
@@ -55,10 +59,14 @@ export const AvisosCelular: React.FC = () => {
         return () => { vivo = false; };
     }, []);
 
-    const hacer = async (que: 'activar' | 'probar' | 'desactivar' | 'local') => {
+    const hacer = async (que: 'activar' | 'probar' | 'desactivar' | 'local' | 'simular') => {
         setOcupado(que);
         try {
-            if (que === 'activar') {
+            if (que === 'simular') {
+                await simularError();
+                toast.success('Error de prueba en la bandeja. En unos segundos les llega a ti y a Mauricio, al celular y al correo.');
+                await leerServidor();
+            } else if (que === 'activar') {
                 const e = await activarAvisos();
                 setEstado(e);
                 if (e === 'activo') { toast.success('Listo: este celular va a recibir avisos.'); await leerServidor(); }
@@ -106,8 +114,8 @@ export const AvisosCelular: React.FC = () => {
             <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-brand-dark">Avisos en este celular <span className="font-normal text-muted-foreground">· prueba</span></p>
                 <p className="text-xs text-muted-foreground">
-                    {activo ? 'Este celular suena cuando llega una falla a Errores.'
-                        : estado === 'inactivo' ? 'Que suene este celular cuando llegue una falla a Errores.'
+                    {activo ? 'Este celular suena cuando llega algo por revisar a Errores (también te llega por correo).'
+                        : estado === 'inactivo' ? 'Que suene este celular cuando llegue algo por revisar a Errores (por correo ya te llega).'
                             : TEXTO[estado]}
                 </p>
                 {activo && servidor !== null && <p className="mt-0.5 text-xs text-foreground">{textoServidor(servidor)}</p>}
@@ -122,6 +130,9 @@ export const AvisosCelular: React.FC = () => {
                         <Button size="sm" variant="ghost" onClick={() => hacer('local')} isLoading={ocupado === 'local'} leftIcon={<Stethoscope className="h-4 w-4" />}>Probar solo este celular</Button>
                         <Button size="sm" variant="ghost" onClick={() => hacer('desactivar')} isLoading={ocupado === 'desactivar'} leftIcon={<BellOff className="h-4 w-4" />}>Desactivar</Button>
                     </>
+                )}
+                {SIMULAR_ERROR && (
+                    <Button size="sm" variant="ghost" onClick={() => hacer('simular')} isLoading={ocupado === 'simular'} leftIcon={<Bug className="h-4 w-4" />}>Simular un error</Button>
                 )}
             </div>
         </section>

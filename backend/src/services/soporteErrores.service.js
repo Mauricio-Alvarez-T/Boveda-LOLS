@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const db = require('../config/db');
 const logger = require('../utils/logger-structured');
 const avisosCelular = require('./avisosCelular.service');
+const emailService = require('./email.service');
 
 /**
  * «Errores» de Soporte (mig 141, Marcos 2026-10-26; docs/reglas/seguridad-rbac.md § Errores).
@@ -33,6 +34,12 @@ const DIAS_REVISADOS = 180;
 const AVISOS_POR_PERSONA = 40;
 const VENTANA_AVISOS_MS = 10 * 60 * 1000;
 const LIMPIEZA_CADA_MS = 60 * 60 * 1000;
+/** Aviso a los programadores: el mismo error (misma firma, de cualquier persona) suena una vez por hora… */
+const MINUTOS_MISMO_AVISO = 60;
+/** …y a lo más tantos avisos por hora en total (un servidor caído no los bombardea; todo queda en la bandeja). */
+const AVISOS_PROGRAMADORES_HORA = 10;
+/** Cómo se llama cada error por revisar en el correo (las etiquetas de la bandeja, `components/soporte/errores.ts`). */
+const NOMBRE_CATEGORIA = { falla: 'Falla del servidor', app: 'Pantalla rota', permiso: 'Permiso' };
 
 const httpError = (message, statusCode, code) => Object.assign(new Error(message), { statusCode, code });
 const texto = (v, max) => {
@@ -64,6 +71,76 @@ function pasaElTope(usuarioId, ahora = Date.now()) {
     lista.push(ahora);
     avisosRecientes.set(usuarioId, lista);
     return true;
+}
+
+// ───────────── Aviso a los programadores (Marcos 2026-11-02) ─────────────
+let avisosProgramadores = [];
+function pasaElFrenoDeAvisos(ahora = Date.now()) {
+    avisosProgramadores = avisosProgramadores.filter(t => ahora - t < 60 * 60 * 1000);
+    if (avisosProgramadores.length >= AVISOS_PROGRAMADORES_HORA) return false;
+    avisosProgramadores.push(ahora);
+    return true;
+}
+
+const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/**
+ * Un error por revisar NUEVO (falla, app o permiso; no un repetido) → aviso a los programadores, que son el rol 1
+ * (Marcos y Mauricio, mig 139): al celular (los equipos donde activaron los avisos) y al correo del sistema. El mismo
+ * error suena una vez por hora y a lo más AVISOS_PROGRAMADORES_HORA por hora en total. No espera ni lanza: un SMTP
+ * caído no frena el aviso al celular ni el registro del error.
+ */
+function avisarProgramadores({ id, firma, usuarioId, categoria, mensaje, accion, codigo, permisos, pantalla, dispositivo }) {
+    (async () => {
+        const [mismoError] = await db.query(
+            `SELECT id FROM soporte_errores
+              WHERE firma = ? AND id <> ? AND created_at >= NOW() - INTERVAL ${MINUTOS_MISMO_AVISO} MINUTE LIMIT 1`,
+            [firma, id]
+        );
+        if (mismoError.length || !pasaElFrenoDeAvisos()) return;
+        const [programadores] = await db.query('SELECT id, email FROM usuarios WHERE rol_id = 1 AND activo = 1');
+        if (!programadores.length) return;
+        const [[quien]] = await db.query('SELECT nombre FROM usuarios WHERE id = ?', [usuarioId]);
+        const nombre = (quien && quien.nombre) || 'alguien';
+        const donde = pantalla || 'Bóveda';
+        const esPermiso = categoria === 'permiso';
+
+        await avisosCelular.enviarA(programadores.map(p => p.id), {
+            titulo: esPermiso ? 'Permiso que faltó' : 'Nueva falla en Soporte',
+            cuerpo: esPermiso ? `A ${nombre} le faltó un permiso en ${donde}. Toca para verlo.` : `A ${nombre} le falló ${donde}. Toca para verla.`,
+            url: '/soporte?vista=errores',
+            etiqueta: 'soporte-errores',
+        });
+
+        const para = programadores.map(p => p.email).filter(Boolean);
+        if (!para.length) return;
+        // Test o producción, por la base (la misma regla que scripts/sanear_staging.js).
+        const prefijo = /test|staging|dev/i.test(process.env.DB_NAME || '') ? '[TEST] ' : '';
+        const base = /^https:\/\//.test(process.env.FRONTEND_URL || '') ? process.env.FRONTEND_URL.replace(/\/+$/, '') : '';
+        const equipo = dispositivo === 'movil' ? 'celular' : dispositivo === 'escritorio' ? 'computador' : null;
+        const campos = [
+            ['Qué es', NOMBRE_CATEGORIA[categoria] || categoria],
+            ['Mensaje', mensaje],
+            ...(accion || codigo !== null ? [['Acción', [accion, codigo !== null ? `código ${codigo}` : null].filter(Boolean).join(' · ')]] : []),
+            ...(permisos ? [['Permiso que faltó', permisos.split(',').join(', ')]] : []),
+        ];
+        const enlace = base ? `${base}/soporte?vista=errores` : null;
+        await emailService.sendSystemEmail({
+            to: para,
+            fromName: 'Bóveda LOLS — Soporte',
+            subject: `${prefijo}${NOMBRE_CATEGORIA[categoria] || 'Error'}: ${nombre} en ${donde}`.slice(0, 180),
+            text: [
+                `A ${nombre} ${esPermiso ? `le faltó un permiso en ${donde}` : `le falló ${donde}`}${equipo ? ` (${equipo})` : ''}.`,
+                '',
+                ...campos.map(([k, v]) => `${k}: ${v}`),
+                '',
+                `Revísalo en Bóveda → Soporte → Errores${enlace ? `: ${enlace}` : '.'}`,
+            ].join('\n'),
+            html: `<p>A <strong>${esc(nombre)}</strong> ${esPermiso ? `le faltó un permiso en ${esc(donde)}` : `le falló ${esc(donde)}`}${equipo ? ` (${equipo})` : ''}.</p>
+                   ${campos.map(([k, v]) => `<p><strong>${k}:</strong> ${esc(v)}</p>`).join('\n                   ')}
+                   <p>Revísalo en Bóveda → Soporte → Errores${enlace ? `: <a href="${esc(enlace)}">${esc(enlace)}</a>` : '.'}</p>`,
+        });
+    })().catch(e => logger.warn('[soporteErrores] el aviso a los programadores no salió completo', { err: e.message }));
 }
 
 // ───────────── Limpieza (a lo más una vez por hora, sin cron) ─────────────
@@ -198,9 +275,12 @@ const soporteErroresService = {
                 navegador, duracion, pedirFoto ? 1 : 0,
             ]
         );
-        // Una falla real nueva (no un repetido): les suena el celular a los Super Administradores con avisos activos.
-        if (CON_FOTO.includes(categoria)) {
-            avisosCelular.avisarFallaSoporte({ usuarioId, pantalla: texto(body.pantalla_nombre, 120) || sinConsulta(pantalla) });
+        // Un error por revisar nuevo (no un repetido): aviso a los programadores, al celular y al correo.
+        if (PARA_REVISAR.includes(categoria)) {
+            avisarProgramadores({
+                id: Number(r.insertId), firma, usuarioId, categoria, mensaje, accion, codigo, permisos,
+                pantalla: texto(body.pantalla_nombre, 120) || sinConsulta(pantalla), dispositivo: body.dispositivo,
+            });
         }
         return { id: Number(r.insertId), repetido: false, pedir_foto: pedirFoto };
     },
@@ -327,7 +407,7 @@ const soporteErroresService = {
     },
 
     // Para las pruebas.
-    _reiniciar() { avisosRecientes.clear(); ultimaLimpieza = 0; },
+    _reiniciar() { avisosRecientes.clear(); ultimaLimpieza = 0; avisosProgramadores = []; },
     _firmaDe: firmaDe,
 };
 

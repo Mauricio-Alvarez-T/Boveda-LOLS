@@ -226,21 +226,6 @@ const avisosCelularService = {
         return r;
     },
 
-    /** «Nueva falla en Soporte»: a los Super Administradores con avisos activos. No espera ni lanza. */
-    avisarFallaSoporte({ usuarioId, pantalla }) {
-        (async () => {
-            const [admins] = await db.query('SELECT id FROM usuarios WHERE rol_id = 1 AND activo = 1');
-            if (!admins.length) return;
-            const [[quien]] = await db.query('SELECT nombre FROM usuarios WHERE id = ?', [Number(usuarioId)]);
-            await avisosCelularService.enviarA(admins.map(a => a.id), {
-                titulo: 'Nueva falla en Soporte',
-                cuerpo: `A ${(quien && quien.nombre) || 'alguien'} le falló ${pantalla || 'Bóveda'}. Toca para verla.`,
-                url: '/soporte?vista=errores',
-                etiqueta: 'soporte-errores',
-            });
-        })().catch(e => logger.warn('[avisosCelular] aviso de falla no salió', { err: e.message }));
-    },
-
     /**
      * El acuse que manda el equipo solo (sin sesión): `{ id, t, evento }`. Solo vale con la clave de ese aviso y cada
      * momento se anota una vez (el primero). Devuelve si anotó algo; nunca dice por qué no (no da pistas).
