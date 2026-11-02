@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BellOff, BellRing, ChevronDown, ChevronRight, Monitor, Smartphone } from 'lucide-react';
+import { toast } from 'sonner';
+import { BellOff, BellRing, ChevronDown, ChevronRight, Clock, Monitor, Smartphone } from 'lucide-react';
 import {
-    avisosEnviados, estadoDelAviso, resumenRecordatorios, type AvisoEnviado, type PersonaRecordatorios,
+    avisosEnviados, estadoDelAviso, guardarHoraRecordatorios, leerHoraRecordatorios, resumenRecordatorios,
+    type AvisoEnviado, type PersonaRecordatorios,
 } from '../../services/avisosCelular';
 import { Cargando, Skeleton } from '../ui/Skeleton';
 import { cn } from '../../utils/cn';
@@ -11,6 +13,8 @@ import { textoIngreso } from './fichaUsuario';
  * Soporte → Errores (solo Super Administrador): el centro de avisos (Marcos 2026-10-27, mig 145).
  *   · Las personas del horario de recordatorios (avisosPendientes.service.js): si ya activaron los avisos en el
  *     celular (y en el computador, quien trabaja ahí) y qué se les mandó hoy. Para saber a quién pedirle que los active.
+ *   · La hora del recordatorio diario, la misma para todos (Daphne vía Marcos 2026-11-02; mig 148): se cambia aquí y
+ *     vale desde la próxima pasada del cron (cada 5 min). Si hoy ya se mandó, hoy no se repite.
  *   · Por persona, cada aviso de los últimos 7 días y qué pasó en cada equipo: le llegó (apareció en su equipo), lo
  *     abrió, lo cerró sin abrirlo, no se mostró porque ya tenía Bóveda al frente en el computador, o no salió. Es la
  *     prueba de que la persona fue avisada. No se puede saber si lo leyó sin abrirlo.
@@ -35,13 +39,31 @@ export const RecordatoriosAvisos: React.FC = () => {
     const [lista, setLista] = useState<PersonaRecordatorios[] | null>(null);
     const [avisos, setAvisos] = useState<AvisoEnviado[]>([]);
     const [abierta, setAbierta] = useState<number | null>(null);
+    const [hora, setHora] = useState<{ hora: number; min: number; max: number } | null>(null);
+    const [guardando, setGuardando] = useState(false);
 
     useEffect(() => {
         let vivo = true;
         resumenRecordatorios().then(l => { if (vivo) setLista(l); }).catch(() => { if (vivo) setLista([]); });
         avisosEnviados(DIAS).then(a => { if (vivo) setAvisos(a); }).catch(() => { /* sin centro de avisos todavía */ });
+        leerHoraRecordatorios().then(h => { if (vivo) setHora(h); }).catch(() => { /* sin la hora, no se muestra el selector */ });
         return () => { vivo = false; };
     }, []);
+
+    const cambiarHora = async (nueva: number) => {
+        if (!hora || nueva === hora.hora) return;
+        setGuardando(true);
+        try {
+            const h = await guardarHoraRecordatorios(nueva);
+            setHora({ ...hora, hora: h });
+            setLista(l => l?.map(p => ({ ...p, horas: [h] })) ?? l);
+            toast.success(`Listo: el recordatorio diario sale a las ${h}:00. Si hoy ya salió, hoy no se repite.`);
+        } catch {
+            toast.error('No se pudo cambiar la hora. Intente de nuevo.');
+        } finally {
+            setGuardando(false);
+        }
+    };
 
     // Las personas del horario y, al final, quien recibió otros avisos (pruebas, fallas de Soporte).
     const personas = useMemo(() => {
@@ -90,12 +112,26 @@ export const RecordatoriosAvisos: React.FC = () => {
 
     return (
         <section aria-label="Centro de avisos" className="rounded-card border border-border bg-card">
-            <div className="border-b border-border px-4 py-3">
-                <p className="text-sm font-semibold text-brand-dark">Centro de avisos</p>
-                <p className="text-xs text-muted-foreground">
-                    {activos} de {enHorario} con los avisos activos en el celular · recordatorios de lunes a viernes, sin feriados,
-                    solo si tienen algo pendiente · «Le llegó» = apareció en su equipo; «lo abrió» = lo tocó
-                </p>
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3">
+                <div className="min-w-0 flex-1 basis-64">
+                    <p className="text-sm font-semibold text-brand-dark">Centro de avisos</p>
+                    <p className="text-xs text-muted-foreground">
+                        {activos} de {enHorario} con los avisos activos en el celular · un recordatorio al día, de lunes a viernes,
+                        sin feriados, solo si tienen algo pendiente · «Le llegó» = apareció en su equipo; «lo abrió» = lo tocó
+                    </p>
+                </div>
+                {hora && (
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock aria-hidden className="h-4 w-4 shrink-0" />
+                        Hora del recordatorio
+                        <select value={hora.hora} disabled={guardando} onChange={e => cambiarHora(Number(e.target.value))}
+                            className="h-9 rounded-control border border-input bg-card px-2 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-brand-primary/40 disabled:opacity-50">
+                            {Array.from({ length: hora.max - hora.min + 1 }, (_, i) => hora.min + i).map(h => (
+                                <option key={h} value={h}>{h}:00</option>
+                            ))}
+                        </select>
+                    </label>
+                )}
             </div>
             <ul className="divide-y divide-border">
                 {personas.map(p => {

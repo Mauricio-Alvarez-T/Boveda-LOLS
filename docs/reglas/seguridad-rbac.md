@@ -384,52 +384,61 @@ acción, el código, la espera y el error. Nota + «Marcar revisado» / «Volver
 Probado: backend `tests/soporte_errores.test.js`; frontend `clasificarError.test.ts`, `reporteErrores.test.ts`,
 `components/soporte/errores.test.ts`; migración y service sobre MySQL 5.7 (tres sql_mode).
 
-## Recordatorios de pendientes al celular (mig 144, desde el 27-10-2026)
+## Recordatorios de pendientes al celular (mig 144, desde el 27-10-2026; una vez al día desde la 148)
 
 Decisión de don Luis (Marcos 2026-10-27): **de lunes a viernes, sin feriados** (tabla `feriados`, salvo los de obra),
-a las horas de cada persona, un aviso con **lo pendiente de su cargo, solo si tiene algo**: si está al día no le llega
-nada. En «usted» y con los días que lleva («Tiene 3 solicitudes por aprobar. La más antigua lleva 2 días esperando.
-Revise en Bóveda.»). Al tocarlo se abre Bóveda en ese tema.
+un aviso con **lo pendiente de su cargo, solo si tiene algo**: si está al día no le llega nada. En «usted» y con los
+días que lleva («Tiene 3 solicitudes por aprobar. La más antigua lleva 2 días esperando. Revise en Bóveda.»). Al
+tocarlo se abre Bóveda en ese tema.
 
-- **Horario** (`avisosPendientes.service.js` → `HORARIO`, por correo): Paula 8:00 y 14:00; Leonardo, Héctor Gómez,
-  Matías, Daphne, Héctor Herrera, Franco, Alfonso y Jhoan 8:00 y 12:00; don Luis solo 12:00. Cambiarlo = editar esa
-  lista (y probar).
+- **Una vez al día, a la misma hora para todos** (Daphne vía Marcos 2026-11-02, mig 148; antes eran dos por persona):
+  parte en las **8:00** y el Super Administrador la cambia en **Soporte → Errores → Centro de avisos → «Hora del
+  recordatorio»** (6:00 a 20:00, horas enteras; `PUT /api/avisos-celular/hora`, `soloSuperAdmin`; se guarda en
+  `avisos_celular_ajustes`, fila 1). Vale desde la próxima pasada del cron; **si hoy ya se le mandó (o estaba al día) a
+  otra hora, hoy no se repite**. Sin la tabla, las 8.
+- **Quién** (`avisosPendientes.service.js` → `HORARIO`, por correo): Paula, Leonardo, Héctor Gómez, Matías, Daphne,
+  Héctor Herrera, don Luis, Franco, Alfonso y Jhoan. Cambiarlo = editar esa lista (y probar).
 - **Qué es pendiente** — lo MISMO que la persona ve en su Inicio: Inventario (`inicioPerfil`): quien aprueba → por
   aprobar + diferencias por resolver; «Ver diferencias» → diferencias por revisar; la obra → aprobadas o en camino por
   recibir. Fichas de ingreso por aprobar (`trabajadores.solicitud.aprobar`). RR.HH (`documentos.laborales.emitir` o
   `trabajadores.editar`): papeles laborales atrasados y contratos vencidos o por vencer. Asistencia de hoy sin registrar
-  en su obra (desde las 12:00, con `asistencia.guardar`). Don Luis (`inicio.gerencia`): un solo resumen de los temas de
-  su Inicio de gerencia.
+  en su obra (con `asistencia.guardar`, **solo si la hora es las 12:00 o más tarde**: a las 8 nadie la ha tomado). Don
+  Luis (`inicio.gerencia`): un solo resumen de los temas de su Inicio de gerencia.
 - **Quién lo manda:** el cron de deploy, en cada tick (bloque `avisos-programados` de `scripts/cpanel-deploy-*.sh` →
   `backend/scripts/avisos_programados.js`), dentro de una ventana de 30 min desde la hora. No vive en el backend porque
   Passenger lo duerme sin uso. `avisos_celular_envios` (persona, día, hora) evita repetir; si tiene pendientes pero
   ningún celular activo, se libera para reintentar en la ventana. Resultado por HTTP: `https://<host>/avisos-status.txt`.
-- **Activarlos sin saltarlo** (`components/layout/ActivarAvisos.tsx`): a quien está en el horario (`GET /estado` →
-  `debe_activar`), en un celular donde los avisos funcionan, al abrir Bóveda una pantalla con un solo botón «Activar
-  avisos» (sin «Ahora no»), cada vez, hasta activarlos. El celular igual pregunta «¿Permitir?» (ninguna app lo puede
-  saltar): si dice que no o los apaga, una franja fija arriba con los pasos. La app sigue funcionando (no se traba el
-  trabajo en terreno). Con «ver como», nada. Si el equipo tiene el permiso pero el servidor no la suscripción, se vuelve
-  a mandar sola.
-- **EN PAUSA EN PRODUCCIÓN desde el 27-10-2026** (Marcos): a algunos trabajadores el botón no les hacía nada y la
-  pantalla no los dejaba seguir. La pantalla y las franjas solo salen en test (`VITE_ENTORNO=staging`, lo pone
-  `deploy-cpanel-staging.yml`); en producción no se le pide nada a nadie, pero quien ya los activó sigue recibiendo los
-  recordatorios y su suscripción se vuelve a mandar sola. Se reactiva cuando Marcos rediseñe la activación.
-  En test, para el plan de prueba con Mauricio: la pantalla también les sale al Super Administrador; `activarAvisos()`
-  pregunta «¿Permitir?» PRIMERO (en el mismo toque: antes se perdía y el botón «no hacía nada»), cada paso tiene tope
-  (45 s la pregunta, 20 s los demás; `FalloActivar` dice el paso) y si falla o tarda más de 8 s aparece «Seguir sin
-  avisos por ahora» con el motivo y un «Detalle para soporte» (se vuelve a pedir al abrir Bóveda de nuevo).
+- **Franja «Active los avisos de sus pendientes»** (`components/layout/ActivarAvisos.tsx`, Marcos 2026-11-02, opción B
+  del lienzo; reemplazó la pantalla obligatoria del 27-10, que estuvo en pausa en producción porque a algunos el botón no
+  les hacía nada y no los dejaba seguir). **En test y en producción.** A quien está en el horario (`GET /estado` →
+  `debe_activar`), en un equipo donde los avisos funcionan: una franja ámbar arriba (encima del encabezado, como la de
+  «Entorno de pruebas») que dice **de qué le avisaremos** (`GET /estado` → `temas`: los de su cargo según sus
+  permisos, `avisosPendientes.temasDe`, sin contar nada) y **a qué hora** (`hora`), con «Activar avisos» y una **X**.
+  · «Activar avisos» → el equipo pregunta «¿Permitir?» (ninguna app lo puede saltar) → franja verde «Listo» y se recoge.
+    `activarAvisos()` pregunta PRIMERO, en el mismo toque, y cada paso tiene tope (45 s la pregunta, 20 s los demás;
+    `FalloActivar` dice el paso); si falla, la franja muestra el motivo y un «Detalle para soporte».
+  · La **X la cierra hasta el día siguiente** en ese equipo (`localStorage`, por persona, día de Chile); **vuelve cada
+    día hasta que los active**. Sin almacenamiento (incógnito), vuelve a salir al abrir Bóveda.
+  · Si dijo que no o los apagó: la misma franja con los pasos para permitirlos. iPhone sin Bóveda en la pantalla de
+    inicio: los pasos para agregarla. También se cierran con la X hasta mañana.
+  · La app sigue funcionando (no se traba el trabajo en terreno). Con «ver como», nada. Si el equipo tiene el permiso
+    pero el servidor no la suscripción, se vuelve a mandar sola. En test también le sale al Super Administrador, para
+    practicarla.
+  · Al subir esta versión, la mig 148 cerró la sesión de todos (salvo el rol 1, `roles.version` + 1) para que la vieran
+    al volver a entrar.
 - **Celular siempre; computador solo si no está mirando Bóveda** (Marcos 2026-10-27): el recordatorio llega SIEMPRE al
   celular. Quien trabaja casi siempre en el computador (`HORARIO` → `computador: true`: Paula, Matías, Daphne, Héctor
-  Herrera y don Luis; `GET /estado` → `debe_activar_computador`) tiene la misma pantalla obligatoria en el computador,
-  y ahí el recordatorio aparece **solo si no tiene Bóveda abierto y al frente** (`public/sw-avisos.js` mira si hay una
-  ventana de Bóveda enfocada; si la hay, no lo muestra y anota «en pantalla»). En el computador, a cualquiera del
-  horario que todavía **no tiene ningún celular activo** le queda una franja fija: «Falta activar los avisos en su
-  celular…» (el celular no se puede activar desde el computador: hay que abrir Bóveda en el celular una vez).
-- **Soporte → Errores** (rol 1): **«Centro de avisos»** (`RecordatoriosAvisos.tsx`): quién del horario tiene los avisos
-  activos en el celular (y en el computador), qué se le mandó hoy (`GET /api/avisos-celular/resumen`) y, por persona,
-  cada aviso de los últimos 7 días y qué pasó en cada equipo (`GET /mensajes`, ver mig 145 abajo). Desde la 144,
-  activar/desactivar/probar es de cualquier persona con sesión (sobre sus equipos). Test:
-  `backend/tests/avisos_pendientes.test.js`.
+  Herrera y don Luis; `GET /estado` → `debe_activar_computador`) tiene la misma franja en el computador, y ahí el
+  recordatorio aparece **solo si no tiene Bóveda abierto y al frente** (`public/sw-avisos.js` mira si hay una ventana de
+  Bóveda enfocada; si la hay, no lo muestra y anota «en pantalla»). En el computador, a cualquiera del horario que
+  todavía **no tiene ningún celular activo** le sale la franja «Falta activar los avisos en su celular…» (el celular no
+  se puede activar desde el computador: hay que abrir Bóveda en el celular una vez).
+- **Soporte → Errores** (rol 1): **«Centro de avisos»** (`RecordatoriosAvisos.tsx`): la hora del recordatorio, quién
+  del horario tiene los avisos activos en el celular (y en el computador), qué se le mandó hoy
+  (`GET /api/avisos-celular/resumen`) y, por persona, cada aviso de los últimos 7 días y qué pasó en cada equipo
+  (`GET /mensajes`, ver mig 145 abajo). Desde la 144, activar/desactivar/probar es de cualquier persona con sesión
+  (sobre sus equipos). Tests: `backend/tests/avisos_pendientes.test.js`, `backend/tests/avisos_celular.test.js` y
+  `frontend/src/services/avisosCelular.test.ts` (la X hasta mañana).
 
 ## Centro de avisos: acuse de cada aviso (mig 145, desde el 27-10-2026)
 

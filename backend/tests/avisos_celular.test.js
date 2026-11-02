@@ -128,6 +128,28 @@ describe('rutas: cada persona maneja SUS celulares; el resumen es del Super Admi
         expect(mirando.body.data.debe_activar_computador).toBe(false);
     });
 
+    test('estado: trae la hora del recordatorio diario (las 8 si no hay ajuste) y los temas solo a quien le toca', async () => {
+        const leo = { id: 30, email: 'leonardolopez@lols.cl', rol_id: 2 };
+        USUARIOS[30] = { ...leo, nombre: 'Leonardo López', activo: 1 };
+        const r = await request(app).get('/api/avisos-celular/estado').set('Authorization', `Bearer ${sesion(leo)}`);
+        expect(r.body.data.hora).toBe(8);
+        expect(Array.isArray(r.body.data.temas)).toBe(true);
+        const otro = await request(app).get('/api/avisos-celular/estado').set('Authorization', `Bearer ${sesion(USUARIOS[20])}`);
+        expect(otro.body.data).toMatchObject({ hora: 8, temas: [] });
+    });
+
+    test('hora del recordatorio: cualquiera la lee; solo el Super Administrador la cambia, y solo de 6 a 20', async () => {
+        const leer = await request(app).get('/api/avisos-celular/hora').set('Authorization', `Bearer ${sesion(USUARIOS[20])}`);
+        expect(leer.body.data).toEqual({ hora: 8, min: 6, max: 20 });
+        expect((await request(app).put('/api/avisos-celular/hora').set('Authorization', `Bearer ${sesion(USUARIOS[20])}`).send({ hora: 9 })).status).toBe(403);
+        expect((await request(app).put('/api/avisos-celular/hora').set('Authorization', `Bearer ${sesion(USUARIOS[1])}`).send({ hora: 5 })).status).toBe(400);
+        const ok = await request(app).put('/api/avisos-celular/hora').set('Authorization', `Bearer ${sesion(USUARIOS[1])}`).send({ hora: 9 });
+        expect(ok.status).toBe(200);
+        expect(ok.body.data).toEqual({ hora: 9 });
+        const llamada = db.query.mock.calls.find(([sql]) => String(sql).startsWith('INSERT INTO avisos_celular_ajustes'));
+        expect(llamada[1]).toEqual([9, 1]);
+    });
+
     test('/mensajes (centro de avisos): otra persona → 403; el Super Administrador → la lista', async () => {
         expect((await request(app).get('/api/avisos-celular/mensajes').set('Authorization', `Bearer ${sesion(USUARIOS[20])}`)).status).toBe(403);
         const r = await request(app).get('/api/avisos-celular/mensajes?dias=7').set('Authorization', `Bearer ${sesion(USUARIOS[1])}`);
