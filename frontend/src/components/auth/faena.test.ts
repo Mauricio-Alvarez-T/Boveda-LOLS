@@ -1,5 +1,5 @@
 import {
-    avanzarFaena, teclaFaena, pisosObra, horaFaena, rotuloFaena, posicionChispa,
+    avanzarFaena, teclaFaena, pisosObra, horaFaena, momentoFaena, rotuloFaena, posicionChispa,
     FAENA_INICIAL, PASO_SOLO, PASO_TECLA, TICS_AMANECIDO, SUELO_Y, ALTO_PISO,
     type EstadoFaena,
 } from './faena';
@@ -59,6 +59,8 @@ describe('faena de madrugada (fondo del inicio de sesión)', () => {
         expect(horaFaena(1)).toBe('07:15');
         expect(rotuloFaena(0.2)).toBe('05:51 · FAENA DE MADRUGADA');
         expect(rotuloFaena(1)).toBe('07:15 · AMANECE EN LA OBRA');
+        expect(momentoFaena(0.99)).toBe('FAENA DE MADRUGADA');
+        expect(momentoFaena(1)).toBe('AMANECE EN LA OBRA');
     });
 
     it('la chispa salta sobre el piso de arriba, dentro del ancho de la obra', () => {
