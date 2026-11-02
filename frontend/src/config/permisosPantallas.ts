@@ -56,7 +56,7 @@ export interface Pantalla {
     sinVer?: boolean;
 }
 
-export type GrupoId = 'inicio' | 'asistencia' | 'gestiones' | 'inventario' | 'vehiculos' | 'configuracion';
+export type GrupoId = 'inicio' | 'asistencia' | 'gestiones' | 'inventario' | 'vehiculos' | 'presupuestos' | 'configuracion';
 
 export interface Grupo {
     id: GrupoId;
@@ -73,6 +73,8 @@ export const GRUPOS: Grupo[] = [
     { id: 'gestiones', nombre: 'Gestiones', puerta: 'reportes.ver' },
     { id: 'inventario', nombre: 'Inventario', puerta: 'inventario.ver', puertaImplicita: true },
     { id: 'vehiculos', nombre: 'Vehículos' },
+    // Módulo propio en el menú lateral: escondido al final de Configuración, el dueño no lo encontraba (02-11).
+    { id: 'presupuestos', nombre: 'Presupuestos' },
     { id: 'configuracion', nombre: 'Configuración' },
 ];
 
@@ -255,7 +257,7 @@ const DEFS: PantallaDef[] = [
         i('usuarios.roles.editar', 'Editar roles', 3),
         x('usuarios.roles.eliminar', 'Borrar roles'),
         x('usuarios.permisos.gestionar', 'Cambiar permisos')] },
-    { id: 'presupuestos', nombre: 'Presupuestos', grupo: 'configuracion', dinero: true, etiquetas: ['Todo'], items: [
+    { id: 'presupuestos', nombre: 'Presupuestos y gastos de obra', grupo: 'presupuestos', dinero: true, etiquetas: ['Todo'], items: [
         i('costos.gestionar', 'Presupuestos y gastos de cada obra', 1)] },
     { id: 'sistema', nombre: 'Sistema', grupo: 'configuracion', libre: true, sinVer: true, items: [
         i('sistema.logs.ver', 'Ver historial de actividad', 1),

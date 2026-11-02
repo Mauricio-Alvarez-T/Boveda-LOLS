@@ -1,5 +1,5 @@
 import {
-    PANTALLAS, CLAVES_MATRIZ, nivelDe, aplicarNivel, alternarClave, normalizarPuertas, rolesGemelos,
+    PANTALLAS, GRUPOS, CLAVES_MATRIZ, nivelDe, aplicarNivel, alternarClave, normalizarPuertas, rolesGemelos,
     ETIQUETA_A_MEDIDA, ETIQUETA_NADA, type Pantalla,
 } from './permisosPantallas';
 
@@ -102,6 +102,17 @@ describe('aplicarNivel y alternarClave', () => {
 
     test('normalizarPuertas no inventa Inventario si no hay pantallas', () => {
         expect(normalizarPuertas(['inventario.ver'])).toEqual([]);
+    });
+});
+
+describe('Presupuestos', () => {
+    test('módulo propio como en el menú lateral, no escondido al final de Configuración', () => {
+        const p = pantalla('presupuestos');
+        expect(p.grupo).toBe('presupuestos');
+        expect(GRUPOS.map(g => g.id)).toEqual(['inicio', 'asistencia', 'gestiones', 'inventario', 'vehiculos', 'presupuestos', 'configuracion']);
+        expect(p.niveles.map(n => n.claves)).toEqual([['costos.gestionar']]);
+        expect(set(aplicarNivel([], p, 1))).toEqual(set(['costos.gestionar']));
+        expect(aplicarNivel(['costos.gestionar', 'obras.ver'], p, 0)).toEqual(['obras.ver']);
     });
 });
 

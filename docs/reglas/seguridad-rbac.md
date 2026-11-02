@@ -94,6 +94,8 @@
   del módulo y apagarla apaga el módulo (salvo filas libres: Ingresos de trabajadores, Documentos
   físicos, Sistema); quitar el «ver» de una pantalla la apaga entera. Claves que la matriz no conoce se
   conservan al guardar.
+- Los módulos siguen el menú lateral: **Presupuestos (`costos.gestionar`) es módulo propio** (2026-11-02; antes
+  era la penúltima fila de Configuración y el dueño no lo encontraba para darlo o quitarlo).
 - **Permiso nuevo ⇒ además de catálogo + `permisosHierarchy.ts` (panel de overrides), darle fila o
   marca en `permisosPantallas.ts`.** `permisosPantallas.test.ts` lee el catálogo del backend y falla si
   una clave no está en la matriz exactamente una vez.
