@@ -170,7 +170,7 @@ Superficie única: `formatCLP`/`fmtMoney` (dinero CLP), `fmtMoneyExacto`,
 jamás con `toFixed` — en Chile el punto es separador de MILES, así que
 `(n/1e6).toFixed(1)` producía `$14901.5M`, ilegible (bug real del Resumen
 Ejecutivo). Si un monto completo no cabe, se agranda el contenedor o se baja el
-tamaño de fuente (ver el `value.length` adaptativo de `KpiCard`), no se abrevia.
+tamaño de fuente (ver el `texto.length` adaptativo de `MontoCard` en `ResumenEjecutivoPanel`), no se abrevia.
 Cubierto por `frontend/src/utils/format.test.ts`.
 
 ## 6. Reglas ESLint y política de migración

@@ -711,13 +711,17 @@ const inventarioService = {
                 `),
             // 9. Valor arriendo mensual agrupado por categoría de item (para donut)
             //    Solo stock en obras con participa_inventario, aplicando descuento por obra.
+            //    El filtro de obras va en el ON (LEFT JOIN, para no perder categorías vacías),
+            //    así que el stock de obras que NO calzan (prueba/finalizada/fuera de inventario)
+            //    llegaba con o.id NULL y se sumaba igual: el donut daba más que el Arriendo
+            //    mensual (query 4). El CASE lo descarta → ambos totales cuadran.
             db.query(`
                 SELECT c.id, c.nombre, c.orden,
-                       COALESCE(SUM(
+                       COALESCE(SUM(CASE WHEN o.id IS NULL THEN 0 ELSE
                            us.cantidad
                            * COALESCE(us.valor_arriendo_override, i.valor_arriendo)
                            * (1 - COALESCE(d.porcentaje, 0) / 100)
-                       ), 0) as valor_neto
+                       END), 0) as valor_neto
                 FROM categorias_inventario c
                 LEFT JOIN items_inventario i ON i.categoria_id = c.id AND i.activo = 1
                 LEFT JOIN ubicaciones_stock us ON us.item_id = i.id AND us.obra_id IS NOT NULL

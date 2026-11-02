@@ -867,6 +867,24 @@ cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea
 - Regularización: transferencia virtual→obra/bodega real desde el wizard (la bodega
   participa en transferencias como cualquier otra).
 
+## Resumen Ejecutivo (`ResumenEjecutivoPanel.tsx`, rediseño 2026-11-02)
+
+Orden pedido por el dueño: **montos arriba, decisiones al final**, con gráficos y color.
+1. **Montos**: Arriendo mensual (verde) · Inventario (azul, valor de compra) · Vehículos
+   (ámbar, se oculta con filtro de obra). Curva de tendencia SOLO si hay ≥2 puntos reales
+   en `historico` (hoy solo `valor_obras`; no se inventan curvas).
+2. **Patrimonio total** = Inventario + Vehículos, barra apilada.
+3. **Detalle** en pestañas: Obras (barras, toca → su inventario) · Categorías (dona de
+   **arriendo mensual neto** por categoría — su total cuadra con Arriendo mensual) ·
+   Vehículos (top 6 por valor de compra, color por empresa).
+4. **Decisiones pendientes**, cada una con su botón en la fila: por aprobar → Revisar;
+   estancadas (+10 días) → Extender 10 días / Cancelar ahí mismo (con confirmación);
+   diferencias → Resolver; en tránsito, faltantes y rechazos → Ver/Decidir. Sin nada: «Todo al día».
+- Montos gateados por `inventario.resumen.ver_valores`.
+- Query #9 del dashboard (dona por categoría): el filtro de obras va en el `ON` de un LEFT JOIN,
+  así que el `SUM` descarta con `CASE WHEN o.id IS NULL` — antes sumaba stock de obras de
+  prueba/finalizadas/fuera de inventario y la dona daba más que el Arriendo mensual.
+
 ## Export a Excel del Resumen General (`utils/exportExcel.ts`)
 
 - Pie del Excel: **cuatro** filas en este orden — **TOTAL GENERAL → % DESCUENTO POR OBRA →

@@ -1,31 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     FileClock,
     AlertTriangle,
     Truck,
     Wallet,
     Landmark,
-    Coins,
-    RefreshCw,
     ChevronRight,
     Package,
     CheckCircle2,
-    User,
     Timer,
     XCircle,
-    Droplets,
     Filter,
+    ArrowRight,
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
-import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type DashboardRechazo, type KpiHistorico } from '../../hooks/inventario/useDashboardEjecutivo';
+import {
+    useDashboardEjecutivo,
+    type DashboardAlerta,
+    type KpiHistorico,
+    type DashboardEjecutivoData,
+} from '../../hooks/inventario/useDashboardEjecutivo';
 import { useAuth } from '../../context/AuthContext';
 import { FormError } from '../ui/FormError';
 import { Button } from '../ui/Button';
 import { Skeleton } from '../ui/Skeleton';
-import { fmtMoney, fmtMoneyCompacto } from '../../utils/format';
+import { fmtMoney } from '../../utils/format';
+import { showApiError, showConfirmToast } from '../../utils/toastUtils';
 
 interface ObraOpcion { id: number; nombre: string; }
 
@@ -38,460 +41,380 @@ interface Props {
     bodegaVirtualModo?: 'ocultar' | 'mostrar' | 'sumar';
 }
 
-// Montos: SIEMPRE completos en formato chileno vía `fmtMoney` ($14.901.523.456).
-// Antes había un `fmtCLP` local que abreviaba con toFixed(1) → "$14901.5M": el
-// punto es separador de MILES en Chile, así que se leía mal. La abreviación
-// (`fmtMoneyCompacto`) sobrevive solo en los ticks del eje Y, donde el ancho es
-// físicamente insuficiente para el monto completo.
+/*
+ * Resumen Ejecutivo — rediseño 2026-10 (mockup aprobado por el dueño).
+ * Orden: 1) montos con color y tendencia, 2) patrimonio en una barra,
+ * 3) detalle en pestañas con gráficos (obras / categorías / vehículos),
+ * 4) decisiones pendientes al final, con la acción en la misma fila.
+ * Se retiraron: tarjeta TOTAL repetida, «Patrimonio por empresa» (filas en $0),
+ * «Actualizado ahora», el gráfico acumulado de vehículos y bombas del mes
+ * (viven en Vehículos y Hormigón). Montos siempre completos con `fmtMoney`.
+ */
+
+// Paleta de gráficos (literales: el SVG/estilo inline no lee clases de Tailwind).
+const PALETA = ['#059669', '#2563EB', '#D97706', '#7C3AED', '#0891B2', '#DB2777'];
+
+type Tono = 'green' | 'blue' | 'amber';
+const TONO: Record<Tono, { card: string; tile: string; stroke: string; fill: string }> = {
+    green: {
+        card: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900',
+        tile: 'bg-emerald-600 text-white',
+        stroke: '#059669',
+        fill: 'rgba(5,150,105,.14)',
+    },
+    blue: {
+        card: 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-900',
+        tile: 'bg-blue-600 text-white',
+        stroke: '#2563EB',
+        fill: 'rgba(37,99,235,.14)',
+    },
+    amber: {
+        card: 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-900',
+        tile: 'bg-amber-600 text-white',
+        stroke: '#D97706',
+        fill: 'rgba(217,119,6,.15)',
+    },
+};
 
 // ────────────────────────────────────────────────────────
-// Paleta de colores para categorías (barras horizontales)
+// Curva de tendencia (área) — solo con historial real
 // ────────────────────────────────────────────────────────
-// paleta de data-viz (recharts requiere valores literales); colorMap ya usa la rampa accesible -700/-800
-const CAT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
-
-// ────────────────────────────────────────────────────────
-// Sparkline — mini gráfico SVG sin dependencias
-// React.memo: el sparkline solo cambia cuando data o tone cambian.
-// ────────────────────────────────────────────────────────
-const SparklineImpl: React.FC<{ data: number[]; tone: 'amber' | 'red' | 'blue' | 'green' | 'slate' | 'indigo' }> = ({ data, tone }) => {
+const TendenciaImpl: React.FC<{ data: number[]; tono: Tono }> = ({ data, tono }) => {
     if (!data || data.length < 2) return null;
-    const w = 80;
-    const h = 22;
-    const min = Math.min(...data);
-    const max = Math.max(...data);
+    const w = 300, h = 54;
+    const min = Math.min(...data), max = Math.max(...data);
     const range = max - min || 1;
-    const step = w / (data.length - 1);
-    const points = data.map((v, i) => `${i * step},${h - ((v - min) / range) * h}`).join(' ');
-    // paleta de data-viz (recharts requiere valores literales); colorMap ya usa la rampa accesible -700/-800
-    const colorMap = { amber: '#b45309', red: '#b91c1c', blue: '#1d4ed8', green: '#047857', slate: '#334155', indigo: '#4338ca' };
+    const pts = data.map((v, i) => `${((i / (data.length - 1)) * w).toFixed(1)},${(h - 6 - ((v - min) / range) * (h - 14)).toFixed(1)}`);
     return (
-        <svg width={w} height={h} className="shrink-0" aria-hidden="true">
-            <polyline
-                fill="none"
-                stroke={colorMap[tone]}
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                points={points}
-                opacity="0.75"
-            />
+        <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="block w-full h-12 mt-3" aria-hidden="true">
+            <path d={`M0,${h} L${pts.join(' L')} L${w},${h} Z`} fill={TONO[tono].fill} />
+            <polyline points={pts.join(' ')} fill="none" stroke={TONO[tono].stroke} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
         </svg>
     );
 };
-const Sparkline = React.memo(SparklineImpl);
+const Tendencia = React.memo(TendenciaImpl);
 
-// ────────────────────────────────────────────────────────
-// Chip comparativa vs mes anterior
-// React.memo: solo cambia cuando delta_pct o invertColor cambian.
-// ────────────────────────────────────────────────────────
-const ComparativaChipImpl: React.FC<{ delta_pct: number | null; invertColor?: boolean }> = ({ delta_pct, invertColor }) => {
-    if (delta_pct === null || delta_pct === undefined) return null;
-    // invertColor: para KPIs donde subir es malo (pendientes, estancados, etc.)
-    const isUp = delta_pct > 0;
-    const isFlat = delta_pct === 0;
-    const good = invertColor ? !isUp : isUp;
-    const toneClass = isFlat
-        ? 'bg-muted/60 text-muted-foreground'
-        : good
-            ? 'bg-emerald-200/60 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300'
-            : 'bg-red-200/60 text-red-800 dark:bg-red-500/20 dark:text-red-300';
-    const arrow = isFlat ? '→' : isUp ? '↑' : '↓';
+const DeltaChip: React.FC<{ delta: number | null | undefined }> = ({ delta }) => {
+    if (delta === null || delta === undefined) return null;
+    const flat = delta === 0;
+    const up = delta > 0;
     return (
         <span
-            className={cn('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-caption font-black', toneClass)}
-            title={`Variación vs hace 30 días: ${delta_pct > 0 ? '+' : ''}${delta_pct}%`}
+            title={`Variación vs hace 30 días: ${up ? '+' : ''}${delta}%`}
+            className={cn(
+                'inline-flex items-center px-1.5 py-0.5 rounded-md text-caption font-black',
+                flat ? 'bg-muted text-muted-foreground'
+                    : up ? 'bg-emerald-200/70 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300'
+                        : 'bg-red-200/70 text-red-800 dark:bg-red-500/20 dark:text-red-300'
+            )}
         >
-            {arrow} {Math.abs(delta_pct)}%
+            {flat ? '→' : up ? '↑' : '↓'} {Math.abs(delta)}%
         </span>
     );
 };
-const ComparativaChip = React.memo(ComparativaChipImpl);
 
 // ────────────────────────────────────────────────────────
-// KPI card grande, clickeable, área completa como botón
-// React.memo aplicado al final (después de la definición).
+// Tarjeta de monto
 // ────────────────────────────────────────────────────────
-interface KpiCardProps {
-    tone: 'amber' | 'red' | 'blue' | 'green' | 'slate' | 'indigo';
+interface MontoCardProps {
+    tono: Tono;
     icon: React.ReactNode;
     label: string;
-    value: string;
-    subline?: string | null;
-    onClick?: () => void;
-    disabled?: boolean;
-    tooltip?: string;
+    value: number;
+    sub: string;
+    tooltip: string;
     historico?: KpiHistorico;
-    /** true cuando subir = malo (pendientes, estancados, discrepancias, en_transito). Default false (valor_obras sube = bueno). */
-    invertDelta?: boolean;
-    /** Primera carga: la tarjeta (color, ícono, rótulo) va de verdad y la cifra en silueta; no se puede apretar. */
+    /** Primera carga: color, ícono, rótulo y bajada de verdad; solo la cifra en silueta (diseno.md §9.17). */
     cargando?: boolean;
 }
 
-const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline, onClick, disabled, tooltip, historico, invertDelta, cargando = false }) => {
-    const toneClasses: Record<KpiCardProps['tone'], string> = {
-        amber:  'bg-amber-50  border-amber-200  hover:border-amber-400  text-amber-900 dark:bg-amber-950/40 dark:border-amber-900 dark:hover:border-amber-700 dark:text-amber-200',
-        red:    'bg-red-50    border-red-200    hover:border-red-400    text-red-900 dark:bg-red-950/40 dark:border-red-900 dark:hover:border-red-700 dark:text-red-200',
-        blue:   'bg-blue-50   border-blue-200   hover:border-blue-400   text-blue-900 dark:bg-blue-950/40 dark:border-blue-900 dark:hover:border-blue-700 dark:text-blue-200',
-        green:  'bg-emerald-50 border-emerald-200 hover:border-emerald-400 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-900 dark:hover:border-emerald-700 dark:text-emerald-200',
-        slate:  'bg-slate-50  border-slate-200  hover:border-slate-400  text-slate-900 dark:bg-slate-900/40 dark:border-slate-800 dark:hover:border-slate-600 dark:text-slate-200',
-        indigo: 'bg-indigo-50 border-indigo-200 hover:border-indigo-400 text-indigo-900 dark:bg-indigo-950/40 dark:border-indigo-900 dark:hover:border-indigo-700 dark:text-indigo-200',
-    };
-    const iconClasses: Record<KpiCardProps['tone'], string> = {
-        amber:  'bg-amber-200/60  text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
-        red:    'bg-red-200/60    text-red-700 dark:bg-red-500/20 dark:text-red-300',
-        blue:   'bg-blue-200/60   text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
-        green:  'bg-emerald-200/60 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
-        slate:  'bg-slate-200/60  text-slate-700 dark:bg-slate-500/20 dark:text-slate-300',
-        indigo: 'bg-indigo-200/60 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300',
-    };
-
-    // card clickable: la KPI completa actúa como botón (elemento dinámico, no <button> JSX)
-    const activa = !!onClick && !disabled && !cargando;
-    const Wrapper: any = activa ? 'button' : 'div';
+const MontoCardImpl: React.FC<MontoCardProps> = ({ tono, icon, label, value, sub, tooltip, historico, cargando = false }) => {
+    const texto = fmtMoney(value);
     return (
-        <Wrapper
-            type={activa ? 'button' : undefined}
-            onClick={activa ? onClick : undefined}
-            title={tooltip}
-            aria-label={activa ? `${label}: ${value}. Click para ver detalle.` : undefined}
-            className={cn(
-                'relative flex flex-col gap-3 p-5 md:p-6 rounded-2xl border-2 transition-all text-left w-full',
-                toneClasses[tone],
-                activa && 'cursor-pointer hover:shadow-lg active:scale-[0.99]',
-                !onClick && tooltip && 'cursor-help',
-                disabled && !cargando && 'opacity-60'
-            )}
-        >
-            <div className="flex items-center gap-3">
-                <div className={cn('p-2.5 rounded-xl', iconClasses[tone])}>
-                    {icon}
-                </div>
-                <span className="text-label md:text-xs font-black uppercase tracking-wider">
-                    {label}
-                </span>
+        <div title={tooltip} className={cn('flex flex-col rounded-2xl border p-5 min-w-0', TONO[tono].card)}>
+            <div className="flex items-center gap-2.5">
+                <div className={cn('p-2 rounded-xl shrink-0', TONO[tono].tile)}>{icon}</div>
+                <span className="text-label md:text-xs font-black uppercase tracking-wider text-brand-dark">{label}</span>
+                <span className="ml-auto"><DeltaChip delta={historico?.delta_pct} /></span>
             </div>
-            <div className="flex items-end justify-between gap-2">
-                {/* Tamaño adaptativo al largo: los contadores ("6") quedan grandes,
-                    los montos completos ("$14.901.523.456") bajan para no desbordar. */}
-                {cargando ? <Skeleton className="h-9 md:h-10 w-28 max-w-full" /> : (
+            {cargando ? <Skeleton className="mt-3 h-8 md:h-9 w-48 max-w-full" /> : (
                 <div className={cn(
-                    'font-black leading-none tabular-nums whitespace-nowrap',
-                    value.length <= 6 ? 'text-4xl md:text-5xl'
-                        : value.length <= 11 ? 'text-3xl md:text-4xl'
-                            : 'text-2xl md:text-3xl'
+                    'mt-3 font-black leading-none tabular-nums whitespace-nowrap text-brand-dark',
+                    texto.length <= 11 ? 'text-3xl md:text-4xl' : 'text-2xl md:text-3xl'
                 )}>
-                    {value}
+                    {texto}
                 </div>
-                )}
-                {historico?.sparkline && historico.sparkline.length >= 2 && (
-                    <Sparkline data={historico.sparkline} tone={tone} />
-                )}
-            </div>
-            <div className="flex items-center justify-between gap-2 min-h-[18px]">
-                {subline && (
-                    <div className="text-xs md:text-sm font-semibold opacity-80 truncate">
-                        {subline}
-                    </div>
-                )}
-                {historico && historico.delta_pct !== null && (
-                    <ComparativaChip delta_pct={historico.delta_pct} invertColor={invertDelta} />
-                )}
-            </div>
-            {activa && (
-                <ChevronRight className="absolute top-4 right-4 h-5 w-5 opacity-40" />
             )}
-        </Wrapper>
-    );
-};
-const KpiCard = React.memo(KpiCardImpl);
-
-// ────────────────────────────────────────────────────────
-// Fila de ranking de obras (memoizada)
-// ────────────────────────────────────────────────────────
-interface ObraRankingItemProps {
-    pos: number;
-    obra: TopObra;
-    maxValor: number;
-    onClick: () => void;
-}
-
-const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxValor, onClick }) => {
-    const pct = maxValor > 0 ? (obra.valor_mensual / maxValor) * 100 : 0;
-    const tooltipLines = [
-        `${obra.nombre}`,
-        `Arriendo mensual neto: ${fmtMoney(obra.valor_mensual)}`,
-        `Costo (valor de compra de los artículos): ${fmtMoney(obra.valor_patrimonial)}`,
-    ];
-    if (obra.descuento_porcentaje > 0) {
-        tooltipLines.push(`Bruto sin descuento: ${fmtMoney(obra.valor_bruto)}`);
-        tooltipLines.push(`Descuento aplicado: ${obra.descuento_porcentaje}%`);
-        tooltipLines.push(`Ahorro: ${fmtMoney(obra.valor_bruto - obra.valor_mensual)}`);
-    }
-    tooltipLines.push('', 'Click para ver detalle de la obra.');
-    return (
-        // eslint-disable-next-line no-restricted-syntax -- card clickable (fila de ranking con barra de progreso)
-        <button
-            type="button"
-            onClick={onClick}
-            title={tooltipLines.join('\n')}
-            aria-label={`${obra.nombre}: ${fmtMoney(obra.valor_mensual)} mensual. Click para ver detalle.`}
-            className="group flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted transition-all text-left"
-        >
-            <span className="shrink-0 w-7 h-7 rounded-lg bg-brand-primary/10 text-green-700 dark:text-green-300 text-xs font-black flex items-center justify-center">
-                {pos}
-            </span>
-            <div className="flex-1 min-w-0">
-                <div className="flex items-baseline justify-between gap-3">
-                    {/* En el teléfono el monto (que no se abrevia, §5) dejaba el nombre en «BLANCO EN…»: ahí el nombre
-                        se parte en líneas; desde sm: una línea truncada como antes. */}
-                    <span className="min-w-0 text-sm font-bold text-brand-dark break-words sm:truncate">{obra.nombre}</span>
-                    <span className="shrink-0 text-sm font-black text-brand-dark">
-                        {fmtMoney(obra.valor_mensual)}
-                    </span>
-                </div>
-                <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                        className="h-full bg-brand-primary rounded-full transition-all"
-                        style={{ width: `${pct}%` }}
-                    />
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-caption text-muted-foreground font-semibold">
-                    <span><Wallet className="inline h-3 w-3 mr-0.5 -mt-0.5" /> Arriendo: {fmtMoney(obra.valor_mensual)}/mes</span>
-                    <span><Landmark className="inline h-3 w-3 mr-0.5 -mt-0.5" /> Costo: {fmtMoney(obra.valor_patrimonial)}</span>
-                </div>
-                {obra.descuento_porcentaje > 0 && (
-                    <div className="mt-1 text-caption text-muted-foreground font-semibold">
-                        {obra.descuento_porcentaje}% desc. aplicado · bruto {fmtMoney(obra.valor_bruto)}
-                    </div>
-                )}
-            </div>
-            <ChevronRight className="shrink-0 h-4 w-4 text-muted-foreground/40 group-hover:text-brand-primary transition-colors" />
-        </button>
-    );
-};
-const ObraRankingItem = React.memo(ObraRankingItemImpl);
-
-// ────────────────────────────────────────────────────────
-// Item de alerta (memoizado)
-// ────────────────────────────────────────────────────────
-interface AlertaItemProps {
-    alerta: DashboardAlerta;
-    onClick: () => void;
-    /** Solo para pendientes estancadas: extender 10 días. */
-    onProrrogar?: () => void;
-    /** Solo para pendientes estancadas: cancelar la solicitud. */
-    onCancelar?: () => void;
-    /** Deshabilita las acciones mientras se procesa una. */
-    actionLoading?: boolean;
-}
-
-const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrrogar, onCancelar, actionLoading }) => {
-    const isEstancada = alerta.tipo === 'pendiente' && !!alerta.estancada;
-    const toneMap: Record<DashboardAlerta['tipo'], { bg: string; border: string; icon: React.ReactNode; iconBg: string; cta: string }> = {
-        pendiente: {
-            bg: 'bg-amber-50/60 dark:bg-amber-950/30',
-            border: 'border-amber-200 dark:border-amber-900',
-            icon: <FileClock className="h-4 w-4" />,
-            iconBg: 'bg-amber-200/70 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300',
-            cta: 'Aprobar',
-        },
-        discrepancia: {
-            bg: 'bg-red-50/60 dark:bg-red-950/30',
-            border: 'border-red-200 dark:border-red-900',
-            icon: <AlertTriangle className="h-4 w-4" />,
-            iconBg: 'bg-red-200/70 text-red-800 dark:bg-red-500/20 dark:text-red-300',
-            cta: 'Revisar',
-        },
-        transito: {
-            bg: 'bg-blue-50/60 dark:bg-blue-950/30',
-            border: 'border-blue-200 dark:border-blue-900',
-            icon: <Truck className="h-4 w-4" />,
-            iconBg: 'bg-blue-200/70 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300',
-            cta: 'Ver',
-        },
-        faltante: {
-            bg: 'bg-orange-50/60 dark:bg-orange-950/30',
-            border: 'border-orange-200 dark:border-orange-900',
-            icon: <Package className="h-4 w-4" />,
-            iconBg: 'bg-orange-200/70 text-orange-800 dark:bg-orange-500/20 dark:text-orange-300',
-            cta: 'Decidir',
-        },
-        rechazo: {
-            bg: 'bg-red-50/60 dark:bg-red-950/30',
-            border: 'border-red-200 dark:border-red-900',
-            icon: <XCircle className="h-4 w-4" />,
-            iconBg: 'bg-red-200/70 text-red-800 dark:bg-red-500/20 dark:text-red-300',
-            cta: 'Ver',
-        },
-    };
-    const t = toneMap[alerta.tipo];
-
-    const diasLabel = alerta.dias === 0 ? 'hoy' : alerta.dias === 1 ? 'hace 1 día' : `hace ${alerta.dias} días`;
-    // Las estancadas mantienen el rol ÁMBAR (precaución/pendiente) pero intensificado
-    // para destacar que requieren decisión; el rojo se reserva para destructivo/error.
-    const bg = isEstancada ? 'bg-amber-100/70 dark:bg-amber-950/40' : t.bg;
-    const border = isEstancada ? 'border-amber-400 dark:border-amber-700' : t.border;
-    const iconBg = isEstancada ? 'bg-amber-200/80 text-amber-800 dark:bg-amber-500/25 dark:text-amber-300' : t.iconBg;
-    const showActions = isEstancada && (onProrrogar || onCancelar);
-
-    return (
-        <div
-            className={cn(
-                'rounded-xl border-2 transition-all',
-                bg, border
-            )}
-        >
-            {/* eslint-disable-next-line no-restricted-syntax -- card clickable (item de alerta con layout interno rico) */}
-            <button
-                type="button"
-                onClick={onClick}
-                aria-label={`${alerta.titulo}. ${alerta.detalle}. ${diasLabel}. Click para ver.`}
-                // En el teléfono el título (~350 px) quedaba en 112 px al lado de «Revisar»: «TRF-202604-…». Ahora el
-                // texto conserva 10rem (`basis-40`) y se lee entero en varias líneas; el botón baja a la derecha.
-                // Desde sm: igual que antes (una línea, truncada, con el botón al lado).
-                className="flex flex-wrap items-center gap-x-3 gap-y-2 w-full p-3.5 text-left hover:opacity-90 active:scale-[0.995] transition-all"
-            >
-                <div className={cn('shrink-0 p-2 rounded-lg', iconBg)}>
-                    {isEstancada ? <Timer className="h-4 w-4" /> : t.icon}
-                </div>
-                <div className="flex-1 min-w-0 basis-40">
-                    <div className="text-sm font-bold text-brand-dark break-words sm:truncate">
-                        {alerta.titulo}
-                        <span className="ml-2 text-label font-semibold text-muted-foreground">— {diasLabel}</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground break-words sm:truncate mt-0.5">
-                        {alerta.detalle}
-                    </div>
-                    {alerta.solicitante && (
-                        <div className="flex items-center gap-1 text-label text-muted-foreground/80 mt-0.5 truncate">
-                            <User className="h-3 w-3 shrink-0" />
-                            <span className="font-semibold truncate">{alerta.solicitante}</span>
-                        </div>
-                    )}
-                </div>
-                <span className="shrink-0 ml-auto flex items-center gap-1 px-3 py-1.5 rounded-lg bg-card/80 border border-current/10 text-xs font-bold">
-                    {isEstancada ? 'Modificar' : t.cta}
-                    <ChevronRight className="h-3.5 w-3.5" />
-                </span>
-            </button>
-
-            {/* Acciones para solicitudes estancadas: extender plazo o cancelar */}
-            {showActions && (
-                <div className="flex items-center gap-2 px-3.5 pb-3 -mt-1">
-                    {onProrrogar && (
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={onProrrogar}
-                            disabled={actionLoading}
-                            leftIcon={<Timer className="h-3 w-3" />}
-                        >
-                            Extender 10 días
-                        </Button>
-                    )}
-                    {onCancelar && (
-                        <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            onClick={onCancelar}
-                            disabled={actionLoading}
-                            leftIcon={<XCircle className="h-3 w-3" />}
-                        >
-                            Cancelar
-                        </Button>
-                    )}
-                </div>
+            <div className="mt-1.5 text-xs md:text-sm text-muted-foreground font-semibold">{sub}</div>
+            {historico?.sparkline && historico.sparkline.length >= 2 && (
+                <Tendencia data={historico.sparkline} tono={tono} />
             )}
         </div>
     );
 };
-const AlertaItem = React.memo(AlertaItemImpl);
+const MontoCard = React.memo(MontoCardImpl);
 
 // ────────────────────────────────────────────────────────
-// Item de rechazo reciente
+// Barra horizontal de un ranking (obras / vehículos)
 // ────────────────────────────────────────────────────────
-interface RechazoItemProps {
-    rechazo: DashboardRechazo;
-    onClick: () => void;
+interface BarraFilaProps {
+    nombre: string;
+    extra?: string;
+    monto: number;
+    max: number;
+    color: string;
+    onClick?: () => void;
+    title?: string;
 }
 
-const RechazoItem: React.FC<RechazoItemProps> = ({ rechazo, onClick }) => {
-    const diasLabel = rechazo.dias === 0 ? 'hoy' : rechazo.dias === 1 ? 'hace 1 día' : `hace ${rechazo.dias} días`;
+const BarraFila: React.FC<BarraFilaProps> = ({ nombre, extra, monto, max, color, onClick, title }) => {
+    const pct = max > 0 ? Math.max(2, (monto / max) * 100) : 0;
+    // Grilla: en celular nombre | monto arriba y la barra abajo a lo ancho (como el mockup);
+    // desde sm, nombre | barra | monto en una línea. (Antes era flex-col con la barra
+    // `flex-1` → en columna su alto quedaba en 0 y la barra no se veía en celular.)
+    const cuerpo = (
+        <>
+            <div className="min-w-0 order-1">
+                <div className="text-sm font-bold text-brand-dark break-words sm:truncate">{nombre}</div>
+                {extra && <div className="text-caption text-muted-foreground font-semibold truncate">{extra}</div>}
+            </div>
+            <div className="order-2 sm:order-3 text-sm font-black text-brand-dark tabular-nums text-right whitespace-nowrap">
+                {fmtMoney(monto)}
+            </div>
+            <div className="order-3 sm:order-2 col-span-2 sm:col-span-1 h-3 sm:h-6 rounded-lg bg-muted overflow-hidden">
+                <div className="h-full rounded-lg transition-all" style={{ width: `${pct}%`, background: color }} />
+            </div>
+        </>
+    );
+    const grilla = 'grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[12rem_minmax(0,1fr)_9rem] items-center gap-x-4 gap-y-1.5 py-1.5';
+    if (!onClick) {
+        return <div title={title} className={grilla}>{cuerpo}</div>;
+    }
     return (
-        // eslint-disable-next-line no-restricted-syntax -- card clickable (item de rechazo con layout interno rico)
+        // eslint-disable-next-line no-restricted-syntax -- fila de ranking clickeable (barra + monto)
         <button
             type="button"
             onClick={onClick}
-            aria-label={`${rechazo.codigo} rechazado ${diasLabel}. Click para ver.`}
-            className="flex items-start gap-3 w-full p-3.5 rounded-xl border-2 border-red-100 bg-red-50/40 transition-all text-left hover:border-red-300 hover:shadow-md active:scale-[0.995] dark:border-red-900 dark:bg-red-950/30 dark:hover:border-red-700"
+            title={title}
+            className={`${grilla} px-2 -mx-2 rounded-xl hover:bg-muted/60 transition-colors text-left w-[calc(100%+1rem)]`}
         >
-            <div className="shrink-0 p-2 rounded-lg bg-red-200/70 text-red-800 mt-0.5 dark:bg-red-500/20 dark:text-red-300">
-                <XCircle className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-brand-dark truncate">
-                    {rechazo.codigo}
-                    <span className="ml-2 text-label font-semibold text-muted-foreground">— {diasLabel}</span>
-                </div>
-                <div className="text-xs text-muted-foreground truncate mt-0.5">
-                    {rechazo.origen} → {rechazo.destino}
-                </div>
-                {rechazo.observaciones_rechazo && (
-                    <div className="text-xs text-red-700 font-semibold mt-1 line-clamp-2 dark:text-red-300">
-                        "{rechazo.observaciones_rechazo}"
-                    </div>
-                )}
-                {rechazo.rechazado_por && (
-                    <div className="flex items-center gap-1 text-label text-muted-foreground/80 mt-0.5">
-                        <User className="h-3 w-3 shrink-0" />
-                        <span className="font-semibold truncate">{rechazo.rechazado_por}</span>
-                    </div>
-                )}
-            </div>
-            <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-card/80 border border-current/10 text-xs font-bold text-red-700 dark:text-red-300">
-                Ver
-                <ChevronRight className="h-3.5 w-3.5" />
-            </span>
+            {cuerpo}
         </button>
+    );
+};
+
+// ────────────────────────────────────────────────────────
+// Fila de decisión pendiente (la acción vive en la misma fila)
+// ────────────────────────────────────────────────────────
+type TonoDecision = 'green' | 'amber' | 'red' | 'blue' | 'orange';
+const TONO_DECISION: Record<TonoDecision, string> = {
+    green: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300',
+    amber: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300',
+    red: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300',
+    blue: 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300',
+    orange: 'bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-300',
+};
+
+interface DecisionFilaProps {
+    tono: TonoDecision;
+    icon: React.ReactNode;
+    titulo: string;
+    detalle?: string;
+    boton: string;
+    onClick: () => void;
+    children?: React.ReactNode;
+}
+
+const DecisionFila: React.FC<DecisionFilaProps> = ({ tono, icon, titulo, detalle, boton, onClick, children }) => (
+    <div className="py-3 border-t border-border first:border-t-0">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <div className={cn('shrink-0 p-2.5 rounded-xl', TONO_DECISION[tono])}>{icon}</div>
+            <div className="flex-1 min-w-0 basis-40">
+                <div className="text-sm md:text-base font-bold text-brand-dark">{titulo}</div>
+                {detalle && <div className="text-xs text-muted-foreground mt-0.5">{detalle}</div>}
+            </div>
+            <Button type="button" variant="primary" size="sm" onClick={onClick} className="ml-auto shrink-0">
+                {boton}
+            </Button>
+        </div>
+        {children}
+    </div>
+);
+
+
+const diasTxt = (d: number) => (d === 0 ? 'hoy' : d === 1 ? '1 día' : `${d} días`);
+
+// ────────────────────────────────────────────────────────
+// Detalle en pestañas
+// ────────────────────────────────────────────────────────
+type TabDetalle = 'obras' | 'categorias' | 'vehiculos';
+
+const DetalleTabs: React.FC<{
+    data: DashboardEjecutivoData;
+    filtrado: boolean;
+    onNavigateObra: (id: number) => void;
+}> = ({ data, filtrado, onNavigateObra }) => {
+    const navigate = useNavigate();
+    const disponibles = useMemo(() => {
+        const t: { id: TabDetalle; label: string }[] = [];
+        if (!filtrado && data.top_obras.length > 0) t.push({ id: 'obras', label: 'Obras' });
+        if (data.valor_por_categoria.some(c => c.valor > 0)) t.push({ id: 'categorias', label: 'Categorías' });
+        if (!filtrado && (data.inversion_vehiculos?.length ?? 0) > 0) t.push({ id: 'vehiculos', label: 'Vehículos' });
+        return t;
+    }, [data, filtrado]);
+    const [tab, setTab] = useState<TabDetalle>('obras');
+    const activa = disponibles.find(t => t.id === tab) ? tab : disponibles[0]?.id;
+    if (!activa) return null;
+
+    const cats = data.valor_por_categoria.filter(c => c.valor > 0).sort((a, b) => b.valor - a.valor);
+    const totalCats = cats.reduce((s, c) => s + c.valor, 0);
+    // Tramos de la dona: inicio/fin acumulados de cada categoría (en %).
+    const finales = cats.map((_, i) => cats.slice(0, i + 1).reduce((s, c) => s + c.valor, 0));
+    const dona = `conic-gradient(${cats.map((c, i) => {
+        const desde = ((finales[i] - c.valor) / totalCats) * 100;
+        const hasta = (finales[i] / totalCats) * 100;
+        return `${PALETA[i % PALETA.length]} ${desde.toFixed(2)}% ${hasta.toFixed(2)}%`;
+    }).join(', ')})`;
+
+    const vehs = [...(data.inversion_vehiculos || [])].sort((a, b) => b.valor - a.valor);
+    const topVehs = vehs.slice(0, 6);
+    const empresasVeh = [...new Map(vehs.map(v => [v.empresa, v.color])).entries()];
+
+    return (
+        <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0 flex flex-col gap-4">
+            <div role="tablist" aria-label="Detalle" className="self-start flex gap-1 p-1 rounded-xl bg-muted">
+                {disponibles.map(t => (
+                    // eslint-disable-next-line no-restricted-syntax -- pestaña segmentada
+                    <button
+                        key={t.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={activa === t.id}
+                        onClick={() => setTab(t.id)}
+                        className={cn(
+                            'min-h-[40px] px-4 rounded-lg text-sm transition-colors',
+                            activa === t.id
+                                ? 'bg-card text-brand-dark font-bold shadow-sm'
+                                : 'text-muted-foreground font-semibold hover:text-brand-dark'
+                        )}
+                    >
+                        {t.label}
+                    </button>
+                ))}
+            </div>
+
+            {activa === 'obras' && (
+                <>
+                    <p className="text-xs text-muted-foreground -mt-1">
+                        Arriendo mensual por obra, ya con descuentos · toca una obra para ver su inventario
+                    </p>
+                    <div className="flex flex-col gap-1">
+                        {(() => {
+                            const max = data.top_obras.reduce((m, o) => Math.max(m, o.valor_mensual), 0);
+                            return data.top_obras.map((o, i) => (
+                                <BarraFila
+                                    key={o.obra_id}
+                                    nombre={o.nombre}
+                                    extra={o.descuento_porcentaje > 0 ? `${o.descuento_porcentaje}% de descuento` : undefined}
+                                    monto={o.valor_mensual}
+                                    max={max}
+                                    color={PALETA[i % PALETA.length]}
+                                    onClick={() => onNavigateObra(o.obra_id)}
+                                    title={`${o.nombre}\nArriendo mensual: ${fmtMoney(o.valor_mensual)}\nCosto (valor de compra): ${fmtMoney(o.valor_patrimonial)}`}
+                                />
+                            ));
+                        })()}
+                    </div>
+                </>
+            )}
+
+            {activa === 'categorias' && (
+                <>
+                    <p className="text-xs text-muted-foreground -mt-1">Arriendo mensual por categoría, ya con descuentos</p>
+                    <div className="flex flex-col sm:flex-row items-center gap-6 md:gap-10">
+                        <div
+                            role="img"
+                            aria-label="Gráfico de dona: arriendo mensual por categoría"
+                            className="shrink-0 w-48 h-48 rounded-full flex items-center justify-center"
+                            style={{ background: dona }}
+                        >
+                            <div className="w-28 h-28 rounded-full bg-card flex flex-col items-center justify-center text-center px-2">
+                                <span className="text-caption text-muted-foreground font-semibold">Al mes</span>
+                                <span className="text-xs font-black text-brand-dark tabular-nums">{fmtMoney(totalCats)}</span>
+                            </div>
+                        </div>
+                        <div className="flex-1 min-w-0 w-full flex flex-col gap-2.5">
+                            {cats.map((c, i) => (
+                                <div key={c.categoria_id} className="flex items-center gap-2.5 text-sm">
+                                    <span className="shrink-0 w-3.5 h-3.5 rounded" style={{ background: PALETA[i % PALETA.length] }} />
+                                    <span className="flex-1 min-w-0 font-bold text-brand-dark truncate">{c.nombre}</span>
+                                    <span className="shrink-0 w-10 text-right text-muted-foreground font-semibold tabular-nums">
+                                        {totalCats > 0 ? Math.round((c.valor / totalCats) * 100) : 0}%
+                                    </span>
+                                    <span className="shrink-0 sm:w-36 text-right font-black text-brand-dark tabular-nums whitespace-nowrap">
+                                        {fmtMoney(c.valor)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {activa === 'vehiculos' && (
+                <>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 -mt-1 text-xs text-muted-foreground">
+                        <span>Valor de compra por vehículo</span>
+                        {empresasVeh.map(([emp, color]) => (
+                            <span key={emp} className="inline-flex items-center gap-1.5 font-semibold">
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+                                {emp}
+                            </span>
+                        ))}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        {topVehs.map((v, i) => (
+                            <BarraFila
+                                key={`${v.label}-${i}`}
+                                nombre={v.label}
+                                extra={`${v.tipo || 'vehículo'} · ${v.empresa}`}
+                                monto={v.valor}
+                                max={topVehs[0]?.valor || 0}
+                                color={v.color}
+                            />
+                        ))}
+                    </div>
+                    {vehs.length > topVehs.length && (
+                        <p className="text-xs text-muted-foreground">Mostrando los {topVehs.length} de mayor valor de {vehs.length}.</p>
+                    )}
+                    {/* eslint-disable-next-line no-restricted-syntax -- enlace de texto a otro módulo */}
+                    <button
+                        type="button"
+                        onClick={() => navigate('/vehiculos')}
+                        className="self-start inline-flex items-center gap-1.5 min-h-[44px] text-sm font-bold text-green-700 dark:text-green-300 hover:underline"
+                    >
+                        Ir a Vehículos <ArrowRight className="h-4 w-4" />
+                    </button>
+                </>
+            )}
+        </div>
     );
 };
 
 // ────────────────────────────────────────────────────────
 // Panel principal
 // ────────────────────────────────────────────────────────
-// ────────────────────────────────────────────────────────
-// "Hace X min/seg" — label y color según antigüedad
-// ────────────────────────────────────────────────────────
-function formatRelativeTime(lastUpdated: number | null, now: number): { label: string; stale: boolean } {
-    if (!lastUpdated) return { label: '', stale: false };
-    const diffMs = now - lastUpdated;
-    const diffSec = Math.floor(diffMs / 1000);
-    if (diffSec < 10) return { label: 'Actualizado ahora', stale: false };
-    if (diffSec < 60) return { label: `Actualizado hace ${diffSec}s`, stale: false };
-    const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return { label: `Actualizado hace ${diffMin} min`, stale: diffMin >= 5 };
-    const diffHr = Math.floor(diffMin / 60);
-    return { label: `Actualizado hace ${diffHr}h`, stale: true };
-}
-
 const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNavigateObra, bodegaVirtualModo = 'ocultar' }) => {
-    // Permiso financiero para mostrar valores $ en el resumen ejecutivo.
-    // El backend ya sanitiza (Sprint 1), por lo que sin permiso los campos
-    // monetarios llegan undefined. Aquí escondemos los KPIs/secciones $
-    // completos para evitar mostrar "$0" sin contexto.
+    // Permiso financiero: sin él el backend ya sanitiza los montos; aquí se
+    // ocultan las secciones $ completas para no mostrar "$0" sin contexto.
     const { hasPermission } = useAuth();
     const verValoresResumen = hasPermission('inventario.resumen.ver_valores');
-    const verCostosBombas = hasPermission('inventario.bombas.ver_costos');
 
     const [obraFilter, setObraFilter] = useState<number | null>(null);
     const [obras, setObras] = useState<ObraOpcion[]>([]);
-    const { data, loading, error, refetch, lastUpdated } = useDashboardEjecutivo(obraFilter, bodegaVirtualModo);
-    const [now, setNow] = useState(() => Date.now());
+    const { data, loading, error, refetch } = useDashboardEjecutivo(obraFilter, bodegaVirtualModo);
 
-    // Acciones sobre solicitudes estancadas (punto 55)
+    // Acciones en el lugar sobre solicitudes estancadas
     const canAprobar = hasPermission('inventario.transferencias.aprobar');
     const canCancelar = hasPermission('inventario.transferencias.cancelar');
     const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
@@ -502,635 +425,335 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             await api.put(`/transferencias/${id}/prorrogar`);
             toast.success('Plazo extendido 10 días');
             refetch();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al extender el plazo');
+        } catch (err) {
+            showApiError(err, 'Error al extender el plazo');
         } finally {
             setActionLoadingId(null);
         }
     };
 
-    const handleCancelarSolicitud = async (id: number) => {
-        if (!window.confirm('¿Cancelar esta solicitud estancada? Esta acción no se puede deshacer.')) return;
-        setActionLoadingId(id);
-        try {
-            await api.put(`/transferencias/${id}/cancelar`);
-            toast.success('Solicitud cancelada');
-            refetch();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al cancelar');
-        } finally {
-            setActionLoadingId(null);
-        }
+    const handleCancelarSolicitud = (id: number, codigo: string) => {
+        showConfirmToast({
+            message: `¿Cancelar la solicitud ${codigo}? No se puede deshacer.`,
+            confirmLabel: 'Sí, cancelar',
+            cancelLabel: 'No',
+            onConfirm: async () => {
+                setActionLoadingId(id);
+                try {
+                    await api.put(`/transferencias/${id}/cancelar`);
+                    toast.success('Solicitud cancelada');
+                    refetch();
+                } catch (err) {
+                    showApiError(err, 'Error al cancelar');
+                } finally {
+                    setActionLoadingId(null);
+                }
+            },
+        });
     };
 
-    // Cargar obras participantes una sola vez para el selector
     useEffect(() => {
         api.get('/obras?participa_inventario=1')
-            .then(res => setObras((res.data.data || []).map((o: any) => ({ id: o.id, nombre: o.nombre }))))
+            .then(res => setObras(((res.data.data || []) as ObraOpcion[]).map(o => ({ id: o.id, nombre: o.nombre }))))
             .catch(() => setObras([]));
     }, []);
 
-    // Tick cada 30s para refrescar el label "hace X min"
-    useEffect(() => {
-        const id = setInterval(() => setNow(Date.now()), 30_000);
-        return () => clearInterval(id);
-    }, []);
-
-    const maxValor = data?.top_obras.reduce((m, o) => Math.max(m, o.valor_mensual), 0) || 0;
-    const relTime = formatRelativeTime(lastUpdated, now);
     const obraSeleccionada = obras.find(o => o.id === obraFilter);
-    // Primera carga (sin datos aún): cada sección dibuja su silueta; un solo aviso para el lector de pantalla.
+    const kpis = data?.kpis;
+    const filtrado = !!obraFilter;
+    // Primera carga (sin datos aún): cada bloque dibuja su silueta; un solo aviso para el lector de pantalla.
     const cargandoInicio = loading && !data;
+
+    // ── Decisiones: agrupadas por tipo, con su acción en la misma fila ──
+    const alertas = data?.alertas ?? [];
+    const masAntigua = (lista: DashboardAlerta[]) => lista.reduce((m, a) => Math.max(m, a.dias), 0);
+    const estancadas = alertas.filter(a => a.tipo === 'pendiente' && a.estancada);
+    const discrepancias = alertas.filter(a => a.tipo === 'discrepancia');
+    const transito = alertas.filter(a => a.tipo === 'transito');
+    const rechazos = alertas.filter(a => a.tipo === 'rechazo');
+    const faltantes = alertas.filter(a => a.tipo === 'faltante');
+    const nPendientes = kpis?.transferencias_pendientes ?? alertas.filter(a => a.tipo === 'pendiente').length;
+    const nDiscrepancias = kpis?.discrepancias_pendientes?.transferencias_afectadas || discrepancias.length;
+    const nTransito = kpis?.estancados_transito || transito.length;
+    const hayDecisiones = nPendientes > 0 || estancadas.length > 0 || nDiscrepancias > 0 || nTransito > 0 || rechazos.length > 0 || faltantes.length > 0;
+    const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
+
+    const valorInv = kpis?.valor_inventario ?? 0;
+    const valorVeh = kpis?.valor_vehiculos ?? 0;
+    const totalPat = valorInv + valorVeh;
+    const pctInv = totalPat > 0 ? (valorInv / totalPat) * 100 : 0;
 
     return (
         <div className="flex flex-col gap-5 flex-1 min-h-0 overflow-y-auto -mr-2 pr-2">
             {cargandoInicio && <span role="status" className="sr-only">Cargando el resumen…</span>}
-            {/* Header */}
-            <div className="flex items-center justify-between shrink-0 gap-3">
+            {/* Encabezado + único filtro de obra */}
+            <div className="flex flex-wrap items-center justify-between shrink-0 gap-3">
                 <div className="min-w-0">
                     <h2 className="text-lg md:text-xl font-black text-brand-dark">Resumen Ejecutivo</h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                        Todo lo importante del inventario en un vistazo.
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Lo importante del inventario, de un vistazo.</p>
                 </div>
-                <div className="hidden md:flex items-center gap-2 shrink-0">
-                    <div className="relative">
-                        <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                        <select
-                            value={obraFilter ?? ''}
-                            onChange={e => setObraFilter(e.target.value ? Number(e.target.value) : null)}
-                            className={cn(
-                                'pl-8 pr-3 py-2 text-xs font-bold rounded-xl transition-colors cursor-pointer appearance-none',
-                                'border focus:outline-none focus:ring-2 focus:ring-brand-primary/30',
-                                obraFilter
-                                    ? 'bg-brand-primary/10 border-brand-primary/30 text-green-700 dark:text-green-300'
-                                    : 'bg-muted border-transparent hover:bg-muted text-brand-dark'
-                            )}
-                            aria-label="Filtrar por obra"
-                            title={obraFilter ? `Filtrado por: ${obraSeleccionada?.nombre || ''}` : 'Ver todas las obras'}
-                        >
-                            <option value="">Todas las obras</option>
-                            {obras.map(o => (
-                                <option key={o.id} value={o.id}>{o.nombre}</option>
-                            ))}
-                        </select>
-                    </div>
-                    {relTime.label && (
-                        <span
-                            title={lastUpdated ? new Date(lastUpdated).toLocaleString('es-CL') : undefined}
-                            className={cn(
-                                'hidden md:inline text-label font-semibold cursor-help',
-                                relTime.stale ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'
-                            )}
-                        >
-                            {relTime.label}
-                        </span>
-                    )}
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={refetch}
-                        disabled={loading}
-                        aria-label="Actualizar datos"
-                        leftIcon={<RefreshCw className={cn('h-3.5 w-3.5', loading && !!data && 'animate-spin')} />}
+                <div className="relative">
+                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                    <select
+                        value={obraFilter ?? ''}
+                        onChange={e => setObraFilter(e.target.value ? Number(e.target.value) : null)}
+                        className={cn(
+                            'min-h-[40px] pl-8 pr-3 text-sm font-bold rounded-xl cursor-pointer appearance-none border',
+                            'focus:outline-none focus:ring-2 focus:ring-brand-primary/30',
+                            obraFilter
+                                ? 'bg-brand-primary/10 border-brand-primary/30 text-green-700 dark:text-green-300'
+                                : 'bg-card border-border text-brand-dark'
+                        )}
+                        aria-label="Filtrar por obra"
                     >
-                        Actualizar
-                    </Button>
+                        <option value="">Todas las obras</option>
+                        {obras.map(o => (
+                            <option key={o.id} value={o.id}>{o.nombre}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
             <FormError message={error} />
 
-            {obraFilter && obraSeleccionada && (
+            {filtrado && obraSeleccionada && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-primary/5 border border-brand-primary/20 text-xs">
                     <Filter className="h-3.5 w-3.5 text-brand-primary shrink-0" />
                     <span className="font-bold text-green-700 dark:text-green-300 truncate">
-                        Filtrando por obra: {obraSeleccionada.nombre}
+                        Viendo solo: {obraSeleccionada.nombre}
                     </span>
-                    <span className="text-muted-foreground hidden sm:inline">
-                        · sparklines y comparativa mes desactivadas
-                    </span>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setObraFilter(null)}
-                        className="ml-auto"
-                    >
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setObraFilter(null)} className="ml-auto">
                         Quitar filtro
                     </Button>
                 </div>
             )}
 
-            {/* KPI Cards */}
-            {/* Mientras carga, las mismas tarjetas (color, ícono y rótulo de verdad) con la cifra en silueta. */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4 shrink-0">
-                <KpiCard
-                    tone="amber"
-                    icon={<FileClock className="h-5 w-5" />}
-                    label="Por aprobar"
-                    value={String(data?.kpis.transferencias_pendientes ?? 0)}
-                    subline={(data?.kpis.transferencias_pendientes ?? 0) === 1 ? 'solicitud' : 'solicitudes'}
-                    onClick={() => onNavigateTransferencias({ estado: 'pendiente' })}
-                    disabled={(data?.kpis.transferencias_pendientes ?? 0) === 0}
-                    tooltip="Solicitudes de transferencia esperando tu aprobación. Click para ir a la lista y aprobarlas."
-                    historico={data?.historico?.pendientes}
-                    invertDelta
-                    cargando={cargandoInicio}
-                />
-                {verValoresResumen && (
-                    <KpiCard
-                        tone="green"
-                        icon={<Wallet className="h-5 w-5" />}
-                        label="Valor obras"
-                        value={fmtMoney(data?.kpis.valor_total_obras ?? 0)}
-                        subline="arriendo mensual"
-                        tooltip="Valor total mensual de arriendo de todos los items asignados a obras activas. Ya incluye los descuentos aplicados a cada obra."
-                        historico={data?.historico?.valor_obras}
-                        cargando={cargandoInicio}
-                    />
-                )}
-                {verValoresResumen && (
-                    <KpiCard
-                        tone="blue"
-                        icon={<Landmark className="h-5 w-5" />}
-                        label="Inventario"
-                        value={fmtMoney(data?.kpis.valor_inventario ?? 0)}
-                        subline="valor de compra"
-                        tooltip="Lo invertido en compra del inventario: suma de (cantidad × valor de compra) de todos los ítems —andamios, alzaprimas, moldajes, maquinaria y vigas— en obras y bodegas. No incluye vehículos."
-                        cargando={cargandoInicio}
-                    />
-                )}
-                {!obraFilter && verValoresResumen && (
-                    <KpiCard
-                        tone="slate"
-                        icon={<Truck className="h-5 w-5" />}
-                        label="Vehículos"
-                        value={fmtMoney(data?.kpis.valor_vehiculos ?? 0)}
-                        subline="valor de compra"
-                        tooltip="Lo invertido en compra de todos los vehículos activos (suma del valor de cada vehículo). El detalle por empresa y por auto está más abajo en 'Inversión en vehículos'."
-                        cargando={cargandoInicio}
-                    />
-                )}
-                {!obraFilter && verValoresResumen && (
-                    <KpiCard
-                        tone="indigo"
-                        icon={<Coins className="h-5 w-5" />}
-                        label="Total"
-                        value={fmtMoney((data?.kpis.valor_inventario ?? 0) + (data?.kpis.valor_vehiculos ?? 0))}
-                        subline="inventario + vehículos"
-                        tooltip="Total invertido en compra: suma del valor de compra del inventario más el de todos los vehículos."
-                        cargando={cargandoInicio}
-                    />
-                )}
-            </div>
-
-            {/* Patrimonio por empresa (Dedalius=inventario, LOLS/TRANSPORTE=vehículos).
-                Solo en la vista "Todas las obras" (los vehículos son globales) y con
-                permiso de valores. El total ya está en la tarjeta Patrimonio. */}
-            {/* Mientras carga también va (en silueta): así no aparece después empujando lo de abajo. */}
-            {!obraFilter && verValoresResumen && (cargandoInicio || (data?.patrimonio_por_empresa?.length ?? 0) > 0) && (
-            <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
-                <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-3">
-                    Patrimonio por empresa
-                </h3>
-                <div className="flex flex-col gap-3">
-                    {cargandoInicio ? [0, 1, 2].map(i => (
-                        <div key={i} aria-hidden="true">
-                            <div className="flex items-center justify-between gap-3">
-                                <span className="flex items-center gap-2 min-w-0">
-                                    <Skeleton className="shrink-0 w-2.5 h-2.5 rounded-full" />
-                                    <Skeleton className={i === 1 ? 'h-3.5 w-24' : 'h-3.5 w-32'} />
-                                </span>
-                                <Skeleton className="shrink-0 h-3.5 w-24" />
-                            </div>
-                            <Skeleton className="mt-1.5 h-2 w-full rounded-full" />
-                        </div>
-                    )) : (() => {
-                        const lista = data!.patrimonio_por_empresa;
-                        const maxPat = Math.max(1, ...lista.map(e => e.valor));
-                        return lista.map(e => (
-                            <div key={e.nombre}>
-                                <div className="flex items-baseline justify-between gap-3">
-                                    <span className="text-sm font-bold text-brand-dark flex items-center gap-2 min-w-0">
-                                        <span className="shrink-0 w-2.5 h-2.5 rounded-full" style={{ background: e.color }} />
-                                        <span className="truncate">{e.nombre}</span>
-                                        <span className="text-caption text-muted-foreground font-semibold shrink-0">· {e.tipo}</span>
-                                    </span>
-                                    <span className="shrink-0 text-sm font-black text-brand-dark">{fmtMoney(e.valor)}</span>
-                                </div>
-                                <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden">
-                                    <div className="h-full rounded-full transition-all" style={{ width: `${(e.valor / maxPat) * 100}%`, background: e.color }} />
-                                </div>
-                            </div>
-                        ));
-                    })()}
-                </div>
-            </div>
-            )}
-
-            {/* Inversión en vehículos: indicadores "cuánta plata por auto" — por tipo de
-                vehículo + detalle (ranking) por auto. Solo LOLS y TRANSPORTE. Mismo gate. */}
-            {!obraFilter && verValoresResumen && (
-            <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
-                <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-3">
-                    Inversión en vehículos
-                </h3>
-                {cargandoInicio ? (
-                    // Silueta (antes, mientras cargaba, se leía «Aún no hay vehículos…»): rótulos de verdad, gráfico y cifras en gris.
-                    <div aria-hidden="true">
-                        <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-2">Inversión acumulada</p>
-                        <Skeleton className="h-[240px] w-full mb-5 rounded-xl" />
-                        <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-2">Por tipo de vehículo</p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 mb-5">
-                            {[0, 1, 2, 3].map(i => (
-                                <div key={i} className="rounded-lg border border-border px-2.5 py-2 min-w-0 space-y-1.5">
-                                    <Skeleton className="h-3 w-16 max-w-full" />
-                                    <Skeleton className="h-4 w-24 max-w-full" />
-                                    <Skeleton className="h-2.5 w-20 max-w-full" />
-                                </div>
-                            ))}
-                        </div>
-                        <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-1">Detalle por auto</p>
-                        <div className="divide-y divide-border">
-                            {[0, 1, 2].map(i => (
-                                <div key={i} className="flex items-center gap-3 py-2.5">
-                                    <Skeleton className="shrink-0 h-3 w-4" />
-                                    <Skeleton className="shrink-0 w-2.5 h-2.5 rounded-full" />
-                                    <div className="flex-1 min-w-0">
-                                        <Skeleton className={i === 1 ? 'h-3.5 w-1/3' : 'h-3.5 w-1/2'} />
-                                    </div>
-                                    <Skeleton className="shrink-0 h-3.5 w-24" />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ) : (data?.inversion_vehiculos?.length ?? 0) === 0 ? (
-                    <div className="py-10 text-center text-muted-foreground">
-                        <Truck className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                        <p className="text-sm font-medium">Aún no hay vehículos con valor cargado.</p>
-                        <p className="text-xs mt-1">Ve a Vehículos → editar un vehículo y completa "Valor del vehículo" para verlo.</p>
-                    </div>
-                ) : (() => {
-                    const vehs = data!.inversion_vehiculos;
-                    // Inversión ACUMULADA por empresa (para el área estilo "Tendencia de Asistencia").
-                    const byEmp = new Map<string, { color: string; vals: number[] }>();
-                    for (const v of vehs) {
-                        if (!byEmp.has(v.empresa)) byEmp.set(v.empresa, { color: v.color, vals: [] });
-                        byEmp.get(v.empresa)!.vals.push(v.valor);
-                    }
-                    for (const info of byEmp.values()) info.vals.sort((a, b) => b - a);
-                    const empresasAcum = [...byEmp.entries()].map(([nombre, info]) => [nombre, info.color] as [string, string]);
-                    const maxLen = Math.max(0, ...[...byEmp.values()].map(e => e.vals.length));
-                    const run: Record<string, number> = {};
-                    empresasAcum.forEach(([n]) => (run[n] = 0));
-                    // Punto inicial en 0 (0 vehículos = $0) para que las líneas suban desde el piso
-                    // y no queden "flotando" arrancando en el valor del primer vehículo.
-                    const zeroRow: any = { step: 0 };
-                    empresasAcum.forEach(([n]) => (zeroRow[n] = 0));
-                    const chartData = [zeroRow, ...Array.from({ length: maxLen }, (_, k) => {
-                        const row: any = { step: k + 1 };
-                        for (const [nombre, info] of byEmp) {
-                            if (k < info.vals.length) { run[nombre] += info.vals[k]; row[nombre] = run[nombre]; }
-                        }
-                        return row;
-                    })];
-                    // Inversión por TIPO de vehículo (total + cantidad + promedio).
-                    const porTipo = Object.values(
-                        vehs.reduce((acc: Record<string, { tipo: string; count: number; total: number }>, v) => {
-                            const t = v.tipo || 'otro';
-                            (acc[t] = acc[t] || { tipo: t, count: 0, total: 0 });
-                            acc[t].count += 1; acc[t].total += v.valor;
-                            return acc;
-                        }, {})
-                    ).sort((a, b) => b.total - a.total);
-                    return (
-                        <>
-                            {/* Área acumulada (estilo "Tendencia de Asistencia") */}
-                            <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-2">Inversión acumulada</p>
-                            <div className="h-[240px] w-full mb-5 rounded-xl bg-muted/50 p-2 pr-1">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={chartData} margin={{ top: 10, right: 12, left: -4, bottom: 12 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                        <XAxis dataKey="step" allowDecimals={false} axisLine={false} tickLine={false}
-                                            tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
-                                            label={{ value: 'N° de vehículos acumulados', position: 'insideBottom', offset: -4, fill: 'var(--muted-foreground)', fontSize: 11 }} />
-                                        {/* Ticks abreviados (chileno): un eje de ~68px no admite el
-                                            monto completo. El tooltip sí muestra el valor íntegro. */}
-                                        <YAxis axisLine={false} tickLine={false} width={68}
-                                            tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
-                                            tickFormatter={(v: number) => fmtMoneyCompacto(v)} />
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px' }}
-                                            labelStyle={{ color: 'var(--muted-foreground)', marginBottom: '4px' }}
-                                            labelFormatter={(label: any) => `${label} vehículo(s)`}
-                                            formatter={(value: any, name: any) => [fmtMoney(Number(value)), name]} />
-                                        <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '12px', paddingLeft: '12px' }} />
-                                        {empresasAcum.map(([emp, color]) => (
-                                            <Area key={emp} type="monotone" dataKey={emp} name={emp}
-                                                stroke={color} strokeWidth={3} fill="none"
-                                                connectNulls dot={{ r: 3, fill: color }} activeDot={{ r: 5 }} isAnimationActive={false} />
-                                        ))}
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </div>
-                            {/* Por tipo */}
-                            <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-2">Por tipo de vehículo</p>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 mb-5">
-                                {porTipo.map(t => (
-                                    <div key={t.tipo} className="rounded-lg border border-border px-2.5 py-2 min-w-0">
-                                        <p className="text-xs font-bold text-brand-dark capitalize truncate">{t.tipo}</p>
-                                        <p className="text-sm font-black text-brand-dark truncate" title={fmtMoney(t.total)}>{fmtMoney(t.total)}</p>
-                                        <p className="text-micro text-muted-foreground truncate"
-                                            title={`${t.count} auto${t.count !== 1 ? 's' : ''} · promedio ${fmtMoney(t.total / t.count)}`}>
-                                            {t.count} auto{t.count !== 1 ? 's' : ''} · prom {fmtMoney(t.total / t.count)}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                            {/* Detalle por auto (ranking, ya viene ordenado de mayor a menor) */}
-                            <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-1">Detalle por auto</p>
-                            <div className="divide-y divide-border">
-                                {vehs.map((v, i) => (
-                                    <div key={i} className="flex items-center gap-3 py-2.5">
-                                        <span className="shrink-0 w-6 text-caption font-black text-muted-foreground text-right">{i + 1}</span>
-                                        <span className="shrink-0 w-2.5 h-2.5 rounded-full" style={{ background: v.color }} title={v.empresa} />
-                                        <div className="flex-1 min-w-0">
-                                            <span className="text-sm font-bold text-brand-dark">{v.label}</span>
-                                            <span className="text-caption text-muted-foreground"> · {v.empresa}</span>
-                                        </div>
-                                        <span className="shrink-0 text-sm font-black text-brand-dark">{fmtMoney(v.valor)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </>
-                    );
-                })()}
-            </div>
-            )}
-
-            {/* Ranking de obras — oculto cuando hay filtro por obra o el
-                usuario no tiene permiso para ver valores monetarios. La
-                sección entera ranquea por $ — sin permiso $ no aporta. */}
-            {!obraFilter && verValoresResumen && (
-            <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
-                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-3">
-                    <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
-                        Obras por valor (arriendo y costo)
-                    </h3>
-                    {data && (
-                        <div className="flex items-baseline gap-3 text-label font-semibold text-muted-foreground">
-                            <span><Wallet className="inline h-3.5 w-3.5 mr-0.5 -mt-0.5" /> Arriendo: <span className="text-brand-dark font-black">{fmtMoney(data.kpis.valor_total_obras)}</span>/mes</span>
-                            <span><Landmark className="inline h-3.5 w-3.5 mr-0.5 -mt-0.5" /> Costo: <span className="text-brand-dark font-black">{fmtMoney(data.kpis.valor_total_costo_obras)}</span></span>
-                        </div>
-                    )}
-                    {cargandoInicio && <Skeleton className="h-3 w-56 max-w-full" />}
-                </div>
-                {cargandoInicio ? (
-                    // Silueta de las filas: posición, nombre y monto, la barra y Arriendo · Costo.
-                    <div className="flex flex-col gap-1" aria-hidden="true">
-                        {[0, 1, 2, 3].map(i => (
-                            <div key={i} className="flex items-center gap-3 w-full p-3">
-                                <Skeleton className="shrink-0 w-7 h-7 rounded-lg" />
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <Skeleton className={i % 2 ? 'h-3.5 w-1/3' : 'h-3.5 w-1/2'} />
-                                        <Skeleton className="shrink-0 h-3.5 w-20" />
-                                    </div>
-                                    <Skeleton className="mt-2 h-2 w-full rounded-full" />
-                                    <Skeleton className="mt-2 h-2.5 w-48 max-w-full" />
-                                </div>
-                                <ChevronRight className="shrink-0 h-4 w-4 text-muted-foreground/40" />
-                            </div>
-                        ))}
-                    </div>
-                ) : !data?.top_obras.length ? (
-                    <div className="py-8 text-center">
-                        <Package className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">No hay obras con inventario activo.</p>
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-1">
-                        {data.top_obras.map((obra, idx) => (
-                            <ObraRankingItem
-                                key={obra.obra_id}
-                                pos={idx + 1}
-                                obra={obra}
-                                maxValor={maxValor}
-                                onClick={() => onNavigateObra(obra.obra_id)}
+            {/* 1 · Montos */}
+            {verValoresResumen && (cargandoInicio || kpis) && (
+                    <div className={cn('grid grid-cols-1 gap-3 md:gap-4 shrink-0', filtrado ? 'md:grid-cols-2' : 'md:grid-cols-3')}>
+                        <MontoCard
+                            tono="green"
+                            icon={<Wallet className="h-5 w-5" />}
+                            label="Arriendo mensual"
+                            value={kpis?.valor_total_obras ?? 0}
+                            cargando={cargandoInicio}
+                            sub="lo que facturan las obras al mes"
+                            tooltip="Arriendo mensual de todos los ítems asignados a obras activas, ya con los descuentos de cada obra."
+                            historico={filtrado ? undefined : data?.historico?.valor_obras}
+                        />
+                        <MontoCard
+                            tono="blue"
+                            icon={<Landmark className="h-5 w-5" />}
+                            label="Inventario"
+                            value={kpis?.valor_inventario ?? 0}
+                            cargando={cargandoInicio}
+                            sub={filtrado ? 'valor de compra en esta obra' : 'valor de compra, obras y bodegas'}
+                            tooltip="Lo invertido en compra del inventario: cantidad × valor de compra de todos los ítems en obras y bodegas. No incluye vehículos."
+                        />
+                        {!filtrado && (
+                            <MontoCard
+                                tono="amber"
+                                icon={<Truck className="h-5 w-5" />}
+                                label="Vehículos"
+                                value={kpis?.valor_vehiculos ?? 0}
+                            cargando={cargandoInicio}
+                                sub="valor de compra de la flota"
+                                tooltip="Lo invertido en compra de todos los vehículos activos."
                             />
-                        ))}
+                        )}
                     </div>
-                )}
-            </div>
             )}
 
-            {/* Valor por categoría — barras horizontales.
-                Gate financiero: gateado por `inventario.resumen.ver_valores` porque
-                muestra montos $ totales por categoría y un total general $. */}
-            {verValoresResumen && (loading || ((data?.valor_por_categoria?.reduce((s, c) => s + c.valor, 0) ?? 0) > 0)) && (
-                <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
-                    <div className="flex items-baseline justify-between mb-4">
-                        <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
-                            Valor por categoría
-                        </h3>
-                        {data && (
-                            <span className="text-label font-semibold text-muted-foreground">
-                                Total: {fmtMoney(data.valor_por_categoria.reduce((s, c) => s + c.valor, 0))}
-                            </span>
-                        )}
-                        {cargandoInicio && <Skeleton className="h-3 w-28" />}
+            {/* 2 · Patrimonio total en una barra */}
+            {verValoresResumen && !filtrado && cargandoInicio && (
+                <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0 flex flex-col gap-3" aria-hidden="true">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">Patrimonio total</h3>
+                        <Skeleton className="h-6 w-40" />
                     </div>
-                    {cargandoInicio ? (
-                        // Silueta de las barras: color, nombre, % y monto; abajo la barra.
-                        <div className="flex flex-col gap-3" aria-hidden="true">
-                            {[0, 1, 2, 3].map(i => (
-                                <div key={i}>
-                                    <div className="flex items-center justify-between gap-3 mb-1.5">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <Skeleton className="shrink-0 w-2.5 h-2.5 rounded-sm" />
-                                            <Skeleton className={i % 2 ? 'h-3.5 w-24' : 'h-3.5 w-32'} />
-                                        </div>
-                                        <div className="flex items-center gap-3 shrink-0">
-                                            <Skeleton className="h-3 w-8" />
-                                            <Skeleton className="h-3.5 w-24" />
-                                        </div>
-                                    </div>
-                                    <Skeleton className="h-2.5 w-full rounded-full" />
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        (() => {
-                            const visibles = data!.valor_por_categoria.filter(c => c.valor > 0);
-                            const total = visibles.reduce((s, c) => s + c.valor, 0);
-                            const sorted = [...visibles].sort((a, b) => b.valor - a.valor);
-                            const maxValor = sorted[0]?.valor || 0;
-                            const colorByCatId: Record<number, string> = {};
-                            visibles.forEach((c, i) => { colorByCatId[c.categoria_id] = CAT_COLORS[i % CAT_COLORS.length]; });
-
-                            return (
-                                <div className="flex flex-col gap-3">
-                                    {sorted.map(c => {
-                                        const pct = total > 0 ? Math.round((c.valor / total) * 100) : 0;
-                                        const widthPct = maxValor > 0 ? (c.valor / maxValor) * 100 : 0;
-                                        const color = colorByCatId[c.categoria_id];
-                                        return (
-                                            <div
-                                                key={c.categoria_id}
-                                                title={`${c.nombre}: ${fmtMoney(c.valor)} — ${pct}% del total`}
-                                                className="group cursor-help"
-                                            >
-                                                <div className="flex items-baseline justify-between gap-3 mb-1.5">
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        <span
-                                                            className="shrink-0 w-2.5 h-2.5 rounded-sm"
-                                                            style={{ backgroundColor: color }}
-                                                        />
-                                                        <span className="text-sm font-bold text-brand-dark truncate">
-                                                            {c.nombre}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-baseline gap-3 shrink-0">
-                                                        <span className="text-label font-semibold text-muted-foreground tabular-nums w-9 text-right">
-                                                            {pct}%
-                                                        </span>
-                                                        <span className="text-sm font-black text-brand-dark tabular-nums w-28 md:w-32 text-right whitespace-nowrap">
-                                                            {fmtMoney(c.valor)}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="h-2.5 rounded-full bg-muted overflow-hidden">
-                                                    <div
-                                                        className="h-full rounded-full transition-all duration-300 group-hover:opacity-90"
-                                                        style={{ width: `${widthPct}%`, backgroundColor: color }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            );
-                        })()
-                    )}
+                    <Skeleton className="h-5 w-full rounded-full" />
+                    <Skeleton className="h-3.5 w-64 max-w-full" />
                 </div>
             )}
-
-            {/* Bombas de hormigón — mes actual */}
-            {(loading || (data?.bombas_hormigon_mes?.eventos ?? 0) > 0) && (
-                <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Droplets className="h-4 w-4 text-cyan-600" />
-                        <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
-                            Bombas de hormigón
-                        </h3>
-                        <span className="ml-auto text-label text-muted-foreground font-semibold capitalize">
-                            {new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}
+            {verValoresResumen && !filtrado && kpis && totalPat > 0 && (
+                <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0 flex flex-col gap-3">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">Patrimonio total</h3>
+                        <span className="text-xl md:text-2xl font-black text-brand-dark tabular-nums">{fmtMoney(totalPat)}</span>
+                    </div>
+                    <div
+                        className="flex h-5 rounded-full overflow-hidden gap-0.5"
+                        role="img"
+                        aria-label={`Inventario ${Math.round(pctInv)}%, vehículos ${100 - Math.round(pctInv)}%`}
+                    >
+                        <div className="h-full" style={{ width: `${pctInv}%`, background: TONO.blue.stroke }} />
+                        <div className="h-full" style={{ width: `${100 - pctInv}%`, background: TONO.amber.stroke }} />
+                    </div>
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                        <span className="inline-flex items-center gap-2">
+                            <span className="w-3 h-3 rounded" style={{ background: TONO.blue.stroke }} />
+                            <b className="text-brand-dark">Inventario</b>
+                            <span className="text-muted-foreground">{Math.round(pctInv)}% · {fmtMoney(valorInv)}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-2">
+                            <span className="w-3 h-3 rounded" style={{ background: TONO.amber.stroke }} />
+                            <b className="text-brand-dark">Vehículos</b>
+                            <span className="text-muted-foreground">{100 - Math.round(pctInv)}% · {fmtMoney(valorVeh)}</span>
                         </span>
                     </div>
-                    {cargandoInicio ? (
-                        // Los mismos recuadros con su rótulo; la cifra en silueta.
-                        <div className={`grid gap-3 ${verCostosBombas ? 'grid-cols-3' : 'grid-cols-2'}`} aria-hidden="true">
-                            {['Bombeos', 'Obras', ...(verCostosBombas ? ['Costo ext.'] : [])].map(r => (
-                                <div key={r} className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100 dark:bg-cyan-950/40 dark:border-cyan-900">
-                                    <span className="text-caption font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">{r}</span>
-                                    <Skeleton className="mt-1.5 h-7 w-12 max-w-full" />
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        // Sin permiso de ver costos de bombas: layout pasa a 2
-                        // columnas (Bombeos + Obras), oculta "Costo ext.".
-                        <div className={`grid gap-3 ${verCostosBombas ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                            <div className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100 dark:bg-cyan-950/40 dark:border-cyan-900">
-                                <span className="text-caption font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">Bombeos</span>
-                                <span className="text-2xl font-black text-cyan-900 mt-1 dark:text-cyan-200">
-                                    {data!.bombas_hormigon_mes.eventos}
-                                </span>
-                            </div>
-                            <div className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100 dark:bg-cyan-950/40 dark:border-cyan-900">
-                                <span className="text-caption font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">Obras</span>
-                                <span className="text-2xl font-black text-cyan-900 mt-1 dark:text-cyan-200">
-                                    {data!.bombas_hormigon_mes.obras_distintas}
-                                </span>
-                            </div>
-                            {verCostosBombas && (
-                                <div
-                                    className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100 dark:bg-cyan-950/40 dark:border-cyan-900"
-                                    title={`Costo externo total del mes: ${fmtMoney(data!.bombas_hormigon_mes.costo_externo ?? 0)}`}
-                                >
-                                    <span className="text-caption font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">Costo ext.</span>
-                                    <span className="text-2xl font-black text-cyan-900 mt-1 dark:text-cyan-200">
-                                        {fmtMoney(data!.bombas_hormigon_mes.costo_externo ?? 0)}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
             )}
 
-            {/* Requiere tu atención */}
-            <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
-                <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-3">
-                    Requiere tu atención
+            {/* 3 · Detalle con gráficos */}
+            {verValoresResumen && cargandoInicio && (
+                <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0 flex flex-col gap-4" aria-hidden="true">
+                    <Skeleton className="h-10 w-72 max-w-full rounded-xl" />
+                    {[0, 1, 2, 3].map(i => (
+                        <div key={i} className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[12rem_minmax(0,1fr)_9rem] items-center gap-x-4 gap-y-1.5">
+                            <Skeleton className={i % 2 ? 'h-3.5 w-24' : 'h-3.5 w-32'} />
+                            <Skeleton className="sm:order-3 h-3.5 w-24 justify-self-end" />
+                            <Skeleton className="sm:order-2 col-span-2 sm:col-span-1 h-3 sm:h-6 rounded-lg" />
+                        </div>
+                    ))}
+                </div>
+            )}
+            {verValoresResumen && data && (
+                <DetalleTabs data={data} filtrado={filtrado} onNavigateObra={onNavigateObra} />
+            )}
+
+            {/* 4 · Decisiones pendientes (al final, con la acción en la fila) */}
+            <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
+                <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-1 flex items-center gap-2">
+                    {hayDecisiones && <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />}
+                    Decisiones pendientes
                 </h3>
                 {cargandoInicio ? (
-                    // Silueta de los avisos: ícono, título y detalle, y el botón a la derecha.
-                    <div className="flex flex-col gap-2" aria-hidden="true">
+                    <div className="flex flex-col mt-2" aria-hidden="true">
                         {[0, 1, 2].map(i => (
-                            <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-2 p-3.5 rounded-xl border-2 border-border">
-                                <Skeleton className="shrink-0 h-8 w-8 rounded-lg" />
-                                <div className="flex-1 min-w-0 basis-40 space-y-1.5">
+                            <div key={i} className="flex items-center gap-3 py-3 border-t border-border first:border-t-0">
+                                <Skeleton className="shrink-0 h-10 w-10 rounded-xl" />
+                                <div className="flex-1 min-w-0 space-y-1.5">
                                     <Skeleton className={i === 1 ? 'h-3.5 w-1/2' : 'h-3.5 w-2/3'} />
-                                    <Skeleton className="h-3 w-3/4" />
+                                    <Skeleton className="h-3 w-1/3" />
                                 </div>
-                                <Skeleton className="shrink-0 ml-auto h-8 w-20 rounded-lg" />
+                                <Skeleton className="shrink-0 h-9 w-24 rounded-lg" />
                             </div>
                         ))}
                     </div>
-                ) : !data?.alertas.length ? (
-                    <div className="py-10 flex flex-col items-center text-center">
-                        <div className="p-3 rounded-full bg-emerald-100 mb-3 dark:bg-emerald-500/20">
-                            <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-300" />
-                        </div>
-                        <p className="text-sm font-bold text-brand-dark">Todo al día</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            No hay pendientes, diferencias, faltantes, rechazos ni envíos atascados.
-                        </p>
+                ) : !hayDecisiones ? (
+                    <div className="flex items-center gap-3 py-3">
+                        <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-300 shrink-0" />
+                        <p className="text-sm font-semibold text-brand-dark">Todo al día — no hay nada esperando una decisión.</p>
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-2">
-                        {data.alertas.map((alerta) => {
-                            // Mapea el tipo de alerta al filtro de estado del listado de transferencias.
-                            const estadoPorTipo: Record<DashboardAlerta['tipo'], string> = {
-                                discrepancia: 'discrepancias',
-                                transito: 'en_transito',
-                                rechazo: 'rechazada',
-                                faltante: 'aprobada',
-                                pendiente: 'pendiente',
-                            };
-                            return (
-                                <AlertaItem
-                                    key={`${alerta.tipo}-${alerta.transferencia_id}`}
-                                    alerta={alerta}
-                                    onClick={() => onNavigateTransferencias({
-                                        estado: estadoPorTipo[alerta.tipo] || 'pendiente',
-                                        transferenciaId: alerta.transferencia_id,
-                                    })}
-                                    onProrrogar={canAprobar ? () => handleProrrogar(alerta.transferencia_id) : undefined}
-                                    onCancelar={canCancelar ? () => handleCancelarSolicitud(alerta.transferencia_id) : undefined}
-                                    actionLoading={actionLoadingId === alerta.transferencia_id}
-                                />
-                            );
-                        })}
+                    <div className="flex flex-col">
+                        {nPendientes > 0 && (
+                            <DecisionFila
+                                tono="green"
+                                icon={<FileClock className="h-5 w-5" />}
+                                titulo={`${nPendientes} ${plural(nPendientes, 'solicitud espera', 'solicitudes esperan')} aprobación`}
+                                detalle={(() => {
+                                    const d = masAntigua(alertas.filter(a => a.tipo === 'pendiente'));
+                                    return d > 0 ? `La más antigua lleva ${diasTxt(d)}` : undefined;
+                                })()}
+                                boton="Revisar"
+                                onClick={() => onNavigateTransferencias({ estado: 'pendiente' })}
+                            />
+                        )}
+                        {estancadas.length > 0 && (
+                            <DecisionFila
+                                tono="amber"
+                                icon={<Timer className="h-5 w-5" />}
+                                titulo={`${estancadas.length} ${plural(estancadas.length, 'solicitud lleva', 'solicitudes llevan')} más de 10 días`}
+                                detalle="Dales 10 días más, cancélalas o revísalas"
+                                boton="Ver todas"
+                                onClick={() => onNavigateTransferencias({ estado: 'pendiente' })}
+                            >
+                                <div className="mt-2 ml-0 md:ml-14 flex flex-col gap-1.5">
+                                    {estancadas.map(a => (
+                                        <div key={a.transferencia_id} className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-muted/60">
+                                            {/* eslint-disable-next-line no-restricted-syntax -- código clickeable que abre la solicitud */}
+                                            <button
+                                                type="button"
+                                                onClick={() => onNavigateTransferencias({ estado: 'pendiente', transferenciaId: a.transferencia_id })}
+                                                className="min-w-0 flex-1 basis-40 text-left"
+                                            >
+                                                <span className="text-sm font-bold text-brand-dark">{a.codigo}</span>
+                                                <span className="text-xs text-muted-foreground"> · {diasTxt(a.dias)}{a.solicitante ? ` · ${a.solicitante}` : ''}</span>
+                                            </button>
+                                            {/* Los dos botones viajan juntos: en celular bajan en UNA fila, no uno por línea. */}
+                                            {(canAprobar || canCancelar) && (
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    {canAprobar && (
+                                                        <Button type="button" variant="secondary" size="sm" disabled={actionLoadingId === a.transferencia_id}
+                                                            onClick={() => handleProrrogar(a.transferencia_id)} leftIcon={<Timer className="h-3 w-3" />}>
+                                                            Extender 10 días
+                                                        </Button>
+                                                    )}
+                                                    {canCancelar && (
+                                                        <Button type="button" variant="destructive" size="sm" disabled={actionLoadingId === a.transferencia_id}
+                                                            onClick={() => handleCancelarSolicitud(a.transferencia_id, a.codigo)} leftIcon={<XCircle className="h-3 w-3" />}>
+                                                            Cancelar
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </DecisionFila>
+                        )}
+                        {nDiscrepancias > 0 && (
+                            <DecisionFila
+                                tono="red"
+                                icon={<AlertTriangle className="h-5 w-5" />}
+                                titulo={`${nDiscrepancias} ${plural(nDiscrepancias, 'diferencia', 'diferencias')} sin resolver`}
+                                detalle={discrepancias[0] ? `${discrepancias[0].codigo} · ${discrepancias[0].detalle}` : undefined}
+                                boton="Resolver"
+                                onClick={() => onNavigateTransferencias({ estado: 'discrepancias', transferenciaId: discrepancias[0]?.transferencia_id })}
+                            />
+                        )}
+                        {nTransito > 0 && (
+                            <DecisionFila
+                                tono="blue"
+                                icon={<Truck className="h-5 w-5" />}
+                                titulo={`${nTransito} ${plural(nTransito, 'envío lleva', 'envíos llevan')} días en tránsito sin recibir`}
+                                detalle={transito[0] ? `${transito[0].codigo} · ${transito[0].detalle}` : undefined}
+                                boton="Ver"
+                                onClick={() => onNavigateTransferencias({ estado: 'en_transito', transferenciaId: transito[0]?.transferencia_id })}
+                            />
+                        )}
+                        {faltantes.length > 0 && (
+                            <DecisionFila
+                                tono="orange"
+                                icon={<Package className="h-5 w-5" />}
+                                titulo={`${faltantes.length} ${plural(faltantes.length, 'faltante espera', 'faltantes esperan')} tu decisión`}
+                                detalle={`${faltantes[0].codigo} · ${faltantes[0].detalle}`}
+                                boton="Decidir"
+                                onClick={() => onNavigateTransferencias({ estado: 'aprobada', transferenciaId: faltantes[0].transferencia_id })}
+                            />
+                        )}
+                        {rechazos.length > 0 && (
+                            <DecisionFila
+                                tono="red"
+                                icon={<XCircle className="h-5 w-5" />}
+                                titulo={`${rechazos.length} ${plural(rechazos.length, 'solicitud rechazada', 'solicitudes rechazadas')} esta semana`}
+                                detalle={`${rechazos[0].codigo} · ${rechazos[0].detalle}`}
+                                boton="Ver"
+                                onClick={() => onNavigateTransferencias({ estado: 'rechazada', transferenciaId: rechazos[0].transferencia_id })}
+                            />
+                        )}
                     </div>
                 )}
             </div>
 
-            {/* Nota: los rechazos ahora se muestran integrados en "Requiere tu
-                atención" (alertas tipo 'rechazo'), no en una sección aparte. */}
+            {/* Sin permiso de valores: guía mínima para no dejar la pantalla vacía */}
+            {!verValoresResumen && !loading && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <ChevronRight className="h-3.5 w-3.5" />
+                    Los montos del inventario solo los ve quien tiene el permiso de valores.
+                </p>
+            )}
         </div>
     );
 };
