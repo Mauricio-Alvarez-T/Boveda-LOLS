@@ -105,7 +105,7 @@
     .mensaje-carga { animation: mensaje-carga 250ms var(--ease-apple, cubic-bezier(0.25, 0.1, 0.25, 1)) both; }
 }
 
-/* FondoFaena (diseno.md §9.19): la obra de madrugada del panel oscuro del inicio de sesión. Las plumas
+/* FondoFaena (diseno.md §9.19): la obra de madrugada de fondo del inicio de sesión. Las plumas
    de las grúas giran (un scaleX que las da vuelta como vistas de lado), las cargas se mecen, las
    balizas parpadean y las estrellas titilan; todo en CSS. Cada pieza que gira está dibujada con su
    eje en (0,0) dentro de un `translate`, así el origen por defecto de SVG es el eje. Con «reducir
@@ -138,6 +138,7 @@
     .faena-gira-1 { animation: faena-gira 20s ease-in-out infinite; }
     .faena-gira-2 { animation: faena-gira 26s ease-in-out -9s infinite; }
     .faena-gira-3 { animation: faena-gira 16s ease-in-out -4s infinite; }
+    .faena-gira-4 { animation: faena-gira 30s ease-in-out -15s infinite; }
     .faena-pendulo { animation: faena-pendulo 3.4s ease-in-out infinite; }
     .faena-baliza { animation: faena-baliza 1.8s linear infinite; }
     .faena-titila { animation: faena-titila 3s ease-in-out infinite; }
@@ -153,7 +154,9 @@
 .silueta {
     position: relative;
     overflow: hidden;
-    background-color: var(--color-muted);
+    /* `--muted` y no `--color-muted`: este se resuelve en :root, y la silueta del login va en un contenedor `dark`
+       aunque la app esté en tema claro (§9.19). */
+    background-color: var(--muted);
 }
 .silueta::after {
     content: '';

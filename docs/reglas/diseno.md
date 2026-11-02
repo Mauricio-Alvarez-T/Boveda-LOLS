@@ -369,8 +369,8 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
    oculto (borde de scroll). Nada decorativo: sin fondos animados, brillos, partículas, texto que se
    desordena ni loops infinitos sobre etiquetas. (El brillo de la silueta de carga, §9.17, no es decoración:
    informa que algo está llegando y desaparece con los datos.) **Única excepción a «sin fondos animados»: la
-   faena de madrugada del panel oscuro del inicio de sesión** (`auth/FondoFaena`, §9.19; Marcos 2026-10-30): va
-   fuera de la app, solo en escritorio, detrás de un texto fijo y sin tapar ningún dato. No abre la puerta a
+   faena de madrugada de fondo del inicio de sesión** (`auth/FondoFaena`, §9.19; Marcos 2026-10-30): va
+   fuera de la app, detrás del logo, el titular y la tarjeta del formulario, sin tapar ningún dato. No abre la puerta a
    fondos animados dentro de Bóveda. El hover sigue sin escalar (§7.5): por eso salieron
    `whileHover={{ scale: 1.05 }}` de `ui/IconButton` y `hover:scale-110` de `VencimientosBadge`; el
    `whileTap` sí se queda, porque confirma el toque.
@@ -794,34 +794,51 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
     frases avanzan cada ~1,1 s y se quedan en la última**: no dan vueltas (§9.2) y no inventan trabajo que no se
     hace. No agrega espera: se ve solo mientras la carga dura de verdad (§9.3).
 19. **Fondo del inicio de sesión: la faena de madrugada, `auth/FondoFaena` (Marcos 2026-10-30, opción 5 de la
-    página «Login · construcción» del lienzo: «me gustó la 5, faena de madrugada»).** En el panel oscuro de la
-    izquierda (escritorio) o en la franja oscura de arriba (celular y tablet) hay una obra de noche: dos grúas grandes y una chica cuyas plumas giran,
+    página «Login · construcción» del lienzo: «me gustó la 5, faena de madrugada»).** Detrás de todo el inicio de
+    sesión, de lado a lado, hay una obra de noche: dos grúas grandes y una chica cuyas plumas giran,
     cargas que se mecen, balizas rojas, estrellas, ventanas encendidas y, al centro, un edificio que sube **de 2 a
     10 pisos mientras la hora avanza de 05:30 a 07:15** (rótulo abajo a la derecha). Sola amanece en 40 s, se
     queda 4 s y vuelve a empezar; **cada tecla escrita en el formulario la empuja** (+3,5 %) y saca una chispa de
     soldadura en el piso de arriba; **al pulsar «Iniciar sesión» corre al amanecer en 0,8 s** (resplandor verde en
     el horizonte, sale el sol, se apagan ventanas y estrellas) y a los 1,2 s entra el isotipo (§9.18) si el
     servidor todavía no respondió. **No agrega espera**: si responde antes, se entra directo. Si al pulsar no se ve
-    al menos la mitad de la faena (celular con el teclado abierto: la franja queda arriba, fuera de la pantalla;
-    se mide contra `visualViewport`), el isotipo sale de inmediato.
-    - **Cómo está hecho:** la escena es un SVG (viewBox de la maqueta, 634×422) con `preserveAspectRatio="xMidYMax
-      meet"` que se para sobre un suelo de alto fijo (`--suelo`). En escritorio escala con el ancho del panel y el
-      suelo mide **112 px**, para que el pie («LOLS Ingeniería © · página web») quede siempre sobre tierra y no
-      encima de los edificios. Giros, vaivenes, balizas, estrellas, chispa y pisos
+    al menos la mitad del dibujo de la obra (celular con el teclado abierto: la obra queda abajo, detrás del
+    teclado; se mide el SVG contra `visualViewport`), el isotipo sale de inmediato.
+    - **De lado a lado, con el formulario en vidrio (Marcos 2026-11-02, opción 2 de la página «Login · colores de
+      fondo» del lienzo: «me gusta la opción 2, la obra de lado a lado, que quede formato responsive mobile
+      también»).** Antes la faena vivía en un panel oscuro (izquierda en escritorio, franja arriba en celular) junto
+      al formulario en el fondo de la app: en tema oscuro el verde se cortaba contra el negro «como un hachazo al
+      medio», y en tema claro (el de casi todos) era oscuro contra blanco, peor en el celular con el teclado
+      abierto (media pantalla oscura y media blanca). Ahora `FondoFaena` es `fixed inset-0` detrás de todo, con un
+      solo cielo (escritorio: verde que nace arriba a la izquierda y se apaga en toda la pantalla; celular: negro
+      arriba y verde en el horizonte), y el formulario va en una **tarjeta de vidrio** (`backdrop-blur 18px`,
+      fondo `rgba(10,16,13,0.5)`, borde `white/10`, radio 28 px; campos `bg-black/35`). **El login es SIEMPRE de
+      noche**, con el tema claro o el oscuro: el contenedor lleva la clase `dark`, así `Input`, `Button` y los
+      errores usan los colores oscuros sin tocarlos; mientras está abierto, el fondo de `<html>` es `#030504` (si
+      el iPhone estira la página no asoma el fondo de la app). El isotipo del ingreso (§9.18) va FUERA del
+      contenedor `dark`: usa el tema de la app, como la carga de la sesión que lo releva.
+    - **Cómo está hecho:** la escena es un SVG (viewBox de la maqueta: 634×422) que se para sobre un suelo de alto
+      fijo (`--suelo`, lo pone el login: 80 px en escritorio, 5rem + el borde seguro en celular), donde va el pie
+      («LOLS Ingeniería © · página web») sobre tierra y no encima de los edificios. En escritorio el viewBox mide
+      **1441 de ancho** (`xMinYMax`, escala con el ancho): la obra de la maqueta llena el 44 % de la izquierda,
+      debajo del titular, y la ciudad sigue hasta el borde derecho con dos grúas más detrás de la tarjeta (solo
+      se dibujan en escritorio, `useMediaQuery`). Giros, vaivenes, balizas, estrellas, chispa y pisos
       nuevos son CSS (`.faena-*` de `index.css`, compositor, §9.1); React solo mueve la hora cada 100 ms (y se
       salta los tics con la pestaña oculta). La lógica (avance, pisos, hora, chispa) es pura en `auth/faena.ts`
       con su prueba. Las piezas que giran se dibujan con su eje en (0,0) dentro de un `translate`, así el origen
       por defecto de SVG es el eje.
-    - **Celular y tablet (<1024 px; Marcos 2026-10-30: «adaptarlo a la versión responsive mobile y tablets»):** el
-      mismo `<aside>` pasa a ser una **franja arriba del formulario**, solo con el logo blanco (120/150 px; el
-      titular y el pie del panel se esconden: el pie ya está abajo del formulario). Alto =
-      `min(66,56vw + 2rem, 42dvh, 400px)`: en el teléfono vertical la escena llena la franja justo (360 px → 272 px);
-      en la tablet o el teléfono acostado se topa y la escena queda al centro con **edificios de más a los lados**
-      (x < 0 y x > 634, fuera de la maqueta: en escritorio no se ven). Suelo de 2rem con el rótulo de la hora. Se
-      quitó el logo verde que iba arriba del formulario.
+    - **Celular y tablet (<1024 px; Marcos 2026-10-30: «adaptarlo a la versión responsive mobile y tablets»):**
+      arriba el logo blanco (120/150 px) con la hora a la derecha, a su altura (en un celular de menos de 370 px
+      solo la hora, sin «FAENA DE MADRUGADA», para no pisar el logo); debajo el titular «Toda tu obra, en orden.»
+      (se esconde la bajada con menos de 700 px de alto y el titular entero con menos de 600, para que el
+      formulario quepa), la tarjeta de vidrio y el pie sobre el suelo. La obra se para abajo al centro
+      (`xMidYMax meet`, alto `min(70vw, 38dvh, 420px)`) y queda fija mientras la página sube con el teclado; en
+      la tablet o el teléfono acostado se ve al centro con **edificios de más a los lados** (x < 0 y x > 634).
     - **«Reducir movimiento»:** la escena queda quieta a medio hacer (06:07, cinco pisos), sin reloj, sin teclas y
       sin clases de animación; el isotipo del ingreso aparece de inmediato.
-    - Es decorativa: todo va `aria-hidden` y `pointer-events-none`; el texto del panel va encima (`relative`).
-    - Probada en 360×740, 393×852, 740×360, 768×1024, 820×1180, 1024×768, 1440×810 y 1920×1080 (sin scroll horizontal).
+    - Es decorativa: todo va `aria-hidden` y `pointer-events-none`; el logo, el titular y la tarjeta van encima
+      (`relative`).
+    - Probada (02-11) en 360×640, 375×667, 390×844, 740×360, 768×1024, 1024×768, 1440×810 y 1920×1080, en tema
+      claro y oscuro (sin scroll horizontal; los errores del formulario se leen en rojo sobre el vidrio).
       En el Android viejo de las pruebas, si se siente pesada, lo primero es bajar el reloj a 200 ms o quitar el
       giro de la grúa chica: los giros de SVG repintan la franja en cada cuadro.

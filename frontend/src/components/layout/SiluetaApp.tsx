@@ -1,6 +1,7 @@
 import React from 'react';
 import { Logo } from '../ui/Logo';
 import { Cargando, Skeleton, SkeletonCirculo, SkeletonTarjetas } from '../ui/Skeleton';
+import { CIELO_CELULAR, CIELO_ESCRITORIO } from '../auth/faena';
 
 /**
  * Lo que se ve mientras abre Bóveda (Marcos 2026-10-29, «silueta en toda la página»): en vez de la rueda verde en medio
@@ -43,19 +44,27 @@ export const SiluetaApp: React.FC = () => (
     </Cargando>
 );
 
-/** Mientras llega la pantalla de inicio de sesión: el panel oscuro con el logo (computador) y el formulario en gris. */
+/**
+ * Mientras llega la pantalla de inicio de sesión: la misma noche del login (su cielo, quieto; la obra llega con la
+ * pantalla, diseno.md §9.19), con el logo blanco, el titular en gris y la tarjeta de vidrio con el formulario en gris.
+ * Va con `dark`, como el login, para que al llegar no haya un golpe de claro a oscuro.
+ */
 export const SiluetaLogin: React.FC = () => (
-    <Cargando que="el inicio de sesión" className="min-h-[100dvh] w-full bg-background lg:grid lg:grid-cols-[44%_56%]">
-        <aside
-            aria-hidden="true"
-            className="relative hidden flex-col p-14 lg:flex"
-            style={{ background: 'radial-gradient(125% 125% at 0% 0%, #0d2c1c 0%, #0a0a0b 58%)' }}
-        >
-            <Logo variant="white" className="h-auto w-[176px]" />
+    <Cargando
+        que="el inicio de sesión"
+        className="dark relative flex min-h-[100dvh] w-full flex-col bg-[#030504] lg:grid lg:grid-cols-[44%_56%]"
+    >
+        <div aria-hidden="true" className="fixed inset-0 lg:hidden" style={{ background: CIELO_CELULAR }} />
+        <div aria-hidden="true" className="fixed inset-0 hidden lg:block" style={{ background: CIELO_ESCRITORIO }} />
+        <aside aria-hidden="true" className="relative flex flex-col px-5 pt-5 sm:px-8 sm:pt-8 lg:justify-center lg:px-14 lg:pt-14">
+            <Logo variant="white" className="h-auto w-[120px] sm:w-[150px] lg:absolute lg:left-14 lg:top-14 lg:w-[176px]" />
+            <div className="mt-10 max-w-md space-y-3 sm:mt-14 lg:mt-0 max-lg:[@media(max-height:600px)]:hidden">
+                <Skeleton className="h-8 w-56 lg:h-12 lg:w-80" />
+                <Skeleton className="h-8 w-44 lg:h-12 lg:w-64" />
+            </div>
         </aside>
-        <div className="flex min-h-[100dvh] items-center justify-center px-6" aria-hidden="true">
-            <div className="w-full max-w-sm space-y-5">
-                <div className="lg:hidden"><Logo variant="green" className="h-14 w-auto" /></div>
+        <div aria-hidden="true" className="relative flex flex-1 flex-col items-center px-4 pt-6 sm:px-8 sm:pt-10 lg:justify-center lg:px-12 lg:pb-28 lg:pt-12">
+            <div className="w-full max-w-[440px] space-y-5 rounded-[28px] border border-white/10 bg-[rgba(10,16,13,0.5)] px-[22px] pb-7 pt-[26px] sm:p-10">
                 <Skeleton className="h-8 w-48" />
                 <Skeleton className="h-4 w-64 max-w-full" />
                 <div className="space-y-2"><Skeleton className="h-3.5 w-20" /><Skeleton className="h-12 w-full rounded-control" /></div>

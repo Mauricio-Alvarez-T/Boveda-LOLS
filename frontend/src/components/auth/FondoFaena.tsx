@@ -1,12 +1,15 @@
 import React from 'react';
 import {
-    avanzarFaena, teclaFaena, pisosObra, rotuloFaena, posicionChispa,
-    FAENA_INICIAL, TIC_MS, ALTO_PISO, SUELO_Y,
+    avanzarFaena, teclaFaena, pisosObra, horaFaena, momentoFaena, posicionChispa,
+    FAENA_INICIAL, TIC_MS, ALTO_PISO, SUELO_Y, CIELO_ESCRITORIO, CIELO_CELULAR,
 } from './faena';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 interface FondoFaenaProps {
     /** El formulario de inicio de sesión: cada tecla escrita en él sube la obra. */
     formulario: React.RefObject<HTMLFormElement | null>;
+    /** El dibujo de la obra (sin el cielo): el login mide si está a la vista antes de demorar el isotipo. */
+    escena?: React.Ref<SVGSVGElement>;
     /** Se está entrando: la faena corre al amanecer. */
     entrando: boolean;
     /** «Reducir movimiento»: la escena queda quieta, a medio hacer. */
@@ -16,21 +19,39 @@ interface FondoFaenaProps {
 /** Avance fijo con «reducir movimiento»: de noche, con la obra a medias. */
 const AVANCE_QUIETO = 0.35;
 
-/** Estrellas en unidades de la maqueta (panel de 634×720); se ubican en % para cualquier pantalla. */
+/** Desde aquí la obra va de lado a lado detrás del formulario (el `lg` de Tailwind). */
+const ESCRITORIO = '(min-width: 1024px)';
+
+/** Ancho de la maqueta de la obra, en unidades de la escena. */
+const ANCHO_ESCENA = 634;
+/**
+ * En escritorio el dibujo mide 634 / 0,44 de ancho: la obra de la maqueta llena el 44 % de la izquierda (debajo
+ * del titular, como el panel de antes) y la ciudad sigue hasta el borde derecho, detrás del formulario.
+ */
+const ANCHO_ESCRITORIO = 1441;
+
+/** Estrellas en una pantalla de 1440×720; se ubican en % para cualquier tamaño. */
 const ESTRELLAS: [number, number][] = [
-    [40, 90], [120, 40], [210, 120], [300, 60], [380, 150], [460, 80], [540, 30],
-    [600, 130], [260, 200], [500, 220], [90, 230], [420, 260], [330, 30], [570, 300],
+    [40, 90], [120, 40], [210, 120], [300, 60], [380, 150], [460, 80], [540, 30], [600, 130], [260, 200],
+    [500, 220], [90, 230], [420, 260], [330, 30], [570, 300], [700, 60], [780, 180], [860, 40], [940, 250],
+    [1010, 110], [1100, 30], [1180, 200], [1260, 90], [1340, 170], [1400, 50], [1220, 300], [980, 330],
+    [1120, 420], [760, 380], [1380, 400],
 ];
 
 /**
- * Edificios del fondo: x, ancho y altura del techo. Los de x < 0 y x > 634 quedan fuera del dibujo de la
- * maqueta: solo se ven cuando la franja es más ancha que la escena (tablet), para que la ciudad siga a los lados.
+ * Edificios: x, ancho y altura del techo. Los de x < 0 y x > 634 quedan fuera del dibujo de la maqueta: los de la
+ * izquierda solo asoman en la tablet (escena al centro); los de la derecha, en la tablet y en escritorio.
  */
 const EDIFICIOS = [
     { x: -270, w: 74, top: 548 }, { x: -192, w: 92, top: 505 }, { x: -96, w: 92, top: 578 },
     { x: 0, w: 66, top: 560 }, { x: 64, w: 54, top: 520 }, { x: 122, w: 92, top: 590 },
     { x: 326, w: 64, top: 470 }, { x: 396, w: 110, top: 540 }, { x: 588, w: 60, top: 575 },
     { x: 652, w: 84, top: 522 }, { x: 742, w: 64, top: 566 }, { x: 812, w: 100, top: 498 }, { x: 918, w: 86, top: 584 },
+];
+/** La ciudad que sigue hasta el borde derecho en escritorio (hasta x = 1441). */
+const EDIFICIOS_LEJOS = [
+    { x: 1012, w: 96, top: 470 }, { x: 1114, w: 64, top: 580 }, { x: 1184, w: 120, top: 520 },
+    { x: 1310, w: 70, top: 556 }, { x: 1386, w: 60, top: 600 },
 ];
 
 /** Líneas de losa del edificio en estructura (el de la derecha). */
@@ -39,20 +60,23 @@ const LOSAS_ESTRUCTURA = [1, 2, 3, 4, 5, 6, 7, 8].map((k) => SUELO_Y - ALTO_PISO
 const VERDE = '129,215,66';
 
 /**
- * Fondo «Faena de madrugada» del panel oscuro del inicio de sesión (Marcos 2026-10-30, diseno.md §9.19):
- * una obra de noche con grúas que giran y cargas que se mecen; el edificio del centro sube piso a piso
- * mientras avanza la hora (05:30 → 07:15). Cada tecla escrita lo empuja y saca una chispa; al entrar
- * amanece. Los giros y balizas son CSS (compositor); React solo mueve la hora cada 100 ms. Es decorativo:
- * `aria-hidden`.
+ * Fondo «Faena de madrugada» del inicio de sesión (Marcos 2026-10-30, diseno.md §9.19): una obra de noche con
+ * grúas que giran y cargas que se mecen; el edificio del centro sube piso a piso mientras avanza la hora
+ * (05:30 → 07:15). Cada tecla escrita lo empuja y saca una chispa; al entrar amanece. Los giros y balizas son
+ * CSS (compositor); React solo mueve la hora cada 100 ms. Es decorativo: `aria-hidden`.
  *
- * Dos formas según el contenedor (`--suelo` es el alto del suelo, en px de pantalla):
- * - Escritorio (panel izquierdo): la escena escala con el ANCHO y se para sobre un suelo de 112 px, donde cabe
- *   entero el pie del panel (p-14 + dos líneas) sin edificios detrás.
- * - Celular y tablet (franja de arriba): la escena llena la franja sobre un suelo de 2rem (`meet`, abajo y al
- *   centro); si la franja es más ancha que la escena, la ciudad sigue a los lados con los edificios de afuera.
+ * Desde el 02-11 (opción 2 de «Login · colores de fondo»: «la obra de lado a lado») ocupa TODA la pantalla, fija
+ * detrás del logo, el titular y la tarjeta de vidrio del formulario: el mismo cielo de punta a punta, sin el corte
+ * entre un panel oscuro y el formulario claro. `--suelo` (alto del suelo, en px de pantalla) lo pone el login,
+ * que también lo usa para dejar su pie sobre tierra.
+ * - Escritorio: la escena escala con el ANCHO (viewBox de 1441, `xMinYMax`): la obra queda a la izquierda y la
+ *   ciudad, con dos grúas más, sigue hasta el borde derecho.
+ * - Celular y tablet: la escena se para abajo y al centro (`xMidYMax meet`, alto topado); si la pantalla es más
+ *   ancha que la escena, la ciudad sigue a los lados con los edificios de afuera.
  */
-export const FondoFaena: React.FC<FondoFaenaProps> = ({ formulario, entrando, quieto = false }) => {
+export const FondoFaena: React.FC<FondoFaenaProps> = ({ formulario, escena, entrando, quieto = false }) => {
     const [estado, setEstado] = React.useState(FAENA_INICIAL);
+    const ancha = useMediaQuery(ESCRITORIO);
 
     React.useEffect(() => {
         if (quieto) return;
@@ -76,15 +100,20 @@ export const FondoFaena: React.FC<FondoFaenaProps> = ({ formulario, entrando, qu
     const pisos = pisosObra(avance);
     const luz = 0.75 * (1 - avance);
     const chispa = posicionChispa(estado.chispas, pisos);
+    const edificios = ancha ? [...EDIFICIOS, ...EDIFICIOS_LEJOS] : EDIFICIOS;
 
     return (
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 [--suelo:2rem] lg:[--suelo:112px]">
-            {/* Resplandor del amanecer, desde el horizonte (sobre el suelo) a la derecha */}
+        <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 overflow-hidden"
+            style={{ background: ancha ? CIELO_ESCRITORIO : CIELO_CELULAR }}
+        >
+            {/* Resplandor del amanecer, desde el horizonte (sobre el suelo) */}
             <div
                 className="absolute inset-0 transition-opacity duration-1000"
                 style={{
                     opacity: 0.15 + avance * 0.85,
-                    background: `radial-gradient(70% 45% at 70% calc(100% - var(--suelo)), rgba(${VERDE},0.55), rgba(2,158,77,0.25) 45%, rgba(2,158,77,0) 75%)`,
+                    background: `radial-gradient(${ancha ? '85% 55% at 50%' : '110% 32% at 55%'} calc(100% - var(--suelo)), rgba(${VERDE},0.5), rgba(2,158,77,0.2) 45%, rgba(2,158,77,0) 78%)`,
                 }}
             />
 
@@ -94,15 +123,17 @@ export const FondoFaena: React.FC<FondoFaenaProps> = ({ formulario, entrando, qu
                     <span
                         key={i}
                         className="faena-titila absolute h-0.5 w-0.5 rounded-full bg-[#D8F5C8] opacity-60"
-                        style={{ left: `${(x / 634) * 100}%`, top: `${(y / 720) * 100}%`, animationDelay: `${-(i * 0.37).toFixed(2)}s` }}
+                        style={{ left: `${(x / 1440) * 100}%`, top: `${(y / 720) * 100}%`, animationDelay: `${-(i * 0.37).toFixed(2)}s` }}
                     />
                 ))}
             </div>
 
-            {/* La faena, parada sobre el suelo: en la franja la llena; en el panel escala con el ancho */}
+            {/* La faena, parada sobre el suelo */}
             <svg
-                viewBox={`0 230 634 ${SUELO_Y - 230}`} preserveAspectRatio="xMidYMax meet"
-                className="absolute inset-x-0 bottom-[var(--suelo)] h-[calc(100%_-_var(--suelo))] w-full lg:h-auto"
+                ref={escena}
+                viewBox={`0 230 ${ancha ? ANCHO_ESCRITORIO : ANCHO_ESCENA} ${SUELO_Y - 230}`}
+                preserveAspectRatio={ancha ? 'xMinYMax meet' : 'xMidYMax meet'}
+                className="absolute inset-x-0 bottom-[var(--suelo)] h-[min(70vw,38dvh,420px)] w-full lg:h-auto"
             >
                 <defs>
                     <radialGradient id="faena-sol">
@@ -155,7 +186,7 @@ export const FondoFaena: React.FC<FondoFaenaProps> = ({ formulario, entrando, qu
                 </g>
 
                 {/* Ciudad: las ventanas se apagan cuando amanece */}
-                {EDIFICIOS.map((b) => (
+                {edificios.map((b) => (
                     <g key={b.x}>
                         <rect x={b.x} y={b.top} width={b.w} height={SUELO_Y - b.top} fill="#0c110e" />
                         <rect
@@ -165,6 +196,46 @@ export const FondoFaena: React.FC<FondoFaenaProps> = ({ formulario, entrando, qu
                         <rect x={b.x} y={b.top} width={b.w} height="1" fill="rgba(2,158,77,0.35)" />
                     </g>
                 ))}
+
+                {/* Grúas de la ciudad del fondo, detrás del formulario: solo en escritorio */}
+                {ancha && (
+                    <>
+                        <rect x="1086" y="300" width="6" height="352" fill="url(#faena-celosia-v)" />
+                        <g className="faena-baliza" style={{ animationDelay: '-0.4s' }}>
+                            <circle cx="1089" cy="294" r="8" fill="#FF453A" opacity="0.3" />
+                            <circle cx="1089" cy="294" r="4" fill="#FF453A" />
+                        </g>
+                        <g transform="translate(1089 302)">
+                            <g className="faena-gira-4">
+                                <rect x="0" y="-3" width="190" height="6" fill="url(#faena-celosia-h)" />
+                                <g transform="translate(159 3)">
+                                    <g className="faena-pendulo" style={{ animationDelay: '-0.4s' }}>
+                                        <rect x="-0.5" y="0" width="1" height="90" fill={`rgba(${VERDE},0.6)`} />
+                                        <rect x="-12.5" y="90.5" width="25" height="7" fill="#22302a" stroke={`rgb(${VERDE})`} />
+                                    </g>
+                                </g>
+                            </g>
+                        </g>
+                        <g opacity="0.7">
+                            <rect x="1376" y="380" width="6" height="272" fill="url(#faena-celosia-v)" />
+                            <g className="faena-baliza" style={{ animationDelay: '-1s' }}>
+                                <circle cx="1379" cy="374" r="8" fill="#FF453A" opacity="0.3" />
+                                <circle cx="1379" cy="374" r="4" fill="#FF453A" />
+                            </g>
+                            <g transform="translate(1379 382)">
+                                <g className="faena-gira-3" style={{ animationDelay: '-11s' }}>
+                                    <rect x="0" y="-3" width="120" height="6" fill="url(#faena-celosia-h)" />
+                                    <g transform="translate(89 3)">
+                                        <g className="faena-pendulo" style={{ animationDelay: '-1s' }}>
+                                            <rect x="-0.5" y="0" width="1" height="60" fill={`rgba(${VERDE},0.6)`} />
+                                            <rect x="-12.5" y="60.5" width="25" height="7" fill="#22302a" stroke={`rgb(${VERDE})`} />
+                                        </g>
+                                    </g>
+                                </g>
+                            </g>
+                        </g>
+                    </>
+                )}
 
                 {/* El edificio en obra: sube un piso cada tanto; el de arriba está a medio hacer */}
                 {Array.from({ length: pisos }, (_, k) => {
@@ -225,11 +296,16 @@ export const FondoFaena: React.FC<FondoFaenaProps> = ({ formulario, entrando, qu
                 </g>
             </svg>
 
-            {/* El suelo no escala: en el panel alcanza para que el pie quede sobre tierra, sin edificios detrás */}
+            {/* El suelo no escala: alcanza para que el pie del login quede sobre tierra, sin edificios detrás */}
             <div className="absolute inset-x-0 bottom-0 h-[var(--suelo)] border-t-2 border-[#22302a] bg-[#070908]" />
 
-            <p className="absolute bottom-1.5 right-4 text-section lg:bottom-5 lg:right-6 font-semibold tracking-[0.04em] tabular-nums" style={{ color: `rgba(${VERDE},0.85)` }}>
-                {rotuloFaena(avance)}
+            {/* La hora: en celular y tablet arriba, a la altura del logo (en uno angosto, sin el momento, para no
+                pisar el logo); en escritorio en el suelo, a la derecha */}
+            <p
+                className="absolute right-5 top-9 text-section font-semibold tracking-[0.04em] tabular-nums sm:right-8 sm:top-[55px] lg:bottom-5 lg:top-auto"
+                style={{ color: `rgba(${VERDE},0.85)` }}
+            >
+                {horaFaena(avance)}<span className="max-[369px]:hidden"> · {momentoFaena(avance)}</span>
             </p>
         </div>
     );

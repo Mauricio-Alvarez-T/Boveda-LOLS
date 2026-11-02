@@ -6,6 +6,15 @@
  * espera unos segundos y la faena vuelve a empezar (salvo que se esté entrando).
  */
 
+/**
+ * El cielo detrás del login: en escritorio el verde nace arriba a la izquierda y se apaga en toda la pantalla; en
+ * celular y tablet, negro arriba y verde en el horizonte. Lo usan la faena y la silueta que se ve mientras llega.
+ */
+export const CIELO_ESCRITORIO = 'radial-gradient(130% 150% at 15% 0%, #0f3320 0%, #0a1d13 35%, #06100a 65%, #030504 100%)';
+export const CIELO_CELULAR = 'linear-gradient(180deg, #030504 0%, #06110b 40%, #0b2617 75%, #0f3320 100%)';
+/** Donde el cielo termina: el fondo del login detrás de todo. */
+export const FONDO_NOCHE = '#030504';
+
 /** Cada cuánto avanza la escena. */
 export const TIC_MS = 100;
 /** Avance por tic sin tocar nada: 0,0025 × 10 tics/s → 40 s de la noche al amanecer. */
@@ -62,9 +71,11 @@ export const horaFaena = (avance: number): string => {
     return `${String(Math.floor(minutos / 60)).padStart(2, '0')}:${String(minutos % 60).padStart(2, '0')}`;
 };
 
-/** El rótulo de abajo a la derecha. */
-export const rotuloFaena = (avance: number): string =>
-    `${horaFaena(avance)} · ${avance >= 1 ? 'AMANECE EN LA OBRA' : 'FAENA DE MADRUGADA'}`;
+/** El momento de la faena, al lado de la hora (en un celular angosto se ve solo la hora). */
+export const momentoFaena = (avance: number): string => (avance >= 1 ? 'AMANECE EN LA OBRA' : 'FAENA DE MADRUGADA');
+
+/** El rótulo completo: la hora y el momento. */
+export const rotuloFaena = (avance: number): string => `${horaFaena(avance)} · ${momentoFaena(avance)}`;
 
 /** Dónde salta la chispa: sobre el piso de arriba, corriéndose un poco con cada tecla. */
 export const posicionChispa = (chispas: number, pisos: number): { x: number; y: number } => ({

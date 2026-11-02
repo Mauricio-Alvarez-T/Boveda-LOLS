@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, ExternalLink } from 'lucide-react';
 
 import { FondoFaena } from '../components/auth/FondoFaena';
+import { FONDO_NOCHE } from '../components/auth/faena';
 import { Button } from '../components/ui/Button';
 import { CargaIsotipo } from '../components/ui/CargaIsotipo';
 import { IconButton } from '../components/ui/IconButton';
@@ -44,10 +45,11 @@ const EnlacePaginaWeb: React.FC<{ className: string }> = ({ className }) => (
 /**
  * Con la faena a la vista, el isotipo de carga espera a que amanezca en la obra (0,8 s) y asome el sol antes
  * de tapar la pantalla (diseno.md §9.19). No agrega espera: si el servidor responde antes, se entra directo.
- * Si la faena no se ve (celular con el teclado abierto y la franja arriba, fuera de la pantalla), el isotipo
+ * Si la faena no se ve (celular con el teclado abierto: la obra queda abajo, detrás del teclado), el isotipo
  * sale de inmediato, como antes.
  */
 const DEMORA_ISOTIPO_MS = 1200;
+
 
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
@@ -56,7 +58,7 @@ const LoginPage: React.FC = () => {
     const [verCarga, setVerCarga] = useState(false);
     const demoraCarga = useRef<number | undefined>(undefined);
     const formulario = useRef<HTMLFormElement>(null);
-    const panel = useRef<HTMLElement>(null);
+    const escena = useRef<SVGSVGElement>(null);
     /** El ojito: muestra la contraseña mientras se escribe (Marcos 2026-10-28). */
     const [verClave, setVerClave] = useState(false);
     const reduceMotion = useReducedMotion();
@@ -72,7 +74,7 @@ const LoginPage: React.FC = () => {
 
     /** ¿Se ve al menos la mitad de la faena? Mide contra lo visible de verdad (`visualViewport`: sin el teclado). */
     const faenaALaVista = () => {
-        const r = panel.current?.getBoundingClientRect();
+        const r = escena.current?.getBoundingClientRect();
         if (reduceMotion || !r || r.height === 0) return false;
         const vv = window.visualViewport;
         const arriba = vv ? vv.offsetTop : 0;
@@ -113,6 +115,15 @@ const LoginPage: React.FC = () => {
         }
     }, []);
 
+    // Mientras se ve el login, el fondo de la página es la noche y no el de la app (claro u oscuro): si el iPhone
+    // estira la página más allá del borde, no asoma blanco.
+    React.useEffect(() => {
+        const html = document.documentElement;
+        const antes = html.style.backgroundColor;
+        html.style.backgroundColor = FONDO_NOCHE;
+        return () => { html.style.backgroundColor = antes; };
+    }, []);
+
     const reveal = reduceMotion
         ? {}
         : {
@@ -122,42 +133,43 @@ const LoginPage: React.FC = () => {
         };
 
     return (
-        <div className="min-h-[100dvh] w-full bg-background lg:grid lg:grid-cols-[44%_56%]">
+        <>
+        {/* Siempre de noche, con el tema claro o el oscuro (`dark` en el contenedor: el formulario usa los colores
+            oscuros). La faena va detrás de todo, de lado a lado, y el formulario flota en una tarjeta de vidrio
+            (Marcos 2026-11-02, opción 2 de «Login · colores de fondo», diseno.md §9.19). `--suelo` es el alto del
+            suelo de la escena: el pie del login (copyright y página web) queda encima, sobre tierra. */}
+        <div
+            className="dark relative flex min-h-[100dvh] w-full flex-col text-foreground [--suelo:calc(5rem_+_env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[44%_56%] lg:[--suelo:80px]"
+            style={{ backgroundColor: FONDO_NOCHE }}
+        >
+            <FondoFaena formulario={formulario} escena={escena} entrando={isLoading} quieto={!!reduceMotion} />
 
-            {/* ── Panel de marca (hero) ─────────────────────────────────── */}
-            {/* Superficie deliberadamente oscura con un sutil resplandor verde de marca: neutro dominante + un toque
-                del verde LOLS, estilo hero de apple.com. En escritorio es el panel de la izquierda; en celular y
-                tablet, una franja arriba del formulario solo con el logo (Marcos 2026-10-30). Su alto sigue la
-                forma de la escena (634×422 → 66,56vw) más el suelo de 2rem, con tope en 42dvh y 400 px para que
-                el formulario no quede lejos. */}
-            <aside
-                ref={panel}
-                className="relative flex h-[min(calc(66.56vw_+_2rem),42dvh,400px)] flex-col overflow-hidden p-5 text-white sm:p-8 lg:h-auto lg:justify-between lg:p-14"
-                style={{ background: 'radial-gradient(125% 125% at 0% 0%, #0d2c1c 0%, #0a0a0b 58%)' }}
-            >
-                {/* Detrás del texto, la faena de madrugada (Marcos 2026-10-30, diseno.md §9.19) */}
-                <FondoFaena formulario={formulario} entrando={isLoading} quieto={!!reduceMotion} />
+            {/* ── Marca: logo y titular (en escritorio, también el pie) ──── */}
+            <aside className="relative flex flex-col px-5 pt-5 text-white sm:px-8 sm:pt-8 lg:justify-between lg:px-14 lg:pb-5 lg:pt-14">
+                <Logo variant="white" className="h-auto w-[120px] sm:w-[150px] lg:w-[176px]" />
 
-                <Logo variant="white" className="relative h-auto w-[120px] sm:w-[150px] lg:w-[176px]" />
-
-                <div className="relative hidden max-w-md lg:block">
-                    <p className="text-display font-semibold leading-[1.05] tracking-display">
+                {/* En un celular acostado o muy bajo el titular se esconde, para que el formulario quepa */}
+                <div className="mt-10 max-w-md sm:mt-14 lg:mt-0 max-lg:[@media(max-height:600px)]:hidden">
+                    <p className="text-headline font-semibold leading-[1.05] tracking-display sm:text-display-sm lg:text-display">
                         Toda tu obra,<br />en orden.
                     </p>
-                    <p className="mt-6 text-body-lg text-white/55">
-                        Documentación, asistencia e inventario en un solo lugar. Simple, claro y seguro.
+                    <p className="mt-3 text-ui text-white/60 sm:text-body lg:mt-6 lg:text-body-lg lg:text-white/55 max-lg:[@media(max-height:700px)]:hidden">
+                        Documentación, asistencia e inventario en un solo lugar.<span className="hidden sm:inline"> Simple, claro y seguro.</span>
                     </p>
                 </div>
 
-                <div className="relative hidden flex-col items-start gap-1 text-ui text-white/40 lg:flex">
+                <div className="hidden flex-col items-start gap-1 text-ui text-white/40 lg:flex">
                     <p>LOLS Ingeniería © {year}</p>
                     <EnlacePaginaWeb className="text-white/70 hover:text-white focus-visible:ring-white/50" />
                 </div>
             </aside>
 
-            {/* ── Panel de formulario ────────────────────────────────────── */}
-            <main className="flex items-center justify-center px-6 pb-12 pt-8 sm:px-12 sm:pt-10 lg:py-12">
-                <motion.div {...reveal} className="w-full max-w-[400px]">
+            {/* ── Formulario, en la tarjeta de vidrio ────────────────────── */}
+            <main className="relative flex flex-1 flex-col items-center px-4 pt-6 sm:px-8 sm:pt-10 lg:justify-center lg:px-12 lg:pb-[calc(var(--suelo)_+_2rem)] lg:pt-12">
+                <motion.div
+                    {...reveal}
+                    className="w-full max-w-[440px] rounded-[28px] border border-white/10 bg-[rgba(10,16,13,0.5)] px-[22px] pb-7 pt-[26px] shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur-[18px] backdrop-saturate-150 sm:p-10"
+                >
 
                     <h1 className="text-headline font-semibold tracking-headline text-foreground">
                         Inicia sesión
@@ -174,7 +186,7 @@ const LoginPage: React.FC = () => {
                             autoComplete="email"
                             error={errors.email?.message}
                             {...register('email')}
-                            className="h-12"
+                            className="h-12 bg-black/35"
                         />
                         <Input
                             label="Contraseña"
@@ -183,7 +195,7 @@ const LoginPage: React.FC = () => {
                             autoComplete="current-password"
                             error={errors.password?.message}
                             {...register('password')}
-                            className="h-12"
+                            className="h-12 bg-black/35"
                             rightElement={
                                 <IconButton
                                     size="lg"
@@ -205,24 +217,27 @@ const LoginPage: React.FC = () => {
                             Iniciar sesión
                         </Button>
                     </form>
-
-                    <div className="mt-12 flex flex-col items-center text-center text-sm text-muted-foreground lg:hidden">
-                        <p>LOLS Ingeniería © {year}</p>
-                        <EnlacePaginaWeb className="min-h-11 font-medium text-green-700 focus-visible:ring-brand-primary/40 dark:text-green-300" />
-                    </div>
                 </motion.div>
-            </main>
 
-            {/* Mientras se verifica la cuenta, el isotipo ocupa la pantalla (diseno.md §9.18); al
-                entrar lo releva el de la carga de la sesión, sin una pantalla en blanco entre medio.
-                En escritorio aparece tras el amanecer de la faena (DEMORA_ISOTIPO_MS). */}
-            {verCarga && (
-                <CargaIsotipo
-                    className="fixed inset-0 z-50"
-                    mensajes={['Verificando tus datos…', 'Abriendo tu obra…']}
-                />
-            )}
+                {/* En celular y tablet el pie va abajo de todo, sobre el suelo de la faena */}
+                <footer className="mt-auto flex flex-col items-center pb-[calc(0.5rem_+_env(safe-area-inset-bottom))] pt-8 text-center text-sm text-white/50 lg:hidden">
+                    <p>LOLS Ingeniería © {year}</p>
+                    <EnlacePaginaWeb className="min-h-11 font-medium text-white/85 hover:text-white focus-visible:ring-white/50" />
+                </footer>
+            </main>
         </div>
+
+        {/* Mientras se verifica la cuenta, el isotipo ocupa la pantalla (diseno.md §9.18); al
+            entrar lo releva el de la carga de la sesión, sin una pantalla en blanco entre medio
+            (por eso va fuera del contenedor `dark`: usa el tema de la app, como la carga que lo releva).
+            Si la faena está a la vista, aparece tras su amanecer (DEMORA_ISOTIPO_MS). */}
+        {verCarga && (
+            <CargaIsotipo
+                className="fixed inset-0 z-50"
+                mensajes={['Verificando tus datos…', 'Abriendo tu obra…']}
+            />
+        )}
+        </>
     );
 };
 
