@@ -6,6 +6,8 @@
  * Programado:
  *   · Los recordatorios de pendientes de cada persona (avisosPendientes.service.js: lunes a viernes, sin feriados, una
  *     vez al día a la hora guardada en Bóveda, 8:00 al partir; solo si tiene algo pendiente; una vez por persona y día).
+ *   · Los errores por revisar que llegaron fuera del horario hábil (días hábiles de 7:30 a 18:00): un solo aviso a los
+ *     programadores apenas empieza el siguiente horario (soporteErrores.avisarFueraDeHorario).
  *   · La prueba de las 10:00 del 27-10-2026 en test (Marcos), ya hecha: un error inventado en Soporte → Errores y el
  *     aviso «Nueva falla en Soporte (prueba)». Una sola vez (si el error de prueba ya está en la BD, no hace nada).
  *
@@ -15,6 +17,7 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') }
 const db = require('../src/config/db');
 const avisos = require('../src/services/avisosCelular.service');
 const pendientes = require('../src/services/avisosPendientes.service');
+const soporteErrores = require('../src/services/soporteErrores.service');
 
 const PRUEBA = {
     fecha: '2026-10-27',
@@ -66,8 +69,13 @@ async function recordatorios() {
     return pendientes.enviarRonda(hora, ahora.fecha);
 }
 
+/** Los errores por revisar que llegaron fuera del horario hábil: a los programadores al empezar el horario. */
+async function erroresFueraDeHorario() {
+    return soporteErrores.avisarFueraDeHorario();
+}
+
 async function main() {
-    const hechos = [await pruebaDeLasDiez(), await recordatorios()].filter(Boolean);
+    const hechos = [await pruebaDeLasDiez(), await recordatorios(), await erroresFueraDeHorario()].filter(Boolean);
     console.log(`RESUMEN · ${hechos.join(' | ') || 'nada programado ahora'}`);
 }
 

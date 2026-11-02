@@ -367,7 +367,13 @@ ver la foto, **Quitar** (la borra), escribir o dictar, Enviar. Lento, sin señal
   `[TEST]` (por `DB_NAME`, la regla de `sanear_staging.js`); con `FRONTEND_URL` (https) trae el enlace a Errores.
   **Sin bombardeo:** el mismo error (misma `firma`, de cualquier persona) suena **una vez por hora**, y a lo más **10
   avisos por hora** en total (en memoria del proceso; un servidor caído no los inunda). Lo que no suena igual queda en
-  la bandeja. No espera ni lanza: un SMTP caído no frena el aviso al celular ni el registro. (`avisarProgramadores` en
+  la bandeja. **Solo en horario hábil** (Marcos 2026-11-02: «inmediato, siempre y cuando sea día hábil y de 07:30 a
+  18:00»): días hábiles = lunes a viernes sin feriados (`utils/horarioHabil.js`, la misma regla de los recordatorios),
+  de 7:30 a 18:00 (incluida) hora de Chile. Lo que llega fuera queda marcado (`soporte_errores.aviso_pendiente = 1`,
+  mig 149) y el cron (`avisos_programados.js` → `avisarFueraDeHorario`) lo manda en **un solo aviso** apenas empieza el
+  siguiente horario (celular «N errores de fuera de horario» + un correo con la lista: quién, pantalla, cuándo, mensaje,
+  acción); los que alguien marcó «revisado» entretanto no se avisan. Si la tabla de feriados no responde o falta la
+  columna, se avisa al tiro (mejor de más que perderlo). No espera ni lanza: un SMTP caído no frena el aviso al celular ni el registro. (`avisarProgramadores` en
   `soporteErrores.service.js`; test en `tests/avisos_celular.test.js`.) **Solo en test** (`VITE_ENTORNO=staging`), la
   tarjeta «Avisos en este celular» tiene **«Simular un error»**: manda una `falla` de prueba por el camino real (con la
   hora en el mensaje, así cada prueba es un error distinto); en producción no aparece para no ensuciar la bandeja.
