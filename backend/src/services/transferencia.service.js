@@ -1013,7 +1013,7 @@ const transferenciaService = {
             await conn.beginTransaction();
 
             const [trfRows] = await conn.query('SELECT * FROM transferencias WHERE id = ? FOR UPDATE', [id]);
-            if (!trfRows.length) throw new Error('Transferencia no encontrada');
+            if (!trfRows.length) { const e = new Error('Transferencia no encontrada'); e.statusCode = 404; throw e; }
             const trf = trfRows[0];
             if (!['en_transito', 'aprobada', 'recepcion_parcial'].includes(trf.estado)) {
                 throw new Error('Transferencia no puede ser recibida');
@@ -1467,7 +1467,7 @@ const transferenciaService = {
                 'SELECT estado, origen_obra_id, origen_bodega_id, destino_bodega_id, {reconcil} FROM transferencias WHERE id = ? FOR UPDATE',
                 [id]
             );
-            if (!trf) throw new Error('Transferencia no encontrada');
+            if (!trf) { const e = new Error('Transferencia no encontrada'); e.statusCode = 404; throw e; }
             if (!['pendiente', 'aprobada', 'en_transito'].includes(trf.estado)) {
                 throw new Error('Solo se pueden rechazar transferencias pendientes, aprobadas o en tránsito');
             }
@@ -1519,7 +1519,7 @@ const transferenciaService = {
                 'SELECT estado, solicitante_id, origen_obra_id, origen_bodega_id, {reconcil} FROM transferencias WHERE id = ? FOR UPDATE',
                 [id]
             );
-            if (!trf) throw new Error('Transferencia no encontrada');
+            if (!trf) { const e = new Error('Transferencia no encontrada'); e.statusCode = 404; throw e; }
             if (!['pendiente', 'aprobada', 'en_transito'].includes(trf.estado)) {
                 throw new Error('Solo se pueden cancelar transferencias pendientes, aprobadas o en tránsito');
             }
@@ -1655,7 +1655,7 @@ const transferenciaService = {
      */
     async prorrogar(id, userId) {
         const [rows] = await db.query('SELECT estado FROM transferencias WHERE id = ? AND activo = 1', [id]);
-        if (!rows.length) throw new Error('Transferencia no encontrada');
+        if (!rows.length) { const e = new Error('Transferencia no encontrada'); e.statusCode = 404; throw e; }
         if (rows[0].estado !== 'pendiente') {
             throw new Error('Solo se pueden prorrogar transferencias pendientes');
         }
@@ -2016,7 +2016,7 @@ const transferenciaService = {
             LEFT JOIN usuarios uca ON t.cancelado_por = uca.id
             WHERE t.id = ?
         `, [id]);
-        if (!rows.length) throw new Error('Transferencia no encontrada');
+        if (!rows.length) { const e = new Error('Transferencia no encontrada'); e.statusCode = 404; throw e; }
 
         const [items] = await db.query(`
             SELECT ti.*, i.descripcion as item_descripcion, i.unidad,

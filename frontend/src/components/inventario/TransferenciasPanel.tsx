@@ -239,12 +239,15 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
 
     // Hard delete: borra la transferencia y la saca del historial. Limpia la
     // selección y refetch del listado (NO fetchById — ya no existe). Sin stock.
+    // Orden importa: primero la lista nueva, después soltar la selección. Al revés, la
+    // auto-selección de escritorio re-abría la borrada (seguía 1.ª en la lista vieja) →
+    // GET /transferencias/:id de una que ya no existe (reporte Soporte 30-oct).
     const handleEliminar = useCallback(async () => {
         const ok = await trfHook.eliminar(selectedId!);
         if (ok) {
+            await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
             setSelectedId(null);
             trfHook.setSelected(null);
-            await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
         }
         return ok;
     }, [selectedId, statusFilter, trfHook]);

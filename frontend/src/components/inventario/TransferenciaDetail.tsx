@@ -18,7 +18,7 @@ import { fmtFecha, fmtFechaHora } from '../../utils/fechas';
 import { transferenciaRoute } from '../../utils/formatBodega';
 import { prepareAndShareWithToast } from '../../utils/whatsappShare';
 import { buildTransferenciaWhatsappText } from '../../utils/transferenciaWhatsApp';
-import { showConfirmToast, showDeleteToast } from '../../utils/toastUtils';
+import { showConfirmToast } from '../../utils/toastUtils';
 import { useAuth } from '../../context/AuthContext';
 import { useTransferenciaDetail, type StockLocation } from '../../hooks/inventario/useTransferenciaDetail';
 import MaterialesAprobacionPanel from './transferencia-detail/MaterialesAprobacionPanel';
@@ -191,11 +191,14 @@ const TransferenciaDetail: React.FC<Props> = ({
 
     // Eliminar (hard delete): saca la transferencia del historial. Permanente,
     // sin stock. Gateado por inventario.transferencias.eliminar.
+    // Sin successMessage: el aviso (éxito o error) lo da el hook `eliminar`. Con
+    // showDeleteToast salía doble, y "eliminada" aunque el servidor fallara.
     const canEliminar = hasPermission('inventario.transferencias.eliminar');
     const handleEliminarConfirm = () => {
-        showDeleteToast({
+        showConfirmToast({
             message: `¿Eliminar la transferencia ${t.codigo}? Se borra del historial de forma permanente y no se puede deshacer.`,
-            successMessage: 'Transferencia eliminada',
+            confirmLabel: 'Sí',
+            cancelLabel: 'No',
             onConfirm: async () => { await onEliminar(); },
         });
     };
