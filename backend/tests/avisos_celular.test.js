@@ -27,6 +27,7 @@ jest.mock('../src/config/db', () => ({
 
 const webpush = require('web-push');
 const db = require('../src/config/db');
+const horarioHabil = require('../src/utils/horarioHabil');
 const emailService = require('../src/services/email.service');
 const app = require('../index');
 const svc = require('../src/services/avisosCelular.service');
@@ -45,9 +46,14 @@ let SUBS = [];
 let MENSAJE_ID = 0;
 let MISMO_ERROR = false;    // ¿otra persona tuvo el mismo error (misma firma) en la última hora?
 let INSERTADO = 99;
+let FERIADO = false;
+let FUERA_DE_HORARIO = [];  // errores guardados para el aviso de la mañana (aviso_pendiente = 1)
 function bd() {
     db.query.mockImplementation(async (sql, params = []) => {
         const s = String(sql);
+        if (s.includes('FROM feriados')) return [[{ n: FERIADO ? 1 : 0 }]];
+        if (s.includes('WHERE e.aviso_pendiente = 1')) return [FUERA_DE_HORARIO];
+        if (s.startsWith('UPDATE soporte_errores SET aviso_pendiente = 0')) return [{ affectedRows: FUERA_DE_HORARIO.length }];
         if (s.startsWith('SELECT id, nombre, rol_id, activo FROM usuarios WHERE id = ?')) {
             const u = USUARIOS[params[0]];
             return [u ? [u] : []];
@@ -81,7 +87,11 @@ beforeEach(() => {
     MENSAJE_ID = 0;
     MISMO_ERROR = false;
     INSERTADO = 99;
+    FERIADO = false;
+    FUERA_DE_HORARIO = [];
     bd();
+    // Por defecto, un martes a las 10:00 (horario hábil): los avisos a los programadores salen al tiro.
+    jest.spyOn(horarioHabil, 'ahoraChile').mockReturnValue({ fecha: '2026-11-03', minutos: 600, dia: 'Tue' });
 });
 
 describe('rutas: cada persona maneja SUS celulares; el resumen es del Super Administrador', () => {
@@ -415,5 +425,99 @@ describe('Errores por revisar → aviso a los programadores (celular y correo)',
         const correo = emailService.sendSystemEmail.mock.calls[0][0];
         expect(correo.subject).toBe('[TEST] Falla del servidor: Tomás Vera en Inventario');
         expect(correo.text).toContain('https://test.boveda.lols.cl/soporte?vista=errores');
+    });
+});
+
+describe('Aviso a los programadores solo en horario hábil (días hábiles de 7:30 a 18:00)', () => {
+    const falla = { categoria: 'falla', mensaje: 'No se pudo guardar', accion: 'POST /api/asistencias', codigo: 500, pantalla: '/asistencia', pantalla_nombre: 'Asistencia diaria', dispositivo: 'movil' };
+    const a = (fecha, dia, hh, mm) => horarioHabil.ahoraChile.mockReturnValue({ fecha, minutos: hh * 60 + mm, dia });
+    const marcadoPendiente = () => db.query.mock.calls.find(([s]) => String(s).startsWith('UPDATE soporte_errores SET aviso_pendiente = 1'));
+    beforeEach(() => { SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }]; });
+
+    test.each([
+        ['sábado 21:40', '2026-10-31', 'Sat', 21, 40],
+        ['domingo 10:00', '2026-11-01', 'Sun', 10, 0],
+        ['martes 7:29', '2026-11-03', 'Tue', 7, 29],
+        ['martes 18:01', '2026-11-03', 'Tue', 18, 1],
+    ])('%s: no suena; queda guardado para la mañana', async (_, fecha, dia, hh, mm) => {
+        a(fecha, dia, hh, mm);
+        const r = await soporteErrores.reportar(USUARIOS[20], falla, null, { esperarAviso: true });
+        expect(r.aviso).toMatch(/fuera de horario/);
+        expect(webpush.sendNotification).not.toHaveBeenCalled();
+        expect(emailService.sendSystemEmail).not.toHaveBeenCalled();
+        expect(marcadoPendiente()[1]).toEqual([INSERTADO]);
+    });
+
+    test('un feriado en día de semana: tampoco suena', async () => {
+        a('2026-12-08', 'Tue', 10, 0);
+        FERIADO = true;
+        const r = await soporteErrores.reportar(USUARIOS[20], falla, null, { esperarAviso: true });
+        expect(r.aviso).toMatch(/fuera de horario/);
+        expect(webpush.sendNotification).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        ['martes 7:30', 7, 30],
+        ['martes 18:00', 18, 0],
+    ])('%s: suena al tiro', async (_, hh, mm) => {
+        a('2026-11-03', 'Tue', hh, mm);
+        const r = await soporteErrores.reportar(USUARIOS[20], falla, null, { esperarAviso: true });
+        expect(r.aviso).toBe('celular: 1 enviado(s), 0 fallido(s) · correo a 1');
+        expect(marcadoPendiente()).toBeUndefined();
+    });
+
+    test('sin la columna (falta la mig 149): se avisa igual, para no perderlo', async () => {
+        a('2026-10-31', 'Sat', 21, 40);
+        const base = db.query.getMockImplementation();
+        db.query.mockImplementation(async (sql, params) => {
+            if (String(sql).startsWith('UPDATE soporte_errores SET aviso_pendiente = 1')) throw Object.assign(new Error("Unknown column 'aviso_pendiente'"), { errno: 1054 });
+            return base(sql, params);
+        });
+        const r = await soporteErrores.reportar(USUARIOS[20], falla, null, { esperarAviso: true });
+        expect(r.aviso).toBe('celular: 1 enviado(s), 0 fallido(s) · correo a 1');
+    });
+
+    test('el cron, fuera de horario: no avisa ni busca nada', async () => {
+        a('2026-10-31', 'Sat', 9, 0);
+        FUERA_DE_HORARIO = [{ id: 7, categoria: 'falla', mensaje: 'x', estado: 'pendiente' }];
+        expect(await soporteErrores.avisarFueraDeHorario()).toBeNull();
+        expect(consultas().some(s => s.includes('aviso_pendiente = 1'))).toBe(false);
+        expect(webpush.sendNotification).not.toHaveBeenCalled();
+    });
+
+    test('el cron, al empezar el horario: UN aviso con todos los que siguen por revisar; los ya revisados no', async () => {
+        a('2026-11-02', 'Mon', 7, 30);
+        FUERA_DE_HORARIO = [
+            { id: 7, categoria: 'falla', mensaje: 'No se pudo guardar', accion: 'POST /api/asistencias', codigo: 500, pantalla_nombre: 'Asistencia diaria', estado: 'pendiente', created_at: new Date('2026-11-01T00:40:00Z'), nombre: 'Héctor Herrera' },
+            { id: 8, categoria: 'permiso', mensaje: 'Sin permiso', codigo: 403, pantalla: '/consultas?x=1', estado: 'pendiente', created_at: new Date('2026-11-01T13:05:00Z'), nombre: 'Paula Martínez' },
+            { id: 9, categoria: 'app', mensaje: 'Pantalla rota', estado: 'revisado', nombre: 'Leonardo López' },
+        ];
+        const r = await soporteErrores.avisarFueraDeHorario();
+        expect(r).toBe('fuera de horario (2): celular: 1 enviado(s), 0 fallido(s) · correo a 1');
+        const tomar = db.query.mock.calls.find(([s]) => String(s).startsWith('UPDATE soporte_errores SET aviso_pendiente = 0'));
+        expect(tomar[1]).toEqual([[7, 8, 9]]);
+        expect(webpush.sendNotification).toHaveBeenCalledTimes(1);
+        expect(JSON.parse(webpush.sendNotification.mock.calls[0][1])).toMatchObject({ titulo: '2 errores de fuera de horario', url: '/soporte?vista=errores' });
+        const correo = emailService.sendSystemEmail.mock.calls[0][0];
+        expect(correo.subject).toMatch(/^(\[TEST\] )?2 errores por revisar de fuera de horario$/);
+        expect(correo.text).toContain('Falla del servidor: Héctor Herrera en Asistencia diaria (sáb 31-10 21:40)');
+        expect(correo.text).toContain('Permiso: Paula Martínez en /consultas (dom 01-11 10:05)');
+        expect(correo.text).not.toContain('Leonardo');
+    });
+
+    test('el cron: si otra pasada ya los tomó, no avisa dos veces', async () => {
+        a('2026-11-02', 'Mon', 7, 35);
+        FUERA_DE_HORARIO = [{ id: 7, categoria: 'falla', mensaje: 'x', estado: 'pendiente' }];
+        const base = db.query.getMockImplementation();
+        db.query.mockImplementation(async (sql, params) => (String(sql).startsWith('UPDATE soporte_errores SET aviso_pendiente = 0')
+            ? [{ affectedRows: 0 }] : base(sql, params)));
+        expect(await soporteErrores.avisarFueraDeHorario()).toBeNull();
+        expect(webpush.sendNotification).not.toHaveBeenCalled();
+    });
+
+    test('el cron, sin nada guardado: nada', async () => {
+        a('2026-11-02', 'Mon', 9, 0);
+        expect(await soporteErrores.avisarFueraDeHorario()).toBeNull();
+        expect(emailService.sendSystemEmail).not.toHaveBeenCalled();
     });
 });

@@ -3,6 +3,7 @@ const permisosService = require('./permisos.service');
 const transferenciaService = require('./transferencia.service');
 const inicioGerencia = require('./inicioGerencia.service');
 const avisosCelular = require('./avisosCelular.service');
+const { ahoraChile, finDeSemana, esFeriado } = require('../utils/horarioHabil');
 
 /**
  * Recordatorios de pendientes al celular (Marcos 2026-10-27, decisión de don Luis; docs/reglas/seguridad-rbac.md
@@ -284,22 +285,12 @@ async function enviarRonda(hora, fecha) {
     return `recordatorios de las ${hora}:00 → ${avisados} avisado(s), ${alDia} al día, ${sinCelular} sin celular activo, ${yaEnviados} ya enviado(s)`;
 }
 
-/** Fecha, minuto y día de la semana en Chile. */
-function ahoraChile(d = new Date()) {
-    const p = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Santiago', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short',
-    }).formatToParts(d);
-    const g = (t) => p.find(x => x.type === t).value;
-    return { fecha: `${g('year')}-${g('month')}-${g('day')}`, minutos: (Number(g('hour')) % 24) * 60 + Number(g('minute')), dia: g('weekday') };
-}
-
 /** ¿Hay ronda ahora? → la hora, o null (fin de semana, feriado o fuera de la ventana de la hora del día). */
 async function horaDeRonda(ahora = ahoraChile()) {
-    if (ahora.dia === 'Sat' || ahora.dia === 'Sun') return null;
+    if (finDeSemana(ahora)) return null;
     const hora = await horaRecordatorios();
     if (ahora.minutos < hora * 60 || ahora.minutos > hora * 60 + VENTANA_MIN) return null;
-    const [[f]] = await db.query("SELECT COUNT(*) AS n FROM feriados WHERE fecha = ? AND activo = 1 AND tipo <> 'obra'", [ahora.fecha]);
-    if (Number(f?.n) > 0) return null;
+    if (await esFeriado(ahora.fecha)) return null;
     return hora;
 }
 

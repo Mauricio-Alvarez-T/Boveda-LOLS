@@ -6,6 +6,8 @@
  * Programado:
  *   · Los recordatorios de pendientes de cada persona (avisosPendientes.service.js: lunes a viernes, sin feriados, una
  *     vez al día a la hora guardada en Bóveda, 8:00 al partir; solo si tiene algo pendiente; una vez por persona y día).
+ *   · Los errores por revisar que llegaron fuera del horario hábil (días hábiles de 7:30 a 18:00): un solo aviso a los
+ *     programadores apenas empieza el siguiente horario (soporteErrores.avisarFueraDeHorario).
  *   · Una prueba en test a una hora fija (Marcos), una sola vez (si el error de prueba ya está en la BD, no hace nada):
  *     un error inventado por el camino real (`soporteErrores.reportar`): queda en Soporte → Errores y les llega a los
  *     programadores como un aviso formal, al celular y al correo. Ya hechas: 27-10 10:00 (solo celular) y 02-11 13:00.
@@ -65,8 +67,13 @@ async function recordatorios() {
     return pendientes.enviarRonda(hora, ahora.fecha);
 }
 
+/** Los errores por revisar que llegaron fuera del horario hábil: a los programadores al empezar el horario. */
+async function erroresFueraDeHorario() {
+    return soporteErrores.avisarFueraDeHorario();
+}
+
 async function main() {
-    const hechos = [await pruebaProgramada(), await recordatorios()].filter(Boolean);
+    const hechos = [await pruebaProgramada(), await recordatorios(), await erroresFueraDeHorario()].filter(Boolean);
     console.log(`RESUMEN · ${hechos.join(' | ') || 'nada programado ahora'}`);
 }
 

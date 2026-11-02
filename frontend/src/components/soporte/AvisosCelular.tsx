@@ -64,7 +64,7 @@ export const AvisosCelular: React.FC = () => {
         try {
             if (que === 'simular') {
                 await simularError();
-                toast.success('Error de prueba en la bandeja. En unos segundos les llega a ti y a Mauricio, al celular y al correo.');
+                toast.success('Error de prueba en la bandeja. En día hábil de 7:30 a 18:00 les llega a ti y a Mauricio en unos segundos, al celular y al correo; fuera de ese horario, al empezar el siguiente.');
                 await leerServidor();
             } else if (que === 'activar') {
                 const e = await activarAvisos();
@@ -114,7 +114,7 @@ export const AvisosCelular: React.FC = () => {
             <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-brand-dark">Avisos en este celular <span className="font-normal text-muted-foreground">· prueba</span></p>
                 <p className="text-xs text-muted-foreground">
-                    {activo ? 'Este celular suena cuando llega algo por revisar a Errores (también te llega por correo).'
+                    {activo ? 'Este celular suena cuando llega algo por revisar a Errores, en día hábil de 7:30 a 18:00 (también te llega por correo). Lo de fuera de ese horario te llega todo junto al empezar el siguiente.'
                         : estado === 'inactivo' ? 'Que suene este celular cuando llegue algo por revisar a Errores (por correo ya te llega).'
                             : TEXTO[estado]}
                 </p>
