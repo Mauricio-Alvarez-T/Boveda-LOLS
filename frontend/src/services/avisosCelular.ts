@@ -107,6 +107,22 @@ export async function probarAviso(): Promise<void> {
     await api.post('/avisos-celular/probar');
 }
 
+/**
+ * (Solo test) Un error de prueba en Errores, por el mismo camino que uno real: queda en la bandeja y les llega a los
+ * programadores al celular y al correo. La hora va en el mensaje para que cada prueba sea un error distinto (el mismo
+ * error suena una sola vez por hora).
+ */
+export async function simularError(): Promise<void> {
+    await api.post('/soporte/errores', {
+        categoria: 'falla',
+        mensaje: `Error de prueba de las ${new Date().toLocaleTimeString('es-CL')} (simulado desde Soporte)`,
+        accion: 'Simular un error (solo test)',
+        pantalla: '/soporte?vista=errores',
+        pantalla_nombre: 'Soporte (prueba)',
+        dispositivo: window.matchMedia?.('(max-width: 767px)').matches ? 'movil' : 'escritorio',
+    });
+}
+
 export type Equipo = 'celular' | 'computador';
 
 export interface CelularServidor {

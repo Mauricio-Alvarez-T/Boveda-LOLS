@@ -357,6 +357,18 @@ ver la foto, **Quitar** (la borra), escribir o dictar, Enviar. Lento, sin señal
 - La foto vive en la fila (MEDIUMBLOB, como las de Ideas): entra al respaldo de la BD, acotada por los topes.
 - **Nada de esto entra al historial** (`logs_actividad`): `logger.js` excluye `/api/soporte/errores` (la foto viaja en
   el body).
+- **Aviso a los programadores (Marcos 2026-11-02, con Mauricio):** un error por revisar NUEVO (`falla`, `app` o
+  `permiso`; no un repetido ni lento/sin señal/dato) les llega a los del rol 1 —Marcos y Mauricio, los que mantienen la
+  app— **al celular** (los equipos donde tocaron «Activar avisos»: «Nueva falla en Soporte» / «Permiso que faltó») y
+  **al correo** (`sendSystemEmail`, el del reporte semanal; remitente «Bóveda LOLS — Soporte»): quién, pantalla,
+  celular o computador, qué es, el mensaje, la acción y el código, el permiso que faltó. En test el asunto empieza con
+  `[TEST]` (por `DB_NAME`, la regla de `sanear_staging.js`); con `FRONTEND_URL` (https) trae el enlace a Errores.
+  **Sin bombardeo:** el mismo error (misma `firma`, de cualquier persona) suena **una vez por hora**, y a lo más **10
+  avisos por hora** en total (en memoria del proceso; un servidor caído no los inunda). Lo que no suena igual queda en
+  la bandeja. No espera ni lanza: un SMTP caído no frena el aviso al celular ni el registro. (`avisarProgramadores` en
+  `soporteErrores.service.js`; test en `tests/avisos_celular.test.js`.) **Solo en test** (`VITE_ENTORNO=staging`), la
+  tarjeta «Avisos en este celular» tiene **«Simular un error»**: manda una `falla` de prueba por el camino real (con la
+  hora en el mensaje, así cada prueba es un error distinto); en producción no aparece para no ensuciar la bandeja.
 - Bandeja (lista, resumen, foto, revisar): solo `soloSuperAdmin`. `GET /api/soporte/errores?vista=revisar|senal|datos|
   revisados|todos` (sin el blob; los permisos con su nombre del catálogo); `GET /resumen` → `{ pendientes, lentos }`
   (por revisar = falla/app/permiso pendientes; lentos = personas distintas con «lento» en la última hora).
@@ -438,7 +450,9 @@ solo uso** (`token`, 32 hex) que viaja dentro del aviso. El equipo confirma solo
 Marcos 2026-10-27: que suene el celular cuando pasa algo, sin SMS ni WhatsApp (gratis, sin cuentas nuevas). Son las
 **notificaciones del navegador** (Web Push, estándar VAPID, librería `web-push` en el backend). **Piloto: solo el
 Super Administrador** (todas las rutas con `soloSuperAdmin`), con dos avisos: el de prueba y **«Nueva falla en
-Soporte»** (una `falla`/`app` NUEVA en Errores, no un repetido; a todos los rol 1 activos con avisos activados).
+Soporte»** (una `falla`/`app` NUEVA en Errores, no un repetido; a todos los rol 1 activos con avisos activados). Desde
+el 2026-11-02 también un `permiso` («Permiso que faltó»), con copia al correo y freno por hora: ver § Errores →
+«Aviso a los programadores».
 
 - **Cómo se activa:** Soporte → Errores → «Avisos en este celular» → «Activar avisos» → el teléfono pregunta «¿Permitir
   notificaciones?». El navegador da una dirección para avisarle (`avisos_celular_suscripciones`, una fila por celular

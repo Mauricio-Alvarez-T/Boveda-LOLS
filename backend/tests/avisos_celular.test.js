@@ -4,7 +4,8 @@
  *   - la suscripción se valida (https, claves) y se guarda por celular (sha1 del endpoint), de esa persona;
  *   - las claves: se crean una vez y se reutilizan;
  *   - un celular que ya no existe (404/410) se borra; otro error queda anotado; enviar nunca lanza;
- *   - una falla real NUEVA en Soporte avisa a los Super Administradores; un repetido o un «lento» no;
+ *   - un error por revisar NUEVO en Soporte (falla, app o permiso) avisa a los programadores (rol 1) al celular y al
+ *     correo; un repetido, un «lento» o un «dato» no; el mismo error suena una vez por hora y a lo más 10 por hora;
  *   - centro de avisos (mig 145): cada envío queda anotado con su clave; el equipo confirma sin sesión (acuse) solo con
  *     esa clave; el computador con Bóveda al frente no muestra los recordatorios (al celular llegan siempre).
  */
@@ -15,6 +16,7 @@ jest.mock('web-push', () => ({
     generateVAPIDKeys: jest.fn(() => ({ publicKey: 'BPUBLICA', privateKey: 'privada' })),
     sendNotification: jest.fn().mockResolvedValue({ statusCode: 201 }),
 }));
+jest.mock('../src/services/email.service', () => ({ sendSystemEmail: jest.fn().mockResolvedValue({}) }));
 jest.mock('../src/config/db', () => ({
     query: jest.fn().mockResolvedValue([[]]),
     getConnection: jest.fn().mockResolvedValue({
@@ -25,6 +27,7 @@ jest.mock('../src/config/db', () => ({
 
 const webpush = require('web-push');
 const db = require('../src/config/db');
+const emailService = require('../src/services/email.service');
 const app = require('../index');
 const svc = require('../src/services/avisosCelular.service');
 const soporteErrores = require('../src/services/soporteErrores.service');
@@ -40,6 +43,8 @@ const SUB = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc123', keys: { p2
 let CLAVES = null;
 let SUBS = [];
 let MENSAJE_ID = 0;
+let MISMO_ERROR = false;    // ¿otra persona tuvo el mismo error (misma firma) en la última hora?
+let INSERTADO = 99;
 function bd() {
     db.query.mockImplementation(async (sql, params = []) => {
         const s = String(sql);
@@ -55,11 +60,12 @@ function bd() {
         if (s.startsWith('SELECT endpoint_hash, dispositivo, ultimo_envio, ultimo_error, created_at')) {
             return [SUBS.map(x => ({ endpoint_hash: 'abcdef0123456789', dispositivo: x.dispositivo ?? 'Chrome Android', ultimo_envio: x.ultimo_envio ?? null, ultimo_error: x.ultimo_error ?? null, created_at: '2026-10-27T12:00:00.000Z' }))];
         }
-        if (s.startsWith('SELECT id FROM usuarios WHERE rol_id = 1')) return [[{ id: 1 }]];
+        if (s.startsWith('SELECT id, email FROM usuarios WHERE rol_id = 1')) return [[{ id: 1, email: 'marcos@lols.cl' }]];
         if (s.startsWith('SELECT nombre FROM usuarios WHERE id = ?')) return [[{ nombre: USUARIOS[params[0]]?.nombre }]];
+        if (s.includes('FROM soporte_errores') && s.includes('id <> ?')) return [MISMO_ERROR ? [{ id: 7 }] : []];
         if (s.includes('FROM soporte_errores') && s.includes('firma = ?')) return [[]];
         if (s.includes('AS persona_hoy')) return [[{ persona_hoy: 0, hoy: 0, bytes: 0 }]];
-        if (s.startsWith('INSERT INTO soporte_errores')) return [{ insertId: 99 }];
+        if (s.startsWith('INSERT INTO soporte_errores')) return [{ insertId: ++INSERTADO }];
         return [{ affectedRows: 1 }];
     });
 }
@@ -73,6 +79,8 @@ beforeEach(() => {
     CLAVES = null;
     SUBS = [];
     MENSAJE_ID = 0;
+    MISMO_ERROR = false;
+    INSERTADO = 99;
     bd();
 });
 
@@ -287,31 +295,94 @@ describe('estado', () => {
     });
 });
 
-describe('«Nueva falla en Soporte»', () => {
-    const falla = { categoria: 'falla', mensaje: 'No se pudo guardar', pantalla: '/inventario', pantalla_nombre: 'Inventario' };
-
-    test('una falla real nueva avisa a los Super Administradores, con el nombre y la pantalla', async () => {
-        SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }];
-        await soporteErrores.reportar(USUARIOS[20], falla, {});
-        await esperar(); await esperar(); await esperar();
-        expect(webpush.sendNotification).toHaveBeenCalledTimes(1);
-        const c = JSON.parse(webpush.sendNotification.mock.calls[0][1]);
-        expect(c).toMatchObject({ titulo: 'Nueva falla en Soporte', url: '/soporte?vista=errores' });
-        expect(c.cuerpo).toBe('A Tomás Vera le falló Inventario. Toca para verla.');
+describe('Errores por revisar → aviso a los programadores (celular y correo)', () => {
+    const falla = { categoria: 'falla', mensaje: 'No se pudo guardar', accion: 'POST /api/transferencias/:id/recibir', codigo: 500, pantalla: '/inventario', pantalla_nombre: 'Inventario', dispositivo: 'movil' };
+    const vaciar = async () => { for (let i = 0; i < 8; i++) await esperar(); };
+    const avisos = () => webpush.sendNotification.mock.calls.map(([, carga]) => JSON.parse(carga));
+    // Por defecto, como en producción (el entorno de jest trae una base «test»).
+    const entorno = { db: process.env.DB_NAME, url: process.env.FRONTEND_URL };
+    beforeEach(() => { process.env.DB_NAME = 'lolscl_boveda'; delete process.env.FRONTEND_URL; });
+    afterAll(() => {
+        if (entorno.db === undefined) delete process.env.DB_NAME; else process.env.DB_NAME = entorno.db;
+        if (entorno.url === undefined) delete process.env.FRONTEND_URL; else process.env.FRONTEND_URL = entorno.url;
     });
 
-    test('un «lento», un permiso o un repetido no avisan', async () => {
+    test('una falla nueva: al celular del rol 1 y al correo, con el nombre, la pantalla y el detalle', async () => {
+        SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }];
+        await soporteErrores.reportar(USUARIOS[20], falla, {});
+        await vaciar();
+        expect(avisos()).toHaveLength(1);
+        expect(avisos()[0]).toMatchObject({ titulo: 'Nueva falla en Soporte', url: '/soporte?vista=errores' });
+        expect(avisos()[0].cuerpo).toBe('A Tomás Vera le falló Inventario. Toca para verla.');
+        expect(emailService.sendSystemEmail).toHaveBeenCalledTimes(1);
+        const correo = emailService.sendSystemEmail.mock.calls[0][0];
+        expect(correo.to).toEqual(['marcos@lols.cl']);
+        expect(correo.subject).toBe('Falla del servidor: Tomás Vera en Inventario');
+        expect(correo.text).toContain('A Tomás Vera le falló Inventario (celular).');
+        expect(correo.text).toContain('Acción: POST /api/transferencias/:id/recibir · código 500');
+    });
+
+    test('un permiso que faltó también avisa, con su texto y el permiso en el correo', async () => {
+        SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }];
+        await soporteErrores.reportar(USUARIOS[20], { ...falla, categoria: 'permiso', codigo: 403, permisos_faltantes: ['trabajadores.editar'] }, {});
+        await vaciar();
+        expect(avisos()[0]).toMatchObject({ titulo: 'Permiso que faltó', cuerpo: 'A Tomás Vera le faltó un permiso en Inventario. Toca para verlo.' });
+        const correo = emailService.sendSystemEmail.mock.calls[0][0];
+        expect(correo.subject).toBe('Permiso: Tomás Vera en Inventario');
+        expect(correo.text).toContain('Permiso que faltó: trabajadores.editar');
+    });
+
+    test('un «lento», un «dato» o un repetido no avisan', async () => {
         SUBS = [{ id: 5, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }];
         await soporteErrores.reportar(USUARIOS[20], { ...falla, categoria: 'lento' }, {});
-        await soporteErrores.reportar(USUARIOS[20], { ...falla, categoria: 'permiso', mensaje: 'otro' }, {});
+        await soporteErrores.reportar(USUARIOS[20], { ...falla, categoria: 'dato', mensaje: 'otro' }, {});
         db.query.mockImplementation(async (sql) => {
             const s = String(sql);
             if (s.includes('FROM soporte_errores') && s.includes('firma = ?')) return [[{ id: 55 }]];
             return [{ affectedRows: 1 }];
         });
         await soporteErrores.reportar(USUARIOS[20], falla, {});
-        await esperar(); await esperar();
+        await vaciar();
         expect(webpush.sendNotification).not.toHaveBeenCalled();
-        expect(consultas().some(s => s.startsWith('SELECT id FROM usuarios WHERE rol_id = 1'))).toBe(false);
+        expect(emailService.sendSystemEmail).not.toHaveBeenCalled();
+        expect(consultas().some(s => s.startsWith('SELECT id, email FROM usuarios WHERE rol_id = 1'))).toBe(false);
+    });
+
+    test('el mismo error de otra persona en la última hora no vuelve a sonar (queda en la bandeja)', async () => {
+        SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }];
+        MISMO_ERROR = true;
+        await soporteErrores.reportar(USUARIOS[20], falla, {});
+        await vaciar();
+        expect(consultas().some(s => s.startsWith('INSERT INTO soporte_errores'))).toBe(true);
+        expect(webpush.sendNotification).not.toHaveBeenCalled();
+        expect(emailService.sendSystemEmail).not.toHaveBeenCalled();
+    });
+
+    test('a lo más 10 avisos por hora en total, aunque sean errores distintos', async () => {
+        SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }];
+        for (let i = 0; i < 13; i++) {
+            await soporteErrores.reportar(USUARIOS[20], { ...falla, mensaje: `Error distinto ${i}` }, {});
+            await vaciar();
+        }
+        expect(webpush.sendNotification).toHaveBeenCalledTimes(10);
+        expect(emailService.sendSystemEmail).toHaveBeenCalledTimes(10);
+    });
+
+    test('con el correo caído, el aviso al celular sale igual y nada lanza', async () => {
+        SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }];
+        emailService.sendSystemEmail.mockRejectedValueOnce(new Error('SMTP caído'));
+        await expect(soporteErrores.reportar(USUARIOS[20], falla, {})).resolves.toMatchObject({ repetido: false });
+        await vaciar();
+        expect(webpush.sendNotification).toHaveBeenCalledTimes(1);
+    });
+
+    test('en test el asunto dice [TEST] y, con FRONTEND_URL, el correo trae el enlace', async () => {
+        process.env.DB_NAME = 'lolscl_test_boveda';
+        process.env.FRONTEND_URL = 'https://test.boveda.lols.cl/';
+        await soporteErrores.reportar(USUARIOS[20], falla, {});
+        await vaciar();
+        const correo = emailService.sendSystemEmail.mock.calls[0][0];
+        expect(correo.subject).toBe('[TEST] Falla del servidor: Tomás Vera en Inventario');
+        expect(correo.text).toContain('https://test.boveda.lols.cl/soporte?vista=errores');
     });
 });
