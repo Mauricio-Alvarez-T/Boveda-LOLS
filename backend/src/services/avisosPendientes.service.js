@@ -6,8 +6,10 @@ const avisosCelular = require('./avisosCelular.service');
 
 /**
  * Recordatorios de pendientes al celular (Marcos 2026-10-27, decisión de don Luis; docs/reglas/seguridad-rbac.md
- * § Avisos al celular). De lunes a viernes, sin feriados, a las horas de cada persona. **Solo si tiene algo
- * pendiente de su cargo**: si está al día, no le llega nada. El mensaje va en «usted» y dice cuántos días lleva.
+ * § Avisos al celular). De lunes a viernes, sin feriados, **una vez al día, a la misma hora para todos** (Daphne vía
+ * Marcos 2026-11-02: antes eran dos por persona; la hora parte en las 8:00 y el Super Administrador la cambia en
+ * Soporte → Errores → Centro de avisos; mig 148). **Solo si tiene algo pendiente de su cargo**: si está al día, no
+ * le llega nada. El mensaje va en «usted» y dice cuántos días lleva.
  *
  * Lo pendiente sale de lo MISMO que la persona ve en su Inicio (nada inventado aparte):
  *   · Inventario (`transferenciaService.inicioPerfil`, su alcance): quien aprueba → por aprobar + diferencias por
@@ -15,32 +17,65 @@ const avisosCelular = require('./avisosCelular.service');
  *   · Fichas de ingreso por aprobar (`trabajadores.solicitud.aprobar`).
  *   · Papeles laborales atrasados y contratos vencidos o por vencer (bloques del Inicio de gerencia), para quien
  *     emite documentos laborales / edita trabajadores (RR.HH).
- *   · Asistencia de hoy sin registrar en su obra (a las 12:00 en adelante), para quien guarda asistencia.
+ *   · Asistencia de hoy sin registrar en su obra (solo si la hora es las 12:00 o más tarde: a las 8 nadie la ha
+ *     tomado todavía), para quien guarda asistencia.
  *   · Don Luis (`inicio.gerencia`): un solo resumen con los temas que esperan su decisión.
  * Lo corre el cron (scripts/avisos_programados.js); cada envío queda en `avisos_celular_envios` (uno por persona,
  * día y hora: el cron puede pasar dos veces sin repetir el aviso).
  */
 
 /**
- * Quién y a qué horas (horas de Chile). Por correo: si la persona no existe en ese entorno, se salta.
+ * Quién recibe los recordatorios. Por correo: si la persona no existe en ese entorno, se salta.
  * `computador`: trabaja casi siempre en el computador (Marcos 2026-10-27) → también se le piden los avisos ahí. El
  * recordatorio llega SIEMPRE al celular; al computador solo si no tiene Bóveda abierto al frente (ya está ahí).
  */
 const HORARIO = [
-    { email: 'paulamartinez@lols.cl', horas: [8, 14], computador: true },
-    { email: 'leonardolopez@lols.cl', horas: [8, 12] },
-    { email: 'hectorgomez@lols.cl', horas: [8, 12] },
-    { email: 'matiasmillanao@lols.cl', horas: [8, 12], computador: true },
-    { email: 'daphnelazcano@lols.cl', horas: [8, 12], computador: true },
-    { email: 'hectorherrera@lols.cl', horas: [8, 12], computador: true },
-    { email: 'luislazcano@lols.cl', horas: [12], computador: true },
-    { email: 'francogutierrez@lols.cl', horas: [8, 12] },
-    { email: 'alfonsocastilla@lols.cl', horas: [8, 12] },
-    { email: 'jhoanvasquez@lols.cl', horas: [8, 12] },
+    { email: 'paulamartinez@lols.cl', computador: true },
+    { email: 'leonardolopez@lols.cl' },
+    { email: 'hectorgomez@lols.cl' },
+    { email: 'matiasmillanao@lols.cl', computador: true },
+    { email: 'daphnelazcano@lols.cl', computador: true },
+    { email: 'hectorherrera@lols.cl', computador: true },
+    { email: 'luislazcano@lols.cl', computador: true },
+    { email: 'francogutierrez@lols.cl' },
+    { email: 'alfonsocastilla@lols.cl' },
+    { email: 'jhoanvasquez@lols.cl' },
 ];
-const HORAS = [...new Set(HORARIO.flatMap(h => h.horas))].sort((a, b) => a - b);
+/** La hora del recordatorio diario (hora de Chile): la de `avisos_celular_ajustes` (mig 148); sin ella, las 8. */
+const HORA_POR_DEFECTO = 8;
+const HORA_MIN = 6;
+const HORA_MAX = 20;
 /** Minutos después de la hora en que todavía se manda (el cron pasa cada 5 min; si se cayó un rato, igual sale). */
 const VENTANA_MIN = 30;
+
+const horaValida = (h) => Number.isInteger(h) && h >= HORA_MIN && h <= HORA_MAX;
+
+/** La hora del recordatorio diario. Si la tabla aún no existe (falta la mig 148) o no responde, las 8. */
+async function horaRecordatorios() {
+    try {
+        const [[f]] = await db.query('SELECT hora_recordatorios AS hora FROM avisos_celular_ajustes WHERE id = 1');
+        const h = Number(f?.hora);
+        return horaValida(h) ? h : HORA_POR_DEFECTO;
+    } catch {
+        return HORA_POR_DEFECTO;
+    }
+}
+
+/** (Super Administrador) Cambia la hora del recordatorio diario: una hora entera de 6 a 20. */
+async function guardarHora(hora, usuarioId) {
+    const h = Number(hora);
+    if (!horaValida(h)) {
+        const e = new Error(`La hora debe ser una hora entera entre las ${HORA_MIN}:00 y las ${HORA_MAX}:00.`);
+        e.statusCode = 400;
+        throw e;
+    }
+    await db.query(
+        `INSERT INTO avisos_celular_ajustes (id, hora_recordatorios, actualizado_por) VALUES (1, ?, ?)
+         ON DUPLICATE KEY UPDATE hora_recordatorios = VALUES(hora_recordatorios), actualizado_por = VALUES(actualizado_por)`,
+        [h, usuarioId ?? null]
+    );
+    return h;
+}
 
 const plural = (n, uno, varios) => (n === 1 ? uno : varios);
 const dias = (d) => Math.max(0, Math.trunc(Number(d)) || 0);
@@ -153,6 +188,32 @@ async function pendientesDe(usuario, hora) {
     return items.sort((x, y) => dias(y.dias) - dias(x.dias));
 }
 
+/**
+ * De qué le vamos a avisar (para la franja «Active los avisos de sus pendientes»): los MISMOS temas que revisa
+ * `pendientesDe` para su cargo, sin contar nada (solo con sus permisos). Lista vacía = nada de su cargo se avisa.
+ */
+async function temasDe(usuario, hora) {
+    const p = await permisosService.getPermisosEfectivos(usuario.id, usuario.rol_id);
+    const tiene = (k) => p.includes(k);
+    if (tiene('inicio.gerencia')) return ['Lo que espera su decisión, en un solo resumen'];
+    const temas = [];
+    if (tiene('inventario.ver')) {
+        // Igual que `puede` en transferenciaService.inicioPerfil.
+        const aprobar = tiene('inventario.transferencias.aprobar');
+        const verDiferencias = aprobar || tiene('inventario.transferencias.diferencias_ver');
+        if (aprobar) temas.push('Solicitudes por aprobar');
+        if (verDiferencias) temas.push(aprobar ? 'Diferencias por resolver' : 'Diferencias por revisar');
+        if (!verDiferencias && tiene('inventario.transferencias.recibir')) temas.push('Materiales por recibir');
+    }
+    if (tiene('trabajadores.solicitud.aprobar')) temas.push('Fichas de ingreso por aprobar');
+    if (tiene('documentos.laborales.emitir') || tiene('trabajadores.editar')) {
+        if (tiene('documentos.ver')) temas.push('Papeles laborales atrasados');
+        if (tiene('trabajadores.ver')) temas.push('Contratos vencidos o por vencer');
+    }
+    if (hora >= 12 && tiene('asistencia.guardar') && usuario.obra_id) temas.push('Asistencia de hoy sin registrar');
+    return temas;
+}
+
 /** El aviso (título y texto, en «usted») para esos pendientes; null si no hay nada. */
 function mensajeDe(items) {
     if (!items || !items.length) return null;
@@ -177,19 +238,22 @@ function mensajeDe(items) {
 }
 
 /**
- * La ronda de una hora: a cada persona de esa hora le manda su aviso (si tiene pendientes y no se le mandó ya).
+ * La ronda del día: a cada persona del horario le manda su aviso (si tiene pendientes y no se le mandó ya hoy).
  * Devuelve un resumen para el log del cron.
  */
 async function enviarRonda(hora, fecha) {
-    const personas = HORARIO.filter(h => h.horas.includes(hora));
     await avisosCelular.limpiarMensajes();
     let avisados = 0;
     let alDia = 0;
     let sinCelular = 0;
     let yaEnviados = 0;
-    for (const h of personas) {
+    for (const h of HORARIO) {
         const [[u]] = await db.query('SELECT id, nombre, rol_id, obra_id, bodega_id FROM usuarios WHERE email = ? AND activo = 1', [h.email]);
         if (!u) continue;
+        // Una vez al día: si hoy ya se le mandó (o estaba al día) a otra hora, por ejemplo antes de que el Super
+        // Administrador moviera la hora, no se repite.
+        const [[otro]] = await db.query('SELECT COUNT(*) AS n FROM avisos_celular_envios WHERE usuario_id = ? AND fecha = ? AND hora <> ?', [u.id, fecha, hora]);
+        if (Number(otro?.n) > 0) { yaEnviados++; continue; }
         // Reservar el envío de hoy a esta hora (si dos pasadas del cron se cruzan, solo una sigue).
         const [r] = await db.query('INSERT IGNORE INTO avisos_celular_envios (usuario_id, fecha, hora) VALUES (?, ?, ?)', [u.id, fecha, hora]);
         if (!r.affectedRows) { yaEnviados++; continue; }
@@ -229,14 +293,17 @@ function ahoraChile(d = new Date()) {
     return { fecha: `${g('year')}-${g('month')}-${g('day')}`, minutos: (Number(g('hour')) % 24) * 60 + Number(g('minute')), dia: g('weekday') };
 }
 
-/** ¿Hay ronda ahora? → la hora, o null (fin de semana, feriado o fuera de las ventanas). */
+/** ¿Hay ronda ahora? → la hora, o null (fin de semana, feriado o fuera de la ventana de la hora del día). */
 async function horaDeRonda(ahora = ahoraChile()) {
     if (ahora.dia === 'Sat' || ahora.dia === 'Sun') return null;
-    const hora = HORAS.find(hh => ahora.minutos >= hh * 60 && ahora.minutos <= hh * 60 + VENTANA_MIN);
-    if (hora === undefined) return null;
+    const hora = await horaRecordatorios();
+    if (ahora.minutos < hora * 60 || ahora.minutos > hora * 60 + VENTANA_MIN) return null;
     const [[f]] = await db.query("SELECT COUNT(*) AS n FROM feriados WHERE fecha = ? AND activo = 1 AND tipo <> 'obra'", [ahora.fecha]);
     if (Number(f?.n) > 0) return null;
     return hora;
 }
 
-module.exports = { HORARIO, HORAS, VENTANA_MIN, estaEnHorario, debeActivarComputador, pendientesDe, mensajeDe, enviarRonda, ahoraChile, horaDeRonda, textoDias };
+module.exports = {
+    HORARIO, HORA_POR_DEFECTO, HORA_MIN, HORA_MAX, VENTANA_MIN, estaEnHorario, debeActivarComputador, horaRecordatorios, guardarHora,
+    pendientesDe, temasDe, mensajeDe, enviarRonda, ahoraChile, horaDeRonda, textoDias,
+};

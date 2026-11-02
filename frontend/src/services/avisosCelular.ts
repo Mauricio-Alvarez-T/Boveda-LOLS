@@ -198,13 +198,20 @@ export interface EstadoServidor {
     lista: CelularServidor[];
     debeActivar: boolean;
     debeActivarComputador: boolean;
+    /** Hora (de Chile) del recordatorio diario de pendientes (mig 148; 8 si no hay ajuste). */
+    hora: number;
+    /** De qué le avisaremos: los temas de su cargo (vacío si no le toca activarlos). */
+    temas: string[];
 }
+
+/** La hora del recordatorio diario cuando el servidor no la dice. */
+export const HORA_POR_DEFECTO = 8;
 
 /** Lo que el servidor sabe de mis equipos (para ver dónde se pierde un aviso). */
 export async function estadoServidor(): Promise<EstadoServidor> {
     const { data } = await api.get<{ data: {
         celulares: number; por_equipo?: Partial<Record<Equipo, number>>; lista?: CelularServidor[];
-        debe_activar?: boolean; debe_activar_computador?: boolean;
+        debe_activar?: boolean; debe_activar_computador?: boolean; hora?: number; temas?: string[];
     } }>('/avisos-celular/estado');
     const d = data.data;
     return {
@@ -213,7 +220,47 @@ export async function estadoServidor(): Promise<EstadoServidor> {
         lista: d.lista ?? [],
         debeActivar: !!d.debe_activar,
         debeActivarComputador: !!d.debe_activar_computador,
+        hora: Number(d.hora) || HORA_POR_DEFECTO,
+        temas: Array.isArray(d.temas) ? d.temas : [],
     };
+}
+
+/** La hora del recordatorio diario y el rango permitido. */
+export async function leerHoraRecordatorios(): Promise<{ hora: number; min: number; max: number }> {
+    const { data } = await api.get<{ data: { hora: number; min: number; max: number } }>('/avisos-celular/hora');
+    return data.data;
+}
+
+/** (Super Administrador) Cambia la hora del recordatorio diario. */
+export async function guardarHoraRecordatorios(hora: number): Promise<number> {
+    const { data } = await api.put<{ data: { hora: number } }>('/avisos-celular/hora', { hora });
+    return data.data.hora;
+}
+
+/** La fecha de hoy en Chile, «AAAA-MM-DD» (el día de la franja cambia a medianoche de Chile). */
+export function hoyChile(d: Date = new Date()): string {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+
+const claveFranja = (usuarioId: number | string) => `boveda.franja-avisos.cerrada.${usuarioId}`;
+
+/**
+ * ¿Cerró hoy la franja «Active los avisos» con la X en este equipo? Vuelve al día siguiente. Si el navegador no deja
+ * guardar (modo incógnito, datos borrados), la franja simplemente vuelve a salir.
+ */
+export function franjaCerradaHoy(usuarioId: number | string, hoy: string = hoyChile()): boolean {
+    try {
+        return window.localStorage.getItem(claveFranja(usuarioId)) === hoy;
+    } catch {
+        return false;
+    }
+}
+
+/** La X de la franja: hasta mañana. */
+export function cerrarFranjaHoy(usuarioId: number | string, hoy: string = hoyChile()): void {
+    try {
+        window.localStorage.setItem(claveFranja(usuarioId), hoy);
+    } catch { /* sin almacenamiento: vuelve a salir la próxima vez que abra Bóveda */ }
 }
 
 /**

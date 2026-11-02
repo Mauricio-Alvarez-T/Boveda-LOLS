@@ -2,7 +2,8 @@ jest.mock('./api', () => ({ __esModule: true, default: { get: jest.fn(), post: j
 
 import api from './api';
 import {
-    FalloActivar, TOPE_PASO_MS, activarAvisos, claveABytes, estadoAvisos, estadoDelAviso, motivoFalloActivar, pedidoAvisos,
+    FalloActivar, TOPE_PASO_MS, activarAvisos, cerrarFranjaHoy, claveABytes, estadoAvisos, estadoDelAviso, franjaCerradaHoy, hoyChile,
+    motivoFalloActivar, pedidoAvisos,
     type Entorno,
 } from './avisosCelular';
 
@@ -183,5 +184,33 @@ describe('activarAvisos: la pregunta primero y nunca se queda pegado (27-10)', (
         expect(motivoFalloActivar('suscripcion', 'celular')).toBe('el servicio de avisos de este celular no respondió');
         expect(motivoFalloActivar('archivo', 'computador')).toBe('este computador no pudo prepararse para recibir avisos');
         expect(motivoFalloActivar('servidor', 'celular')).toMatch(/conexión con Bóveda/);
+    });
+});
+
+describe('la franja «Active los avisos»: la X la cierra hasta el día siguiente', () => {
+    const guardado = new Map<string, string>();
+    const g = globalThis as unknown as { window?: unknown };
+    beforeAll(() => {
+        g.window = { localStorage: { getItem: (k: string) => guardado.get(k) ?? null, setItem: (k: string, v: string) => { guardado.set(k, v); } } };
+    });
+    afterAll(() => { delete g.window; });
+
+    it('el día es el de Chile: las 23:00 del 2-11 en Chile (02:00 UTC del 3-11) siguen siendo el 2-11', () => {
+        expect(hoyChile(new Date('2026-11-03T02:00:00Z'))).toBe('2026-11-02');
+        expect(hoyChile(new Date('2026-11-03T03:30:00Z'))).toBe('2026-11-03');
+    });
+
+    it('cerrada hoy → no vuelve hoy; mañana sí; cada persona tiene la suya', () => {
+        expect(franjaCerradaHoy(7, '2026-11-02')).toBe(false);
+        cerrarFranjaHoy(7, '2026-11-02');
+        expect(franjaCerradaHoy(7, '2026-11-02')).toBe(true);
+        expect(franjaCerradaHoy(7, '2026-11-03')).toBe(false);
+        expect(franjaCerradaHoy(8, '2026-11-02')).toBe(false);
+    });
+
+    it('sin almacenamiento (incógnito, bloqueado): la franja vuelve a salir y nada revienta', () => {
+        g.window = { localStorage: { getItem: () => { throw new Error('bloqueado'); }, setItem: () => { throw new Error('bloqueado'); } } };
+        expect(() => cerrarFranjaHoy(7, '2026-11-02')).not.toThrow();
+        expect(franjaCerradaHoy(7, '2026-11-02')).toBe(false);
     });
 });

@@ -4,8 +4,8 @@
  * Decide si a esta hora toca mandar algo. Así no depende de que el backend esté despierto (Passenger lo duerme sin uso).
  *
  * Programado:
- *   · Los recordatorios de pendientes de cada persona (avisosPendientes.service.js: lunes a viernes, sin feriados, a
- *     las horas de cada uno; solo si tiene algo pendiente; una vez por persona, día y hora).
+ *   · Los recordatorios de pendientes de cada persona (avisosPendientes.service.js: lunes a viernes, sin feriados, una
+ *     vez al día a la hora guardada en Bóveda, 8:00 al partir; solo si tiene algo pendiente; una vez por persona y día).
  *   · Una prueba en test a una hora fija (Marcos), una sola vez (si el error de prueba ya está en la BD, no hace nada):
  *     un error inventado por el camino real (`soporteErrores.reportar`): queda en Soporte → Errores y les llega a los
  *     programadores como un aviso formal, al celular y al correo. Ya hechas: 27-10 10:00 (solo celular) y 02-11 13:00.

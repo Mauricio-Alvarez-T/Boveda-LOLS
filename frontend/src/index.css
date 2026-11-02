@@ -218,6 +218,44 @@
     100% { stroke-dashoffset: -200; opacity: 0; }
 }
 
+/* Franja «Active los avisos de sus pendientes» (layout/ActivarAvisos, opción B del lienzo, Marcos 2026-11-02): la
+   campana se mece cada 3 s, un anillo late alrededor del círculo y los temas de su cargo entran uno por uno y, de
+   vez en cuando, se iluminan en orden (el retraso de cada uno lo pone el componente). Todo en el compositor
+   (transform/opacity) salvo el destello; con «reducir movimiento», quieta y con los temas ya puestos. */
+@keyframes franja-mece {
+    0%, 58%, 100% { transform: rotate(0); }
+    63% { transform: rotate(16deg); }
+    70% { transform: rotate(-13deg); }
+    77% { transform: rotate(9deg); }
+    84% { transform: rotate(-5deg); }
+    90% { transform: rotate(0); }
+}
+@keyframes franja-pulso {
+    0%   { transform: scale(0.85); opacity: 0.7; }
+    100% { transform: scale(1.35); opacity: 0; }
+}
+@keyframes franja-chip-entra {
+    from { opacity: 0; transform: translateY(8px) scale(0.9); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes franja-chip-destello {
+    0%, 78%, 100% { background-color: rgb(69 26 3 / 0.1); }
+    86% { background-color: rgb(255 255 255); }
+}
+.franja-pulso::before {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 9999px;
+    border: 2px solid rgb(69 26 3);
+    opacity: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+    .franja-mece { transform-origin: 50% 8%; animation: franja-mece 3.2s ease-in-out infinite; }
+    .franja-pulso::before { animation: franja-pulso 2.4s ease-out infinite; }
+    .franja-chip { animation: franja-chip-entra 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both, franja-chip-destello 4.8s ease-in-out infinite; }
+}
+
 /* ──────────────────────────────────────────────────────────────────
    Design tokens
    Los tokens que generan las utilidades (bg-card, text-foreground,

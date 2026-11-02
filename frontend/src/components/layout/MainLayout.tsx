@@ -82,7 +82,7 @@ export const MainLayout: React.FC = () => {
                 <AlertaAtrasosAlEntrar />
                 {/* «Le avisamos a soporte…» y «Contar qué pasó» (errores de Soporte, mig 141). */}
                 <AvisoSoporte />
-                {/* Avisos de pendientes al celular: pedir activarlos (sin saltarlo) a quien está en el horario. */}
+                {/* Franja «Active los avisos de sus pendientes» a quien está en el horario (la X: hasta mañana). */}
                 <ActivarAvisos />
 
                 {/* Top Navbar — fixed above scroll area. Sin marco (dueño 2026-10-20, idea de la propuesta L del

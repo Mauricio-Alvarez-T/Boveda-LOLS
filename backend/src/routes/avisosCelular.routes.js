@@ -39,19 +39,39 @@ router.get('/clave', async (req, res, next) => {
 /**
  * GET /api/avisos-celular/estado — mis equipos activos (`por_equipo`: celulares y computadores) y si me toca tenerlos
  * activos (`debe_activar`: estoy en el horario de recordatorios; `debe_activar_computador`: también en el computador).
- * Con «ver como», los dos son false (no se le pide nada a quien mira).
+ * Con «ver como», los dos son false (no se le pide nada a quien mira). Para la franja «Active los avisos»: `hora` del
+ * recordatorio diario y `temas` de los que le avisaremos (los de su cargo; solo si le toca activarlos).
  */
 router.get('/estado', async (req, res, next) => {
     try {
         const r = await svc.estado(req.user);
         const mirando = req.user?.imp !== undefined && req.user?.imp !== null;
+        const debeActivar = !mirando && pendientes.estaEnHorario(req.user?.email);
+        const hora = await pendientes.horaRecordatorios();
+        const temas = debeActivar ? await pendientes.temasDe(req.user, hora).catch(() => []) : [];
         res.json({
             data: {
                 ...r,
-                debe_activar: !mirando && pendientes.estaEnHorario(req.user?.email),
+                debe_activar: debeActivar,
                 debe_activar_computador: !mirando && pendientes.debeActivarComputador(req.user?.email),
+                hora,
+                temas,
             },
         });
+    } catch (e) { next(e); }
+});
+
+/** GET /api/avisos-celular/hora — la hora del recordatorio diario de pendientes (hora de Chile). */
+router.get('/hora', async (req, res, next) => {
+    try {
+        res.json({ data: { hora: await pendientes.horaRecordatorios(), min: pendientes.HORA_MIN, max: pendientes.HORA_MAX } });
+    } catch (e) { next(e); }
+});
+
+/** PUT /api/avisos-celular/hora — { hora } (Super Administrador): cambia la hora del recordatorio diario (mig 148). */
+router.put('/hora', soloSuperAdmin, validateBody({ hora: { required: true, type: 'integer', min: pendientes.HORA_MIN, max: pendientes.HORA_MAX } }), async (req, res, next) => {
+    try {
+        res.json({ data: { hora: await pendientes.guardarHora(req.body.hora, req.user?.id) } });
     } catch (e) { next(e); }
 });
 
@@ -83,6 +103,7 @@ router.post('/probar', async (req, res, next) => {
 router.get('/resumen', soloSuperAdmin, async (req, res, next) => {
     try {
         const correos = pendientes.HORARIO.map(h => h.email);
+        const hora = await pendientes.horaRecordatorios();
         const [filas] = await db.query(
             `SELECT u.id, u.nombre, u.email,
                     (SELECT GROUP_CONCAT(COALESCE(s.dispositivo, '') SEPARATOR ' ¦ ') FROM avisos_celular_suscripciones s WHERE s.usuario_id = u.id) AS equipos,
@@ -101,7 +122,7 @@ router.get('/resumen', soloSuperAdmin, async (req, res, next) => {
                     celulares: equipos.filter(e => e === 'celular').length,
                     computadores: equipos.filter(e => e === 'computador').length,
                     usa_computador: !!h.computador,
-                    horas: h.horas || [], hoy: f.hoy || null,
+                    horas: [hora], hoy: f.hoy || null,
                 };
             }),
         });

@@ -892,3 +892,22 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       claro y oscuro (sin scroll horizontal; los errores del formulario se leen en rojo sobre el vidrio).
       En el Android viejo de las pruebas, si se siente pesada, lo primero es bajar el reloj a 200 ms o quitar el
       giro de la grúa chica: los giros de SVG repintan la franja en cada cuadro.
+20. **Franja «Active los avisos de sus pendientes», `layout/ActivarAvisos` (Marcos 2026-11-02, opción B del lienzo
+    «Franja de avisos»: «me quedo con la opción B»).** Reemplazó la pantalla obligatoria «Activar avisos» (en pausa
+    en producción desde el 27-10). Va arriba del encabezado, donde va la de «Entorno de pruebas», y se ve en test y
+    en producción. Reglas de negocio en `docs/reglas/seguridad-rbac.md` § Recordatorios de pendientes.
+    - **Color = significado (§ reglas de oro):** ámbar = pendiente → fondo `bg-amber-500` con **texto oscuro
+      `text-amber-950`** (6,5:1; el blanco de la franja de test se lee mal al sol, y en obra eso importa). El único
+      verde es el botón «Activar avisos» (`Button` primario). Al activarlos, la franja pasa a verde (`bg-green-700`,
+      blanco) con «Listo…» 2,6 s y se recoge. Es igual en tema claro y oscuro.
+    - **Contenido:** campana en un círculo `bg-amber-950` con un anillo que late, «Active los avisos de sus
+      pendientes · le avisaremos de lo mismo que ve en su Inicio:» y los **temas de su cargo como fichas**
+      (`bg-amber-950/10`) más una con la hora («A las 8:00, de lunes a viernes»). Celular: en columna (campana +
+      título, fichas, botón a todo el ancho de 44 px); escritorio: en una fila. La X (`IconButton` de 44 px) la
+      cierra hasta el día siguiente («Se lo recordaremos mañana.»).
+    - **Movimiento (CSS de `index.css`, `.franja-*`, compositor salvo el destello):** entra y se recoge deslizándose
+      (`grid-template-rows` 0fr ↔ 1fr, 500 ms); la campana se mece cada 3,2 s; el anillo late cada 2,4 s; las fichas
+      entran una por una (0,35 s entre cada una) y cada ~5 s se iluminan en orden. Con «reducir movimiento», todo
+      quieto y las fichas ya puestas.
+    - Bloqueados, iPhone sin Bóveda en el inicio y «Falta activar los avisos en su celular» usan la misma franja
+      ámbar con su ícono, el texto de los pasos y la X.
