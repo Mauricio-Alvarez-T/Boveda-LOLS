@@ -87,33 +87,35 @@ const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 /**
  * Un error por revisar NUEVO (falla, app o permiso; no un repetido) → aviso a los programadores, que son el rol 1
  * (Marcos y Mauricio, mig 139): al celular (los equipos donde activaron los avisos) y al correo del sistema. El mismo
- * error suena una vez por hora y a lo más AVISOS_PROGRAMADORES_HORA por hora en total. No espera ni lanza: un SMTP
- * caído no frena el aviso al celular ni el registro del error.
+ * error suena una vez por hora y a lo más AVISOS_PROGRAMADORES_HORA por hora en total. Nunca lanza: un SMTP caído no
+ * frena el aviso al celular ni el registro del error. Devuelve (sin que nadie tenga que esperarlo) qué pasó, en una línea.
  */
 function avisarProgramadores({ id, firma, usuarioId, categoria, mensaje, accion, codigo, permisos, pantalla, dispositivo }) {
-    (async () => {
+    return (async () => {
         const [mismoError] = await db.query(
             `SELECT id FROM soporte_errores
               WHERE firma = ? AND id <> ? AND created_at >= NOW() - INTERVAL ${MINUTOS_MISMO_AVISO} MINUTE LIMIT 1`,
             [firma, id]
         );
-        if (mismoError.length || !pasaElFrenoDeAvisos()) return;
+        if (mismoError.length) return 'el mismo error ya sonó en la última hora';
+        if (!pasaElFrenoDeAvisos()) return `tope de ${AVISOS_PROGRAMADORES_HORA} avisos por hora`;
         const [programadores] = await db.query('SELECT id, email FROM usuarios WHERE rol_id = 1 AND activo = 1');
-        if (!programadores.length) return;
+        if (!programadores.length) return 'no hay programadores activos';
         const [[quien]] = await db.query('SELECT nombre FROM usuarios WHERE id = ?', [usuarioId]);
         const nombre = (quien && quien.nombre) || 'alguien';
         const donde = pantalla || 'Bóveda';
         const esPermiso = categoria === 'permiso';
 
-        await avisosCelular.enviarA(programadores.map(p => p.id), {
+        const cel = await avisosCelular.enviarA(programadores.map(p => p.id), {
             titulo: esPermiso ? 'Permiso que faltó' : 'Nueva falla en Soporte',
             cuerpo: esPermiso ? `A ${nombre} le faltó un permiso en ${donde}. Toca para verlo.` : `A ${nombre} le falló ${donde}. Toca para verla.`,
             url: '/soporte?vista=errores',
             etiqueta: 'soporte-errores',
         });
+        const alCelular = `celular: ${cel.enviados} enviado(s), ${cel.fallidos} fallido(s)`;
 
         const para = programadores.map(p => p.email).filter(Boolean);
-        if (!para.length) return;
+        if (!para.length) return `${alCelular} · sin correos`;
         // Test o producción, por la base (la misma regla que scripts/sanear_staging.js).
         const prefijo = /test|staging|dev/i.test(process.env.DB_NAME || '') ? '[TEST] ' : '';
         const base = /^https:\/\//.test(process.env.FRONTEND_URL || '') ? process.env.FRONTEND_URL.replace(/\/+$/, '') : '';
@@ -125,22 +127,31 @@ function avisarProgramadores({ id, firma, usuarioId, categoria, mensaje, accion,
             ...(permisos ? [['Permiso que faltó', permisos.split(',').join(', ')]] : []),
         ];
         const enlace = base ? `${base}/soporte?vista=errores` : null;
-        await emailService.sendSystemEmail({
-            to: para,
-            fromName: 'Bóveda LOLS — Soporte',
-            subject: `${prefijo}${NOMBRE_CATEGORIA[categoria] || 'Error'}: ${nombre} en ${donde}`.slice(0, 180),
-            text: [
-                `A ${nombre} ${esPermiso ? `le faltó un permiso en ${donde}` : `le falló ${donde}`}${equipo ? ` (${equipo})` : ''}.`,
-                '',
-                ...campos.map(([k, v]) => `${k}: ${v}`),
-                '',
-                `Revísalo en Bóveda → Soporte → Errores${enlace ? `: ${enlace}` : '.'}`,
-            ].join('\n'),
-            html: `<p>A <strong>${esc(nombre)}</strong> ${esPermiso ? `le faltó un permiso en ${esc(donde)}` : `le falló ${esc(donde)}`}${equipo ? ` (${equipo})` : ''}.</p>
-                   ${campos.map(([k, v]) => `<p><strong>${k}:</strong> ${esc(v)}</p>`).join('\n                   ')}
-                   <p>Revísalo en Bóveda → Soporte → Errores${enlace ? `: <a href="${esc(enlace)}">${esc(enlace)}</a>` : '.'}</p>`,
-        });
-    })().catch(e => logger.warn('[soporteErrores] el aviso a los programadores no salió completo', { err: e.message }));
+        try {
+            await emailService.sendSystemEmail({
+                to: para,
+                fromName: 'Bóveda LOLS — Soporte',
+                subject: `${prefijo}${NOMBRE_CATEGORIA[categoria] || 'Error'}: ${nombre} en ${donde}`.slice(0, 180),
+                text: [
+                    `A ${nombre} ${esPermiso ? `le faltó un permiso en ${donde}` : `le falló ${donde}`}${equipo ? ` (${equipo})` : ''}.`,
+                    '',
+                    ...campos.map(([k, v]) => `${k}: ${v}`),
+                    '',
+                    `Revísalo en Bóveda → Soporte → Errores${enlace ? `: ${enlace}` : '.'}`,
+                ].join('\n'),
+                html: `<p>A <strong>${esc(nombre)}</strong> ${esPermiso ? `le faltó un permiso en ${esc(donde)}` : `le falló ${esc(donde)}`}${equipo ? ` (${equipo})` : ''}.</p>
+                       ${campos.map(([k, v]) => `<p><strong>${k}:</strong> ${esc(v)}</p>`).join('\n                   ')}
+                       <p>Revísalo en Bóveda → Soporte → Errores${enlace ? `: <a href="${esc(enlace)}">${esc(enlace)}</a>` : '.'}</p>`,
+            });
+        } catch (e) {
+            logger.warn('[soporteErrores] el correo a los programadores no salió', { err: e.message });
+            return `${alCelular} · correo NO salió (${e.message})`;
+        }
+        return `${alCelular} · correo a ${para.length}`;
+    })().catch(e => {
+        logger.warn('[soporteErrores] el aviso a los programadores no salió', { err: e.message });
+        return `no salió (${e.message})`;
+    });
 }
 
 // ───────────── Limpieza (a lo más una vez por hora, sin cron) ─────────────
@@ -222,8 +233,10 @@ const soporteErroresService = {
     /**
      * Un aviso de la app de la persona. Devuelve `{ id, repetido, pedir_foto }` (`ignorado: true` si pasó el tope de
      * avisos; la app no insiste). La categoría la decide la app por el código; acá se valida y se agrupa.
+     * `esperarAviso` (solo los scripts, p. ej. la prueba programada del cron): espera el aviso a los programadores y
+     * devuelve qué pasó en `aviso`; la app nunca lo espera.
      */
-    async reportar(usuario, body, req) {
+    async reportar(usuario, body, req, { esperarAviso = false } = {}) {
         const usuarioId = Number(usuario?.id);
         if (!usuarioId) throw httpError('Sin sesión', 401, 'SIN_SESION');
         const categoria = String(body.categoria || '');
@@ -276,13 +289,15 @@ const soporteErroresService = {
             ]
         );
         // Un error por revisar nuevo (no un repetido): aviso a los programadores, al celular y al correo.
+        let aviso;
         if (PARA_REVISAR.includes(categoria)) {
-            avisarProgramadores({
+            const enCurso = avisarProgramadores({
                 id: Number(r.insertId), firma, usuarioId, categoria, mensaje, accion, codigo, permisos,
                 pantalla: texto(body.pantalla_nombre, 120) || sinConsulta(pantalla), dispositivo: body.dispositivo,
             });
+            if (esperarAviso) aviso = await enCurso;
         }
-        return { id: Number(r.insertId), repetido: false, pedir_foto: pedirFoto };
+        return { id: Number(r.insertId), repetido: false, pedir_foto: pedirFoto, ...(aviso ? { aviso } : {}) };
     },
 
     /** La foto que pidió el servidor: solo la persona dueña, una vez, y dentro de la hora. */

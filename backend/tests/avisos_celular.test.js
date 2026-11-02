@@ -368,6 +368,15 @@ describe('Errores por revisar → aviso a los programadores (celular y correo)',
         expect(emailService.sendSystemEmail).toHaveBeenCalledTimes(10);
     });
 
+    test('un script puede esperar el aviso y saber qué pasó (la prueba programada del cron)', async () => {
+        SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }];
+        const r = await soporteErrores.reportar(USUARIOS[20], falla, null, { esperarAviso: true });
+        expect(r.aviso).toBe('celular: 1 enviado(s), 0 fallido(s) · correo a 1');
+        emailService.sendSystemEmail.mockRejectedValueOnce(new Error('SMTP caído'));
+        const r2 = await soporteErrores.reportar(USUARIOS[20], { ...falla, mensaje: 'otro' }, null, { esperarAviso: true });
+        expect(r2.aviso).toBe('celular: 1 enviado(s), 0 fallido(s) · correo NO salió (SMTP caído)');
+    });
+
     test('con el correo caído, el aviso al celular sale igual y nada lanza', async () => {
         SUBS = [{ id: 5, usuario_id: 1, endpoint: SUB.endpoint, p256dh: 'p', auth: 'a' }];
         emailService.sendSystemEmail.mockRejectedValueOnce(new Error('SMTP caído'));
