@@ -447,14 +447,19 @@ const VehiculosPage: React.FC = () => {
                     ? 'border-brand-primary ring-1 ring-brand-primary/30'
                     : 'border-border hover:border-brand-primary/40 hover:shadow-md'
             )}>
-            {/* Cabecera: punto de color + nombre (envuelve, no se corta) + acciones */}
-            <div className="flex items-start justify-between gap-2 p-3.5 pb-2.5 border-b border-border/60">
-                <div className="flex items-start gap-2 min-w-0">
+            {/* Cabecera: punto de color + nombre (envuelve, no se corta) + acciones. Si la columna se angosta
+                (ventana chica), las acciones bajan a su propia línea en vez de montarse sobre el nombre
+                (dueño 2026-11-03): el nombre pide al menos 8rem (`basis-32`) antes de compartir la fila, y si
+                tampoco cabe junto al número de vencimientos, baja el número; la palabra solo se parte si no hay otra. */}
+            <div className="flex flex-wrap items-start gap-x-2 gap-y-1.5 p-3.5 pb-2.5 border-b border-border/60">
+                <div className="flex flex-1 basis-32 items-start gap-2 min-w-0">
                     <span className="h-2.5 w-2.5 rounded-full shrink-0 mt-1.5" style={{ backgroundColor: color }} />
-                    <h3 className="text-sm font-black leading-tight break-words" style={{ color }}>{nombre}</h3>
-                    {venc && <VencimientosBadge total={venc.total} vencidos={venc.vencidos} className="mt-0.5" />}
+                    <div className="flex flex-wrap items-start gap-x-2 gap-y-1 min-w-0">
+                        <h3 className="min-w-0 text-sm font-black leading-tight wrap-anywhere" style={{ color }}>{nombre}</h3>
+                        {venc && <VencimientosBadge total={venc.total} vencidos={venc.vencidos} className="mt-0.5" />}
+                    </div>
                 </div>
-                <div className="flex items-center gap-0.5 shrink-0">
+                <div className="ml-auto flex items-center gap-0.5 shrink-0">
                     {acciones}
                     {/* Chevron solo en móvil/tablet (ahí navega). En desktop 3-col, clic = seleccionar. */}
                     <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0 lg:hidden" />
@@ -662,7 +667,7 @@ const VehiculosPage: React.FC = () => {
 
     // ── Nivel 2: vista detalle ────────────────────────────────────────────────
     const DetailView = selected ? (
-        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6">
+        <div className="flex flex-col flex-1 min-h-0 min-w-0 p-4 md:p-6">
             <div className="flex items-center gap-3 mb-4 shrink-0">
                 {/* Volver (móvil/tablet, panel único). En desktop 3-col no hace falta. */}
                 <IconButton aria-label="Volver" onClick={() => setSelected(null)}
@@ -822,8 +827,9 @@ const VehiculosPage: React.FC = () => {
                 Las empresas quedan SIEMPRE a la izquierda; al elegir una aparecen sus
                 vehículos (centro) y el detalle (derecha) sin perderlas de vista. */}
             <div className="hidden lg:flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
-                {/* Empresas (~20%) · Vehículos (~26%) · Detalle (resto, ~54% — es lo importante) */}
-                <div className="w-[20%] shrink-0 border-r border-border flex flex-col min-h-0">
+                {/* Empresas (~20%) · Vehículos (~26%) · Detalle (resto, ~54% — es lo importante). Empresas nunca baja
+                    de 12rem: con la ventana chica el 20% no alcanzaba ni para los íconos de la tarjeta (2026-11-03). */}
+                <div className="w-[20%] min-w-48 shrink-0 border-r border-border flex flex-col min-h-0">
                     {EmpresasList}
                 </div>
                 {esVendidos ? (
