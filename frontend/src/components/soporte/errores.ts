@@ -46,9 +46,63 @@ export interface ErrorSoporte {
     nota?: string | null;
     revisado_en?: string | null;
     revisado_por_nombre?: string | null;
+    // Errores que se vigilan solos y apartados propios (mig 150).
+    /** Versión de Bóveda que tenía la persona («AAAAMMDD-HHMM», UTC). Null = una app de antes de la mig 150. */
+    version_app?: string | null;
+    arreglado_version?: string | null;
+    arreglado_tipo?: 'actual' | 'proxima' | null;
+    /** Volvió a pasar con la versión del arreglo: el arreglo no funcionó. */
+    arreglo_fallo_en?: string | null;
+    /** Este error es la vuelta de uno que estaba arreglado (y de ese, su arreglo). */
+    reaparecio_de?: number | null;
+    reabierto_version?: string | null;
+    reabierto_tipo?: 'actual' | 'proxima' | null;
+    reabierto_arreglado_en?: string | null;
+    reabierto_arreglado_por?: string | null;
+    reabierto_nota?: string | null;
+    apartado_id?: number | null;
+    apartado_nombre?: string | null;
 }
 
-export type VistaErrores = 'revisar' | 'senal' | 'datos' | 'revisados' | 'todos';
+/** Un apartado propio de Soporte (mig 150). */
+export interface ApartadoSoporte {
+    id: number;
+    nombre: string;
+    /** Errores sin revisar en el apartado. */
+    pendientes: number;
+    /** De esos, cuántos son falla / pantalla rota / permiso (salen del número de «Para revisar»). */
+    por_revisar: number;
+}
+
+export type VistaErrores = 'revisar' | 'senal' | 'datos' | 'revisados' | 'todos' | `ap:${number}`;
+
+/** Las pestañas: las de Bóveda y, antes de «Revisados», los apartados propios. */
+export function pestanasErrores(apartados: readonly ApartadoSoporte[]): { key: VistaErrores; label: string }[] {
+    const fijas = VISTAS_ERRORES.filter(v => v.key !== 'revisados' && v.key !== 'todos');
+    const finales = VISTAS_ERRORES.filter(v => v.key === 'revisados' || v.key === 'todos');
+    return [...fijas, ...apartados.map(a => ({ key: `ap:${a.id}` as VistaErrores, label: a.nombre })), ...finales];
+}
+
+/** El id del apartado de una vista «ap:<id>», o null. */
+export const apartadoDeVista = (v: VistaErrores): number | null => {
+    const m = /^ap:(\d+)$/.exec(v);
+    return m ? Number(m[1]) : null;
+};
+
+/** El número de «Para revisar»: los pendientes del menú menos los que están en un apartado propio. */
+export const pendientesSueltos = (pendientes: number, apartados: readonly ApartadoSoporte[]) =>
+    Math.max(0, pendientes - apartados.reduce((s, a) => s + (a.por_revisar || 0), 0));
+
+/**
+ * El arreglo de un error, para las marcas y el detalle: `reabierto` = es la vuelta de uno arreglado (sin revisar
+ * todavía); `vigilando` = está arreglado y nadie lo ha vuelto a tener con esa versión; `fallo` = estaba arreglado y
+ * volvió (su vuelta es otra fila); null = sin arreglo.
+ */
+export function estadoArreglo(e: Pick<ErrorSoporte, 'estado' | 'reaparecio_de' | 'arreglado_version' | 'arreglo_fallo_en'>): 'reabierto' | 'vigilando' | 'fallo' | null {
+    if (e.estado === 'pendiente' && e.reaparecio_de) return 'reabierto';
+    if (e.estado === 'revisado' && e.arreglado_version) return e.arreglo_fallo_en ? 'fallo' : 'vigilando';
+    return null;
+}
 
 export const VISTAS_ERRORES: readonly { key: VistaErrores; label: string }[] = [
     { key: 'revisar', label: 'Para revisar' },

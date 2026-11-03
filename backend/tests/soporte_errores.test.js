@@ -100,7 +100,7 @@ describe('POST /api/soporte/errores — mandar un aviso', () => {
         const [, params] = insercion();
         expect(params[0]).toBe(20);
         expect(params[1]).toBe('falla');
-        expect(params[params.length - 1]).toBe(1); // foto_pedida
+        expect(params[14]).toBe(1); // foto_pedida (después van version_app, reaparecio_de y la firma del apartado, mig 150)
     });
 
     test('el mismo error en 10 minutos → suma «veces» en la misma fila, sin fila nueva ni foto', async () => {
@@ -116,7 +116,7 @@ describe('POST /api/soporte/errores — mandar un aviso', () => {
         expect(r.body.data.pedir_foto).toBe(false);
         expect(consultas().some(s => s.includes('AS persona_hoy'))).toBe(false);
         const [, params] = insercion();
-        expect(params[params.length - 1]).toBe(0);
+        expect(params[14]).toBe(0);
     });
 
     test('la «app» (pantalla rota) sí pide foto', async () => {

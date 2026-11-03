@@ -30,12 +30,35 @@ function precomprimir(): Plugin {
   }
 }
 
+/**
+ * La versión de la app = cuándo se compiló, en UTC («AAAAMMDD-HHMM»; ordena sola). Va dentro del código
+ * (`__VERSION_APP__`: cada error de Soporte dice con qué versión le pasó) y en `dist/version.json` (la que está
+ * publicada ahora: «Arreglado en esta versión» la lee de ahí, aunque la pestaña de quien marca sea vieja). Mig 150.
+ */
+const VERSION_APP = new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-')
+
+function versionPublicada(): Plugin {
+  let outDir = 'dist'
+  return {
+    name: 'version-publicada',
+    apply: 'build',
+    configResolved(c) { outDir = c.build.outDir },
+    closeBundle() {
+      writeFileSync(join(outDir, 'version.json'), `${JSON.stringify({ version: VERSION_APP })}\n`)
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __VERSION_APP__: JSON.stringify(VERSION_APP),
+  },
   plugins: [
     react(),
     tailwindcss(),
     precomprimir(),
+    versionPublicada(),
   ],
   build: {
     rollupOptions: {
