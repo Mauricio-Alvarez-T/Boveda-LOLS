@@ -50,6 +50,22 @@ const HORARIO_PROGRAMADORES = { desde: 7 * 60 + 30, hasta: 18 * 60 };
 /** Cuántos de fuera de horario caben en un aviso (los demás, en el siguiente: el cron pasa cada 5 min). */
 const MAX_FUERA_DE_HORARIO = 30;
 
+/**
+ * La versión de Bóveda con que pasó un error (mig 150): cuándo se compiló la app, en UTC, «AAAAMMDD-HHMM»
+ * (frontend/vite.config.ts). Se compara como texto: ordena sola. Versión = cada subida a producción.
+ */
+const RE_VERSION = /^\d{8}-\d{4}$/;
+const versionValida = (v) => (typeof v === 'string' && RE_VERSION.test(v) ? v : null);
+/** ¿Esa versión ya trae el arreglo? 'actual' = la del arreglo o una más nueva; 'proxima' = una más nueva que esa. */
+function traeElArreglo(version, arregladoVersion, tipo) {
+    if (!versionValida(version) || !versionValida(arregladoVersion)) return false;
+    return tipo === 'proxima' ? version > arregladoVersion : version >= arregladoVersion;
+}
+/** Nombres que ya usa la bandeja: un apartado propio no puede llamarse igual. */
+const NOMBRES_DE_BOVEDA = ['para revisar', 'señal y lentitud', 'datos mal ingresados', 'revisados', 'todos'];
+/** errno de MySQL/MariaDB: columna o tabla que todavía no existe (ventana deploy → migración 150). */
+const FALTA_MIGRACION = [1054, 1146];
+
 const httpError = (message, statusCode, code) => Object.assign(new Error(message), { statusCode, code });
 const texto = (v, max) => {
     const s = v === undefined || v === null ? '' : String(v).trim();
@@ -116,15 +132,19 @@ async function destinoProgramadores() {
  * (HORARIO_PROGRAMADORES): fuera, queda marcado para el aviso de la mañana siguiente (`avisarFueraDeHorario`). Nunca
  * lanza: un SMTP caído no frena el aviso al celular ni el registro del error. Devuelve (sin que nadie tenga que
  * esperarlo) qué pasó, en una línea.
+ * `reabierto` (mig 150): el error ya estaba arreglado en esta versión y volvió → «El arreglo no funcionó», aunque el
+ * mismo error haya sonado en la última hora (es otra noticia).
  */
-function avisarProgramadores({ id, firma, usuarioId, categoria, mensaje, accion, codigo, permisos, pantalla, dispositivo }) {
+function avisarProgramadores({ id, firma, usuarioId, categoria, mensaje, accion, codigo, permisos, pantalla, dispositivo, reabierto = false }) {
     return (async () => {
-        const [mismoError] = await db.query(
-            `SELECT id FROM soporte_errores
-              WHERE firma = ? AND id <> ? AND created_at >= NOW() - INTERVAL ${MINUTOS_MISMO_AVISO} MINUTE LIMIT 1`,
-            [firma, id]
-        );
-        if (mismoError.length) return 'el mismo error ya sonó en la última hora';
+        if (!reabierto) {
+            const [mismoError] = await db.query(
+                `SELECT id FROM soporte_errores
+                  WHERE firma = ? AND id <> ? AND created_at >= NOW() - INTERVAL ${MINUTOS_MISMO_AVISO} MINUTE LIMIT 1`,
+                [firma, id]
+            );
+            if (mismoError.length) return 'el mismo error ya sonó en la última hora';
+        }
         // Si no se puede saber (la tabla de feriados no responde), se avisa: mejor de más que perderlo.
         if (!(await enHorarioProgramadores().catch(() => true))) {
             try {
@@ -144,8 +164,9 @@ function avisarProgramadores({ id, firma, usuarioId, categoria, mensaje, accion,
         const esPermiso = categoria === 'permiso';
 
         const cel = await avisosCelular.enviarA(programadores.map(p => p.id), {
-            titulo: esPermiso ? 'Permiso que faltó' : 'Nueva falla en Soporte',
-            cuerpo: esPermiso ? `A ${nombre} le faltó un permiso en ${donde}. Toca para verlo.` : `A ${nombre} le falló ${donde}. Toca para verla.`,
+            titulo: reabierto ? 'El arreglo no funcionó' : esPermiso ? 'Permiso que faltó' : 'Nueva falla en Soporte',
+            cuerpo: reabierto ? `Volvió a pasarle a ${nombre} en ${donde}, ya con la versión del arreglo. Toca para verlo.`
+                : esPermiso ? `A ${nombre} le faltó un permiso en ${donde}. Toca para verlo.` : `A ${nombre} le falló ${donde}. Toca para verla.`,
             url: '/soporte?vista=errores',
             etiqueta: 'soporte-errores',
         });
@@ -164,15 +185,17 @@ function avisarProgramadores({ id, firma, usuarioId, categoria, mensaje, accion,
             await emailService.sendSystemEmail({
                 to: para,
                 fromName: 'Bóveda LOLS — Soporte',
-                subject: `${prefijo}${NOMBRE_CATEGORIA[categoria] || 'Error'}: ${nombre} en ${donde}`.slice(0, 180),
+                subject: `${prefijo}${reabierto ? 'Volvió después del arreglo — ' : ''}${NOMBRE_CATEGORIA[categoria] || 'Error'}: ${nombre} en ${donde}`.slice(0, 180),
                 text: [
+                    ...(reabierto ? ['El arreglo no funcionó: este error estaba marcado arreglado y volvió a pasar con esa versión o una más nueva.', ''] : []),
                     `A ${nombre} ${esPermiso ? `le faltó un permiso en ${donde}` : `le falló ${donde}`}${equipo ? ` (${equipo})` : ''}.`,
                     '',
                     ...campos.map(([k, v]) => `${k}: ${v}`),
                     '',
                     `Revísalo en Bóveda → Soporte → Errores${enlace ? `: ${enlace}` : '.'}`,
                 ].join('\n'),
-                html: `<p>A <strong>${esc(nombre)}</strong> ${esPermiso ? `le faltó un permiso en ${esc(donde)}` : `le falló ${esc(donde)}`}${equipo ? ` (${equipo})` : ''}.</p>
+                html: `${reabierto ? '<p><strong>El arreglo no funcionó:</strong> este error estaba marcado arreglado y volvió a pasar con esa versión o una más nueva.</p>' : ''}
+                       <p>A <strong>${esc(nombre)}</strong> ${esPermiso ? `le faltó un permiso en ${esc(donde)}` : `le falló ${esc(donde)}`}${equipo ? ` (${equipo})` : ''}.</p>
                        ${campos.map(([k, v]) => `<p><strong>${k}:</strong> ${esc(v)}</p>`).join('\n                   ')}
                        <p>Revísalo en Bóveda → Soporte → Errores${enlace ? `: <a href="${esc(enlace)}">${esc(enlace)}</a>` : '.'}</p>`,
             });
@@ -245,13 +268,15 @@ async function hayCupoDeFoto(usuarioId) {
         && Number(t.bytes) < FOTOS_TOTAL_BYTES;
 }
 
+/** Las vistas de Bóveda. Lo que está en un apartado propio (mig 150) sale de su vista y va a «ap:<id>». */
 const VISTAS = {
-    revisar: `e.categoria IN ('falla', 'app', 'permiso') AND e.estado = 'pendiente'`,
+    revisar: `e.categoria IN ('falla', 'app', 'permiso') AND e.estado = 'pendiente' AND e.apartado_id IS NULL`,
     revisados: `e.categoria IN ('falla', 'app', 'permiso') AND e.estado = 'revisado'`,
-    senal: `e.categoria IN ('lento', 'sin_senal')`,
-    datos: `e.categoria = 'dato'`,
+    senal: `e.categoria IN ('lento', 'sin_senal') AND e.apartado_id IS NULL`,
+    datos: `e.categoria = 'dato' AND e.apartado_id IS NULL`,
     todos: '1 = 1',
 };
+const RE_VISTA_APARTADO = /^ap:(\d+)$/;
 
 const soporteErroresService = {
     CATEGORIAS,
@@ -284,13 +309,18 @@ const soporteErroresService = {
         const duracion = Number.isFinite(Number(body.duracion_ms)) && Number(body.duracion_ms) >= 0
             ? Math.min(Math.round(Number(body.duracion_ms)), 4294967295) : null;
 
-        // ¿Ya está (misma persona, mismo error, hace menos de 10 min)? → suma una vez más.
-        const [repetidos] = await db.query(
-            `SELECT id FROM soporte_errores
+        const version = versionValida(body.version);
+
+        // ¿Ya está (misma persona, mismo error, hace menos de 10 min)? → suma una vez más. Uno ya marcado ARREGLADO
+        // no suma: si vuelve, es una fila nueva (y puede ser que el arreglo no funcionó).
+        const sqlRepetido = (sinArreglados) => `SELECT id FROM soporte_errores
               WHERE usuario_id = ? AND firma = ? AND ultima_vez >= NOW() - INTERVAL ${MINUTOS_REPETIDO} MINUTE
-              ORDER BY id DESC LIMIT 1`,
-            [usuarioId, firma]
-        );
+              ${sinArreglados ? "AND NOT (estado = 'revisado' AND arreglado_version IS NOT NULL)" : ''}
+              ORDER BY id DESC LIMIT 1`;
+        const [repetidos] = await db.query(sqlRepetido(true), [usuarioId, firma]).catch((e) => {
+            if (FALTA_MIGRACION.includes(e && e.errno)) return db.query(sqlRepetido(false), [usuarioId, firma]);
+            throw e;
+        });
         if (repetidos.length) {
             const id = Number(repetidos[0].id);
             await db.query(
@@ -309,28 +339,52 @@ const soporteErroresService = {
         const obraId = Number.isInteger(Number(body.obra_id)) && Number(body.obra_id) > 0 ? Number(body.obra_id) : null;
         const navegador = String(req?.headers?.['user-agent'] || '').slice(0, 255) || null;
 
+        // ¿Estaba arreglado en una versión que esta persona ya tiene? → el arreglo no funcionó (mig 150). Sin versión
+        // (una app de antes de la mig 150) o con una más vieja (Bóveda viejo abierto), no cuenta.
+        let arreglado = null;
+        if (PARA_REVISAR.includes(categoria) && version) {
+            const [a] = await db.query(
+                `SELECT id, arreglado_version, arreglado_tipo FROM soporte_errores
+                  WHERE firma = ? AND estado = 'revisado' AND arreglado_version IS NOT NULL AND arreglo_fallo_en IS NULL
+                  ORDER BY revisado_en DESC, id DESC LIMIT 1`,
+                [firma]
+            ).catch(() => [[]]);
+            if (a[0] && traeElArreglo(version, a[0].arreglado_version, a[0].arreglado_tipo)) arreglado = a[0];
+        }
+
+        const columnas = `usuario_id, categoria, firma, mensaje, accion, codigo, permisos_faltantes, detalle_tecnico,
+                 pantalla, pantalla_nombre, obra_id, dispositivo, navegador, duracion_ms, foto_pedida`;
+        const valores = [
+            usuarioId, categoria, firma, mensaje, accion, codigo, permisos, texto(body.detalle_tecnico, 4000),
+            pantalla, texto(body.pantalla_nombre, 120), obraId,
+            ['movil', 'escritorio'].includes(body.dispositivo) ? body.dispositivo : null,
+            navegador, duracion, pedirFoto ? 1 : 0,
+        ];
+        const base = '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT o.id FROM obras o WHERE o.id = ?), ?, ?, ?, ?';
+        // Con la versión, de qué arreglo es la vuelta y su apartado (si los errores iguales llegan solos a uno). Sin la
+        // mig 150 todavía, como antes: el error nunca se pierde.
         const [r] = await db.query(
-            `INSERT INTO soporte_errores
-                (usuario_id, categoria, firma, mensaje, accion, codigo, permisos_faltantes, detalle_tecnico,
-                 pantalla, pantalla_nombre, obra_id, dispositivo, navegador, duracion_ms, foto_pedida)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT o.id FROM obras o WHERE o.id = ?), ?, ?, ?, ?)`,
-            [
-                usuarioId, categoria, firma, mensaje, accion, codigo, permisos, texto(body.detalle_tecnico, 4000),
-                pantalla, texto(body.pantalla_nombre, 120), obraId,
-                ['movil', 'escritorio'].includes(body.dispositivo) ? body.dispositivo : null,
-                navegador, duracion, pedirFoto ? 1 : 0,
-            ]
-        );
+            `INSERT INTO soporte_errores (${columnas}, version_app, reaparecio_de, apartado_id)
+             VALUES (${base}, ?, ?, (SELECT f.apartado_id FROM soporte_apartado_firmas f WHERE f.firma = ?))`,
+            [...valores, version, arreglado ? Number(arreglado.id) : null, firma]
+        ).catch((e) => {
+            if (FALTA_MIGRACION.includes(e && e.errno)) return db.query(`INSERT INTO soporte_errores (${columnas}) VALUES (${base})`, valores);
+            throw e;
+        });
+        if (arreglado) {
+            await db.query('UPDATE soporte_errores SET arreglo_fallo_en = NOW() WHERE id = ?', [Number(arreglado.id)]).catch(() => {});
+        }
         // Un error por revisar nuevo (no un repetido): aviso a los programadores, al celular y al correo.
         let aviso;
         if (PARA_REVISAR.includes(categoria)) {
             const enCurso = avisarProgramadores({
                 id: Number(r.insertId), firma, usuarioId, categoria, mensaje, accion, codigo, permisos,
                 pantalla: texto(body.pantalla_nombre, 120) || sinConsulta(pantalla), dispositivo: body.dispositivo,
+                reabierto: !!arreglado,
             });
             if (esperarAviso) aviso = await enCurso;
         }
-        return { id: Number(r.insertId), repetido: false, pedir_foto: pedirFoto, ...(aviso ? { aviso } : {}) };
+        return { id: Number(r.insertId), repetido: false, pedir_foto: pedirFoto, ...(arreglado ? { reabierto: true } : {}), ...(aviso ? { aviso } : {}) };
     },
 
     /** La foto que pidió el servidor: solo la persona dueña, una vez, y dentro de la hora. */
@@ -372,25 +426,37 @@ const soporteErroresService = {
         return { id };
     },
 
-    /** La bandeja (Super Administrador). `vista`: revisar (por defecto) | revisados | senal | datos | todos. */
+    /**
+     * La bandeja (Super Administrador). `vista`: revisar (por defecto) | revisados | senal | datos | todos | ap:<id>
+     * (un apartado propio, mig 150: lo pendiente primero). Los que volvieron después de un arreglo van arriba.
+     */
     async listar(vista) {
         await limpiar();
-        const donde = VISTAS[vista] || VISTAS.revisar;
+        const enApartado = RE_VISTA_APARTADO.exec(String(vista || ''));
+        const donde = enApartado ? 'e.apartado_id = ?' : (VISTAS[vista] || VISTAS.revisar);
         const [filas] = await db.query(
             `SELECT e.id, e.usuario_id, u.nombre AS usuario_nombre, u.email AS usuario_email, r.nombre AS rol_nombre,
                     e.categoria, e.mensaje, e.accion, e.codigo, e.permisos_faltantes, e.detalle_tecnico,
                     e.pantalla, e.pantalla_nombre, e.obra_id, o.nombre AS obra_nombre, e.dispositivo, e.navegador,
                     e.duracion_ms, e.veces, e.primera_vez, e.ultima_vez, e.foto_bytes, (e.foto IS NOT NULL) AS tiene_foto,
                     e.foto_pedida, e.foto_borrada_en, e.descripcion, e.estado, e.nota, e.revisado_en,
-                    rv.nombre AS revisado_por_nombre
+                    rv.nombre AS revisado_por_nombre,
+                    e.version_app, e.arreglado_version, e.arreglado_tipo, e.arreglo_fallo_en, e.reaparecio_de,
+                    e.apartado_id, ap.nombre AS apartado_nombre,
+                    ori.arreglado_version AS reabierto_version, ori.arreglado_tipo AS reabierto_tipo,
+                    ori.revisado_en AS reabierto_arreglado_en, rvo.nombre AS reabierto_arreglado_por, ori.nota AS reabierto_nota
                FROM soporte_errores e
                JOIN usuarios u ON u.id = e.usuario_id
                LEFT JOIN roles r ON r.id = u.rol_id
                LEFT JOIN obras o ON o.id = e.obra_id
                LEFT JOIN usuarios rv ON rv.id = e.revisado_por
+               LEFT JOIN soporte_apartados ap ON ap.id = e.apartado_id
+               LEFT JOIN soporte_errores ori ON ori.id = e.reaparecio_de
+               LEFT JOIN usuarios rvo ON rvo.id = ori.revisado_por
               WHERE ${donde}
-              ORDER BY e.ultima_vez DESC
-              LIMIT 200`
+              ORDER BY (e.reaparecio_de IS NOT NULL AND e.estado = 'pendiente') DESC, (e.estado = 'pendiente') DESC, e.ultima_vez DESC
+              LIMIT 200`,
+            enApartado ? [Number(enApartado[1])] : []
         );
         // Los permisos que faltaban, con su nombre del catálogo («Editar Trabajadores»).
         const claves = [...new Set(filas.flatMap(f => String(f.permisos_faltantes || '').split(',').filter(Boolean)))];
@@ -409,6 +475,8 @@ const soporteErroresService = {
                 tiene_foto: !!Number(f.tiene_foto),
                 foto_pedida: !!Number(f.foto_pedida),
                 permisos_faltantes: faltan.map(clave => ({ clave, nombre: nombres.get(clave) || clave })),
+                reaparecio_de: f.reaparecio_de == null ? null : Number(f.reaparecio_de),
+                apartado_id: f.apartado_id == null ? null : Number(f.apartado_id),
             };
         });
     },
@@ -439,7 +507,7 @@ const soporteErroresService = {
         return { buf: f.foto, mime: f.foto_mime || 'image/jpeg' };
     },
 
-    /** Marcar revisado (con nota) o volver a «pendiente». */
+    /** Marcar revisado (con nota) o volver a «pendiente» (que además deja de vigilar el arreglo, si lo había). */
     async revisar(superAdmin, rawId, { estado, nota }) {
         const id = idValido(rawId);
         if (!['pendiente', 'revisado'].includes(estado)) throw httpError('Estado inválido', 400, 'ERROR_ESTADO');
@@ -447,11 +515,107 @@ const soporteErroresService = {
         const [r] = await db.query(
             `UPDATE soporte_errores
                 SET estado = ?, nota = COALESCE(?, nota), revisado_por = ?, revisado_en = ${revisado ? 'NOW()' : 'NULL'}
+                    ${revisado ? '' : ', arreglado_version = NULL, arreglado_tipo = NULL'}
               WHERE id = ?`,
             [estado, nota === undefined ? null : texto(nota, 1000), revisado ? Number(superAdmin.id) : null, id]
         );
         if (!r.affectedRows) throw httpError('Aviso no encontrado', 404, 'ERROR_NO_EXISTE');
         return { id, estado };
+    },
+
+    /**
+     * «Arreglado en esta versión» (Marcos 2026-11-03, mig 150). `version`: la publicada ahora (la app la lee de
+     * /version.json); `tipo`: 'actual' (el arreglo ya está arriba: vigila desde esa versión) o 'proxima' (todavía no:
+     * vigila desde la siguiente). Se marcan revisados este error y los iguales que estén sin revisar (misma firma: el
+     * mismo arreglo). Solo fallas, pantallas rotas y permisos (lo lento o sin señal depende de la conexión).
+     */
+    async marcarArreglado(superAdmin, rawId, { version, tipo, nota }) {
+        const id = idValido(rawId);
+        const v = versionValida(version);
+        if (!v) throw httpError('No se pudo saber qué versión está publicada. Recargue la página e intente de nuevo.', 400, 'ERROR_VERSION');
+        if (!['actual', 'proxima'].includes(tipo)) throw httpError('Elija si el arreglo ya está arriba o sale en la próxima versión.', 400, 'ERROR_TIPO');
+        const [[e]] = await db.query('SELECT id, firma, categoria FROM soporte_errores WHERE id = ?', [id]);
+        if (!e) throw httpError('Aviso no encontrado', 404, 'ERROR_NO_EXISTE');
+        if (!PARA_REVISAR.includes(e.categoria)) {
+            throw httpError('Solo las fallas, pantallas rotas y permisos se marcan arreglados.', 400, 'ERROR_CATEGORIA');
+        }
+        const [r] = await db.query(
+            `UPDATE soporte_errores
+                SET estado = 'revisado', revisado_por = ?, revisado_en = NOW(), nota = COALESCE(?, nota),
+                    arreglado_version = ?, arreglado_tipo = ?, arreglo_fallo_en = NULL
+              WHERE id = ? OR (firma = ? AND estado = 'pendiente')`,
+            [Number(superAdmin.id), nota === undefined ? null : texto(nota, 1000), v, tipo, id, e.firma]
+        );
+        return { id, version: v, tipo, iguales: Math.max(0, Number(r.affectedRows) - 1) };
+    },
+
+    // ───────────── Apartados propios (mig 150) ─────────────
+
+    /**
+     * Los apartados propios, con cuántos errores sin revisar tiene cada uno (`pendientes`) y cuántos de esos son
+     * fallas, pantallas rotas o permisos (`por_revisar`: el número del menú los cuenta; «Para revisar» ya no).
+     */
+    async apartados() {
+        const [filas] = await db.query(
+            `SELECT a.id, a.nombre, COUNT(e.id) AS pendientes, COALESCE(SUM(e.categoria IN ('falla', 'app', 'permiso')), 0) AS por_revisar
+               FROM soporte_apartados a
+               LEFT JOIN soporte_errores e ON e.apartado_id = a.id AND e.estado = 'pendiente'
+              GROUP BY a.id, a.nombre
+              ORDER BY a.nombre`
+        );
+        return filas.map(f => ({ id: Number(f.id), nombre: f.nombre, pendientes: Number(f.pendientes) || 0, por_revisar: Number(f.por_revisar) || 0 }));
+    },
+
+    async crearApartado(superAdmin, nombre) {
+        const n = texto(nombre, 60);
+        if (!n || n.length < 2) throw httpError('Escriba un nombre para el apartado.', 400, 'ERROR_NOMBRE');
+        if (NOMBRES_DE_BOVEDA.includes(n.toLowerCase())) throw httpError('Ese nombre ya es un apartado de Bóveda.', 409, 'ERROR_NOMBRE_RESERVADO');
+        try {
+            const [r] = await db.query('INSERT INTO soporte_apartados (nombre, creado_por) VALUES (?, ?)', [n, Number(superAdmin.id)]);
+            return { id: Number(r.insertId), nombre: n, pendientes: 0, por_revisar: 0 };
+        } catch (e) {
+            if (e && e.errno === 1062) throw httpError('Ya hay un apartado con ese nombre.', 409, 'ERROR_NOMBRE_REPETIDO');
+            throw e;
+        }
+    },
+
+    /** Borrar un apartado: sus errores vuelven a su vista de siempre y los próximos iguales ya no llegan solos ahí. */
+    async borrarApartado(rawId) {
+        const id = idValido(rawId);
+        await db.query('UPDATE soporte_errores SET apartado_id = NULL WHERE apartado_id = ?', [id]);
+        const [r] = await db.query('DELETE FROM soporte_apartados WHERE id = ?', [id]);
+        if (!r.affectedRows) throw httpError('Ese apartado ya no existe.', 404, 'ERROR_NO_EXISTE');
+        return { id };
+    },
+
+    /**
+     * Mover un error a un apartado (`apartado_id`; null = sacarlo y que vuelva a su vista). Con `auto`, también los
+     * iguales sin revisar, y los próximos errores iguales llegan solos a ese apartado; sin `auto` (o al sacarlo),
+     * ya no.
+     */
+    async moverAApartado(rawId, { apartado_id: apartadoId, auto }) {
+        const id = idValido(rawId);
+        const destino = apartadoId === null || apartadoId === undefined ? null : idValido(apartadoId);
+        const [[e]] = await db.query('SELECT id, firma FROM soporte_errores WHERE id = ?', [id]);
+        if (!e) throw httpError('Aviso no encontrado', 404, 'ERROR_NO_EXISTE');
+        if (destino) {
+            const [[a]] = await db.query('SELECT id FROM soporte_apartados WHERE id = ?', [destino]);
+            if (!a) throw httpError('Ese apartado ya no existe.', 404, 'ERROR_NO_EXISTE');
+        }
+        const conIguales = !!auto && !!destino;
+        const [r] = await db.query(
+            `UPDATE soporte_errores SET apartado_id = ? WHERE id = ?${conIguales ? " OR (firma = ? AND estado = 'pendiente')" : ''}`,
+            conIguales ? [destino, id, e.firma] : [destino, id]
+        );
+        if (conIguales) {
+            await db.query(
+                'INSERT INTO soporte_apartado_firmas (firma, apartado_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE apartado_id = VALUES(apartado_id)',
+                [e.firma, destino]
+            );
+        } else {
+            await db.query('DELETE FROM soporte_apartado_firmas WHERE firma = ?', [e.firma]);
+        }
+        return { id, apartado_id: destino, movidos: Number(r.affectedRows) || 0, auto: conIguales };
     },
 
     /**
@@ -532,6 +696,7 @@ const soporteErroresService = {
     // Para las pruebas.
     _reiniciar() { avisosRecientes.clear(); ultimaLimpieza = 0; avisosProgramadores = []; },
     _firmaDe: firmaDe,
+    _traeElArreglo: traeElArreglo,
 };
 
 module.exports = soporteErroresService;

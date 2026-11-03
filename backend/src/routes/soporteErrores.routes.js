@@ -26,6 +26,7 @@ const schemaReportar = {
     obra_id: { type: 'integer', min: 1 },
     dispositivo: { type: 'string', in: ['movil', 'escritorio'] },
     duracion_ms: { type: 'integer', min: 0 },
+    version: { type: 'string', maxLength: 40 },
 };
 
 // ───────────── Desde la app de cualquier persona ─────────────
@@ -67,7 +68,28 @@ router.get('/resumen', auth, soloSuperAdmin, sinCache, async (req, res, next) =>
     } catch (e) { next(e); }
 });
 
-/** GET /api/soporte/errores?vista=revisar|revisados|senal|datos|todos */
+/** GET /api/soporte/errores/apartados — los apartados propios (mig 150), con sus errores sin revisar. */
+router.get('/apartados', auth, soloSuperAdmin, sinCache, async (req, res, next) => {
+    try {
+        res.json({ data: await svc.apartados() });
+    } catch (e) { next(e); }
+});
+
+/** POST /api/soporte/errores/apartados — { nombre }: un apartado nuevo. */
+router.post('/apartados', auth, soloSuperAdmin, sinCache, validateBody({ nombre: { required: true, type: 'string', maxLength: 60 } }, { strip: true }), async (req, res, next) => {
+    try {
+        res.status(201).json({ data: await svc.crearApartado(req.superAdmin, req.body.nombre) });
+    } catch (e) { next(e); }
+});
+
+/** DELETE /api/soporte/errores/apartados/:id — sus errores vuelven a su vista de siempre. */
+router.delete('/apartados/:id', auth, soloSuperAdmin, sinCache, async (req, res, next) => {
+    try {
+        res.json({ data: await svc.borrarApartado(req.params.id) });
+    } catch (e) { next(e); }
+});
+
+/** GET /api/soporte/errores?vista=revisar|revisados|senal|datos|todos|ap:<id> */
 router.get('/', auth, soloSuperAdmin, sinCache, async (req, res, next) => {
     try {
         res.json({ data: await svc.listar(String(req.query.vista || 'revisar')) });
@@ -90,6 +112,28 @@ router.patch('/:id', auth, soloSuperAdmin, sinCache,
     async (req, res, next) => {
         try {
             res.json({ data: await svc.revisar(req.superAdmin, req.params.id, req.body) });
+        } catch (e) { next(e); }
+    });
+
+/** POST /api/soporte/errores/:id/arreglado — { version, tipo: 'actual' | 'proxima', nota? } (mig 150). */
+router.post('/:id/arreglado', auth, soloSuperAdmin, sinCache,
+    validateBody({
+        version: { required: true, type: 'string', maxLength: 40 },
+        tipo: { required: true, type: 'string', in: ['actual', 'proxima'] },
+        nota: { type: 'string', maxLength: 1000 },
+    }, { strip: true }),
+    async (req, res, next) => {
+        try {
+            res.json({ data: await svc.marcarArreglado(req.superAdmin, req.params.id, req.body) });
+        } catch (e) { next(e); }
+    });
+
+/** PATCH /api/soporte/errores/:id/apartado — { apartado_id: id | null, auto?: boolean } (mig 150). */
+router.patch('/:id/apartado', auth, soloSuperAdmin, sinCache,
+    validateBody({ apartado_id: { type: 'integer', min: 1 }, auto: { type: 'boolean' } }, { strip: true }),
+    async (req, res, next) => {
+        try {
+            res.json({ data: await svc.moverAApartado(req.params.id, req.body) });
         } catch (e) { next(e); }
     });
 

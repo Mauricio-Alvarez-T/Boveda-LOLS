@@ -425,6 +425,30 @@ ver la foto, **Quitar** (la borra), escribir o dictar, Enviar. Lento, sin señal
 - La foto vive en la fila (MEDIUMBLOB, como las de Ideas): entra al respaldo de la BD, acotada por los topes.
 - **Nada de esto entra al historial** (`logs_actividad`): `logger.js` excluye `/api/soporte/errores` (la foto viaja en
   el body).
+- **Errores que se vigilan solos (Marcos 2026-11-03, mig 150; `ArregloApartados.tsx`):**
+  - **Versión = cada subida a producción** (no escritorio/celular): se nombra por cuándo se compiló la app, en UTC,
+    «AAAAMMDD-HHMM» (`frontend/vite.config.ts` → `__VERSION_APP__` y `dist/version.json`); como texto ordena sola y se
+    muestra en hora de Chile («3-nov 16:50», `services/versionApp.ts`). La app manda su versión con cada error
+    (`version_app`); las de antes no la mandaban («De antes»).
+  - **«Arreglado en esta versión»** (solo falla / pantalla rota / permiso, `POST /api/soporte/errores/:id/arreglado`,
+    `soloSuperAdmin`): «La que está ahora en Bóveda» (la lee de `/version.json`, aunque la pestaña sea vieja; vigila desde
+    esa versión) o «La próxima que subamos» (desde la siguiente). Queda revisado con `arreglado_version` / `arreglado_tipo`
+    y la nota, y **también los iguales sin revisar** (misma `firma`). Marca «Arreglado · vigilando».
+  - **Si vuelve, se reabre solo:** el mismo error (misma firma) de alguien con **esa versión o una más nueva** entra
+    como nuevo con `reaparecio_de` (marca roja «Volvió después del arreglo», arriba de todo, con la historia arreglado →
+    volvió → se reabrió) y al arreglado se le anota `arreglo_fallo_en` («El arreglo no funcionó»). A los programadores
+    les llega «El arreglo no funcionó» (celular + correo, en horario hábil como todo aviso), aunque el mismo error haya
+    sonado en la última hora. **Con Bóveda viejo abierto (versión anterior) o sin versión, no cuenta.** Lo que se repite
+    en 10 minutos ya no suma sobre uno arreglado. «Volver a sin revisar» deja de vigilar.
+- **Apartados propios (Marcos 2026-11-03, mig 150):** además de «Señal y lentitud» y «Datos mal ingresados», Soporte crea
+  los suyos («+ Nuevo apartado», `soporte_apartados`; sin repetir nombres ni usar los de Bóveda) y mueve errores ahí
+  («Mover a un apartado», `PATCH /:id/apartado`). Con **«Los próximos errores iguales llegan solos aquí»** se mueven
+  también los iguales sin revisar y queda la regla por firma (`soporte_apartado_firmas`): cada error nuevo con esa firma
+  entra directo al apartado. Lo que está en un apartado sale de su vista de siempre (`ap:<id>`; «Revisados» y «Todos»
+  siguen mostrando todo). Borrar un apartado no borra errores: vuelven a su lugar. El número del menú sigue contando
+  todas las fallas/permisos sin revisar; la pestaña «Para revisar» descuenta las que están en un apartado. Si la mig 150
+  aún no corrió, el error se guarda igual (como antes). Test: `tests/soporte_errores_arreglo.test.js` y
+  `frontend/src/components/soporte/erroresArreglo.test.ts`.
 - **Aviso a los programadores (Marcos 2026-11-02, con Mauricio):** un error por revisar NUEVO (`falla`, `app` o
   `permiso`; no un repetido ni lento/sin señal/dato) les llega a los del rol 1 —Marcos y Mauricio, los que mantienen la
   app— **al celular** (los equipos donde tocaron «Activar avisos»: «Nueva falla en Soporte» / «Permiso que faltó») y

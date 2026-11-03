@@ -1,6 +1,7 @@
 import { almacenSesion, tokenVerComoGuardado } from '../context/verComoSesion';
 import { nombrePantalla } from '../components/ideas/ideasConfig';
 import type { AvisoError, CategoriaError } from './clasificarError';
+import { VERSION_APP } from './versionApp';
 
 /**
  * Manda a Soporte los avisos que clasificó `clasificarError.ts` (mig 141; docs/reglas/seguridad-rbac.md § Errores).
@@ -57,6 +58,8 @@ function contexto() {
         pantalla_nombre: nombrePantalla(pathname, search).slice(0, 120),
         obra_id: obra,
         dispositivo: (window.matchMedia?.('(max-width: 767px)').matches ? 'movil' : 'escritorio') as 'movil' | 'escritorio',
+        // Con qué versión le pasó (mig 150): si ya estaba arreglado en esa versión, el error se reabre solo.
+        version: VERSION_APP ?? undefined,
     };
 }
 
