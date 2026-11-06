@@ -141,7 +141,8 @@ const DEFS: PantallaDef[] = [
         i('documentos.descargar', 'Descargar', 2),
         i('documentos.eliminar', 'Borrar', 3),
         i('documentos.laborales.emitir', 'Emitir contratos y finiquitos', 3),
-        x('documentos.laborales.descargar', 'Imprimir contratos con sueldo')] },
+        x('documentos.laborales.descargar', 'Imprimir contratos con sueldo'),
+        x('documentos.laborales.eliminar', 'Eliminar contratos y finiquitos')] },
     { id: 'ingresos', nombre: 'Ingresos de trabajadores', grupo: 'gestiones', libre: true,
         explicitos: [
             { etiqueta: 'Solicita', claves: ['trabajadores.solicitud.crear'] },

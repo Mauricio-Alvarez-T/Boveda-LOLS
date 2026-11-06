@@ -4,9 +4,10 @@
  * con <StatusBadge domain="documentoEstado">; Descargar/Imprimir gateados por documentos.laborales.descargar;
  * Emitir kit / Amonestación / Finiquito por documentos.laborales.emitir. El finiquito es la ÚNICA acción
  * que aplica al trabajador desvinculado (las otras dos se apagan). B6 agrega acá "Registrar entrega".
+ * Eliminar (2026-11-06): papelera junto a Descargar, SOLO visible con documentos.laborales.eliminar.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { FileText, Download, Printer, PackageOpen, FileWarning, FileSignature, Loader2, Lock } from 'lucide-react';
+import { FileText, Download, Printer, PackageOpen, FileWarning, FileSignature, Loader2, Lock, Trash2 } from 'lucide-react';
 
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +21,7 @@ import { Cargando, Skeleton } from '../ui/Skeleton';
 import { EmitirAmonestacionModal } from './EmitirAmonestacionModal';
 import { EmitirKitModal } from './EmitirKitModal';
 import { EmitirFiniquitoModal } from './EmitirFiniquitoModal';
+import { EliminarDocumentoModal } from './EliminarDocumentoModal';
 import { abrirGenerado } from './abrirDocumentoGenerado';
 import type { WorkerBasico } from './documentosLaborales';
 import type { UltimaDesvinculacion } from '../workers/desvinculacionSchema';
@@ -44,11 +46,13 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
     const puedeEmitir = hasPermission('documentos.laborales.emitir');
     const puedeDescargar = hasPermission('documentos.laborales.descargar');
     const puedeVer = hasPermission('documentos.ver');
+    const puedeEliminar = hasPermission('documentos.laborales.eliminar');
     const [docs, setDocs] = useState<Documento[]>([]);
     const [loading, setLoading] = useState(false);
     const [local, setLocal] = useState(0);
     const [modal, setModal] = useState<'kit' | 'amonestacion' | 'finiquito' | null>(null);
     const [ocupado, setOcupado] = useState<string | null>(null);
+    const [aEliminar, setAEliminar] = useState<Documento | null>(null);
 
     const cargar = useCallback(async () => {
         if (!puedeVer) return;
@@ -152,6 +156,11 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
                                 <IconButton size="sm" variant="ghost" aria-label="Descargar Word" title={puedeDescargar ? 'Descargar Word' : 'Solo oficina (Descargar / Imprimir Documentos Laborales)'}
                                     disabled={!puedeDescargar || ocupado === `${d.id}-download`} onClick={() => abrir(d, 'download')}
                                     icon={ocupado === `${d.id}-download` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} />
+                                {/* Sin el permiso no se muestra (no basta deshabilitarlo: pedido del dueño). */}
+                                {puedeEliminar && (
+                                    <IconButton size="sm" variant="danger" aria-label="Eliminar documento" title="Eliminar documento"
+                                        onClick={() => setAEliminar(d)} icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                )}
                             </div>
                         </li>
                     ))}
@@ -161,6 +170,7 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
             {/* onFichaActualizada: el modal pudo completar datos personales del trabajador (B2b). */}
             <EmitirKitModal isOpen={modal === 'kit'} onClose={() => setModal(null)} worker={worker} onEmitido={emitido} onFichaActualizada={onCambio} />
             <EmitirAmonestacionModal isOpen={modal === 'amonestacion'} onClose={() => setModal(null)} worker={worker} onEmitido={emitido} />
+            {aEliminar && <EliminarDocumentoModal documento={aEliminar} onClose={() => setAEliminar(null)} onEliminado={emitido} />}
             <EmitirFiniquitoModal isOpen={modal === 'finiquito'} onClose={() => setModal(null)} worker={worker} desvinculacion={ultimaDesvinculacion} onEmitido={emitido} />
         </div>
     );
