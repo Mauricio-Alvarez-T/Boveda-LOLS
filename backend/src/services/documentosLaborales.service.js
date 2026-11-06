@@ -284,6 +284,51 @@ const documentosLaboralesService = {
                 resumen: `Descarga de ${info.tipo_nombre || info.fileName}` }), req);
         return info;
     },
+
+    /**
+     * Elimina (borrado lógico: activo = FALSE; el archivo queda en el servidor) un documento GENERADO por
+     * Bóveda. 404 si no existe, ya está eliminado o no es generado (lo subido se borra por /documentos/:id).
+     * 409 si está en un lote de custodia en curso (pendiente de retiro o en terreno): el papel anda en
+     * manos de alguien y el lote lo seguiría mostrando. Si era el finiquito de una baja, la baja queda sin
+     * finiquito (vuelve a ofrecer «Finiquito» en vez de «Reemitir»). Log manual (este prefijo no pasa por
+     * el activityLogger).
+     */
+    async eliminar(id, userId, req) {
+        const docId = Number(id);
+        if (!Number.isInteger(docId) || docId <= 0) throw httpError('Documento inválido', 400);
+        const conn = await db.getConnection();
+        let doc;
+        try {
+            await conn.beginTransaction();
+            const [rows] = await conn.query(
+                `SELECT d.id, d.trabajador_id, d.estado, d.lote_id, d.nombre_archivo, td.codigo AS tipo_codigo, td.nombre AS tipo_nombre,
+                        l.estado AS lote_estado
+                   FROM documentos d
+                   LEFT JOIN tipos_documento td ON td.id = d.tipo_documento_id
+                   LEFT JOIN documentos_lotes l ON l.id = d.lote_id
+                  WHERE d.id = ? AND d.activo = TRUE AND d.origen = 'generado'
+                  FOR UPDATE`,
+                [docId]
+            );
+            doc = rows[0];
+            if (!doc) throw httpError('Documento no encontrado', 404);
+            if (doc.lote_id && doc.lote_estado && doc.lote_estado !== 'cerrado') {
+                throw httpError('Este documento está en un lote de custodia en curso: ciérralo o resuélvelo en Documentos físicos antes de eliminarlo.', 409, { code: 'EN_LOTE' });
+            }
+            await conn.query('UPDATE documentos SET activo = FALSE WHERE id = ?', [docId]);
+            await conn.query('UPDATE trabajador_desvinculaciones SET finiquito_documento_id = NULL WHERE finiquito_documento_id = ?', [docId]);
+            await conn.commit();
+        } catch (err) {
+            await conn.rollback().catch(() => {});
+            throw err;
+        } finally {
+            conn.release();
+        }
+        await logManualActivity(userId, 'documentos', 'DELETE', String(docId),
+            JSON.stringify({ evento: 'documento_eliminado', tipo: doc.tipo_codigo || null, trabajador_id: doc.trabajador_id || null, estado: doc.estado || null,
+                resumen: `Eliminado ${doc.tipo_nombre || doc.nombre_archivo} (estaba ${doc.estado || 'generado'})` }), req);
+        return { id: docId, trabajador_id: doc.trabajador_id, tipo_codigo: doc.tipo_codigo || null };
+    },
 };
 
 module.exports = documentosLaboralesService;

@@ -288,6 +288,16 @@ const documentoService = {
         });
         return result;
     },
+    /** ¿Lo generó Bóveda (mig 110)? Sin la columna `origen` (mig pendiente) nada es generado. */
+    async esGenerado(id) {
+        try {
+            const [rows] = await db.query("SELECT 1 FROM documentos WHERE id = ? AND origen = 'generado' LIMIT 1", [id]);
+            return rows.length > 0;
+        } catch (err) {
+            if (err.errno === 1054) return false;
+            throw err;
+        }
+    },
     async delete(id) {
         const [result] = await db.query('UPDATE documentos SET activo = FALSE WHERE id = ?', [id]);
         if (result.affectedRows === 0) {

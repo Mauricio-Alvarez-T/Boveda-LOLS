@@ -110,6 +110,11 @@ router.get('/download-all/:trabajadorId', auth, checkPermission('documentos.desc
 // Delete document
 router.delete('/:id', auth, checkPermission('documentos.eliminar'), async (req, res, next) => {
     try {
+        // Un documento GENERADO por Bóveda (contrato, finiquito…) no se borra con `documentos.eliminar`:
+        // exige su permiso propio y pasa por DELETE /documentos-laborales/:id (custodia, finiquito, log).
+        if (await documentoService.esGenerado(req.params.id)) {
+            return res.status(403).json({ error: 'Documento laboral: se elimina desde Documentos laborales', required: ['documentos.laborales.eliminar'] });
+        }
         await documentoService.delete(req.params.id, req.user.id);
         res.json({ message: 'Documento eliminado correctamente' });
     } catch (err) { next(err); }

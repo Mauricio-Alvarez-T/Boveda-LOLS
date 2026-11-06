@@ -793,3 +793,78 @@ describe('FINIQUITO (plan Gestiones B5)', () => {
         expect(res.body.data.kit.map(k => k.codigo)).not.toContain('FINIQUITO');
     });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('DELETE /documentos-laborales/:id (eliminar un generado, 2026-11-06)', () => {
+    const tokenEliminar = makeToken(['documentos.laborales.eliminar']);
+    const conConn = (fila) => {
+        const conn = {
+            beginTransaction: jest.fn().mockResolvedValue(),
+            query: jest.fn(async (sql) => (/FROM documentos d/.test(sql) ? [fila ? [fila] : []] : [{ affectedRows: 1 }])),
+            commit: jest.fn().mockResolvedValue(),
+            rollback: jest.fn().mockResolvedValue(),
+            release: jest.fn(),
+        };
+        db.getConnection.mockResolvedValue(conn);
+        return conn;
+    };
+    const FINIQ = { id: 801, trabajador_id: 5, estado: 'firmado', lote_id: 12, lote_estado: 'cerrado', nombre_archivo: 'Finiquito.doc', tipo_codigo: 'FINIQUITO', tipo_nombre: 'Finiquito (Bóveda)' };
+
+    test.each([
+        ['documentos.eliminar NO alcanza', makeToken(['documentos.eliminar', 'documentos.ver'])],
+        ['ni emitir + descargar', makeToken(['documentos.laborales.emitir', 'documentos.laborales.descargar'])],
+    ])('403 sin el permiso propio (%s)', async (_, token) => {
+        const res = await request(app).delete(`${BASE}/801`).set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(403);
+        expect(db.getConnection).not.toHaveBeenCalled();
+    });
+
+    test('borrado lógico + suelta el finiquito de la baja + log; lote cerrado no bloquea', async () => {
+        db.getConnection.mockReset();
+        const conn = conConn(FINIQ);
+        const res = await request(app).delete(`${BASE}/801`).set('Authorization', `Bearer ${tokenEliminar}`);
+        expect(res.status).toBe(200);
+        expect(res.body.data).toMatchObject({ id: 801, trabajador_id: 5, tipo_codigo: 'FINIQUITO' });
+        const sqls = conn.query.mock.calls.map(c => String(c[0]));
+        expect(sqls[0]).toMatch(/d\.activo = TRUE AND d\.origen = 'generado'[\s\S]*FOR UPDATE/);
+        expect(sqls).toContain('UPDATE documentos SET activo = FALSE WHERE id = ?');
+        expect(sqls.some(s => /UPDATE trabajador_desvinculaciones SET finiquito_documento_id = NULL WHERE finiquito_documento_id = \?/.test(s))).toBe(true);
+        expect(sqls.some(s => /DELETE/i.test(s))).toBe(false);   // nunca borrado físico
+        expect(conn.commit).toHaveBeenCalled();
+        expect(conn.release).toHaveBeenCalled();
+        expect(logManualActivity).toHaveBeenCalledWith(3, 'documentos', 'DELETE', '801', expect.stringContaining('documento_eliminado'), expect.anything());
+    });
+
+    test.each(['pendiente_retiro', 'en_terreno'])('409 EN_LOTE si el lote está %s (sin tocar nada)', async (estado) => {
+        db.getConnection.mockReset();
+        const conn = conConn({ ...FINIQ, estado: 'en_terreno', lote_estado: estado });
+        const res = await request(app).delete(`${BASE}/801`).set('Authorization', `Bearer ${tokenEliminar}`);
+        expect(res.status).toBe(409);
+        expect(res.body.code || res.body.error).toBeTruthy();
+        expect(conn.query.mock.calls.map(c => String(c[0]))).not.toContain('UPDATE documentos SET activo = FALSE WHERE id = ?');
+        expect(conn.rollback).toHaveBeenCalled();
+        expect(logManualActivity).not.toHaveBeenCalled();
+    });
+
+    test('404 si no existe, ya está eliminado o es un documento subido', async () => {
+        db.getConnection.mockReset();
+        const conn = conConn(null);
+        const res = await request(app).delete(`${BASE}/999`).set('Authorization', `Bearer ${tokenEliminar}`);
+        expect(res.status).toBe(404);
+        expect(conn.rollback).toHaveBeenCalled();
+    });
+
+    test('DELETE /documentos/:id con documentos.eliminar: un GENERADO → 403 (pide el permiso propio); uno subido se borra', async () => {
+        const tokenDocs = makeToken(['documentos.eliminar']);
+        db.query.mockImplementation(async (sql) => (/origen = 'generado'/.test(String(sql)) ? [[{ 1: 1 }]] : [{ affectedRows: 1 }]));
+        const gen = await request(app).delete('/api/documentos/801').set('Authorization', `Bearer ${tokenDocs}`);
+        expect(gen.status).toBe(403);
+        expect(gen.body.required).toEqual(['documentos.laborales.eliminar']);
+        expect(sqlCalls().some(s => /UPDATE documentos SET activo = FALSE/.test(s))).toBe(false);
+
+        db.query.mockReset().mockImplementation(async (sql) => (/origen = 'generado'/.test(String(sql)) ? [[]] : [{ affectedRows: 1 }]));
+        const sub = await request(app).delete('/api/documentos/802').set('Authorization', `Bearer ${tokenDocs}`);
+        expect(sub.status).toBe(200);
+        expect(sqlCalls().some(s => /UPDATE documentos SET activo = FALSE/.test(s))).toBe(true);
+    });
+});

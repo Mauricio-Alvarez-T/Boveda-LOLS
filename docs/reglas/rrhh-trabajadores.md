@@ -625,6 +625,14 @@ ficha del trabajador y su descarga o impresión es "solo oficina".
   `documentos.laborales.emitir` y `documentos.laborales.descargar`, ambos **exclusivos** (sin patrón OR).
   `documentos.descargar` NO alcanza para un documento restringido: `GET /documentos/download/:id`
   responde 403 `{error, required:['documentos.laborales.descargar']}`.
+- **Eliminar un documento generado (mig 151, dueño 2026-11-06)**: papelera junto a Imprimir/Descargar en
+  «Documentos laborales (Bóveda)», **visible solo con `documentos.laborales.eliminar`** (permiso propio,
+  exclusivo; por defecto solo Super Administrador). `DELETE /documentos-laborales/:id` = borrado LÓGICO
+  (`activo = FALSE`; el archivo queda en el servidor) con log manual `documento_eliminado`. 409 `EN_LOTE`
+  si el documento está en un lote de custodia en curso (pendiente de retiro / en terreno): se resuelve en
+  Documentos físicos primero. Si era el finiquito de una baja, `finiquito_documento_id` vuelve a NULL (la
+  ficha ofrece «Finiquito» de nuevo). `documentos.eliminar` NO alcanza: `DELETE /documentos/:id` sobre un
+  generado responde 403 `{required:['documentos.laborales.eliminar']}`. Volver a tenerlo = re-emitir.
 - **Los dos empaquetadores excluyen siempre los restringidos**: el ZIP de la ficha
   (`/documentos/download-all/:tid`, con header `X-Documentos-Omitidos: N`) y el ZIP que
   `POST /fiscalizacion/enviar-excel` adjunta **por correo** (el cuerpo del correo indica cuántos se

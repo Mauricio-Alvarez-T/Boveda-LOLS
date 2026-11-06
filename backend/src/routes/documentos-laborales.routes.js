@@ -3,7 +3,7 @@
  *
  * Gates EXCLUSIVOS (sin patrón OR): emitir = documentos.laborales.emitir; descargar/imprimir =
  * documentos.laborales.descargar (implica ver la remuneración impresa en el contrato). Listar los
- * generados de un trabajador = documentos.ver (sin metadata). El activityLogger global excluye este
+ * generados de un trabajador = documentos.ver (sin metadata). Eliminar uno = documentos.laborales.eliminar. El activityLogger global excluye este
  * prefijo: cada acción deja un log manual sin montos desde el service.
  */
 const router = require('express').Router();
@@ -15,6 +15,13 @@ const docxExport = require('../services/docxExport.service');
 const schema = require('../schemas/documentosLaborales.schema');
 
 const MIME_DOC = 'application/msword';
+
+// Eliminar un documento generado (borrado lógico). Permiso propio, no `documentos.eliminar`.
+router.delete('/:id', auth, checkPermission('documentos.laborales.eliminar'), async (req, res, next) => {
+    try {
+        res.json({ data: await service.eliminar(req.params.id, req.user.id, req) });
+    } catch (err) { next(err); }
+});
 
 // Catálogo del kit / documentos emitibles (para el modal). Solo auth: no expone datos de personas.
 router.get('/catalogo', auth, (req, res) => {
