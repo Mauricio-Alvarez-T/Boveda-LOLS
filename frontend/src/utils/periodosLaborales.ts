@@ -20,6 +20,8 @@ export interface PeriodoLaboral {
     cargo_nombre?: string | null;
     causal_codigo?: string | null;
     causal_nombre?: string | null;
+    /** Cuándo se registró el reingreso que cerró este período (solo en GET /:id/resumen). */
+    reingresado_en?: string | null;
 }
 
 export type MotivoFuera = 'pre_contrato' | 'finiquitado' | 'entre_periodos' | null;
@@ -124,25 +126,40 @@ export function evaluarArt159(periodos: PeriodoLaboral[], empresaId: number | nu
 }
 
 /**
- * Agrupa documentos por período (el más reciente primero). Un documento cae en el último período que
- * empezó en o antes de su fecha: el finiquito, emitido después de la baja pero antes del reingreso,
- * queda en su período. Documentos sin fecha → período actual.
+ * Momento desde el cual los documentos son del período ACTUAL: el registro del último reingreso
+ * (`reingresado_en` del último período cerrado). null = nunca volvió (todo es del período actual).
  */
-export function agruparDocsPorPeriodo<D extends { fecha_subida?: string | null; fecha_generacion?: string | null }>(
-    docs: D[], periodos: PeriodoLaboral[]
-): { periodo: PeriodoLaboral; indice: number; docs: D[] }[] {
-    const grupos = periodos.map((periodo, indice) => ({ periodo, indice, docs: [] as D[] }));
-    if (!grupos.length) return [];
-    for (const d of docs) {
-        const f = ymd(d.fecha_generacion) || ymd(d.fecha_subida);
-        let idx = grupos.length - 1;
-        if (f) {
-            for (let i = grupos.length - 1; i >= 0; i--) {
-                if (!grupos[i].periodo.desde || (grupos[i].periodo.desde as string) <= f) { idx = i; break; }
-                idx = 0;
-            }
-        }
-        grupos[idx].docs.push(d);
+export function inicioDocsPeriodoActual(cerrados: PeriodoLaboral[]): string | null {
+    const conReingreso = cerrados.filter(p => p.reingresado_en);
+    if (!conReingreso.length) return null;
+    return conReingreso.map(p => p.reingresado_en as string).reduce((a, b) => (Date.parse(a) >= Date.parse(b) ? a : b));
+}
+
+/** Día local 'YYYY-MM-DD' de un instante ISO / 'YYYY-MM-DD HH:MM:SS'. */
+const diaLocal = (v: string): string | null => {
+    const t = Date.parse(v.includes('T') || v.length <= 10 ? v : v.replace(' ', 'T'));
+    if (Number.isNaN(t)) return ymd(v);
+    const d = new Date(t);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/**
+ * ¿El documento es de un período ANTERIOR al contrato en curso? (la ficha lo muestra atenuado).
+ * Se compara contra el registro del reingreso y no contra la fecha de ingreso: el kit del contrato nuevo
+ * puede emitirse días antes de que empiece, y el finiquito del período anterior después de la baja.
+ *  · Generado (`fecha_generacion`, con hora) → instante exacto.
+ *  · Subido (`fecha_subida`, solo día) → antes del DÍA del reingreso (el mismo día cuenta como actual).
+ */
+export function esDocDePeriodoAnterior(
+    doc: { fecha_subida?: string | null; fecha_generacion?: string | null }, inicioActual: string | null
+): boolean {
+    if (!inicioActual) return false;
+    if (doc.fecha_generacion) {
+        const g = Date.parse(String(doc.fecha_generacion).replace(' ', 'T'));
+        const r = Date.parse(inicioActual);
+        if (!Number.isNaN(g) && !Number.isNaN(r)) return g < r;
     }
-    return grupos.reverse();
+    const f = ymd(doc.fecha_subida) ?? (doc.fecha_generacion ? diaLocal(String(doc.fecha_generacion)) : null);
+    const dia = diaLocal(inicioActual);
+    return !!f && !!dia && f < dia;
 }

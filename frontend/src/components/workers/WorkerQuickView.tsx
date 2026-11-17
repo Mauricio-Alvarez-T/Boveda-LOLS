@@ -23,7 +23,7 @@ import { contarObligatorios, docsSubidos, faltanDatosContrato } from '../documen
 import { DATOS_PERSONALES_LABELS } from '../consultas/solicitudIngresoSchema';
 import { descargarArchivo } from '../../utils/descargarArchivo';
 import { antiguedad, porcentajeDocs, terminoContrato, type TerminoContrato } from './fichaTrabajador';
-import { agruparDocsPorPeriodo, periodosDe, type PeriodoLaboral } from '../../utils/periodosLaborales';
+import { esDocDePeriodoAnterior, inicioDocsPeriodoActual, type PeriodoLaboral } from '../../utils/periodosLaborales';
 import { useAuth } from '../../context/AuthContext';
 import type { Trabajador, EstadoAsistencia } from '../../types/entities';
 
@@ -236,12 +236,10 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     const anios = worker ? antiguedad(worker.fecha_ingreso, worker.activo ? null : worker.fecha_desvinculacion) : null;
     // Término del contrato a plazo fijo (mig 138): solo mientras está activo; la baja real manda sobre él.
     const termino = worker?.activo && !worker.fecha_desvinculacion ? terminoContrato(worker.fecha_termino_contrato) : null;
-    // Reingreso (mig 152): períodos anteriores. Los documentos que caen en uno se marcan «período anterior».
+    // Reingreso (mig 152): períodos anteriores. Los documentos de antes del último reingreso no son del
+    // contrato en curso → se muestran atenuados (fondo gris, texto apagado) con el rótulo «Período anterior».
     const periodosAnteriores = resumen?.periodos_laborales ?? [];
-    const docsPeriodoAnterior = new Set<DocInfo>(worker && periodosAnteriores.length
-        ? agruparDocsPorPeriodo(subidos as DocInfo[], periodosDe({ ...worker, periodos_laborales: periodosAnteriores }))
-            .filter(g => g.indice < periodosAnteriores.length).flatMap(g => g.docs)
-        : []);
+    const inicioDocsActual = inicioDocsPeriodoActual(periodosAnteriores);
 
     const TABS = [
         { id: 'resumen' as const, label: 'Resumen' },
@@ -561,15 +559,18 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                     <FileText className="h-3.5 w-3.5" /> Documentos subidos
                                                 </p>
                                                 <div className="space-y-1.5">
-                                                    {subidos.slice(0, 5).map((doc: any, i: number) => (
+                                                    {subidos.slice(0, 5).map((doc: any, i: number) => {
+                                                        const anterior = esDocDePeriodoAnterior(doc, inicioDocsActual);
+                                                        return (
                                                         <div key={i}
                                                             onClick={() => handleViewDoc(doc)}
-                                                            className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2.5 hover:border-brand-primary/30 transition-colors cursor-pointer"
+                                                            className={cn('flex items-center justify-between gap-2 rounded-xl border border-border px-3 py-2.5 hover:border-brand-primary/30 transition-colors cursor-pointer',
+                                                                anterior ? 'bg-muted' : 'bg-card')}
                                                             title="Ver documento">
                                                             <div className="min-w-0 flex-1">
-                                                                <p className="text-section font-semibold text-brand-dark truncate">{doc.tipo_nombre || doc.nombre_archivo}</p>
-                                                                {docsPeriodoAnterior.has(doc) && (
-                                                                    <p className="mt-0.5 text-caption text-muted-foreground">Período anterior</p>
+                                                                <p className={cn('text-section font-semibold truncate', anterior ? 'text-muted-foreground' : 'text-brand-dark')}>{doc.tipo_nombre || doc.nombre_archivo}</p>
+                                                                {anterior && (
+                                                                    <p className="mt-0.5 text-caption font-medium text-muted-foreground">Período anterior</p>
                                                                 )}
                                                                 {doc.fecha_vencimiento && (
                                                                     <p className="mt-0.5 flex items-center gap-1 text-caption text-muted-foreground">
@@ -584,7 +585,8 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                                 className="hover:bg-brand-primary/10 hover:text-brand-primary shrink-0"
                                                                 icon={viewingDocId === doc.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} />
                                                         </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                     {subidos.length > 5 && (
                                                         <Button variant="ghost" size="sm" className="w-full text-muted-foreground"
                                                             onClick={() => { if (onViewDocuments) onViewDocuments(worker.id); else setModalType('docs'); }}>
@@ -604,6 +606,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                 onCambio={() => setRefreshKey(prev => prev + 1)}
                                                 // undefined mientras el resumen carga: el modal de finiquito lo pide él mismo si hace falta.
                                                 ultimaDesvinculacion={resumen ? (resumen.ultima_desvinculacion ?? null) : undefined}
+                                                inicioPeriodoActual={inicioDocsActual}
                                             />
                                         )}
                                     </>)}
