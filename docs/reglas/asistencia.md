@@ -40,6 +40,12 @@ Cada estado tiene 2 flags con semántica DISTINTA:
   feriados por ley especial **no** vienen de ninguna fuente fija: se cargan a mano. **Cada año** conviene
   agregar el año siguiente a la tabla, contrastando dos fuentes (ante diferencias manda la ley).
 - Bulk valida fines de semana (sáb/dom lanzan error) y futuro máximo 30 días (`MAX_DIAS_FUTURO`).
+- **Ventana laboral = la UNIÓN de los períodos laborales** del trabajador (reingreso, mig 152 — ver
+  `rrhh-trabajadores.md` § Reingreso y períodos laborales): antes del primer ingreso, después del finiquito
+  vigente o **entre una baja y el reingreso** no se registra (400 desde 2026-11-17; antes salía 500), ni en
+  bulk ni en períodos de ausencia (que tampoco pueden cruzar ese hueco); el Excel deja esas celdas en blanco
+  y no pagan. Corregir días de un período anterior sigue permitido. Front y back usan
+  `utils/periodosLaborales` (`fueraDePeriodo` / `motivoFuera`).
 - Modo "Reporte Global": sin obra seleccionada (`selectedObra=null`), consolidado de todas las obras.
 - Obras con `participa_asistencia=0` no aparecen en el selector de obra en /asistencia
   (`ObraSelector.tsx` route-aware + guard en `AttendanceDailyTab.tsx`; mig 075).
