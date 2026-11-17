@@ -125,8 +125,8 @@ describe('vigencia de papeles (doc_vigencia)', () => {
 describe('salió entre (rango de fecha_desvinculacion)', () => {
     test('rango inclusivo por ambos extremos', async () => {
         const { sql, params } = await correr({ fecha_desvinc_desde: '2026-08-01', fecha_desvinc_hasta: '2026-08-31' });
-        expect(sql).toContain('t.fecha_desvinculacion >= ?');
-        expect(sql).toContain('t.fecha_desvinculacion <= ?');
+        // Reingreso (mig 152): busca en el HISTORIAL de bajas, ambas cotas sobre la MISMA baja.
+        expect(sql).toMatch(/EXISTS \(SELECT 1 FROM trabajador_desvinculaciones dh\s+WHERE dh\.trabajador_id = t\.id AND dh\.fecha_desvinculacion >= \? AND dh\.fecha_desvinculacion <= \?\)/);
         expect(params).toEqual([5, '2026-08-01', '2026-08-31']);
     });
 
@@ -142,9 +142,24 @@ describe('salió entre (rango de fecha_desvinculacion)', () => {
             fecha_desvinc_hasta: '2026-08-31',
         });
         expect(sql).toContain('t.fecha_ingreso >= ?');
-        expect(sql).toContain('t.fecha_desvinculacion <= ?');
+        expect(sql).toContain('dh.fecha_desvinculacion <= ?');
         // El de ingreso va primero: el orden de los bloques importa para los tests existentes.
         expect(params).toEqual([5, '2026-01-01', '2026-08-31']);
+    });
+});
+
+describe('reactivados con ingreso antiguo (reingreso_sin_fecha, mig 152)', () => {
+    test('con trabajadores.ver: activos con un período cerrado que termina en o después de su ingreso', async () => {
+        const { sql, params } = await correr({ reingreso_sin_fecha: 'true' });
+        expect(sql).toMatch(/t\.activo = 1 AND EXISTS \(\s*SELECT 1 FROM trabajador_desvinculaciones dr/);
+        expect(sql).toContain('dr.reactivado_en IS NOT NULL');
+        expect(sql).toContain('dr.fecha_desvinculacion >= t.fecha_ingreso');
+        expect(params).toEqual([5]);
+    });
+
+    test('sin trabajadores.ver no filtra', async () => {
+        const { sql } = await correr({ reingreso_sin_fecha: 'true' }, SIN_PERSONAL);
+        expect(sql).not.toContain('trabajador_desvinculaciones dr');
     });
 });
 

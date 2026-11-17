@@ -233,6 +233,7 @@ const CAMPOS_TRABAJADOR_OPERATIVOS = [
     'empresa_id', 'obra_id', 'cargo_id', 'empresa_nombre', 'obra_nombre', 'cargo_nombre',
     'fecha_ingreso', 'fecha_desvinculacion', 'categoria_reporte', 'activo', 'es_prueba',
     'fecha_termino_contrato', // mig 138: fecha de contrato, operativa como el ingreso
+    'periodos_cerrados', // mig 152: períodos laborales anteriores (solo fechas) — Asistencia bloquea el hueco
     'talla_calzado', 'talla_pantalon', 'talla_polera',
     'created_at', 'updated_at',
 ];

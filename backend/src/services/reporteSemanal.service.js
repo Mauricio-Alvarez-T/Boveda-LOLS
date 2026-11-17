@@ -155,9 +155,21 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
     const mesInicio = ymd(new Date(refDate.getFullYear(), refDate.getMonth() - 5, 1));
     const mesFin = ymd(new Date(refDate.getFullYear(), refDate.getMonth() + 1, 1));
 
-    const [contratacionesRows] = await db.query(
+    // Reingreso (mig 152): fecha_ingreso = inicio del período actual, así que un reingreso de la semana
+    // aparece acá; `reingreso` lo marca (tiene un período laboral anterior cerrado).
+    const contratacionesRows = await queryConFallback(db,
         `SELECT t.rut, t.nombres, t.apellido_paterno, t.apellido_materno, t.fecha_ingreso,
-                e.razon_social AS empresa, o.nombre AS obra, c.nombre AS cargo
+                e.razon_social AS empresa, o.nombre AS obra, c.nombre AS cargo,
+                EXISTS (SELECT 1 FROM trabajador_desvinculaciones dr
+                         WHERE dr.trabajador_id = t.id AND dr.reactivado_en IS NOT NULL) AS reingreso
+           FROM trabajadores t
+           LEFT JOIN empresas e ON e.id = t.empresa_id
+           LEFT JOIN obras    o ON o.id = t.obra_id
+           LEFT JOIN cargos   c ON c.id = t.cargo_id
+          WHERE t.es_prueba = 0 AND t.fecha_ingreso BETWEEN ? AND ?
+          ORDER BY t.fecha_ingreso ASC, t.apellido_paterno ASC, t.nombres ASC`,
+        `SELECT t.rut, t.nombres, t.apellido_paterno, t.apellido_materno, t.fecha_ingreso,
+                e.razon_social AS empresa, o.nombre AS obra, c.nombre AS cargo, 0 AS reingreso
            FROM trabajadores t
            LEFT JOIN empresas e ON e.id = t.empresa_id
            LEFT JOIN obras    o ON o.id = t.obra_id
@@ -241,12 +253,27 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
           GROUP BY ym`,
         [mesInicio, mesFin]
     );
-    const [contratacionesMesRows] = await db.query(
-        `SELECT DATE_FORMAT(fecha_ingreso, '%Y-%m') AS ym, COUNT(*) AS total
+    // Reingreso (mig 152): una ficha por persona, pero cada período es una contratación → se suman los
+    // ingresos de los períodos anteriores (los reactivados con el flujo viejo comparten fecha: no se duplican).
+    const contratacionesMesRows = await queryConFallback(db,
+        `SELECT x.ym, COUNT(*) AS total FROM (
+            SELECT DATE_FORMAT(fecha_ingreso, '%Y-%m') AS ym
+              FROM trabajadores
+             WHERE es_prueba = 0 AND fecha_ingreso >= ? AND fecha_ingreso < ?
+            UNION ALL
+            SELECT DATE_FORMAT(d.fecha_ingreso_periodo, '%Y-%m') AS ym
+              FROM trabajador_desvinculaciones d
+              JOIN trabajadores t ON t.id = d.trabajador_id
+             WHERE t.es_prueba = 0 AND d.reactivado_en IS NOT NULL
+               AND d.fecha_ingreso_periodo >= ? AND d.fecha_ingreso_periodo < ?
+               AND d.fecha_ingreso_periodo < t.fecha_ingreso
+          ) x GROUP BY x.ym`,
+        // Sin la mig 112: solo trabajadores (los `? AS _a/_b` consumen los 2 params extra del SQL nuevo).
+        `SELECT DATE_FORMAT(fecha_ingreso, '%Y-%m') AS ym, COUNT(*) AS total, ? AS _a, ? AS _b
            FROM trabajadores
           WHERE es_prueba = 0 AND fecha_ingreso >= ? AND fecha_ingreso < ?
           GROUP BY ym`,
-        [mesInicio, mesFin]
+        [mesInicio, mesFin, mesInicio, mesFin]
     );
     const desvinculacionesMesRows = await queryConFallback(db,
         `SELECT DATE_FORMAT(d.fecha_desvinculacion, '%Y-%m') AS ym, COUNT(*) AS total
@@ -269,6 +296,7 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
         obra: r.obra || '—',
         cargo: r.cargo || '—',
         fecha_ingreso: toYmd(r.fecha_ingreso),
+        reingreso: Number(r.reingreso || 0) === 1 || r.reingreso === true,
     }));
 
     const desvinculaciones = desvinculacionesRows.map(r => ({
@@ -631,7 +659,7 @@ function renderHtml(data, opts = {}) {
         : dataTable(
             ['Trabajador', 'RUT', 'Empresa', 'Obra', 'Cargo', 'Ingreso'],
             data.contrataciones.map(c => [
-                `<strong>${esc(c.nombre)}</strong>`, esc(c.rut), esc(c.empresa), esc(c.obra), esc(c.cargo), fmtFecha(c.fecha_ingreso),
+                `<strong>${esc(c.nombre)}</strong>${c.reingreso ? ' <em>(reingreso)</em>' : ''}`, esc(c.rut), esc(c.empresa), esc(c.obra), esc(c.cargo), fmtFecha(c.fecha_ingreso),
             ])
         );
 
@@ -764,7 +792,7 @@ function renderText(data) {
     if (!porObra.length) lines.push('  (sin movimiento por obra)');
     lines.push('');
     lines.push(`Contrataciones nuevas (${totales.contrataciones}):`);
-    data.contrataciones.forEach(c => lines.push(`  - ${c.nombre} (${c.rut}) · ${c.empresa} · ${c.obra} · ${c.cargo} · ingreso ${fmtFecha(c.fecha_ingreso)}`));
+    data.contrataciones.forEach(c => lines.push(`  - ${c.nombre}${c.reingreso ? ' (reingreso)' : ''} (${c.rut}) ·${c.empresa} · ${c.obra} · ${c.cargo} · ingreso ${fmtFecha(c.fecha_ingreso)}`));
     if (!data.contrataciones.length) lines.push('  (ninguna)');
     lines.push('');
     lines.push(`Desvinculaciones (${totales.desvinculaciones}):`);

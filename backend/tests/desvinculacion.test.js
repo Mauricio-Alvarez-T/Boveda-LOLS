@@ -8,8 +8,9 @@
  *    (con solo trabajadores.editar → 403 y sin tocar la BD);
  *  - 400 de forma (causal inválida, fecha) y de negocio (art. 160 sin detalle, fecha < ingreso);
  *  - 409 si ya está desvinculado / ya activo; rollback ante error;
- *  - historial: INSERT en trabajador_desvinculaciones con fecha_ingreso_periodo; reactivar NO toca
- *    fecha_ingreso, cierra la fila y conserva la marca salvo quitar_marca_no_recontratar;
+ *  - historial: INSERT en trabajador_desvinculaciones con fecha_ingreso_periodo (+ foto empresa/obra/
+ *    cargo, mig 152); reactivar = REINGRESO: exige fecha_ingreso nueva posterior al último egreso, la
+ *    MUEVE, cierra la fila y conserva la marca salvo quitar_marca_no_recontratar;
  *  - la marca "no recontratar" SOLO advierte: reactivar responde 200 igual;
  *  - el log manual no lleva `detalle`; el catálogo responde 200 (ruta de 2 segmentos, no la
  *    captura el GET /:id del CRUD);
@@ -122,7 +123,9 @@ describe('PUT /api/trabajadores/:id/desvincular', () => {
         expect(sql[0]).toMatch(/FROM trabajadores WHERE id = \? FOR UPDATE/);
         expect(sql[1]).toMatch(/INSERT INTO trabajador_desvinculaciones/);
         // Mig 113: además rut_normalized + nombre_snapshot (el antecedente sobrevive a la depuración).
-        expect(conn.query.mock.calls[1][1]).toEqual([7, HOY, '2026-01-15', 'INASISTENCIA', 'Faltó 3 lunes seguidos sin aviso', 1, 3, '123456785', 'Pérez Soto Juan']);
+        // Mig 152: foto empresa/obra/cargo del período (TRAB_ACTIVO no los trae → null).
+        expect(conn.query.mock.calls[1][1]).toEqual([7, HOY, '2026-01-15', 'INASISTENCIA', 'Faltó 3 lunes seguidos sin aviso', 1, 3, '123456785', 'Pérez Soto Juan', null, null, null]);
+        expect(sql[1]).toMatch(/empresa_id, obra_id, cargo_id/);
         expect(sql[2]).toMatch(/UPDATE trabajadores[\s\S]*activo = 0[\s\S]*causal_desvinculacion = \?[\s\S]*no_recontratar = \?/);
         expect(conn.query.mock.calls[2][1]).toEqual([HOY, 'INASISTENCIA', 1, 7]);
         expect(conn.commit).toHaveBeenCalled();
@@ -132,6 +135,21 @@ describe('PUT /api/trabajadores/:id/desvincular', () => {
         const detalleLog = logManualActivity.mock.calls[0][4];
         expect(detalleLog).not.toMatch(/Faltó 3 lunes/);
         expect(JSON.parse(detalleLog)).toMatchObject({ evento: 'trabajador_desvinculado', causal_codigo: 'INASISTENCIA', no_recontratar: true });
+    });
+
+    test('mig 152 pendiente (1054 en la foto) → reintenta sin empresa/obra/cargo y sigue', async () => {
+        conn.query
+            .mockResolvedValueOnce([[{ ...TRAB_ACTIVO, empresa_id: 2, obra_id: 4, cargo_id: 6 }]])
+            .mockRejectedValueOnce(Object.assign(new Error('Unknown column empresa_id'), { errno: 1054 }))
+            .mockResolvedValueOnce([{ insertId: 56 }])
+            .mockResolvedValueOnce([{ affectedRows: 1 }])
+            .mockResolvedValueOnce([[{ n: 0 }]]);
+        const res = await request(app).put('/api/trabajadores/7/desvincular').set('Authorization', `Bearer ${tokenEliminar}`)
+            .send({ fecha_desvinculacion: HOY, causal_codigo: 'RENUNCIA' });
+        expect(res.status).toBe(200);
+        expect(conn.query.mock.calls[1][1].slice(-3)).toEqual([2, 4, 6]);
+        expect(conn.query.mock.calls[2][1]).toEqual([7, HOY, '2026-01-15', 'RENUNCIA', null, 0, 3, '123456785', 'Pérez Soto Juan']);
+        expect(res.body.data.desvinculacion_id).toBe(56);
     });
 
     test('no_recontratar explícito false pisa la sugerencia de la causal', async () => {
@@ -182,37 +200,99 @@ describe('PUT /api/trabajadores/:id/reactivar', () => {
         expect(db.getConnection).not.toHaveBeenCalled();
     });
 
-    test('200 con marca "no recontratar": SOLO advierte (no bloquea), conserva la marca, NO toca fecha_ingreso y cierra la fila del historial', async () => {
-        conn.query
-            .mockResolvedValueOnce([[TRAB_INACTIVO]])
-            .mockResolvedValueOnce([{ affectedRows: 1 }])   // UPDATE trabajadores
-            .mockResolvedValueOnce([{ affectedRows: 1 }]);  // cierra historial
+    // REINGRESO (mig 152, 2026-11-17): reactivar abre un período nuevo desde fecha_ingreso.
+    const INACTIVO_REING = { ...TRAB_INACTIVO, fecha_desvinculacion: '2026-06-30', empresa_id: 2, obra_id: 4, cargo_id: 6 };
+    const BAJA_ABIERTA = { id: 9, trabajador_id: 7, fecha_desvinculacion: '2026-06-30', fecha_ingreso_periodo: '2026-01-15', causal_codigo: 'RENUNCIA', no_recontratar: 1, reactivado_en: null };
+    const REING = { fecha_ingreso: HOY };
+
+    test('400 sin fecha_ingreso (validateBody) — sin abrir transacción', async () => {
         const res = await request(app).put('/api/trabajadores/7/reactivar').set('Authorization', `Bearer ${tokenReactivar}`).send({});
-        expect(res.status).toBe(200);
-        expect(res.body.data).toEqual({ trabajador_id: 7, tenia_marca: true, marca_conservada: true, historial_cerrado: true });
-        const sql = sqlOf(conn.query);
-        expect(sql[1]).toMatch(/UPDATE trabajadores[\s\S]*activo = 1[\s\S]*fecha_desvinculacion = NULL[\s\S]*causal_desvinculacion = NULL/);
-        expect(sql[1]).not.toMatch(/fecha_ingreso/);
-        expect(conn.query.mock.calls[1][1]).toEqual([1, 7]);
-        expect(sql[2]).toMatch(/UPDATE trabajador_desvinculaciones[\s\S]*reactivado_en = NOW\(\)[\s\S]*reactivado_en IS NULL/);
-        expect(conn.commit).toHaveBeenCalled();
+        expect(res.status).toBe(400);
+        expect(db.getConnection).not.toHaveBeenCalled();
     });
 
-    test('quitar_marca_no_recontratar: true → no_recontratar = 0', async () => {
-        conn.query.mockResolvedValueOnce([[TRAB_INACTIVO]]).mockResolvedValueOnce([{ affectedRows: 1 }]).mockResolvedValueOnce([{ affectedRows: 1 }]);
-        const res = await request(app).put('/api/trabajadores/7/reactivar').set('Authorization', `Bearer ${tokenReactivar}`).send({ quitar_marca_no_recontratar: true });
+    test('200 con marca "no recontratar": SOLO advierte, conserva la marca, MUEVE fecha_ingreso, término a NULL y cierra la fila con su foto', async () => {
+        conn.query
+            .mockResolvedValueOnce([[INACTIVO_REING]])       // FOR UPDATE
+            .mockResolvedValueOnce([[BAJA_ABIERTA]])         // baja abierta
+            .mockResolvedValueOnce([{ affectedRows: 1 }])    // UPDATE trabajadores
+            .mockResolvedValueOnce([{ affectedRows: 1 }]);   // cierra historial
+        const res = await request(app).put('/api/trabajadores/7/reactivar').set('Authorization', `Bearer ${tokenReactivar}`).send(REING);
+        expect(res.status).toBe(200);
+        expect(res.body.data).toEqual({
+            trabajador_id: 7, fecha_ingreso: HOY, fecha_ingreso_anterior: '2026-01-15', fecha_termino_contrato: null,
+            tenia_marca: true, marca_conservada: true, historial_cerrado: true,
+        });
+        const sql = sqlOf(conn.query);
+        expect(sql[2]).toMatch(/UPDATE trabajadores SET activo = 1, fecha_desvinculacion = NULL, fecha_ingreso = \?, fecha_termino_contrato = \?, causal_desvinculacion = \?, no_recontratar = \?/);
+        // Sin empresa/obra/cargo en el body: no se tocan (nunca null).
+        expect(sql[2]).not.toMatch(/empresa_id|obra_id|cargo_id/);
+        expect(conn.query.mock.calls[2][1]).toEqual([HOY, null, null, 1, 7]);
+        expect(sql[3]).toMatch(/UPDATE trabajador_desvinculaciones[\s\S]*reactivado_en = NOW\(\)[\s\S]*COALESCE\(empresa_id[\s\S]*reactivado_en IS NULL/);
+        expect(conn.query.mock.calls[3][1]).toEqual([3, 2, 4, 6, 7]);
+        expect(conn.commit).toHaveBeenCalled();
+        expect(JSON.parse(logManualActivity.mock.calls[0][4])).toMatchObject({ evento: 'trabajador_reingresado', fecha_ingreso: HOY, fecha_ingreso_anterior: '2026-01-15' });
+    });
+
+    test('con empresa/obra/cargo/categoría/término: se aplican; la obra se valida (no finalizada)', async () => {
+        conn.query
+            .mockResolvedValueOnce([[INACTIVO_REING]])
+            .mockResolvedValueOnce([[BAJA_ABIERTA]])
+            .mockResolvedValueOnce([[{ id: 11, finalizada: 0 }]])   // obra
+            .mockResolvedValueOnce([{ affectedRows: 1 }])
+            .mockResolvedValueOnce([{ affectedRows: 1 }]);
+        const res = await request(app).put('/api/trabajadores/7/reactivar').set('Authorization', `Bearer ${tokenReactivar}`)
+            .send({ fecha_ingreso: HOY, empresa_id: 3, obra_id: 11, cargo_id: 5, categoria_reporte: 'rotativo', fecha_termino_contrato: '2099-12-31', quitar_marca_no_recontratar: true });
         expect(res.status).toBe(200);
         expect(res.body.data.marca_conservada).toBe(false);
-        expect(conn.query.mock.calls[1][1]).toEqual([0, 7]);
-        expect(JSON.parse(logManualActivity.mock.calls[0][4])).toMatchObject({ evento: 'trabajador_reactivado', quitar_marca_no_recontratar: true });
+        expect(sqlOf(conn.query)[2]).toMatch(/FROM obras WHERE id = \?/);
+        expect(sqlOf(conn.query)[3]).toMatch(/empresa_id = \?, obra_id = \?, cargo_id = \?, categoria_reporte = \?/);
+        expect(conn.query.mock.calls[3][1]).toEqual([HOY, '2099-12-31', null, 0, 3, 11, 5, 'rotativo', 7]);
+    });
+
+    test('400 REINGRESO_SOLAPADO si la fecha no es posterior al último egreso → rollback, sin UPDATE', async () => {
+        conn.query.mockResolvedValueOnce([[INACTIVO_REING]]).mockResolvedValueOnce([[BAJA_ABIERTA]]);
+        const res = await request(app).put('/api/trabajadores/7/reactivar').set('Authorization', `Bearer ${tokenReactivar}`).send({ fecha_ingreso: '2026-06-30' });
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe('REINGRESO_SOLAPADO');
+        expect(conn.rollback).toHaveBeenCalled();
+        expect(sqlOf(conn.query).some(s => /^\s*UPDATE/.test(s))).toBe(false);
+    });
+
+    test('400 obra finalizada, término anterior al ingreso y fecha a más de 30 días', async () => {
+        conn.query.mockResolvedValueOnce([[INACTIVO_REING]]).mockResolvedValueOnce([[BAJA_ABIERTA]]).mockResolvedValueOnce([[{ id: 11, finalizada: 1 }]]);
+        const rObra = await request(app).put('/api/trabajadores/7/reactivar').set('Authorization', `Bearer ${tokenReactivar}`).send({ fecha_ingreso: HOY, obra_id: 11 });
+        expect(rObra.status).toBe(400);
+        expect(rObra.body.code).toBe('OBRA_FINALIZADA');
+
+        const rTerm = await request(app).put('/api/trabajadores/7/reactivar').set('Authorization', `Bearer ${tokenReactivar}`).send({ fecha_ingreso: HOY, fecha_termino_contrato: '2020-01-01' });
+        expect(rTerm.status).toBe(400);
+        const rFut = await request(app).put('/api/trabajadores/7/reactivar').set('Authorization', `Bearer ${tokenReactivar}`).send({ fecha_ingreso: '2099-01-01' });
+        expect(rFut.status).toBe(400);
     });
 
     test('409 ya activo con rollback', async () => {
         conn.query.mockResolvedValueOnce([[TRAB_ACTIVO]]);
-        const res = await request(app).put('/api/trabajadores/7/reactivar').set('Authorization', `Bearer ${tokenReactivar}`).send({});
+        const res = await request(app).put('/api/trabajadores/7/reactivar').set('Authorization', `Bearer ${tokenReactivar}`).send(REING);
         expect(res.status).toBe(409);
         expect(res.body.code).toBe('YA_ACTIVO');
         expect(conn.rollback).toHaveBeenCalled();
+    });
+});
+
+describe('PUT /api/trabajadores/:id (genérico) — fecha_ingreso con períodos anteriores', () => {
+    const tokenEditarFull = makeToken(['trabajadores.ver', 'trabajadores.editar']);
+    test('400 REINGRESO_SOLAPADO si la nueva fecha cae en o antes del último egreso', async () => {
+        db.query.mockResolvedValueOnce([[{ actual: '2026-01-15', ultimo_egreso: '2026-06-30' }]]);
+        const res = await request(app).put('/api/trabajadores/7').set('Authorization', `Bearer ${tokenEditarFull}`).send({ fecha_ingreso: '2026-06-01' });
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/posterior al último egreso \(2026-06-30\)/);
+    });
+
+    test('sin cambio de fecha (reactivado viejo que edita otra cosa) → no bloquea', async () => {
+        db.query.mockResolvedValueOnce([[{ actual: '2026-01-15', ultimo_egreso: '2026-06-30' }]]);
+        const res = await request(app).put('/api/trabajadores/7').set('Authorization', `Bearer ${tokenEditarFull}`).send({ fecha_ingreso: '2026-01-15', telefono: '+56911112222' });
+        expect(res.status).not.toBe(400);
     });
 });
 
@@ -261,7 +341,23 @@ describe('resumen y check-rut exponen la última desvinculación (sin detalle)',
         const res = await request(app).get('/api/trabajadores/7/resumen').set('Authorization', `Bearer ${tokenVer}`);
         expect(res.status).toBe(200);
         expect(res.body.data.ultima_desvinculacion).toBeNull();
-        expect(db.query).toHaveBeenCalledTimes(2);
+        // 3ª query = períodos laborales cerrados (reingreso, mig 152), no la última baja.
+        expect(db.query).toHaveBeenCalledTimes(3);
+        expect(sqlOf(db.query)[2]).toMatch(/reactivado_en IS NOT NULL/);
+        expect(res.body.data.periodos_laborales).toEqual([]);
+    });
+
+    test('GET /:id/resumen de un reingresado: primer nivel = período actual, total aparte, períodos cerrados', async () => {
+        db.query
+            .mockResolvedValueOnce([[{ fecha_ingreso: '2026-09-01', fecha_desvinculacion: null, activo: 1 }]])
+            .mockResolvedValueOnce([[{ dias_trabajados: '20', faltas: '1', total_dias_trabajados: '120', total_faltas: '4' }]])
+            .mockResolvedValueOnce([[{ trabajador_id: 7, fecha_ingreso_periodo: '2026-01-15', fecha_desvinculacion: '2026-06-30', causal_codigo: 'RENUNCIA', empresa_id: 2, cargo_id: 6, empresa_nombre: 'LOLS', cargo_nombre: 'Jornal' }]]);
+        const res = await request(app).get('/api/trabajadores/7/resumen').set('Authorization', `Bearer ${tokenVer}`);
+        expect(res.status).toBe(200);
+        expect(res.body.data).toMatchObject({ dias_trabajados: 20, faltas: 1, total: { dias_trabajados: 120, faltas: 4 } });
+        expect(db.query.mock.calls[1][1][0]).toBe('2026-09-01'); // corte del período actual
+        expect(res.body.data.periodos_laborales).toEqual([expect.objectContaining({ desde: '2026-01-15', hasta: '2026-06-30', empresa_nombre: 'LOLS', cargo_nombre: 'Jornal', causal_nombre: expect.stringMatching(/Renuncia/) })]);
+        expect(JSON.stringify(res.body.data.periodos_laborales)).not.toMatch(/detalle/);
     });
 
     test('GET /trabajadores/check-rut de un finiquitado agrega ultima_desvinculacion', async () => {

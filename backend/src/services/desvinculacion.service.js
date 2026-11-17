@@ -8,7 +8,10 @@
  *    NO_PRESENTACION, RENDIMIENTO y OTRO exigen `detalle`.
  *  - Fecha: ≥ fecha_ingreso y ≤ hoy + 30 días.
  *  - Historial `trabajador_desvinculaciones`: una fila por baja; reactivar la CIERRA (reactivado_por/en),
- *    nunca la borra. `fecha_ingreso` del trabajador NO se toca al reactivar.
+ *    nunca la borra. Cada fila cerrada es un PERÍODO LABORAL anterior [fecha_ingreso_periodo,
+ *    fecha_desvinculacion] con foto empresa/obra/cargo (mig 152).
+ *  - Reactivar = REINGRESO (2026-11-17): pide fecha de ingreso nueva, posterior al último egreso;
+ *    `trabajadores.fecha_ingreso` es siempre el inicio del período ACTUAL.
  *  - Marca `no_recontratar`: SOLO ADVIERTE (decisión del dueño 2026-09-10). Se conserva al reactivar
  *    salvo `quitar_marca_no_recontratar: true`.
  *  - `detalle` solo sale con `modo: 'completa'` (rutas gateadas por trabajadores.eliminar/.reactivar);
@@ -210,6 +213,52 @@ const desvinculacionService = {
     },
 
     /**
+     * Períodos laborales CERRADOS (el trabajador volvió después de esa baja) de varios trabajadores en
+     * UNA query → Map<trabajador_id, [{desde, hasta, empresa_id, cargo_id, empresa_nombre, cargo_nombre,
+     * causal_codigo, causal_nombre}]> en orden cronológico. Sin `detalle` (lo ve cualquiera con
+     * trabajadores.ver). Sin la mig 112 → Map vacío; sin la 152 → sin empresa/cargo.
+     */
+    async periodosCerrados(ids, { conn = db } = {}) {
+        const lista = [...new Set((ids || []).map(Number).filter(n => Number.isInteger(n) && n > 0))];
+        const mapa = new Map();
+        if (!lista.length) return mapa;
+        const sql = conFoto => `
+            SELECT d.trabajador_id, d.fecha_ingreso_periodo, d.fecha_desvinculacion, d.causal_codigo
+                   ${conFoto ? ', d.empresa_id, d.cargo_id, e.razon_social AS empresa_nombre, c.nombre AS cargo_nombre' : ''}
+              FROM trabajador_desvinculaciones d
+              ${conFoto ? 'LEFT JOIN empresas e ON e.id = d.empresa_id LEFT JOIN cargos c ON c.id = d.cargo_id' : ''}
+             WHERE d.trabajador_id IN (?) AND d.reactivado_en IS NOT NULL
+             ORDER BY d.fecha_desvinculacion ASC, d.id ASC`;
+        let rows;
+        try {
+            [rows] = await conn.query(sql(true), [lista]);
+        } catch (err) {
+            if (!esErrorEsquema(err)) throw err;
+            try {
+                [rows] = await conn.query(sql(false), [lista]);
+            } catch (err2) {
+                if (esErrorEsquema(err2)) return mapa;
+                throw err2;
+            }
+        }
+        for (const r of rows || []) {
+            const p = {
+                desde: toYmd(r.fecha_ingreso_periodo),
+                hasta: toYmd(r.fecha_desvinculacion),
+                empresa_id: r.empresa_id ?? null,
+                cargo_id: r.cargo_id ?? null,
+                empresa_nombre: r.empresa_nombre ?? null,
+                cargo_nombre: r.cargo_nombre ?? null,
+                causal_codigo: r.causal_codigo,
+                causal_nombre: labelCausal(r.causal_codigo),
+            };
+            if (!mapa.has(r.trabajador_id)) mapa.set(r.trabajador_id, []);
+            mapa.get(r.trabajador_id).push(p);
+        }
+        return mapa;
+    },
+
+    /**
      * PUT /:id/desvincular — transacción: lock, guards, fila de historial, UPDATE trabajadores,
      * conteo de asistencias posteriores (aviso, no bloquea). Log manual sin detalle.
      */
@@ -234,7 +283,7 @@ const desvinculacionService = {
         try {
             await conn.beginTransaction();
             const [rows] = await conn.query(
-                'SELECT id, nombres, apellido_paterno, apellido_materno, activo, fecha_ingreso, rut_normalized FROM trabajadores WHERE id = ? FOR UPDATE',
+                'SELECT id, nombres, apellido_paterno, apellido_materno, activo, fecha_ingreso, rut_normalized, empresa_id, obra_id, cargo_id FROM trabajadores WHERE id = ? FOR UPDATE',
                 [id]
             );
             if (!rows.length) throw httpError('Trabajador no encontrado', 404);
@@ -245,25 +294,27 @@ const desvinculacionService = {
                 throw httpError(`La fecha de desvinculación no puede ser anterior al ingreso (${ingreso})`, 400);
             }
 
-            // Mig 113: rut_normalized + nombre_snapshot para que el antecedente sobreviva a la depuración.
-            // Si la 113 aún no corrió (1054), se inserta sin esas columnas.
-            const baseParams = [id, fecha, ingreso, causal.codigo, detalle, noRecontratar ? 1 : 0, userId ?? null];
+            // Columnas opcionales por migración, de la más nueva a la base (1054 → se prueba la siguiente):
+            //   mig 152: foto empresa/obra/cargo del período · mig 113: rut_normalized + nombre_snapshot
+            //   (el antecedente sobrevive a la depuración).
+            const base = {
+                trabajador_id: id, fecha_desvinculacion: fecha, fecha_ingreso_periodo: ingreso, causal_codigo: causal.codigo,
+                detalle, no_recontratar: noRecontratar ? 1 : 0, desvinculado_por: userId ?? null,
+            };
+            const con113 = { ...base, rut_normalized: trabajador.rut_normalized ?? null, nombre_snapshot: nombreCompleto(trabajador) };
+            const con152 = { ...con113, empresa_id: trabajador.empresa_id ?? null, obra_id: trabajador.obra_id ?? null, cargo_id: trabajador.cargo_id ?? null };
             let ins;
-            try {
-                [ins] = await conn.query(
-                    `INSERT INTO trabajador_desvinculaciones
-                        (trabajador_id, fecha_desvinculacion, fecha_ingreso_periodo, causal_codigo, detalle, no_recontratar, desvinculado_por, rut_normalized, nombre_snapshot)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [...baseParams, trabajador.rut_normalized ?? null, nombreCompleto(trabajador)]
-                );
-            } catch (err) {
-                if (!esErrorEsquema(err)) throw err;
-                [ins] = await conn.query(
-                    `INSERT INTO trabajador_desvinculaciones
-                        (trabajador_id, fecha_desvinculacion, fecha_ingreso_periodo, causal_codigo, detalle, no_recontratar, desvinculado_por)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                    baseParams
-                );
+            for (const [i, fila] of [con152, con113, base].entries()) {
+                const cols = Object.keys(fila);
+                try {
+                    [ins] = await conn.query(
+                        `INSERT INTO trabajador_desvinculaciones (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+                        cols.map(c => fila[c])
+                    );
+                    break;
+                } catch (err) {
+                    if (!esErrorEsquema(err) || i === 2) throw err;
+                }
             }
             desvinculacionId = ins.insertId;
 
@@ -307,59 +358,133 @@ const desvinculacionService = {
     },
 
     /**
-     * PUT /:id/reactivar — transacción: 409 si ya está activo; reabre al trabajador SIN tocar
-     * fecha_ingreso; cierra la fila abierta del historial; la marca se conserva salvo pedido.
-     * Nunca bloquea por `no_recontratar` (solo advierte en la UI).
+     * REINGRESO dentro de la transacción del caller (PUT /:id/reactivar y, fase 2, la aprobación de una
+     * solicitud de reingreso). Abre un período nuevo: `fecha_ingreso` pasa a ser la del reingreso
+     * (docs/reglas/rrhh-trabajadores.md § Reingreso y períodos laborales — revierte la regla vieja
+     * «reactivar conserva fecha_ingreso»). Cierra la fila abierta del historial y le completa la foto
+     * empresa/obra/cargo si venía vacía (bajas anteriores a la mig 152).
+     *   · 409 YA_ACTIVO si está activo. 400 si la fecha no es posterior al último egreso, supera hoy+30,
+     *     el término es anterior al ingreso o la obra no existe / está finalizada.
+     *   · Empresa/obra/cargo/categoría: solo si vienen (nunca se pisan con null). Término: el del body o
+     *     NULL (= indefinido) — el viejo ya venció y marcaría «contrato vencido» en el Inicio.
+     *   · `no_recontratar`: se conserva salvo `quitar_marca_no_recontratar` (solo advierte, dueño 10-sep).
      */
-    async reactivar(trabajadorId, body = {}, userId, req = null) {
+    async _reingresarEnConn(conn, trabajadorId, datos = {}, userId) {
         const id = Number(trabajadorId);
         if (!Number.isInteger(id) || id <= 0) throw httpError('Trabajador inválido', 400);
-        const quitarMarca = toBool(body.quitar_marca_no_recontratar);
+        const fechaIngreso = toYmd(datos.fecha_ingreso);
+        if (!fechaIngreso || !/^\d{4}-\d{2}-\d{2}$/.test(fechaIngreso)) throw httpError('Fecha de reingreso requerida', 400);
+        if (fechaIngreso > sumarDias(hoyYmd(), 30)) throw httpError('La fecha de reingreso no puede superar 30 días desde hoy', 400);
+        const termino = toYmd(datos.fecha_termino_contrato);
+        if (termino && termino < fechaIngreso) throw httpError('El término del contrato no puede ser anterior a la fecha de reingreso', 400);
+        const quitarMarca = toBool(datos.quitar_marca_no_recontratar);
 
+        const sel = cols => conn.query(`SELECT ${cols} FROM trabajadores WHERE id = ? FOR UPDATE`, [id]);
+        const BASE = 'id, nombres, apellido_paterno, apellido_materno, activo, fecha_ingreso, fecha_desvinculacion, empresa_id, obra_id, cargo_id';
+        // Sin la columna no_recontratar (mig 112 pendiente): leer sin ella.
+        const [rows] = await sel(`${BASE}, no_recontratar`).catch(err => {
+            if (!esErrorEsquema(err)) throw err;
+            return sel(BASE);
+        });
+        if (!rows.length) throw httpError('Trabajador no encontrado', 404);
+        const trabajador = rows[0];
+        if (toBool(trabajador.activo)) throw httpError('El trabajador ya está activo', 409, { code: 'YA_ACTIVO' });
+        const teniaMarca = toBool(trabajador.no_recontratar);
+
+        const abierta = await this.desvinculacionAbierta(id, { conn });
+        const ultimoEgreso = abierta?.fecha_desvinculacion || toYmd(trabajador.fecha_desvinculacion);
+        if (ultimoEgreso && fechaIngreso <= ultimoEgreso) {
+            throw httpError(`La fecha de reingreso debe ser posterior al último egreso (${ultimoEgreso})`, 400, { code: 'REINGRESO_SOLAPADO' });
+        }
+
+        if (datos.obra_id != null) {
+            const [obra] = await conn.query('SELECT id, finalizada FROM obras WHERE id = ?', [datos.obra_id]).catch(err => {
+                if (!esErrorEsquema(err)) throw err;
+                return conn.query('SELECT id FROM obras WHERE id = ?', [datos.obra_id]);
+            });
+            if (!obra.length) throw httpError('La obra elegida no existe', 400);
+            if (toBool(obra[0].finalizada)) throw httpError('La obra elegida está finalizada', 400, { code: 'OBRA_FINALIZADA' });
+        }
+
+        const conservaMarca = teniaMarca && !quitarMarca;
+        const opcionales = {};
+        for (const k of ['empresa_id', 'obra_id', 'cargo_id', 'categoria_reporte']) {
+            if (datos[k] !== undefined && datos[k] !== null && datos[k] !== '') opcionales[k] = datos[k];
+        }
+        const update = async campos => {
+            const cols = Object.keys(campos);
+            await conn.query(
+                `UPDATE trabajadores SET activo = 1, fecha_desvinculacion = NULL, ${cols.map(c => `${c} = ?`).join(', ')} WHERE id = ?`,
+                [...cols.map(c => campos[c]), id]
+            );
+        };
+        try {
+            await update({ fecha_ingreso: fechaIngreso, fecha_termino_contrato: termino, causal_desvinculacion: null, no_recontratar: conservaMarca ? 1 : 0, ...opcionales });
+        } catch (err) {
+            // Sin mig 112/138 (causal, marca, término): lo mínimo para abrir el período.
+            if (!esErrorEsquema(err)) throw err;
+            await update({ fecha_ingreso: fechaIngreso, ...opcionales });
+        }
+
+        let filaCerrada = false;
+        const cerrar = async conFoto => {
+            const [upd] = await conn.query(
+                `UPDATE trabajador_desvinculaciones
+                    SET reactivado_por = ?, reactivado_en = NOW()
+                        ${conFoto ? ', empresa_id = COALESCE(empresa_id, ?), obra_id = COALESCE(obra_id, ?), cargo_id = COALESCE(cargo_id, ?)' : ''}
+                  WHERE trabajador_id = ? AND reactivado_en IS NULL
+                  ORDER BY desvinculado_en DESC, id DESC
+                  LIMIT 1`,
+                conFoto
+                    ? [userId ?? null, trabajador.empresa_id ?? null, trabajador.obra_id ?? null, trabajador.cargo_id ?? null, id]
+                    : [userId ?? null, id]
+            );
+            filaCerrada = (upd.affectedRows || 0) > 0;
+        };
+        try {
+            await cerrar(true);
+        } catch (err) {
+            if (!esErrorEsquema(err)) throw err;
+            try { await cerrar(false); } catch (err2) { if (!esErrorEsquema(err2)) throw err2; }
+        }
+
+        return {
+            trabajador,
+            teniaMarca,
+            quitarMarca,
+            filaCerrada,
+            ingresoAnterior: toYmd(trabajador.fecha_ingreso),
+            fechaIngreso,
+            fechaTermino: termino,
+        };
+    },
+
+    /** Log manual del reingreso (sin detalle). Nunca falla. */
+    async _logReingreso(userId, r, req) {
+        try {
+            await logManualActivity(
+                userId, 'trabajadores', 'UPDATE', r.trabajador.id,
+                JSON.stringify({
+                    evento: 'trabajador_reingresado',
+                    fecha_ingreso: r.fechaIngreso,
+                    fecha_ingreso_anterior: r.ingresoAnterior,
+                    tenia_marca_no_recontratar: r.teniaMarca,
+                    quitar_marca_no_recontratar: r.quitarMarca,
+                }),
+                req, { entidad_tipo: 'trabajador', entidad_label: nombreCompleto(r.trabajador) }
+            );
+        } catch (e) {
+            logger.warn('No se pudo registrar el log de reingreso', { err: e.message });
+        }
+    },
+
+    /** PUT /:id/reactivar — REINGRESO en su propia transacción (ver _reingresarEnConn). */
+    async reactivar(trabajadorId, body = {}, userId, req = null) {
         const conn = await db.getConnection();
-        let trabajador, teniaMarca = false, filaCerrada = false;
+        let r;
         try {
             await conn.beginTransaction();
-            const [rows] = await conn.query(
-                'SELECT id, nombres, apellido_paterno, apellido_materno, activo, no_recontratar FROM trabajadores WHERE id = ? FOR UPDATE',
-                [id]
-            ).catch(err => {
-                // Sin la columna no_recontratar (mig 112 pendiente): leer sin ella.
-                if (!esErrorEsquema(err)) throw err;
-                return conn.query('SELECT id, nombres, apellido_paterno, apellido_materno, activo FROM trabajadores WHERE id = ? FOR UPDATE', [id]);
-            });
-            if (!rows.length) throw httpError('Trabajador no encontrado', 404);
-            trabajador = rows[0];
-            if (toBool(trabajador.activo)) throw httpError('El trabajador ya está activo', 409, { code: 'YA_ACTIVO' });
-            teniaMarca = toBool(trabajador.no_recontratar);
-
-            const conservaMarca = teniaMarca && !quitarMarca;
-            try {
-                await conn.query(
-                    `UPDATE trabajadores
-                        SET activo = 1, fecha_desvinculacion = NULL, causal_desvinculacion = NULL, no_recontratar = ?
-                      WHERE id = ?`,
-                    [conservaMarca ? 1 : 0, id]
-                );
-            } catch (err) {
-                if (!esErrorEsquema(err)) throw err;
-                await conn.query('UPDATE trabajadores SET activo = 1, fecha_desvinculacion = NULL WHERE id = ?', [id]);
-            }
-
-            try {
-                const [upd] = await conn.query(
-                    `UPDATE trabajador_desvinculaciones
-                        SET reactivado_por = ?, reactivado_en = NOW()
-                      WHERE trabajador_id = ? AND reactivado_en IS NULL
-                      ORDER BY desvinculado_en DESC, id DESC
-                      LIMIT 1`,
-                    [userId ?? null, id]
-                );
-                filaCerrada = (upd.affectedRows || 0) > 0;
-            } catch (err) {
-                if (!esErrorEsquema(err)) throw err;
-            }
-
+            r = await this._reingresarEnConn(conn, trabajadorId, body, userId);
             await conn.commit();
         } catch (err) {
             await conn.rollback();
@@ -367,18 +492,16 @@ const desvinculacionService = {
         } finally {
             conn.release();
         }
-
-        try {
-            await logManualActivity(
-                userId, 'trabajadores', 'UPDATE', id,
-                JSON.stringify({ evento: 'trabajador_reactivado', tenia_marca_no_recontratar: teniaMarca, quitar_marca_no_recontratar: quitarMarca }),
-                req, { entidad_tipo: 'trabajador', entidad_label: nombreCompleto(trabajador) }
-            );
-        } catch (e) {
-            logger.warn('No se pudo registrar el log de reactivación', { err: e.message });
-        }
-
-        return { trabajador_id: id, tenia_marca: teniaMarca, marca_conservada: teniaMarca && !quitarMarca, historial_cerrado: filaCerrada };
+        await this._logReingreso(userId, r, req);
+        return {
+            trabajador_id: r.trabajador.id,
+            fecha_ingreso: r.fechaIngreso,
+            fecha_ingreso_anterior: r.ingresoAnterior,
+            fecha_termino_contrato: r.fechaTermino,
+            tenia_marca: r.teniaMarca,
+            marca_conservada: r.teniaMarca && !r.quitarMarca,
+            historial_cerrado: r.filaCerrada,
+        };
     },
 
     /**

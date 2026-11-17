@@ -3,6 +3,7 @@ const ExcelJS = require('exceljs');
 const { logManualActivity } = require('../middleware/logger');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger-structured');
+const { periodosDe, motivoFuera, mensajeFuera, parseCerrados, sumarUnDia, SQL_CERRADOS, SQL_SIN_CERRADOS } = require('../utils/periodosLaborales');
 const fs = require('fs');
 const path = require('path');
 
@@ -225,10 +226,13 @@ const asistenciaService = {
 
             // 2) Batch trabajadores: 1 query para todos los IDs
             const workerIds = [...new Set(registros.map(r => r.trabajador_id))];
-            const [workersRows] = await conn.query(
-                'SELECT id, fecha_ingreso, fecha_desvinculacion FROM trabajadores WHERE id IN (?)',
-                [workerIds]
-            );
+            // Con los períodos laborales cerrados (reingreso, mig 152) en la misma fila: la asistencia vale
+            // dentro de CUALQUIER período; el hueco entre una baja y el reingreso queda fuera.
+            const sqlTrab = extra => `SELECT t.id, t.fecha_ingreso, t.fecha_desvinculacion, ${extra} FROM trabajadores t WHERE t.id IN (?)`;
+            const [workersRows] = await conn.query(sqlTrab(SQL_CERRADOS), [workerIds]).catch(err => {
+                if (![1146, 1054].includes(err && err.errno)) throw err;
+                return conn.query(sqlTrab(SQL_SIN_CERRADOS), [workerIds]);
+            });
             const workerMap = new Map();
             for (const w of workersRows) {
                 const ingreso = w.fecha_ingreso
@@ -237,7 +241,7 @@ const asistenciaService = {
                 const fin = w.fecha_desvinculacion
                     ? (typeof w.fecha_desvinculacion === 'string' ? w.fecha_desvinculacion.split('T')[0] : w.fecha_desvinculacion.toISOString().split('T')[0])
                     : null;
-                workerMap.set(w.id, { ingreso, fin });
+                workerMap.set(w.id, { periodos: periodosDe({ fecha_ingreso: ingreso, fecha_desvinculacion: fin }, parseCerrados(w.periodos_cerrados)) });
             }
 
             // 3) Batch asistencias existentes: 1 query con todas las combinaciones
@@ -277,11 +281,9 @@ const asistenciaService = {
                 // Validación rango laboral (desde cache, 0 queries)
                 const worker = workerMap.get(reg.trabajador_id);
                 if (worker) {
-                    if (worker.ingreso && fechaNormalizada < worker.ingreso) {
-                        throw new Error(`No se puede registrar asistencia antes de la fecha de contratación (${worker.ingreso}) del trabajador ID ${reg.trabajador_id}`);
-                    }
-                    if (worker.fin && fechaNormalizada > worker.fin) {
-                        throw new Error(`No se puede registrar asistencia después de la fecha de finiquito (${worker.fin}) del trabajador ID ${reg.trabajador_id}`);
+                    const motivo = motivoFuera(fechaNormalizada, worker.periodos);
+                    if (motivo) {
+                        throw Object.assign(new Error(mensajeFuera(motivo, fechaNormalizada, reg.trabajador_id)), { statusCode: 400 });
                     }
                 }
 
@@ -1412,7 +1414,8 @@ const asistenciaService = {
         let workerQuery = `
             SELECT t.id, t.rut, t.nombres, t.apellido_paterno, t.apellido_materno, t.fecha_ingreso, t.fecha_desvinculacion,
                    c.nombre as cargo_nombre, t.activo, o.nombre as obra_actual_nombre,
-                   e.id as empresa_id, e.razon_social as empresa_nombre, t.categoria_reporte
+                   e.id as empresa_id, e.razon_social as empresa_nombre, t.categoria_reporte,
+                   ${SQL_CERRADOS}
             FROM trabajadores t
             LEFT JOIN cargos c ON t.cargo_id = c.id
             LEFT JOIN obras o ON t.obra_id = o.id
@@ -1461,7 +1464,13 @@ const asistenciaService = {
         
         workerQuery += ' ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC';
         
-        const [workers] = await db.query(workerQuery, workerQueryParams);
+        // Sin la mig 112 la subconsulta de períodos cerrados falla (1146): se repite sin ella.
+        const sinCerrados = sql => sql.split(SQL_CERRADOS).join(SQL_SIN_CERRADOS);
+        const conReintento = (sql, params) => db.query(sql, params).catch(err => {
+            if (![1146, 1054].includes(err && err.errno)) throw err;
+            return db.query(sinCerrados(sql), params);
+        });
+        const [workers] = await conReintento(workerQuery, workerQueryParams);
 
         const { registros, feriados } = await this.getReporte(query);
         const [estados] = await db.query('SELECT * FROM estados_asistencia WHERE activo = TRUE ORDER BY id');
@@ -1495,11 +1504,12 @@ const asistenciaService = {
             .filter(id => !workerIdsInList.has(id));
 
         if (missingWorkerIds.length > 0) {
-            const [extraWorkers] = await db.query(`
+            const [extraWorkers] = await conReintento(`
                 SELECT t.id, t.rut, t.nombres, t.apellido_paterno, t.apellido_materno,
                        t.fecha_ingreso, t.fecha_desvinculacion,
                        c.nombre as cargo_nombre, t.activo, o.nombre as obra_actual_nombre,
-                       e.id as empresa_id, e.razon_social as empresa_nombre, t.categoria_reporte
+                       e.id as empresa_id, e.razon_social as empresa_nombre, t.categoria_reporte,
+                       ${SQL_CERRADOS}
                 FROM trabajadores t
                 LEFT JOIN cargos c ON t.cargo_id = c.id
                 LEFT JOIN obras o ON t.obra_id = o.id
@@ -1936,6 +1946,8 @@ const asistenciaService = {
                 const obrHorario = horariosMap[worker.obra_id] || defaultHorario;
                 const workerIngreso = worker.fecha_ingreso ? formatDate(worker.fecha_ingreso) : null;
                 const workerFin = worker.fecha_desvinculacion ? formatDate(worker.fecha_desvinculacion) : null;
+                // Reingreso: el tiempo ENTRE períodos laborales también queda fuera (celda vacía, no paga).
+                const workerPeriodos = periodosDe({ fecha_ingreso: workerIngreso, fecha_desvinculacion: workerFin }, parseCerrados(worker.periodos_cerrados));
                 // num de día → valor final escrito en la celda. Fuente de verdad de las
                 // columnas DESCUENTOS (espejo exacto de lo que ven las fórmulas COUNTIF).
                 const renderedByNum = {};
@@ -1953,9 +1965,7 @@ const asistenciaService = {
                         // cubre el fin de mes real Y el último día real no quedó en
                         // código no-pago (decisión jefatura 2026-08-17: una ausencia que
                         // llega a fin de mes extiende su descuento al relleno virtual).
-                        const contratoCubreFinDeMes =
-                            (!workerIngreso || workerIngreso <= ultimoDiaRealStr) &&
-                            (!workerFin || workerFin >= ultimoDiaRealStr);
+                        const contratoCubreFinDeMes = motivoFuera(ultimoDiaRealStr, workerPeriodos) === null;
                         const finDeMesNoPago = codigosNoPagan.has(renderedByNum[daysInMonth]);
                         if (!dia.esDia31 && contratoCubreFinDeMes && !finDeMesNoPago) {
                             cell.value = MARKER_FDS;
@@ -1977,9 +1987,7 @@ const asistenciaService = {
 
                     // ── VALIDACIÓN DE RANGO LABORAL ──
                     // No marcar ni sumar días FUERA del período de contratación
-                    const isBeforeContract = workerIngreso && fStr < workerIngreso;
-                    const isAfterTermination = workerFin && fStr > workerFin;
-                    const isOutOfRange = isBeforeContract || isAfterTermination;
+                    const isOutOfRange = motivoFuera(fStr, workerPeriodos) !== null;
 
                     if (isOutOfRange) {
                         // Fuera de rango laboral → celda vacía, no suma nada
@@ -2219,8 +2227,7 @@ const asistenciaService = {
                         if (dia.num < desde || dia.num > hasta) continue;
                         if (dia.esFantasma || dia.esDia31) continue; // 31 y fantasmas: líneas propias
                         const val = renderedByNum[dia.num];
-                        const outOfRange = (workerIngreso && dia.fStr < workerIngreso) ||
-                                           (workerFin && dia.fStr > workerFin);
+                        const outOfRange = motivoFuera(dia.fStr, workerPeriodos) !== null;
                         if (codigosNoPagan.has(val)) {
                             (porCodigo[val] = porCodigo[val] || []).push(`${DIAS_SEMANA[dia.dow]} ${pad2(dia.num)}`);
                         } else if (val === '' && outOfRange) {
@@ -2368,21 +2375,31 @@ const asistenciaService = {
         const conn = await db.getConnection();
         try {
             // --- VALIDACIÓN DE RANGO LABORAL ---
-            const [workerCheck] = await conn.query(
-                'SELECT fecha_ingreso, fecha_desvinculacion FROM trabajadores WHERE id = ?',
-                [trabajador_id]
-            );
-            
+            const sqlTrab = extra => `SELECT t.fecha_ingreso, t.fecha_desvinculacion, ${extra} FROM trabajadores t WHERE t.id = ?`;
+            const [workerCheck] = await conn.query(sqlTrab(SQL_CERRADOS), [trabajador_id]).catch(err => {
+                if (![1146, 1054].includes(err && err.errno)) throw err;
+                return conn.query(sqlTrab(SQL_SIN_CERRADOS), [trabajador_id]);
+            });
+
             if (workerCheck.length > 0) {
                 const w = workerCheck[0];
                 const fechaIngresoStr = w.fecha_ingreso ? (typeof w.fecha_ingreso === 'string' ? w.fecha_ingreso.split('T')[0] : w.fecha_ingreso.toISOString().split('T')[0]) : null;
                 const fechaFinStr = w.fecha_desvinculacion ? (typeof w.fecha_desvinculacion === 'string' ? w.fecha_desvinculacion.split('T')[0] : w.fecha_desvinculacion.toISOString().split('T')[0]) : null;
+                const periodos = periodosDe({ fecha_ingreso: fechaIngresoStr, fecha_desvinculacion: fechaFinStr }, parseCerrados(w.periodos_cerrados));
 
-                if (fechaIngresoStr && fecha_inicio < fechaIngresoStr) {
-                    throw new Error(`El período no puede iniciar antes de la fecha de contratación (${fechaIngresoStr})`);
+                // Ambos extremos dentro de algún período y SIN cruzar un hueco entre períodos (reingreso).
+                const mInicio = motivoFuera(fecha_inicio, periodos);
+                const mFin = motivoFuera(fecha_fin, periodos);
+                if (mInicio === 'pre_contrato') {
+                    throw Object.assign(new Error(`El período no puede iniciar antes de la fecha de contratación (${periodos.find(p => p.desde)?.desde || fechaIngresoStr})`), { statusCode: 400 });
                 }
-                if (fechaFinStr && fecha_fin > fechaFinStr) {
-                    throw new Error(`El período no puede extenderse después de la fecha de finiquito (${fechaFinStr})`);
+                if (mFin === 'finiquitado') {
+                    throw Object.assign(new Error(`El período no puede extenderse después de la fecha de finiquito (${fechaFinStr})`), { statusCode: 400 });
+                }
+                const cruzaHueco = mInicio || mFin || periodos.some(p => p.hasta && p.hasta >= fecha_inicio && p.hasta < fecha_fin
+                    && motivoFuera(sumarUnDia(p.hasta), periodos) === 'entre_periodos');
+                if (cruzaHueco) {
+                    throw Object.assign(new Error('El período no puede cruzar el tiempo entre dos períodos laborales (el trabajador no estaba contratado)'), { statusCode: 400 });
                 }
             }
             await conn.beginTransaction();

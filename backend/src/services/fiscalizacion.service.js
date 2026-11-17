@@ -284,13 +284,33 @@ class FiscalizacionService {
 
         // Rango de FECHA DE DESVINCULACIÓN ("salió entre"): bajas del período, y la cota que hace
         // usable el filtro de finiquito. Mismo patrón y misma validación que el rango de ingreso.
+        // Reingreso (mig 152): se busca en el HISTORIAL de bajas, no en t.fecha_desvinculacion — al
+        // reingresar esa columna vuelve a NULL y la baja vieja desaparecería del filtro. Un solo EXISTS
+        // con ambas cotas: las dos tienen que calzar con la MISMA baja.
+        const cotasDesvinc = [];
         if (filters.fecha_desvinc_desde && RE_FECHA.test(String(filters.fecha_desvinc_desde))) {
-            query += ` AND t.fecha_desvinculacion >= ?`;
+            cotasDesvinc.push('dh.fecha_desvinculacion >= ?');
             params.push(filters.fecha_desvinc_desde);
         }
         if (filters.fecha_desvinc_hasta && RE_FECHA.test(String(filters.fecha_desvinc_hasta))) {
-            query += ` AND t.fecha_desvinculacion <= ?`;
+            cotasDesvinc.push('dh.fecha_desvinculacion <= ?');
             params.push(filters.fecha_desvinc_hasta);
+        }
+        if (cotasDesvinc.length) {
+            query += ` AND EXISTS (SELECT 1 FROM trabajador_desvinculaciones dh
+                                    WHERE dh.trabajador_id = t.id AND ${cotasDesvinc.join(' AND ')})`;
+        }
+
+        // "Reactivados con ingreso antiguo" (reingreso, mig 152): activos que volvieron con el flujo viejo,
+        // que conservaba la fecha de ingreso del primer período → un período anterior termina en o
+        // después de su ingreso actual. Lista para que RRHH les ponga la fecha real de reingreso (Editar);
+        // al corregirla salen solos. Exige trabajadores.ver.
+        if (verPersonal && (filters.reingreso_sin_fecha === 'true' || filters.reingreso_sin_fecha === '1')) {
+            query += ` AND t.activo = 1 AND EXISTS (
+                SELECT 1 FROM trabajador_desvinculaciones dr
+                 WHERE dr.trabajador_id = t.id AND dr.reactivado_en IS NOT NULL
+                   AND (t.fecha_ingreso IS NULL OR dr.fecha_desvinculacion >= t.fecha_ingreso)
+            )`;
         }
 
         // "No recontratar": la grilla ya pinta el badge y era lo único visible que no se podía
@@ -302,11 +322,14 @@ class FiscalizacionService {
 
         // "Finiquito pendiente": desvinculado sin finiquito emitido. El tipo FINIQUITO sí tiene
         // `codigo` (lo siembra la mig 110), a diferencia de los obligatorios de legado.
+        // Reingreso (mig 152): solo cuenta un finiquito del período ACTUAL (subido desde su ingreso);
+        // el del período anterior ya no tapa el que falta.
         if (filters.finiquito === 'pendiente') {
             query += ` AND t.activo = 0 AND NOT EXISTS (
                 SELECT 1 FROM documentos d
                 JOIN tipos_documento td2 ON td2.id = d.tipo_documento_id
                 WHERE d.trabajador_id = t.id AND d.activo = TRUE AND td2.codigo = 'FINIQUITO'
+                  AND (t.fecha_ingreso IS NULL OR d.fecha_subida >= t.fecha_ingreso)
             )`;
         }
 

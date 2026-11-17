@@ -13,8 +13,16 @@ const desvincular = {
     no_recontratar: { type: 'boolean' },
 };
 
-// PUT /:id/reactivar — la marca "no recontratar" se conserva salvo pedido explícito.
+// PUT /:id/reactivar = REINGRESO (mig 152): abre un período nuevo desde `fecha_ingreso`.
+// Empresa/obra/cargo/categoría solo se cambian si vienen; `fecha_termino_contrato` null = indefinido.
+// La marca "no recontratar" se conserva salvo pedido explícito.
 const reactivar = {
+    fecha_ingreso: { required: true, type: 'string', format: 'date' },
+    empresa_id: { type: 'integer', min: 1 },
+    obra_id: { type: 'integer', min: 1 },
+    cargo_id: { type: 'integer', min: 1 },
+    categoria_reporte: { type: 'string', in: ['obra', 'operaciones', 'rotativo'] },
+    fecha_termino_contrato: { type: 'string', format: 'date' },
     quitar_marca_no_recontratar: { type: 'boolean' },
 };
 
