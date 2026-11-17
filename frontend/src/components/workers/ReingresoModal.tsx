@@ -268,7 +268,8 @@ export const ReingresoModal: React.FC<Props> = ({ isOpen, worker, onClose, onDon
                                 {/* Siempre explícito: con qué empresa terminó y con cuál reingresa (Art. 159 cuenta por empleador). */}
                                 {empresaUltimoNombre && (
                                     <p className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-brand-dark">
-                                        Su último contrato fue con <strong>{empresaUltimoNombre}</strong>.
+                                        {/* Sin doble punto cuando la razón social ya termina en «.» (Ltda., S.A.). */}
+                                        Su último contrato fue con <strong>{empresaUltimoNombre}</strong>{empresaUltimoNombre.endsWith('.') ? '' : '.'}
                                         {empresaSel > 0 && empresaUltimoId != null && empresaSel !== empresaUltimoId && empresaSelNombre && (
                                             <span className="block text-muted-foreground">
                                                 Reingresa con <strong className="text-brand-dark">{empresaSelNombre}</strong>: es otro empleador, así que los contratos anteriores no se suman para el Art. 159 N°4.
