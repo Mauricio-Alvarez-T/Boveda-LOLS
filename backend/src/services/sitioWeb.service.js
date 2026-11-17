@@ -382,9 +382,10 @@ function diferencias(antes, despues, campos) {
     return d;
 }
 
-async function obraOFalla(id) {
+/** `q` = la conexión de una transacción (guardar del editor visual) o, por defecto, el pool. */
+async function obraOFalla(id, q = db) {
     if (!Number.isInteger(id) || id < 1) throw err(404, 'Obra del sitio no encontrada');
-    const [[o]] = await db.query('SELECT * FROM sitio_obras WHERE id = ?', [id]);
+    const [[o]] = await q.query('SELECT * FROM sitio_obras WHERE id = ?', [id]);
     if (!o) throw err(404, 'Obra del sitio no encontrada');
     return o;
 }
@@ -444,20 +445,20 @@ const exigirObrasVer = (permisos) => {
     }
 };
 
-async function obraInternaOFalla(obraId) {
-    const [[o]] = await db.query('SELECT id, nombre FROM obras WHERE id = ? AND es_prueba = 0', [obraId]);
+async function obraInternaOFalla(obraId, q = db) {
+    const [[o]] = await q.query('SELECT id, nombre FROM obras WHERE id = ? AND es_prueba = 0', [obraId]);
     if (!o) throw err(400, 'La obra elegida no existe.', { code: 'SITIO_WEB_OBRA_INTERNA' });
     return o;
 }
 
-async function slugLibreOFalla(slug, idPropio = null) {
+async function slugLibreOFalla(slug, idPropio = null, q = db) {
     if (!slug || !cfg.SLUG_RE.test(slug) || slug.length > cfg.LARGOS.slug) {
         throw err(400, 'La dirección web solo puede tener minúsculas, números y guiones (máx. 80).', { code: 'SITIO_WEB_SLUG' });
     }
     if (slugReservado(slug)) {
         throw err(409, `«${slug}» está reservada por el sitio: elige otra dirección web.`, { code: 'SITIO_WEB_SLUG_RESERVADO' });
     }
-    const [[otra]] = await db.query('SELECT id FROM sitio_obras WHERE slug = ? AND id <> ?', [slug, idPropio || 0]);
+    const [[otra]] = await q.query('SELECT id FROM sitio_obras WHERE slug = ? AND id <> ?', [slug, idPropio || 0]);
     if (otra) throw err(409, `Ya hay una obra con la dirección web «${slug}»: elige otra.`, { code: 'SITIO_WEB_SLUG_OCUPADO' });
 }
 
@@ -470,8 +471,8 @@ function traducirDuplicado(e) {
     return e;
 }
 
-const siguienteOrden = async (estado) => {
-    const [[r]] = await db.query('SELECT COALESCE(MAX(orden), 0) AS m FROM sitio_obras WHERE estado = ?', [estado]);
+const siguienteOrden = async (estado, q = db) => {
+    const [[r]] = await q.query('SELECT COALESCE(MAX(orden), 0) AS m FROM sitio_obras WHERE estado = ?', [estado]);
     return (Number(r?.m) || 0) + 10;
 };
 
@@ -665,30 +666,33 @@ const api = {
 
     /**
      * PUT /obras/:id. `updated_at` = la versión que se editó: si otra persona guardó después, 409
-     * SITIO_WEB_EDITADA_POR_OTRO (también si guarda justo entremedio: el UPDATE vuelve a comparar).
+     * SITIO_WEB_EDITADA_POR_OTRO (también si guarda justo entremedio: el UPDATE vuelve a comparar). El error lleva
+     * `obra: { id, nombre }` (no sale en la respuesta del PUT; lo usa el guardado del editor visual).
+     * `conn` = la conexión de una transacción abierta (editor visual: todo o nada); sin ella, el pool, como siempre.
      */
-    async editarObra(id, data, userId, { permisos = [] } = {}) {
-        const actual = await obraOFalla(id);
+    async editarObra(id, data, userId, { permisos = [], conn = null } = {}) {
+        const q = conn || db;
+        const actual = await obraOFalla(id, q);
         const version = new Date(data.updated_at);
         if (Number.isNaN(version.getTime())) throw err(400, 'Falta la versión de la obra que se editó (updated_at).', { code: 'SITIO_WEB_VERSION' });
         const editadaPorOtro = () => err(409,
             'Otra persona guardó cambios en esta obra mientras la editabas. Recarga para ver lo último y vuelve a hacer tus cambios.',
-            { code: 'SITIO_WEB_EDITADA_POR_OTRO' });
+            { code: 'SITIO_WEB_EDITADA_POR_OTRO', obra: { id, nombre: actual.nombre } });
         if (new Date(actual.updated_at).getTime() !== version.getTime()) throw editadaPorOtro();
 
         const o = leerObra(data, { parcial: true });
         if (o.obra_id !== undefined && o.obra_id !== (actual.obra_id ?? null)) {
             exigirObrasVer(permisos);
-            if (o.obra_id !== null) await obraInternaOFalla(o.obra_id);
+            if (o.obra_id !== null) await obraInternaOFalla(o.obra_id, q);
         }
         if (o.slug === null) delete o.slug;   // vacío = dejar el que tiene
         if (o.slug !== undefined && o.slug !== actual.slug) {
             if (slugCongelado(actual)) {
                 throw err(409, 'La dirección web ya está publicada en el sitio: no se puede cambiar.', { code: 'SITIO_WEB_SLUG_CONGELADO' });
             }
-            await slugLibreOFalla(o.slug, id);
+            await slugLibreOFalla(o.slug, id, q);
         }
-        if (o.estado !== undefined && o.estado !== actual.estado) o.orden = await siguienteOrden(o.estado);
+        if (o.estado !== undefined && o.estado !== actual.estado) o.orden = await siguienteOrden(o.estado, q);
         // La autorización es para ESE mandante: si cambia el nombre, se pierde. Solo queda si en este mismo guardado
         // se marca de nuevo (venía sin marcar); una casilla que ya estaba marcada no cuenta como autorización nueva.
         const mandanteCambia = o.mandante !== undefined && (o.mandante ?? null) !== (linea(actual.mandante) ?? null);
@@ -704,15 +708,90 @@ const api = {
         const sets = Object.keys(o).map(c => `${c} = ?`).join(', ');
         let r;
         try {
-            [r] = await db.query(`UPDATE sitio_obras SET ${sets}, actualizado_por = ? WHERE id = ? AND updated_at = ?`,
+            [r] = await q.query(`UPDATE sitio_obras SET ${sets}, actualizado_por = ? WHERE id = ? AND updated_at = ?`,
                 [...Object.values(o), userId, id, actual.updated_at]);
         } catch (e) { throw traducirDuplicado(e); }
         if (!r || !r.affectedRows) throw editadaPorOtro();
-        await registrar(null, { sitio_obra_id: id, entidad: 'obra', entidad_id: id, accion: 'editar',
-            resumen: `Editó la obra «${o.nombre || actual.nombre}»: ${Object.keys(cambios).join(', ')}`,
+        await registrar(conn, { sitio_obra_id: id, entidad: 'obra', entidad_id: id, accion: 'editar',
+            resumen: `Editó la obra «${o.nombre || actual.nombre}»${conn ? ' (editor visual)' : ''}: ${Object.keys(cambios).join(', ')}`,
             detalle: cambios, usuario_id: userId });
-        const [[nueva]] = await db.query('SELECT updated_at FROM sitio_obras WHERE id = ?', [id]);
+        const [[nueva]] = await q.query('SELECT updated_at FROM sitio_obras WHERE id = ?', [id]);
         return { id, updated_at: nueva ? nueva.updated_at : null };
+    },
+
+    /**
+     * GET /editor/borrador (editor visual, docs/editor-visual.md de lols.cl): todas las obras con `json` = EXACTAMENTE
+     * lo que serializarObra publicaría hoy (la forma de src/content/obras/*.json; también con faltantes, para que el
+     * puente pinte lo escrito) y `meta` para la pantalla. `meta.foto` = la portada vigente cuando el sitio todavía no
+     * la muestra (la pantalla baja sus bytes y se los pasa al puente como vista previa); null si ya es la publicada o
+     * no hay. `mandante`/`mandante_autoriza` van aparte porque el JSON solo trae el mandante autorizado.
+     */
+    async editorBorrador() {
+        const [obras] = await db.query(
+            `SELECT * FROM sitio_obras
+              ORDER BY FIELD(estado, 'en_construccion', 'contratado', 'terminado'), orden ASC, nombre ASC, id ASC`
+        );
+        const fotos = await fotosPorObra(obras.map(o => o.id));
+        const pub = obras.some(o => o.publicado_hash) ? await contextoPublicacion() : null;
+        return obras.map((o) => {
+            const c = calcular(o, fotos.get(o.id) || [], pub);
+            const publicado = leerJson(o.publicado_json);
+            const fotoNueva = c.vigente && !(publicado && fotoNombradaEn(publicado, c.vigente)) ? c.vigente.id : null;
+            return {
+                json: serializarObra(o, c.vigente),
+                meta: {
+                    id: o.id,
+                    incluir: !!o.incluir,
+                    nueva: false,
+                    faltantes: c.faltantes,
+                    estadoDerivado: c.estado,
+                    updated_at: o.updated_at,
+                    slug_congelado: slugCongelado(o),
+                    foto: fotoNueva,
+                    fotos_por_aprobar: c.porAprobar,
+                    mandante: o.mandante ?? null,
+                    mandante_autoriza: !!o.mandante_autoriza,
+                },
+            };
+        });
+    },
+
+    /**
+     * POST /editor/guardar: los cambios del editor visual de VARIAS obras, todo o nada en UNA transacción (cada obra
+     * pasa por editarObra con su `updated_at`, igual que el PUT: limpieza, slug, mandante, historial). Si alguna la
+     * guardó otra persona → rollback y 409 SITIO_WEB_EDITADA_POR_OTRO con `obras: [{ id, nombre }]` (todas las que
+     * chocaron). Cualquier otro error de una obra → rollback, con `obra_id` en el cuerpo del error.
+     */
+    async guardarEditor(lista, userId, { permisos = [] } = {}) {
+        const conn = await db.getConnection();
+        try {
+            await conn.beginTransaction();
+            const hechas = [];
+            const choques = [];
+            for (const item of lista) {
+                try {
+                    const r = await api.editarObra(item.id, { ...item.cambios, updated_at: item.updated_at }, userId, { permisos, conn });
+                    hechas.push({ id: item.id, updated_at: r.updated_at, ...(r.sin_cambios ? { sin_cambios: true } : {}) });
+                } catch (e) {
+                    if (e && e.code === 'SITIO_WEB_EDITADA_POR_OTRO') { choques.push(e.obra || { id: item.id, nombre: null }); continue; }
+                    if (e && e.statusCode && e.statusCode < 500) e.details = { ...(e.details || {}), obra_id: item.id };
+                    throw e;
+                }
+            }
+            if (choques.length) {
+                throw err(409, choques.length === 1
+                    ? `Otra persona guardó cambios en «${choques[0].nombre}» mientras editabas. No se guardó nada: recarga y vuelve a hacer tus cambios.`
+                    : `Otras personas guardaron cambios en ${choques.length} obras mientras editabas. No se guardó nada: recarga y vuelve a hacer tus cambios.`,
+                { code: 'SITIO_WEB_EDITADA_POR_OTRO', details: { obras: choques } });
+            }
+            await conn.commit();
+            return { obras: hechas };
+        } catch (e) {
+            try { await conn.rollback(); } catch (eR) { logger.error('No se pudo deshacer el guardado del editor visual', { err: eR.message }); }
+            throw e;
+        } finally {
+            conn.release();
+        }
     },
 
     /**
@@ -847,4 +926,6 @@ module.exports = {
     serializarObra, textoJson, hashTexto, rutasDeJson, faltantes, estadoDerivado, desdeJsonDelSitio, urlsDeFoto, fotoNombradaEn, fotoRechazadaEn,
     fotoPublicable, fotoVigente, fotoPorAprobar, fotoDelSitio, estadoFoto, listaServicios,
     _h: { err, sinTablas, errSinMigrar, conTablas, linea, leerObra, registrar, obraOFalla, fotosPorObra, contextoPublicacion, UPLOADS_DIR },
+    /** Tope de obras por guardado del editor visual (POST /editor/guardar). */
+    MAX_GUARDAR_EDITOR: 100,
 };

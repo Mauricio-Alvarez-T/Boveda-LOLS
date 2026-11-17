@@ -54,7 +54,7 @@ si allá cambia, se cambia aquí; el build del sitio es la segunda red.
   obras en construcción y terminadas. Una contratada puede ir sin foto. `titular`, `tipo` y la superficie son
   opcionales.
 - Slug: sale del nombre (`slugDesde`: sin tildes ni eñes, minúsculas y guiones, máx. 80). Reservados: `ejemplo`,
-  `muestra-*` y los ids de las muestras de un carrusel (`terminados-1`, `en-construccion-2`…). Se **congela** tras la
+  `molde` (editor visual), `muestra-*` y los ids de las muestras de un carrusel (`terminados-1`, `en-construccion-2`…). Se **congela** tras la
   primera publicación (409 `SITIO_WEB_SLUG_CONGELADO`); reservado u ocupado → 409.
 
 ## Obras: incluir, orden, edición y borrado
@@ -310,7 +310,7 @@ Menú lateral **«Sitio web»** (`/sitio-web`, ícono `Globe`, después de Presu
 `hooks/useSitioWebPendientes.ts`, cada 5 min y después de cada acción); el número lleva a la lista filtrada
 (`?filtro=pendientes`). Sin obra arriba en el celular (`SIN_OBRA_EN_CELULAR`).
 
-- **Portada** (`pages/SitioWeb.tsx`): pestañas Obras / Publicaciones; avisos arriba — simulación (gris, con el motivo
+- **Portada** (`pages/SitioWeb.tsx`): pestañas Editor visual (§ Editor visual) / Lista / Publicaciones; avisos arriba — simulación (gris, con el motivo
   de `modoEfectivo`), vencimiento del permiso de GitHub (ámbar desde 30 días, rojo vencido; solo a quien publica) y la
   última publicación que falló o «no llegó al sitio» (rojo, con qué hacer). «Nueva obra» y «Publicar» / «Simular
   publicación» (este último oculto en «ver como», igual que importar y resincronizar).
@@ -372,6 +372,56 @@ Menú lateral **«Sitio web»** (`/sitio-web`, ícono `Globe`, después de Presu
   (`sitioWeb`, `sitioWebFoto`, `sitioWebPublicacion`): verde publicada, ámbar lista / cambios / retiro / por aprobar,
   azul publicando o simulada, rojo no llegó / falló / rechazada, gris borrador.
 - `ui/VisorAdjunto` acepta `pie` (botones propios en vez de «Abrir aparte» / «Descargar»).
+
+## Editor visual (etapa A1, 2026-11-17)
+
+El sitio **real** dentro de la Bóveda para editar en el lugar: se toca un título y se escribe; lo formateado y la
+portada, en el panel de la derecha (hoja inferior en el teléfono). **Contrato con el sitio: `docs/editor-visual.md` del
+repo lols.cl** (marcas `data-ed-*`, protocolo v1 de mensajes); la Bóveda implementa su lado tal cual.
+
+- **Pestañas** de `/sitio-web`: «Editor visual» (por defecto), «Lista» (la de siempre: `?vista=lista`; `?filtro=…`,
+  `?vista=obras` y `?obra=…` siguen abriéndola) y «Publicaciones». Crear, ordenar, cambiar de estado y quitar obras es la
+  etapa A2: en el editor el estado se ve y «Cambiar en Lista» lleva a la obra.
+- **Flujo**: lo escrito es un borrador en la pantalla (deshacer/rehacer, una ráfaga de teclas del mismo campo = un
+  paso) hasta **«Guardar (n)»** (n = campos por guardar), que muestra «campo: antes → después» y guarda todo junto.
+  **Guardar no publica**: «Publicar cambios» (`sitio_web.publicar`, apagado mientras haya cambios sin guardar) abre el
+  `PublicarModal` de siempre; cuando el sitio ya muestra la publicación (`useEstadoPublicacion`), la vista se recarga.
+- **Backend**: `GET /editor/borrador` (ver) = por obra `json` (EXACTAMENTE lo que `serializarObra` publicaría hoy, también
+  con faltantes) y `meta` `{ id, incluir, nueva:false, faltantes, estadoDerivado, updated_at, slug_congelado, foto,
+  fotos_por_aprobar, mandante, mandante_autoriza }` (`foto` = la portada vigente si el sitio todavía no la muestra; el
+  JSON solo trae el mandante autorizado, por eso va aparte). `POST /editor/guardar` (editar; «ver como» no escribe)
+  `{ obras: [{ id, updated_at, cambios }] }` (hasta 100, sin repetir; `cambios` con el schema del PUT, lo de más se
+  descarta): **todo o nada en UNA transacción** (`editarObra` acepta la conexión: mismo saneo, mandante, slug e
+  historial, que dice «(editor visual)»). Una obra que otra persona guardó entremedio → rollback y 409
+  `SITIO_WEB_EDITADA_POR_OTRO` con `obras: [{ id, nombre }]` (la pantalla las lista con «Recargar»: esas pierden lo
+  escrito, las demás lo conservan); otro error de una obra → rollback con `obra_id`. Responde `{ obras: [{ id,
+  updated_at }] }`.
+- **Slug reservado `molde`**: el sitio lo usa para `/editor/moldes/` (la obra completa de muestra de la que el puente
+  clona lo que falta).
+- **Seguridad**:
+  - iframe `https://<urlSitio de /config><ruta>?editor` con `sandbox="allow-scripts allow-same-origin"` (sin
+    formularios, ventanas ni navegar la Bóveda) y `referrerPolicy="origin"`.
+  - **Saludo**: el `hola` se acepta solo si `e.origin` es el origen del sitio **y** `e.source` es ese iframe; se crea un
+    `MessageChannel`, se manda `iniciar` con el puerto (al origen del sitio, nunca `'*'`) y desde ahí todo va por el
+    puerto. Cada página que carga saluda de nuevo; sin saludo 4 s después de cargar → «Esta página del sitio no se puede
+    editar todavía» con «Ir a la Lista».
+  - Todo lo que llega del iframe es una **propuesta**: zod (`editor/protocolo.ts`) y, un `cambio`, además campo de la
+    lista blanca (`/nombre /titular /comuna /direccion /inicio /desafio /solucion /resultado`), obra del borrador y largo
+    de `LARGOS`. `navegar` solo a una ruta interna del sitio. **Nada se guarda hasta «Guardar»**.
+  - La portada nueva (aprobada, sin publicar) se le pasa al puente como bytes transferidos (`foto`, WebP de 1600);
+    el puente revisa la firma y arma su `blob:` (nunca HTML desde un mensaje).
+- **Cambios sin guardar**: el navegador pregunta antes de cerrar; el menú lateral y las pestañas preguntan «Salir sin
+  guardar» (`salidaProtegida`); Atrás deja lo escrito en `sessionStorage` (`sitio-web:editor-visual`) y al volver se
+  ofrece «Recuperar lo que escribiste» (con nota si alguien guardó esas obras después).
+- **Teléfono**: la vista a todo el ancho (390 px), la barra abajo (deshacer, rehacer, ver como visitante, datos, guardar)
+  y el panel en hoja inferior. Tocar un texto del sitio no abre la hoja (taparía lo que se escribe); tocar la obra o
+  «Datos de la obra», sí.
+- **Pruebas**: `sitio_web_editor.test.js` (backend: las 27 obras dan su JSON exacto, guardado en transacción, 409 sin
+  cambiar nada, 400, 403, `molde`); `editor/protocolo.test.ts` y `editor/borradorSitio.test.ts` (frontend);
+  `frontend/e2e/editor_visual_e2e.js` (Playwright con Chrome y la API simulada; necesita el sitio con el puente en
+  `http://localhost:4321`, si no hay, SKIP — cómo correrlo, arriba del archivo).
+- Archivos: `components/sitio-web/editor/` (`protocolo.ts`, `borradorSitio.ts`, `useBorradorSitio.ts`, `MarcoSitio.tsx`,
+  `EditorVisual.tsx`, `BarraEditor.tsx`, `PanelSeleccion.tsx`, `GuardarModal.tsx`); `useFotoUrl.ts` exporta `pedirBlob`.
 
 ## Incidente «persona reconocible» (plan 7.3)
 

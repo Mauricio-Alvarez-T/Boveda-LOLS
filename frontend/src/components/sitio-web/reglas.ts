@@ -51,7 +51,8 @@ export const MIN_ANCHO_FOTO = 800;
 export const MAX_BYTES_FOTO = 10 * 1024 * 1024;
 
 export const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-export const SLUG_RESERVADOS: readonly string[] = ['ejemplo'];
+/** «ejemplo» = la ficha de muestra; «molde» = la obra de muestra de /editor/moldes/ (editor visual). */
+export const SLUG_RESERVADOS: readonly string[] = ['ejemplo', 'molde'];
 export const SLUG_PATRONES_RESERVADOS: readonly RegExp[] = [
     /^(en-construccion|terminados|han-confiado|contratados|en-obra-ahora|pr-ximos-proyectos)-\d+$/,
     /^muestra(-|$)/,

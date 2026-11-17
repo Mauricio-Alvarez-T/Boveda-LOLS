@@ -70,4 +70,15 @@ const resincronizar = {
     confirmo: { required: true, type: 'boolean' },
 };
 
-module.exports = { crearObra, editarObra, incluir, orden, editarFoto, publicar, resincronizar };
+// POST /editor/guardar (editor visual) — `obras: [{ id, updated_at, cambios }]`. La lista y cada elemento los revisa la
+// ruta; `cambios` se valida con el mismo schema del PUT (sin la versión, que viene al lado).
+const editorGuardar = {
+    obras: { required: true, type: 'array', minLength: 1 },
+};
+const editorObra = {
+    id: { required: true, type: 'integer', min: 1 },
+    updated_at: { required: true, type: 'string', maxLength: 40 },
+};
+const { updated_at: _version, ...cambiosObra } = editarObra;
+
+module.exports = { crearObra, editarObra, incluir, orden, editarFoto, publicar, resincronizar, editorGuardar, editorObra, cambiosObra };

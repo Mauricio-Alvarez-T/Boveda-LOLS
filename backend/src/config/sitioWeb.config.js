@@ -76,11 +76,12 @@ const ANIO_MAX = 2100;
 /** Slug = nombre del archivo en el sitio: minúsculas, números y guiones simples. */
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 /**
- * Slugs que el sitio ya usa para otra cosa: «ejemplo» (la ficha de muestra) y los ids de las muestras de un
- * carrusel, `obra-<sección>-<n>` (CarruselObras.astro; verificar-obras-reales.mjs falla si chocan). «muestra-*»
- * queda reservado para las muestras de la Fase 0 del plan.
+ * Slugs que el sitio ya usa para otra cosa: «ejemplo» (la ficha de muestra), «molde» (la obra completa de muestra de
+ * /editor/moldes/, de donde el puente del editor visual clona lo que falta: docs/editor-visual.md de lols.cl) y los
+ * ids de las muestras de un carrusel, `obra-<sección>-<n>` (CarruselObras.astro; verificar-obras-reales.mjs falla si
+ * chocan). «muestra-*» queda reservado para las muestras de la Fase 0 del plan.
  */
-const SLUG_RESERVADOS = Object.freeze(['ejemplo']);
+const SLUG_RESERVADOS = Object.freeze(['ejemplo', 'molde']);
 const SLUG_PATRONES_RESERVADOS = Object.freeze([
     /^(en-construccion|terminados|han-confiado|contratados|en-obra-ahora|pr-ximos-proyectos)-\d+$/,
     /^muestra(-|$)/,

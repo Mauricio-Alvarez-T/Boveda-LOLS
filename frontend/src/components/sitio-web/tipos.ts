@@ -297,3 +297,34 @@ export interface ResultadoResincronizar {
     avisos: string[];
     conciliadas: { id: number; estado: string }[];
 }
+
+/* ──────────────── editor visual (docs/editor-visual.md de lols.cl) ──────────────── */
+
+/** Lo que la pantalla necesita de una obra además de su JSON (GET /editor/borrador). */
+export interface MetaObraEditor {
+    id: number;
+    incluir: boolean;
+    /** Siempre false en la etapa A1 (crear obras en el editor es A2). */
+    nueva: boolean;
+    faltantes: Faltante[];
+    estadoDerivado: EstadoDerivado;
+    updated_at: string;
+    slug_congelado: boolean;
+    /** La portada vigente si el sitio todavía no la muestra (vista previa en el editor); null si no. */
+    foto: number | null;
+    fotos_por_aprobar: number;
+    /** El mandante guardado (el JSON solo lo trae si está autorizado). */
+    mandante: string | null;
+    mandante_autoriza: boolean;
+}
+
+/** Una fila de GET /editor/borrador: `json` = lo que publicaría hoy serializarObra. */
+export interface ObraEditor {
+    json: JsonObraSitio;
+    meta: MetaObraEditor;
+}
+
+/** POST /editor/guardar. */
+export interface ResultadoGuardarEditor {
+    obras: { id: number; updated_at: string; sin_cambios?: boolean }[];
+}

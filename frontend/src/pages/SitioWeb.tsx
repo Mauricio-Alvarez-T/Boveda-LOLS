@@ -17,11 +17,13 @@ import { PublicarModal } from '../components/sitio-web/PublicarModal';
 import { ImportarObrasModal } from '../components/sitio-web/ImportarObrasModal';
 import { PublicacionesSitio } from '../components/sitio-web/PublicacionesSitio';
 import { SiluetaObras } from '../components/sitio-web/piezas';
+import { EditorVisual } from '../components/sitio-web/editor/EditorVisual';
+import { pedirSalida } from '../utils/salidaProtegida';
 import { TEXTO_CODIGO, codigoError, mensajeError } from '../components/sitio-web/sitioWebConfig';
 import { TEXTO_MOTIVO, avisoToken, ultimaConProblema, type FiltroObras } from '../components/sitio-web/reglas';
 import type { ConfigSitio, ObraSitioLista, PublicacionSitio } from '../components/sitio-web/tipos';
 
-type Vista = 'obras' | 'publicaciones';
+type Vista = 'editor' | 'lista' | 'publicaciones';
 const PESTANAS_OBRA: PestanaObra[] = ['datos', 'fotos', 'vista', 'historial'];
 const FILTROS: FiltroObras[] = ['todas', 'pendientes', 'faltan', 'fuera'];
 
@@ -33,8 +35,12 @@ const CLASE_INACTIVA = 'text-muted-foreground hover:bg-background hover:text-bra
  * commit en el repositorio del sitio. Quién ve, edita y publica se da con permisos (`sitio_web.ver|editar|publicar`);
  * publicar es delicado y se marca a mano. En staging todo es simulación: no se publica nada.
  *
- * URL: `?obra=ID&tab=datos|fotos|vista|historial` (`?obra=nueva` para crear), `?vista=publicaciones`,
- * `?filtro=pendientes|faltan|fuera` (el número del menú lleva a «pendientes»).
+ * Pestañas: «Editor visual» (por defecto: el sitio real para editar en el lugar, `editor/EditorVisual.tsx`), «Lista»
+ * (las obras como formulario) y «Publicaciones».
+ *
+ * URL: `?obra=ID&tab=datos|fotos|vista|historial` (`?obra=nueva` para crear), `?vista=lista|publicaciones`,
+ * `?filtro=pendientes|faltan|fuera` (abre la Lista; el número del menú lleva a «pendientes»). `?vista=obras` (el
+ * nombre viejo de la Lista) sigue funcionando.
  */
 const SitioWebPage: React.FC = () => {
     const { hasPermission, verComo } = useAuth();
@@ -97,13 +103,21 @@ const SitioWeb: React.FC<{ permisos: Permisos }> = ({ permisos }) => {
         );
     }
 
-    const vista: Vista = params.get('vista') === 'publicaciones' ? 'publicaciones' : 'obras';
+    const vistaParam = params.get('vista');
     const filtroParam = params.get('filtro') as FiltroObras | null;
+    const vista: Vista = vistaParam === 'publicaciones' ? 'publicaciones'
+        : vistaParam === 'lista' || vistaParam === 'obras' || filtroParam ? 'lista' : 'editor';
     const filtro: FiltroObras = filtroParam && FILTROS.includes(filtroParam) ? filtroParam : 'todas';
+    const paramsVista = (v: Vista): Record<string, string> => (v === 'editor' ? {} : { vista: v });
     return (
         <Portada config={config} permisos={permisos} vista={vista} filtro={filtro}
-            onVista={v => setParams(v === 'obras' ? {} : { vista: v }, { replace: true })}
-            onFiltro={f => setParams(f === 'todas' ? {} : { filtro: f }, { replace: true })}
+            onVista={(v) => {
+                // Con cambios sin guardar en el editor, él pregunta «Salir sin guardar» y navega si se confirma.
+                const q = new URLSearchParams(paramsVista(v)).toString();
+                if (vista === 'editor' && pedirSalida(`/sitio-web${q ? `?${q}` : ''}`)) return;
+                setParams(paramsVista(v), { replace: true });
+            }}
+            onFiltro={f => setParams(f === 'todas' ? { vista: 'lista' } : { vista: 'lista', filtro: f }, { replace: true })}
             onAbrir={(id, tab) => setParams({ ...lista, obra: String(id), ...(tab ? { tab } : {}) })}
             onSinInstalar={sinInstalar} />
     );
@@ -156,15 +170,18 @@ const Portada: React.FC<{
     const puedeImportar = permisos.publicar && escribe && !!publicaciones && !hayReal;
 
     const opciones: { key: Vista; label: string }[] = [
-        { key: 'obras', label: 'Obras' },
+        { key: 'editor', label: 'Editor visual' },
+        { key: 'lista', label: 'Lista' },
         { key: 'publicaciones', label: 'Publicaciones' },
     ];
+    // En el editor, publicar va en su barra (apagado mientras haya cambios sin guardar); crear una obra es de la Lista.
+    const enEditor = vista === 'editor';
 
-    const botonNueva = permisos.editar && (
+    const botonNueva = permisos.editar && !enEditor && (
         <Button variant={permisos.publicar && escribe ? 'glass' : 'primary'} onClick={() => onAbrir('nueva')} leftIcon={<Plus className="h-4 w-4" />}
             className="md:shrink-0">Nueva obra</Button>
     );
-    const botonPublicar = permisos.publicar && escribe && (
+    const botonPublicar = permisos.publicar && escribe && !enEditor && (
         <Button onClick={() => setPublicando(true)} leftIcon={simulacion ? <FlaskConical className="h-4 w-4" /> : <Send className="h-4 w-4" />} className="md:shrink-0">
             {simulacion ? <><span className="sm:hidden">Simular</span><span className="hidden sm:inline">Simular publicación</span></> : 'Publicar'}
         </Button>
@@ -206,7 +223,7 @@ const Portada: React.FC<{
                         <BarraPaginada>{p => (
                             <PestanasElasticas estiloOpcion={p.estiloOpcion} revelar={p.revelar} opciones={opciones} activa={vista} onCambiar={onVista} aria-label="Sitio web"
                                 claseFila="gap-1" claseOpcion={CLASE_TAB} claseInactiva={CLASE_INACTIVA}
-                                render={o => (<>{o.label}{o.key === 'obras' && obras && <span className="ml-1 opacity-70 tabular-nums">{obras.length}</span>}</>)} />
+                                render={o => (<>{o.label}{o.key === 'lista' && obras && <span className="ml-1 opacity-70 tabular-nums">{obras.length}</span>}</>)} />
                         )}</BarraPaginada>
                     </div>
                 </div>
@@ -225,13 +242,18 @@ const Portada: React.FC<{
                 </Aviso>
             )}
 
-            {vista === 'obras' && fallaObras && obras !== null && (
+            {vista === 'lista' && fallaObras && obras !== null && (
                 <Aviso icon={AlertTriangle} tono="peligro">
                     <p>{fallaObras} Lo que ves puede no estar al día.</p>
                     <Button variant="link" size="sm" className="mt-1 text-xs font-semibold text-green-700 dark:text-green-300" onClick={cargarObras}>Reintentar</Button>
                 </Aviso>
             )}
-            {vista === 'obras' && (fallaObras && obras === null ? (
+            {enEditor && (
+                <EditorVisual config={config} permisos={permisos} onPublicado={recargar} onVerPublicaciones={() => onVista('publicaciones')}
+                    destinoLista={id => (id ? `/sitio-web?vista=lista&obra=${id}&tab=datos` : '/sitio-web?vista=lista')} />
+            )}
+
+            {vista === 'lista' && (fallaObras && obras === null ? (
                 <EmptyState icon={Globe} title="No se pudieron cargar las obras" description={fallaObras}
                     action={<Button variant="glass" onClick={() => { setFallaObras(null); cargarObras(); }} leftIcon={<RefreshCw className="h-4 w-4" />}>Reintentar</Button>} />
             ) : obras === null ? (

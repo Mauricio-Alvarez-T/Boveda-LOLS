@@ -79,6 +79,48 @@ router.put('/obras/orden', ...editar, validateBody(schemas.orden, { strip: true 
     try { res.json({ data: await svc.reordenar(req.body.estado, req.body.ids, req.user.id) }); } catch (e) { next(e); }
 });
 
+/* ──────────────── editor visual (docs/editor-visual.md de lols.cl) ──────────────── */
+
+router.get('/editor/borrador', ...ver, async (req, res, next) => {
+    try {
+        await pub.refrescarCompilacion();
+        res.json({ data: await svc.editorBorrador() });
+    } catch (e) { next(e); }
+});
+
+/**
+ * `{ obras: [{ id, updated_at, cambios }] }`: hasta MAX_GUARDAR_EDITOR obras, sin repetir, y cada `cambios` con el
+ * schema del PUT /obras/:id (las claves de más se descartan). Un error dice en qué obra (`obras[i]`).
+ */
+const validarGuardarEditor = (req, res, next) => {
+    const malo = (error) => res.status(400).json({ error });
+    const general = validateBody.validarObjeto(schemas.editorGuardar, req.body);
+    if (general.error) return malo(general.error);
+    const lista = req.body.obras;
+    if (lista.length > svc.MAX_GUARDAR_EDITOR) return malo(`obras: a lo más ${svc.MAX_GUARDAR_EDITOR} obras por guardado`);
+    const limpias = [];
+    const vistas = new Set();
+    for (let i = 0; i < lista.length; i += 1) {
+        const item = lista[i];
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return malo(`obras[${i}] debe ser un objeto`);
+        const cab = validateBody.validarObjeto(schemas.editorObra, item, { strip: true, prefijo: `obras[${i}].` });
+        if (cab.error) return malo(cab.error);
+        const obraId = Number(item.id);
+        if (vistas.has(obraId)) return malo(`obras[${i}].id está repetida`);
+        vistas.add(obraId);
+        if (!item.cambios || typeof item.cambios !== 'object' || Array.isArray(item.cambios)) return malo(`obras[${i}].cambios debe ser un objeto`);
+        const c = validateBody.validarObjeto(schemas.cambiosObra, item.cambios, { strip: true, prefijo: `obras[${i}].cambios.` });
+        if (c.error) return malo(c.error);
+        limpias.push({ id: obraId, updated_at: item.updated_at, cambios: c.valor });
+    }
+    req.body = { obras: limpias };
+    return next();
+};
+
+router.post('/editor/guardar', ...editar, validarGuardarEditor, async (req, res, next) => {
+    try { res.json({ data: await svc.guardarEditor(req.body.obras, req.user.id, { permisos: permisos(req) }) }); } catch (e) { next(e); }
+});
+
 router.get('/obras/:id', ...ver, async (req, res, next) => {
     try { res.json({ data: await svc.detalleObra(id(req.params.id), { permisos: permisos(req) }) }); } catch (e) { next(e); }
 });

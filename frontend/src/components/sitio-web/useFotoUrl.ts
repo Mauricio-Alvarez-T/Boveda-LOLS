@@ -15,6 +15,14 @@ export type AnchoFoto = 800 | 1600 | 'maestra';
 const MAX = 60;
 const cache = new Map<string, Promise<string>>();
 
+/**
+ * Los bytes de la foto (descarga autenticada). Sin caché propia: la usan `pedir` (que guarda la URL local) y el editor
+ * visual, que se los pasa al puente del sitio como ArrayBuffer transferido (`foto`, docs/editor-visual.md).
+ */
+export function pedirBlob(id: number, ancho: AnchoFoto): Promise<Blob> {
+    return api.get<Blob>(`/sitio-web/fotos/${id}/archivo`, { params: { ancho }, responseType: 'blob' }).then(res => res.data);
+}
+
 function pedir(id: number, ancho: AnchoFoto): Promise<string> {
     const clave = `${id}:${ancho}`;
     const hay = cache.get(clave);
@@ -24,8 +32,7 @@ function pedir(id: number, ancho: AnchoFoto): Promise<string> {
         cache.set(clave, hay);
         return hay;
     }
-    const p = api.get<Blob>(`/sitio-web/fotos/${id}/archivo`, { params: { ancho }, responseType: 'blob' })
-        .then(res => URL.createObjectURL(res.data));
+    const p = pedirBlob(id, ancho).then(blob => URL.createObjectURL(blob));
     p.catch(() => cache.delete(clave));
     cache.set(clave, p);
     while (cache.size > MAX) {

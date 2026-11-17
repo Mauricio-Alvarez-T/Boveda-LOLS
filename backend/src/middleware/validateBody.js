@@ -88,27 +88,38 @@ function _checkValue(name, value, rule) {
     return null;
 }
 
+/**
+ * Valida un objeto suelto con el mismo mini-DSL (para cuerpos con listas de objetos que llevan su propio schema,
+ * p. ej. POST /sitio-web/editor/guardar). `prefijo` antecede el nombre del campo en el mensaje. Devuelve
+ * { error } o { valor } (con `strip`, solo las claves declaradas presentes, como el middleware).
+ */
+function validarObjeto(schema, body, { strip = false, prefijo = '' } = {}) {
+    const obj = body || {};
+    for (const [name, rule] of Object.entries(schema)) {
+        const err = _checkValue(`${prefijo}${name}`, obj[name], rule);
+        if (err) return { error: err };
+    }
+    if (!strip) return { valor: obj };
+    // Strip de claves desconocidas (anti mass-assignment). Solo top-level:
+    // conserva las claves declaradas que estén presentes (incluido null);
+    // descarta undefined y todo lo no declarado. Los valores anidados
+    // (arrays/objetos) pasan tal cual.
+    const clean = {};
+    for (const key of Object.keys(schema)) {
+        if (obj[key] !== undefined) clean[key] = obj[key];
+    }
+    return { valor: clean };
+}
+
 function validateBody(schema, options = {}) {
     const { strip = false } = options;
     return (req, res, next) => {
-        const body = req.body || {};
-        for (const [name, rule] of Object.entries(schema)) {
-            const err = _checkValue(name, body[name], rule);
-            if (err) return res.status(400).json({ error: err });
-        }
-        // Strip de claves desconocidas (anti mass-assignment). Solo top-level:
-        // conserva las claves declaradas que estén presentes (incluido null);
-        // descarta undefined y todo lo no declarado. Los valores anidados
-        // (arrays/objetos) pasan tal cual.
-        if (strip) {
-            const clean = {};
-            for (const key of Object.keys(schema)) {
-                if (body[key] !== undefined) clean[key] = body[key];
-            }
-            req.body = clean;
-        }
+        const r = validarObjeto(schema, req.body || {}, { strip });
+        if (r.error) return res.status(400).json({ error: r.error });
+        if (strip) req.body = r.valor;
         next();
     };
 }
 
 module.exports = validateBody;
+module.exports.validarObjeto = validarObjeto;
