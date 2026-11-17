@@ -241,7 +241,7 @@ const desvinculacionService = {
         const mapa = new Map();
         if (!lista.length) return mapa;
         const sql = conFoto => `
-            SELECT d.trabajador_id, d.fecha_ingreso_periodo, d.fecha_desvinculacion, d.causal_codigo
+            SELECT d.trabajador_id, d.fecha_ingreso_periodo, d.fecha_desvinculacion, d.causal_codigo, d.reactivado_en
                    ${conFoto ? ', d.empresa_id, d.cargo_id, e.razon_social AS empresa_nombre, c.nombre AS cargo_nombre' : ''}
               FROM trabajador_desvinculaciones d
               ${conFoto ? 'LEFT JOIN empresas e ON e.id = d.empresa_id LEFT JOIN cargos c ON c.id = d.cargo_id' : ''}
@@ -269,6 +269,9 @@ const desvinculacionService = {
                 cargo_nombre: r.cargo_nombre ?? null,
                 causal_codigo: r.causal_codigo,
                 causal_nombre: labelCausal(r.causal_codigo),
+                // Momento en que se registró el reingreso: lo emitido/subido antes es del período anterior
+                // (el kit del contrato nuevo puede emitirse días antes de la fecha de ingreso).
+                reingresado_en: r.reactivado_en ?? null,
             };
             if (!mapa.has(r.trabajador_id)) mapa.set(r.trabajador_id, []);
             mapa.get(r.trabajador_id).push(p);

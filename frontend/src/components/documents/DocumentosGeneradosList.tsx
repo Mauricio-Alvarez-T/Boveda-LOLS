@@ -25,6 +25,7 @@ import { EliminarDocumentoModal } from './EliminarDocumentoModal';
 import { abrirGenerado } from './abrirDocumentoGenerado';
 import type { WorkerBasico } from './documentosLaborales';
 import type { UltimaDesvinculacion } from '../workers/desvinculacionSchema';
+import { esDocDePeriodoAnterior } from '../../utils/periodosLaborales';
 
 interface Props {
     trabajadorId: number;
@@ -38,10 +39,15 @@ interface Props {
      * al resumen; `null` = no hay baja registrada.
      */
     ultimaDesvinculacion?: UltimaDesvinculacion | null;
+    /**
+     * Reingreso (mig 152): registro del último reingreso. Lo emitido antes es de un período anterior al
+     * contrato en curso y se muestra atenuado. null/undefined = nunca volvió.
+     */
+    inicioPeriodoActual?: string | null;
     className?: string;
 }
 
-export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker, refreshKey = 0, onCambio, ultimaDesvinculacion, className }) => {
+export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker, refreshKey = 0, onCambio, ultimaDesvinculacion, inicioPeriodoActual = null, className }) => {
     const { hasPermission } = useAuth();
     const puedeEmitir = hasPermission('documentos.laborales.emitir');
     const puedeDescargar = hasPermission('documentos.laborales.descargar');
@@ -132,12 +138,15 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
                 </div>
             ) : (
                 <ul className="space-y-2">
-                    {docs.map(d => (
-                        <li key={d.id} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 rounded-xl bg-background px-3 py-2">
+                    {docs.map(d => {
+                        const anterior = esDocDePeriodoAnterior(d, inicioPeriodoActual);
+                        return (
+                        <li key={d.id} className={cn('flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 rounded-xl px-3 py-2', anterior ? 'bg-muted' : 'bg-background')}>
                             {/* basis-48: en el teléfono el estado y los botones bajan a otra línea y el nombre no
                                 queda en una columna angosta. */}
                             <div className="min-w-0 flex-1 basis-48">
-                                <p className="text-xs font-semibold text-brand-dark break-words" title={d.nombre_archivo}>{d.tipo_nombre || d.nombre_archivo}</p>
+                                <p className={cn('text-xs font-semibold break-words', anterior ? 'text-muted-foreground' : 'text-brand-dark')} title={d.nombre_archivo}>{d.tipo_nombre || d.nombre_archivo}</p>
+                                {anterior && <p className="text-caption font-medium text-muted-foreground">Período anterior</p>}
                                 {/* Sin «…»: la custodia («con Jhoan desde …») debe leerse entera (dueño 2026-10-21). */}
                                 <p className="text-caption text-muted-foreground break-words">
                                     {d.fecha_generacion ? fmtFechaHora(d.fecha_generacion) : ''}
@@ -163,7 +172,8 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
                                 )}
                             </div>
                         </li>
-                    ))}
+                        );
+                    })}
                 </ul>
             )}
 

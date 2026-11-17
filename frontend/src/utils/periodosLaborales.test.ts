@@ -1,5 +1,5 @@
 import {
-    parseCerrados, periodosDe, periodosCerradosDe, fueraDePeriodo, tituloFuera, evaluarArt159, agruparDocsPorPeriodo,
+    parseCerrados, periodosDe, periodosCerradosDe, fueraDePeriodo, tituloFuera, evaluarArt159, inicioDocsPeriodoActual, esDocDePeriodoAnterior,
     type PeriodoLaboral,
 } from './periodosLaborales';
 
@@ -76,19 +76,28 @@ describe('evaluarArt159', () => {
     });
 });
 
-describe('agruparDocsPorPeriodo', () => {
-    const periodos: PeriodoLaboral[] = [{ desde: '2026-01-15', hasta: '2026-06-30' }, { desde: '2026-09-01', hasta: null }];
-    test('cada documento a su período; el finiquito emitido tras la baja queda en el período 1; actual primero', () => {
-        const docs = [
-            { id: 1, fecha_subida: '2026-01-20' },
-            { id: 2, fecha_subida: '2026-07-05', fecha_generacion: '2026-07-05 10:00:00' }, // finiquito
-            { id: 3, fecha_subida: '2026-09-02' },
-            { id: 4, fecha_subida: null },
-            { id: 5, fecha_subida: '2025-12-01' }, // anterior a todo → primer período
-        ];
-        const g = agruparDocsPorPeriodo(docs, periodos);
-        expect(g.map(x => x.indice)).toEqual([1, 0]);
-        expect(g[0].docs.map(d => d.id)).toEqual([3, 4]);
-        expect(g[1].docs.map(d => d.id)).toEqual([1, 2, 5]);
+describe('documentos de períodos anteriores (se muestran atenuados)', () => {
+    const cerrados: PeriodoLaboral[] = [
+        { desde: '2025-01-01', hasta: '2025-03-31', reingresado_en: '2025-06-01T13:00:00.000Z' },
+        { desde: '2025-06-01', hasta: '2026-06-30', reingresado_en: '2026-08-20T14:30:00.000Z' },
+    ];
+    const inicio = inicioDocsPeriodoActual(cerrados);
+
+    test('el corte es el ÚLTIMO reingreso registrado; sin reingresos no hay corte', () => {
+        expect(inicio).toBe('2026-08-20T14:30:00.000Z');
+        expect(inicioDocsPeriodoActual([])).toBeNull();
+        expect(inicioDocsPeriodoActual([{ desde: null, hasta: '2026-01-01' }])).toBeNull();
+        expect(esDocDePeriodoAnterior({ fecha_subida: '2020-01-01' }, null)).toBe(false);
+    });
+
+    test('generados por instante: el finiquito viejo es anterior; el kit nuevo (antes de la fecha de ingreso) es actual', () => {
+        expect(esDocDePeriodoAnterior({ fecha_generacion: '2026-07-05T13:00:00.000Z' }, inicio)).toBe(true);   // finiquito tras la baja
+        expect(esDocDePeriodoAnterior({ fecha_generacion: '2026-08-20T14:31:00.000Z' }, inicio)).toBe(false);  // kit recién reingresado
+    });
+
+    test('subidos por día: antes del día del reingreso = anterior; ese mismo día = actual', () => {
+        expect(esDocDePeriodoAnterior({ fecha_subida: '2026-01-20' }, inicio)).toBe(true);
+        expect(esDocDePeriodoAnterior({ fecha_subida: '2026-08-20' }, inicio)).toBe(false);
+        expect(esDocDePeriodoAnterior({ fecha_subida: null }, inicio)).toBe(false);
     });
 });
