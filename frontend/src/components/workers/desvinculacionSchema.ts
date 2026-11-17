@@ -36,6 +36,9 @@ export interface UltimaDesvinculacion {
     reactivado_en?: string | null;
     /** documentos.id del finiquito emitido para esta baja (B5); null si aún no se emitió. */
     finiquito_documento_id?: number | null;
+    /** Empresa con la que tenía contrato en ese período (mig 152). El Art. 159 N°4 cuenta por empleador. */
+    empresa_id?: number | null;
+    empresa_nombre?: string | null;
     /** Antecedente interno; el backend solo lo envía a quien tiene trabajadores.eliminar / .reactivar. */
     detalle?: string | null;
 }

@@ -114,14 +114,20 @@ export const ReingresoModal: React.FC<Props> = ({ isOpen, worker, onClose, onDon
     const ultimoEgreso = ultima?.fecha ?? aYmd(worker?.fecha_desvinculacion);
     const nombre = worker ? `${worker.apellido_paterno} ${worker.apellido_materno || ''} ${worker.nombres}`.replace(/\s+/g, ' ').trim() : '';
 
-    // Art. 159 N°4: períodos cerrados + el que acaba de terminar (baja abierta) con la empresa de la ficha.
+    // Empresa con la que tenía contrato al terminar el último período: la foto de la baja (mig 152) o, para
+    // bajas anteriores, la de la ficha (un finiquitado no cambia de empresa). El Art. 159 cuenta por empleador.
+    const empresaUltimoId = ultima?.empresa_id ?? worker?.empresa_id ?? null;
+    const empresaUltimoNombre = ultima?.empresa_nombre ?? worker?.empresa_nombre ?? null;
+
+    // Art. 159 N°4: períodos cerrados + el que acaba de terminar (baja abierta) con su empresa.
     const fechaSel = watch('fecha_ingreso');
     const empresaSel = watch('empresa_id');
+    const empresaSelNombre = empresas.find(e => e.value === empresaSel)?.label ?? null;
     const art159 = useMemo(() => {
         if (!worker) return null;
-        const recien: PeriodoLaboral = { desde: aYmd(ultima?.fecha_ingreso_periodo ?? worker.fecha_ingreso), hasta: ultimoEgreso, empresa_id: worker.empresa_id };
+        const recien: PeriodoLaboral = { desde: aYmd(ultima?.fecha_ingreso_periodo ?? worker.fecha_ingreso), hasta: ultimoEgreso, empresa_id: empresaUltimoId };
         return evaluarArt159([...cerrados, recien], empresaSel || null, fechaSel);
-    }, [worker, ultima, ultimoEgreso, cerrados, empresaSel, fechaSel]);
+    }, [worker, ultima, ultimoEgreso, empresaUltimoId, cerrados, empresaSel, fechaSel]);
     const nombreEmpresa = empresas.find(e => e.value === empresaSel)?.label ?? worker?.empresa_nombre ?? 'esta empresa';
 
     const onSubmit = async (d: ReingresoFormData) => {
@@ -225,6 +231,8 @@ export const ReingresoModal: React.FC<Props> = ({ isOpen, worker, onClose, onDon
                                             <dd className="font-medium text-brand-dark">
                                                 {ultima.fecha_ingreso_periodo ? `${fmtFecha(ultima.fecha_ingreso_periodo)} → ` : ''}{ultima.fecha ? fmtFecha(ultima.fecha) : '—'}
                                             </dd>
+                                            <dt className="text-muted-foreground">Empresa</dt>
+                                            <dd className="font-medium text-brand-dark">{empresaUltimoNombre || '—'}</dd>
                                             <dt className="text-muted-foreground">Causal</dt><dd className="font-medium text-brand-dark">{ultima.causal_nombre || ultima.causal_codigo || '—'}{ultima.articulo_texto ? <span className="text-muted-foreground"> · {ultima.articulo_texto}</span> : null}</dd>
                                             {ultima.desvinculado_por_nombre && (<><dt className="text-muted-foreground">Por</dt><dd className="text-brand-dark">{ultima.desvinculado_por_nombre}</dd></>)}
                                             {ultima.detalle && (<><dt className="text-muted-foreground">Detalle</dt><dd className="whitespace-pre-wrap text-brand-dark">{ultima.detalle}</dd></>)}
@@ -256,6 +264,21 @@ export const ReingresoModal: React.FC<Props> = ({ isOpen, worker, onClose, onDon
                                     <Input label="Término de contrato (opcional)" type="date" min={fechaSel || undefined}
                                         helperText="Vacío = indefinido" {...register('fecha_termino_contrato')} />
                                 </div>
+
+                                {/* Siempre explícito: con qué empresa terminó y con cuál reingresa (Art. 159 cuenta por empleador). */}
+                                {empresaUltimoNombre && (
+                                    <p className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-brand-dark">
+                                        Su último contrato fue con <strong>{empresaUltimoNombre}</strong>.
+                                        {empresaSel > 0 && empresaUltimoId != null && empresaSel !== empresaUltimoId && empresaSelNombre && (
+                                            <span className="block text-muted-foreground">
+                                                Reingresa con <strong className="text-brand-dark">{empresaSelNombre}</strong>: es otro empleador, así que los contratos anteriores no se suman para el Art. 159 N°4.
+                                            </span>
+                                        )}
+                                        {empresaSel > 0 && empresaSel === empresaUltimoId && (
+                                            <span className="block text-muted-foreground">Reingresa con la misma empresa.</span>
+                                        )}
+                                    </p>
+                                )}
 
                                 {art159 && art159.nivel !== 'ninguno' && (
                                     <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4">

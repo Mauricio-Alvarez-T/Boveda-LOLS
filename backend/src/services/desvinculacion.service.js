@@ -57,6 +57,21 @@ const SELECT_HIST = `
       FROM trabajador_desvinculaciones d
       LEFT JOIN usuarios u1 ON u1.id = d.desvinculado_por
       LEFT JOIN usuarios u2 ON u2.id = d.reactivado_por`;
+// Mig 152: + empresa del período (con quién tenía contrato al darlo de baja). El aviso del Art. 159 N°4
+// cuenta por empleador, así que el reingreso y la revisión de la solicitud la muestran explícita.
+const SELECT_HIST_FOTO = SELECT_HIST
+    .replace(/d\.reactivado_en(\r?\n)/, 'd.reactivado_en, d.empresa_id, e.razon_social AS empresa_nombre$1')
+    .replace('LEFT JOIN usuarios u2 ON u2.id = d.reactivado_por', 'LEFT JOIN usuarios u2 ON u2.id = d.reactivado_por LEFT JOIN empresas e ON e.id = d.empresa_id');
+
+/** SELECT del historial con la empresa del período; sin la mig 152 (1054) repite sin ella. */
+async function queryHist(conn, resto, params) {
+    try {
+        return await conn.query(`${SELECT_HIST_FOTO} ${resto}`, params);
+    } catch (err) {
+        if (!err || err.errno !== 1054) throw err;
+        return conn.query(`${SELECT_HIST} ${resto}`, params);
+    }
+}
 
 /**
  * Modo de proyección según los permisos del usuario (JWT `p`). Regla D-F del plan Gestiones:
@@ -98,6 +113,9 @@ function proyectar(r, modo) {
         reactivado_en: r.reactivado_en ?? null,
         reactivado_por_nombre: r.reactivado_por_nombre ?? null,
         finiquito_documento_id: r.finiquito_documento_id ?? null,
+        // Mig 152: empresa con la que tenía contrato en ese período (Art. 159 N°4 cuenta por empleador).
+        empresa_id: r.empresa_id ?? null,
+        empresa_nombre: r.empresa_nombre ?? null,
     };
     if (modo === 'completa') return { ...resumen, detalle: r.detalle ?? null };
     return resumen;
@@ -119,8 +137,8 @@ const desvinculacionService = {
      */
     async ultimaDesvinculacion(trabajadorId, { modo = 'resumen', conn = db } = {}) {
         try {
-            const [rows] = await conn.query(
-                `${SELECT_HIST} WHERE d.trabajador_id = ? ORDER BY d.desvinculado_en DESC, d.id DESC LIMIT 1`,
+            const [rows] = await queryHist(conn,
+                'WHERE d.trabajador_id = ? ORDER BY d.desvinculado_en DESC, d.id DESC LIMIT 1',
                 [trabajadorId]
             );
             return proyectar(rows[0], modo);
@@ -139,8 +157,8 @@ const desvinculacionService = {
      */
     async desvinculacionAbierta(trabajadorId, { conn = db, estricta = false } = {}) {
         try {
-            const [rows] = await conn.query(
-                `${SELECT_HIST} WHERE d.trabajador_id = ? AND d.reactivado_en IS NULL ORDER BY d.desvinculado_en DESC, d.id DESC LIMIT 1`,
+            const [rows] = await queryHist(conn,
+                'WHERE d.trabajador_id = ? AND d.reactivado_en IS NULL ORDER BY d.desvinculado_en DESC, d.id DESC LIMIT 1',
                 [trabajadorId]
             );
             const r = rows[0];
@@ -190,7 +208,7 @@ const desvinculacionService = {
     async antecedentePorRut(rutNormalizado, { modo = 'resumen', conn = db } = {}) {
         if (!rutNormalizado) return null;
         try {
-            const r = await conn.query(`${SELECT_HIST} WHERE d.rut_normalized = ? ORDER BY d.desvinculado_en DESC, d.id DESC LIMIT 1`, [rutNormalizado]);
+            const r = await queryHist(conn, 'WHERE d.rut_normalized = ? ORDER BY d.desvinculado_en DESC, d.id DESC LIMIT 1', [rutNormalizado]);
             const rows = Array.isArray(r) ? r[0] : [];
             return proyectar(rows && rows[0], modo);
         } catch (err) {
@@ -201,8 +219,8 @@ const desvinculacionService = {
     /** Historial completo (con detalle). Gate en la ruta: trabajadores.eliminar OR .reactivar. */
     async listar(trabajadorId) {
         try {
-            const [rows] = await db.query(
-                `${SELECT_HIST} WHERE d.trabajador_id = ? ORDER BY d.desvinculado_en DESC, d.id DESC`,
+            const [rows] = await queryHist(db,
+                'WHERE d.trabajador_id = ? ORDER BY d.desvinculado_en DESC, d.id DESC',
                 [trabajadorId]
             );
             return rows.map(r => proyectar(r, 'completa'));
