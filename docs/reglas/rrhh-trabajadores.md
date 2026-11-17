@@ -491,10 +491,9 @@ de `/:id`. Errores con el patrón del repo: `throw Object.assign(new Error(msg),
   → transacción `FOR UPDATE` (404 / 409 `YA_DESVINCULADO` / 400 fecha < ingreso o > hoy+30 / 400 causal
   sin detalle) → INSERT en `trabajador_desvinculaciones` (con `fecha_ingreso_periodo`) → UPDATE
   `trabajadores` (`activo=0`, `fecha_desvinculacion`, `causal_desvinculacion`, `no_recontratar`) → cuenta
-  asistencias posteriores (se informan, no se tocan). `PUT /:id/reactivar` [`trabajadores.reactivar`]
-  `{quitar_marca_no_recontratar?}` → 409 `YA_ACTIVO`; `activo=1`, limpia fecha/causal, **conserva
-  `fecha_ingreso`** (7 validaciones dependen de ella) y la marca salvo pedido; cierra la fila del historial
-  (`reactivado_por/en`). `GET /:id/desvinculaciones` [eliminar OR reactivar] = historial con `detalle`.
+  asistencias posteriores (se informan, no se tocan). `PUT /:id/reactivar` [`trabajadores.reactivar`] =
+  **REINGRESO** desde 2026-11-17 (ver § Reingreso y períodos laborales; la regla vieja «conserva
+  `fecha_ingreso`» quedó REVERTIDA). `GET /:id/desvinculaciones` [eliminar OR reactivar] = historial con `detalle`.
   `GET /catalogos/causales-desvinculacion` [auth] = catálogo (2 segmentos: el CRUD captura `/:id`).
 - **Gates reales**: hasta hoy `trabajadores.eliminar`/`.reactivar` solo se exigían en la UI y cualquiera con
   `trabajadores.editar` desvinculaba con `PUT /:id {activo:false}`. Ahora `index.js` monta un guard ANTES
@@ -520,10 +519,63 @@ de `/:id`. Errores con el patrón del repo: `throw Object.assign(new Error(msg),
   siendo solo un aviso. Terreno (solicitud) ve fecha/artículo/marca; con `trabajadores.ver` también el
   nombre de la causal (`checkRut(rut, { conCausal })`).
 - **UI**: `DesvincularModal` (fecha, causal, detalle, marca; éxito con causal y aviso de asistencias
-  posteriores), `ReactivarModal` (última desvinculación + tarjeta roja si marcado + checkbox quitar marca),
+  posteriores), `ReingresoModal` (ex `ReactivarModal`; ver § Reingreso y períodos laborales),
   `DesvinculacionInfo` en la ficha rápida, aviso en el check-rut de `WorkerForm`. Lógica pura en
   `desvinculacionSchema.ts` (+ test). Logs: `trabajador_desvinculado` / `trabajador_reactivado` sin `detalle`.
 - Pendiente (§10.4 del plan): qué hacer con asistencias registradas después de la fecha de baja.
+
+## Reingreso y períodos laborales (mig 152 — 2026-11-17)
+
+Un finiquitado que vuelve NO se crea de nuevo (`rut` es UNIQUE): se **reingresa** sobre la misma ficha y
+se abre un **período laboral** nuevo. Decisiones del dueño (17-nov): reingreso desde oficina y (2ª etapa)
+desde terreno; la ficha muestra el período actual + total histórico; aviso Art. 159 N°4 que no bloquea;
+lista en la app de los reactivados con el flujo viejo para corregirlos a mano.
+
+- **Regla central: `trabajadores.fecha_ingreso` = inicio del período ACTUAL.** Revierte «reactivar conserva
+  `fecha_ingreso`» (B4): esa regla dejaba contrato, finiquito, filtros, alerta de 10 meses y reporte con la
+  fecha del primer período, y abría el hueco entre períodos en Asistencia. Las 7 validaciones que la
+  justificaban ahora miran **períodos**.
+- **Períodos cerrados = filas de `trabajador_desvinculaciones` con `reactivado_en`**: `[fecha_ingreso_periodo,
+  fecha_desvinculacion]`, con foto `empresa_id/obra_id/cargo_id` (mig 152, sin FK; se graba al desvincular y
+  se completa al reingresar si venía vacía). Sin tabla nueva. Período actual = `[fecha_ingreso,
+  fecha_desvinculacion | abierto]`. Módulo puro `utils/periodosLaborales` (backend y frontend, espejo):
+  `periodosDe`, `motivoFuera`/`fueraDePeriodo` → `pre_contrato | finiquitado | entre_periodos | null`.
+- **`PUT /:id/reactivar` = reingreso** [`trabajadores.reactivar`] `{fecha_ingreso (obligatoria), empresa_id?,
+  obra_id?, cargo_id?, categoria_reporte?, fecha_termino_contrato?, quitar_marca_no_recontratar?}` →
+  `desvinculacionService._reingresarEnConn` (reutilizable dentro de otra transacción): 409 `YA_ACTIVO`;
+  400 `REINGRESO_SOLAPADO` si la fecha no es posterior al último egreso; 400 si supera hoy+30, si el
+  término es anterior al ingreso o si la obra no existe / está finalizada (`OBRA_FINALIZADA`). Mueve
+  `fecha_ingreso`; `fecha_termino_contrato` = la del body o NULL (el término viejo ya venció y marcaba
+  «contrato vencido» en el Inicio); empresa/obra/cargo/categoría solo si vienen (nunca null); marca
+  `no_recontratar` igual que antes (solo advierte). Log `trabajador_reingresado` con ingreso anterior/nuevo.
+- **Asistencia**: la fecha vale dentro de CUALQUIER período (corregir el período 1 sigue permitido); el
+  hueco entre una baja y el reingreso se rechaza (400) — bulk, períodos de ausencia (tampoco pueden
+  cruzar el hueco) y el Excel (celdas en blanco, no pagan). La lista/ficha del CRUD trae `periodos_cerrados`
+  ('desde|hasta,…', subconsulta `sqlCerrados`) y el front bloquea el día con «Bloqueado: entre períodos».
+- **Ficha** (`GET /:id/resumen`): los campos de primer nivel cuentan el período actual (`a.fecha >=
+  fecha_ingreso`); `total` = todos los períodos; `periodos_laborales` = cerrados con empresa/cargo/causal
+  (sin `detalle`). UI: «Asistencia de este período» + «Total histórico», bloque «Historial laboral»,
+  documentos de períodos anteriores marcados «Período anterior» (un documento cae en el último período que
+  empezó en o antes de su fecha). La completitud de documentos sigue contando todos los períodos (v1).
+- **PUT genérico**: si cambia `fecha_ingreso` y hay períodos cerrados, debe ser posterior al último egreso
+  (400 `REINGRESO_SOLAPADO`). Solo cuando CAMBIA (WorkerForm reenvía siempre la fecha).
+- **Filtros de Gestiones**: «Salió entre» busca en el historial de bajas (un EXISTS, ambas cotas sobre la
+  misma baja); «Finiquito pendiente» solo cuenta un FINIQUITO subido desde el ingreso actual; nuevo
+  `reingreso_sin_fecha` (chip «Reactivados con ingreso antiguo», gate `trabajadores.ver`) = activos con un
+  período cerrado que termina en o después de su ingreso: los reactivados con el flujo viejo. RRHH les
+  pone la fecha real de reingreso en Editar y salen solos. Mientras tanto la unión de sus períodos cubre
+  todo (sin regresión).
+- **Reporte semanal**: «Contrataciones nuevas» marca «(reingreso)»; la tendencia mensual suma los ingresos de
+  períodos anteriores (sin duplicar a los reactivados viejos).
+- **Art. 159 N°4** (aviso ámbar en `ReingresoModal`, NO bloquea): cuenta los períodos con la MISMA empresa
+  que terminaron en los 15 meses previos (`evaluarArt159`): 2º contrato = info, 3º o más = alerta, 3º o más
+  con ≥12 meses = «la ley presume contrato indefinido». Dice «al menos N contratos»: las renovaciones dentro
+  de un período no quedan registradas. Texto a validar con asesoría legal.
+- **UI** `ReingresoModal`: fecha de reingreso (mín. = egreso+1), empresa/obra/cargo/categoría precargados,
+  término opcional («vacío = indefinido»); éxito con «Emitir kit de ingreso» y «Actualizar ficha» (abre
+  Editar con la ficha RELEÍDA: la fila de la grilla quedó con el ingreso viejo). Lógica pura en
+  `reingresoSchema.ts` (+ test).
+- **Sin permisos nuevos ni re-login.** 2ª etapa pendiente: solicitud de reingreso desde terreno.
 
 ## Documentos laborales generados por Bóveda (plan Gestiones B2, mig 110 — 2026-09-11)
 
