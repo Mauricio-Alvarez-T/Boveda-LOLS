@@ -133,8 +133,11 @@ router.get('/:id/quick-view', auth, checkPermission('trabajadores.ver', 'asisten
 
 // Ficha-resumen del trabajador: datos de contrato + stats de asistencia agregados.
 // Solo lectura. "Día trabajado" = estados con cuenta_dia_trabajado=1 (NO es_presente);
-// "falta" = código 'F' (ver docs/reglas/asistencia.md). Las asistencias solo existen
-// dentro del período laboral, así que se cuentan todas las del trabajador.
+// "falta" = código 'F' (ver docs/reglas/asistencia.md).
+// Reingreso (mig 152): los campos de primer nivel cuentan el PERÍODO ACTUAL (desde fecha_ingreso);
+// `total` cuenta todas las asistencias del trabajador; `periodos_laborales` = períodos cerrados
+// (sin detalle interno). Sin períodos anteriores ambos números coinciden.
+const CAMPOS_RESUMEN = ['dias_trabajados', 'faltas', 'dias_presente', 'dias_vacaciones', 'dias_licencia', 'dias_registrados'];
 router.get('/:id/resumen', auth, checkPermission('trabajadores.ver'), async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -144,34 +147,47 @@ router.get('/:id/resumen', auth, checkPermission('trabajadores.ver'), async (req
             [id]
         );
         if (!contrato.length) return res.status(404).json({ error: 'Trabajador no encontrado' });
+        const ingreso = contrato[0].fecha_ingreso || '1000-01-01';
 
         const [stats] = await db.query(
             `SELECT
-                COUNT(DISTINCT CASE WHEN ea.cuenta_dia_trabajado = 1 THEN a.fecha END) AS dias_trabajados,
-                COUNT(DISTINCT CASE WHEN ea.codigo = 'F'            THEN a.fecha END) AS faltas,
-                COUNT(DISTINCT CASE WHEN ea.es_presente = 1         THEN a.fecha END) AS dias_presente,
-                COUNT(DISTINCT CASE WHEN ea.codigo = 'V'            THEN a.fecha END) AS dias_vacaciones,
-                COUNT(DISTINCT CASE WHEN ea.codigo = 'LM'           THEN a.fecha END) AS dias_licencia,
-                COUNT(DISTINCT a.fecha) AS dias_registrados
-             FROM asistencias a
-             JOIN estados_asistencia ea ON a.estado_id = ea.id
-             WHERE a.trabajador_id = ?`,
-            [id]
+                COUNT(DISTINCT CASE WHEN x.actual = 1 AND x.cuenta_dia_trabajado = 1 THEN x.fecha END) AS dias_trabajados,
+                COUNT(DISTINCT CASE WHEN x.actual = 1 AND x.codigo = 'F'            THEN x.fecha END) AS faltas,
+                COUNT(DISTINCT CASE WHEN x.actual = 1 AND x.es_presente = 1         THEN x.fecha END) AS dias_presente,
+                COUNT(DISTINCT CASE WHEN x.actual = 1 AND x.codigo = 'V'            THEN x.fecha END) AS dias_vacaciones,
+                COUNT(DISTINCT CASE WHEN x.actual = 1 AND x.codigo = 'LM'           THEN x.fecha END) AS dias_licencia,
+                COUNT(DISTINCT CASE WHEN x.actual = 1 THEN x.fecha END) AS dias_registrados,
+                COUNT(DISTINCT CASE WHEN x.cuenta_dia_trabajado = 1 THEN x.fecha END) AS total_dias_trabajados,
+                COUNT(DISTINCT CASE WHEN x.codigo = 'F'            THEN x.fecha END) AS total_faltas,
+                COUNT(DISTINCT CASE WHEN x.es_presente = 1         THEN x.fecha END) AS total_dias_presente,
+                COUNT(DISTINCT CASE WHEN x.codigo = 'V'            THEN x.fecha END) AS total_dias_vacaciones,
+                COUNT(DISTINCT CASE WHEN x.codigo = 'LM'           THEN x.fecha END) AS total_dias_licencia,
+                COUNT(DISTINCT x.fecha) AS total_dias_registrados
+             FROM (SELECT a.fecha, ea.cuenta_dia_trabajado, ea.codigo, ea.es_presente, (a.fecha >= ?) AS actual
+                     FROM asistencias a
+                     JOIN estados_asistencia ea ON a.estado_id = ea.id
+                    WHERE a.trabajador_id = ?) x`,
+            [ingreso, id]
         );
         const s = stats[0] || {};
         const ultimaDesv = contrato[0].activo ? null : await desvinculacionService.ultimaDesvinculacion(id, { modo: 'resumen' });
+        const periodos = (await desvinculacionService.periodosCerrados([id])).get(Number(id)) || [];
+
+        const actual = {}, total = {};
+        for (const k of CAMPOS_RESUMEN) {
+            actual[k] = Number(s[k] || 0);
+            // Mock/DB sin el agregado total → igual al actual (un solo período).
+            total[k] = s[`total_${k}`] == null ? actual[k] : Number(s[`total_${k}`]);
+        }
 
         res.json({
             data: {
                 fecha_ingreso: contrato[0].fecha_ingreso,
                 fecha_desvinculacion: contrato[0].fecha_desvinculacion,
                 activo: !!contrato[0].activo,
-                dias_trabajados: Number(s.dias_trabajados || 0),
-                faltas: Number(s.faltas || 0),
-                dias_presente: Number(s.dias_presente || 0),
-                dias_vacaciones: Number(s.dias_vacaciones || 0),
-                dias_licencia: Number(s.dias_licencia || 0),
-                dias_registrados: Number(s.dias_registrados || 0),
+                ...actual,
+                total,
+                periodos_laborales: periodos,
                 ultima_desvinculacion: ultimaDesv,
             }
         });

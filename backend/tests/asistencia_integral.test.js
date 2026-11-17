@@ -243,7 +243,9 @@ describe('Registro Masivo de Asistencia (bulkCreate)', () => {
         const conn = await db.getConnection();
         conn.query
             .mockResolvedValueOnce([[]])  // no feriado
-            .mockResolvedValueOnce([[{ fecha_ingreso: '2025-06-01', fecha_desvinculacion: null }]]);
+            // `id` hace que la guarda encuentre al trabajador (sin él el test pasaba por otro 500).
+            .mockResolvedValueOnce([[{ id: 1, fecha_ingreso: '2025-06-01', fecha_desvinculacion: null }]])
+            .mockResolvedValueOnce([[]]);  // asistencias existentes
 
         const res = await request(app)
             .post('/api/asistencias/bulk/1')
@@ -256,7 +258,26 @@ describe('Registro Masivo de Asistencia (bulkCreate)', () => {
                 }]
             });
 
-        expect(res.status).toBe(500);
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/antes de la fecha de contratación/);
+        expect(conn.rollback).toHaveBeenCalled();
+    });
+
+    test('POST /api/asistencias/bulk/1 → BLOQUEA fecha entre dos períodos laborales (reingreso, mig 152)', async () => {
+        const conn = await db.getConnection();
+        conn.query
+            .mockResolvedValueOnce([[]])  // no feriado
+            .mockResolvedValueOnce([[{ id: 1, fecha_ingreso: '2025-04-01', fecha_desvinculacion: null, periodos_cerrados: '2025-01-01|2025-02-28' }]])
+            .mockResolvedValueOnce([[]]);  // asistencias existentes
+
+        const res = await request(app)
+            .post('/api/asistencias/bulk/1')
+            .set('Authorization', `Bearer ${fullToken}`)
+            .send({ registros: [{ trabajador_id: 1, fecha: '2025-03-03', estado_id: 1 }] });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/entre dos períodos laborales/);
+        expect(String(conn.query.mock.calls[1][0])).toMatch(/periodos_cerrados/);
         expect(conn.rollback).toHaveBeenCalled();
     });
 
@@ -264,7 +285,8 @@ describe('Registro Masivo de Asistencia (bulkCreate)', () => {
         const conn = await db.getConnection();
         conn.query
             .mockResolvedValueOnce([[]])  // no feriado
-            .mockResolvedValueOnce([[{ fecha_ingreso: '2024-01-01', fecha_desvinculacion: '2025-02-28' }]]);
+            .mockResolvedValueOnce([[{ id: 1, fecha_ingreso: '2024-01-01', fecha_desvinculacion: '2025-02-28' }]])
+            .mockResolvedValueOnce([[]]);  // asistencias existentes
 
         const res = await request(app)
             .post('/api/asistencias/bulk/1')
@@ -277,7 +299,8 @@ describe('Registro Masivo de Asistencia (bulkCreate)', () => {
                 }]
             });
 
-        expect(res.status).toBe(500);
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/después de la fecha de finiquito/);
         expect(conn.rollback).toHaveBeenCalled();
     });
 
@@ -557,7 +580,23 @@ describe('Períodos de Ausencia', () => {
                 fecha_fin: '2025-03-05'
             });
 
-        expect(res.status).toBe(500);
+        // Reingreso (mig 152): la guarda ahora responde 400 (antes caía como 500 genérico).
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/antes de la fecha de contratación/);
+    });
+
+    test('POST /api/asistencias/periodos → BLOQUEA período que cruza el hueco entre dos períodos laborales', async () => {
+        const conn = await db.getConnection();
+        // Período 1: 2025-01-01..2025-02-28; reingreso 2025-04-01 (marzo = hueco).
+        conn.query.mockResolvedValueOnce([[{ fecha_ingreso: '2025-04-01', fecha_desvinculacion: null, periodos_cerrados: '2025-01-01|2025-02-28' }]]);
+
+        const res = await request(app)
+            .post('/api/asistencias/periodos')
+            .set('Authorization', `Bearer ${fullToken}`)
+            .send({ trabajador_id: 1, obra_id: 1, estado_id: 3, fecha_inicio: '2025-02-20', fecha_fin: '2025-04-05' });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/entre dos períodos laborales/);
     });
 
     test('GET /api/asistencias/periodos → listar períodos', async () => {

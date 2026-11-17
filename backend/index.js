@@ -110,6 +110,7 @@ try {
   // siempre ambos campos → sin este guard, crear/editar una empresa daría 500 "Unknown column".
   // Los hooks corren después del filtro de whitelist y antes de armar el SQL.
   const { hasCols } = require('./src/utils/schema');
+  const { sqlCerrados } = require('./src/utils/periodosLaborales');
   const quitarRepresentanteSiFalta = async (safeData) => {
     // Solo se paga la introspección cuando el body trae los campos nuevos.
     if (safeData.representante_nombre === undefined && safeData.representante_rut === undefined) return;
@@ -372,10 +373,42 @@ try {
     safeData.fecha_termino_contrato = s;
   };
 
+  // Reingreso (mig 152): `fecha_ingreso` = inicio del período ACTUAL. Si cambia y el trabajador tiene
+  // períodos anteriores, no puede caer en o antes del último egreso (se solaparían). Así RRHH corrige a
+  // los reactivados con el flujo viejo (ingreso del primer período) desde Editar. Solo cuando CAMBIA:
+  // WorkerForm manda siempre la fecha y la de un reactivado viejo sigue siendo la original.
+  const guardIngresoPeriodos = async (id, safeData) => {
+    const nueva = typeof safeData.fecha_ingreso === 'string' ? safeData.fecha_ingreso.slice(0, 10) : null;
+    if (!nueva || !/^\d{4}-\d{2}-\d{2}$/.test(nueva)) return;
+    let fila;
+    try {
+      const [rows] = await db.query(
+        `SELECT DATE_FORMAT(t.fecha_ingreso, '%Y-%m-%d') AS actual,
+                (SELECT DATE_FORMAT(MAX(d.fecha_desvinculacion), '%Y-%m-%d') FROM trabajador_desvinculaciones d
+                  WHERE d.trabajador_id = t.id AND d.reactivado_en IS NOT NULL) AS ultimo_egreso
+           FROM trabajadores t WHERE t.id = ?`,
+        [id]
+      );
+      fila = rows && rows[0];
+    } catch (err) {
+      if ([1146, 1054].includes(err && err.errno)) return;
+      throw err;
+    }
+    if (!fila || !fila.ultimo_egreso || fila.actual === nueva) return;
+    if (nueva <= fila.ultimo_egreso) {
+      throw Object.assign(
+        new Error(`La fecha de ingreso debe ser posterior al último egreso (${fila.ultimo_egreso}): es el inicio del período actual.`),
+        { statusCode: 400, code: 'REINGRESO_SOLAPADO' }
+      );
+    }
+  };
+
   app.use('/api/trabajadores', createCrudRoutes('trabajadores', 'trabajadores', {
     searchFields: ['rut', 'nombres', 'apellido_paterno'],
     joins: 'LEFT JOIN empresas e ON trabajadores.empresa_id = e.id LEFT JOIN obras o ON trabajadores.obra_id = o.id LEFT JOIN cargos c ON trabajadores.cargo_id = c.id',
-    selectFields: 'trabajadores.*, e.razon_social as empresa_nombre, o.nombre as obra_nombre, c.nombre as cargo_nombre',
+    // periodos_cerrados (reingreso, mig 152): 'desde|hasta,…' de los períodos laborales anteriores; Asistencia y la
+    // ficha bloquean el tiempo entre períodos. Requiere la tabla de la mig 112 (en prod desde 2026-09-22).
+    selectFields: `trabajadores.*, e.razon_social as empresa_nombre, o.nombre as obra_nombre, c.nombre as cargo_nombre, ${sqlCerrados('trabajadores')}`,
     allowedFilters: ['obra_id', 'empresa_id', 'cargo_id', 'es_prueba'],
     useSoftDelete: true,
     orderBy: 'trabajadores.apellido_paterno ASC, trabajadores.apellido_materno ASC, trabajadores.nombres ASC',
@@ -395,7 +428,10 @@ try {
     testFlagColumn: 'es_prueba',
     // Herencia: un trabajador nuevo asignado a una obra de prueba hereda el flag
     // (salvo que el body ya traiga es_prueba explícito).
-    beforeUpdate: (_id, safeData) => normalizarTerminoContrato(safeData),
+    beforeUpdate: async (id, safeData) => {
+      await normalizarTerminoContrato(safeData);
+      await guardIngresoPeriodos(id, safeData);
+    },
     beforeCreate: async (safeData, dbConn) => {
       await normalizarTerminoContrato(safeData);
       if (safeData.es_prueba === undefined && safeData.obra_id) {

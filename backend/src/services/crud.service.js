@@ -373,7 +373,8 @@ const createCrudService = (tableName, options = {}) => {
                 const headerRow = 6;
                 // Filter out technical fields and URLs
                 const keys = Object.keys(rows[0]).filter(k => {
-                    const isTechnical = ['id', 'activo'].includes(k) || k.endsWith('_id');
+                    // periodos_cerrados: texto técnico de los períodos laborales (trabajadores, mig 152).
+                    const isTechnical = ['id', 'activo', 'periodos_cerrados'].includes(k) || k.endsWith('_id');
                     const isUrl = k.endsWith('_url');
                     return !isTechnical && !isUrl;
                 });
