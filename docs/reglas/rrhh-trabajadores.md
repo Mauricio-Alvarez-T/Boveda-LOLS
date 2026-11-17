@@ -575,7 +575,15 @@ lista en la app de los reactivados con el flujo viejo para corregirlos a mano.
   término opcional («vacío = indefinido»); éxito con «Emitir kit de ingreso» y «Actualizar ficha» (abre
   Editar con la ficha RELEÍDA: la fila de la grilla quedó con el ingreso viejo). Lógica pura en
   `reingresoSchema.ts` (+ test).
-- **Sin permisos nuevos ni re-login.** 2ª etapa pendiente: solicitud de reingreso desde terreno.
+- **Sin permisos nuevos ni re-login.**
+- **Solicitud de reingreso desde terreno (mig 153)**: el check-rut de la ficha de ingreso ya no bloquea un
+  RUT FINIQUITADO (estado `reingreso`, aviso ámbar/rojo con el antecedente); `crear` lo guarda con
+  `solicitudes_ingreso.tipo='reingreso'` y `trabajador_id` = la ficha existente (sin la mig 153 → 409 como
+  antes). `aprobar` [`trabajadores.solicitud.aprobar`, la aprobación misma autoriza] llama
+  `_reingresarEnConn` en SU transacción y actualiza la ficha con `COALESCE(?, col)` (lo vacío conserva el
+  dato). La ficha en Word se busca por `metadata.solicitud.id` (la del período anterior no la tapa). UI:
+  `AvisoReingreso` en la revisión (último egreso, marca, Art. 159), botón «Aprobar reingreso», chip
+  «Reingreso» en la lista; tras aprobar, el kit relee la ficha.
 
 ## Documentos laborales generados por Bóveda (plan Gestiones B2, mig 110 — 2026-09-11)
 
