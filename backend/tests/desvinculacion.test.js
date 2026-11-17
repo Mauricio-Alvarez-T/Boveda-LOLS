@@ -307,6 +307,21 @@ describe('GET /api/trabajadores/:id/desvinculaciones', () => {
         expect(res.body.data[0].causal_nombre).toMatch(/Inasistencias/);
     });
 
+    test('mig 152: trae la empresa del período (con quién tenía contrato); sin la columna (1054) repite sin ella', async () => {
+        db.query.mockResolvedValueOnce([[{ ...FILA, empresa_id: 2, empresa_nombre: 'LOLS Ltda' }]]);
+        const res = await request(app).get('/api/trabajadores/7/desvinculaciones').set('Authorization', `Bearer ${tokenEliminar}`);
+        expect(res.body.data[0]).toMatchObject({ empresa_id: 2, empresa_nombre: 'LOLS Ltda' });
+        expect(sqlOf(db.query)[0]).toMatch(/LEFT JOIN empresas e ON e\.id = d\.empresa_id/);
+
+        db.query.mockReset()
+            .mockRejectedValueOnce(Object.assign(new Error('Unknown column d.empresa_id'), { errno: 1054 }))
+            .mockResolvedValueOnce([[FILA]]);
+        const r2 = await request(app).get('/api/trabajadores/7/desvinculaciones').set('Authorization', `Bearer ${tokenEliminar}`);
+        expect(r2.status).toBe(200);
+        expect(r2.body.data[0]).toMatchObject({ causal_codigo: 'INASISTENCIA', empresa_nombre: null });
+        expect(sqlOf(db.query)[1]).not.toMatch(/empresas/);
+    });
+
     test('con solo trabajadores.ver → 403', async () => {
         const res = await request(app).get('/api/trabajadores/7/desvinculaciones').set('Authorization', `Bearer ${tokenVer}`);
         expect(res.status).toBe(403);

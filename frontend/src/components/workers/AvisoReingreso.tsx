@@ -52,14 +52,19 @@ export const AvisoReingreso: React.FC<Props> = ({ trabajadorId, empresaId, fecha
         return () => { cancelado = true; };
     }, [trabajadorId]);
 
+    // Empresa del último contrato: la foto de la baja (mig 152) o la de la ficha (un finiquitado no cambia de empresa).
+    const empresaUltimoId = datos?.ultima?.empresa_id ?? datos?.empresa_id ?? null;
+    const empresaUltimoNombre = datos?.ultima?.empresa_nombre ?? datos?.empresa_nombre ?? null;
+
     const art159 = useMemo(() => {
         if (!datos) return null;
-        const recien: PeriodoLaboral = { desde: aYmd(datos.ultima?.fecha_ingreso_periodo) ?? datos.fecha_ingreso, hasta: aYmd(datos.ultima?.fecha), empresa_id: datos.empresa_id };
+        const recien: PeriodoLaboral = { desde: aYmd(datos.ultima?.fecha_ingreso_periodo) ?? datos.fecha_ingreso, hasta: aYmd(datos.ultima?.fecha), empresa_id: empresaUltimoId };
         return evaluarArt159([...datos.cerrados, recien], empresaId, fechaIngreso);
-    }, [datos, empresaId, fechaIngreso]);
+    }, [datos, empresaUltimoId, empresaId, fechaIngreso]);
 
     const marcado = !!datos?.ultima?.no_recontratar;
     const ultima = datos?.ultima;
+    const otraEmpresa = empresaId != null && empresaId > 0 && empresaUltimoId != null && empresaId !== empresaUltimoId;
 
     return (
         <div className="space-y-2">
@@ -72,6 +77,12 @@ export const AvisoReingreso: React.FC<Props> = ({ trabajadorId, empresaId, fecha
                         Este RUT ya trabajó con nosotros{ultima?.fecha ? ` (último egreso: ${fmtFecha(ultima.fecha)}${ultima.causal_nombre ? ` · ${ultima.causal_nombre}` : ''})` : ''}.
                         {' '}Al aprobar se reingresa su ficha con un período nuevo desde la fecha de ingreso; lo que quede vacío conserva el dato que ya tenía.
                     </p>
+                    {empresaUltimoNombre && (
+                        <p>
+                            Su último contrato fue con <strong>{empresaUltimoNombre}</strong>.
+                            {otraEmpresa && ' La empresa elegida abajo es otro empleador: los contratos anteriores no se suman para el Art. 159 N°4.'}
+                        </p>
+                    )}
                     {marcado && <p className="font-semibold text-destructive">Marcado como «No recontratar». Puedes aprobarlo de todas formas.</p>}
                 </div>
             </div>
@@ -79,7 +90,7 @@ export const AvisoReingreso: React.FC<Props> = ({ trabajadorId, empresaId, fecha
                 <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-brand-dark">
                     <Scale className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
                     <p>
-                        Art. 159 N°4: con {datos?.empresa_id === empresaId && datos?.empresa_nombre ? datos.empresa_nombre : 'esta empresa'} este sería al menos el
+                        Art. 159 N°4: con {empresaUltimoId === empresaId && empresaUltimoNombre ? empresaUltimoNombre : 'esta empresa'} este sería al menos el
                         contrato N° {art159.contratos} en 15 meses ({art159.meses} {art159.meses === 1 ? 'mes trabajado' : 'meses trabajados'} antes).
                         {art159.nivel === 'presuncion'
                             ? ' Con más de dos contratos y 12 meses o más, la ley presume contrato indefinido: revísalo con RRHH.'

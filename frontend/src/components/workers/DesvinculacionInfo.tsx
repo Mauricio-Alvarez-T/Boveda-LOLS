@@ -17,6 +17,10 @@ export const DesvinculacionInfo: React.FC<{ ultima: UltimaDesvinculacion }> = ({
         <p className="mt-0.5 text-sm font-bold text-brand-dark">
             {ultima.causal_nombre || ultima.causal_codigo || 'Sin causal registrada'}
         </p>
+        {/* Mig 152: con qué empresa tenía contrato al salir (el Art. 159 N°4 cuenta por empleador). */}
+        {ultima.empresa_nombre && (
+            <p className="text-xs font-medium text-brand-dark">Contrato con {ultima.empresa_nombre}</p>
+        )}
         <p className="text-xs text-muted-foreground">
             {ultima.fecha ? fmtFecha(ultima.fecha) : '—'}
             {ultima.articulo_texto ? ` · ${ultima.articulo_texto}` : ''}

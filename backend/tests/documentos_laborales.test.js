@@ -614,6 +614,8 @@ describe('FINIQUITO (plan Gestiones B5)', () => {
         for (const err of [err1146(), err1054()]) {
             db.query.mockReset().mockResolvedValue([[]]);
             db.query.mockResolvedValueOnce([[TRAB_BAJA]]).mockRejectedValueOnce(err);
+            // 1054: el historial reintenta sin la empresa del período (mig 152); sin la 112 también falla.
+            if (err.errno === 1054) db.query.mockRejectedValueOnce(err1054());
             res = await post({ haberes: HABERES });
             expect(res.status).toBe(409);
             expect(res.body.code).toBe('MIGRACION_PENDIENTE');
