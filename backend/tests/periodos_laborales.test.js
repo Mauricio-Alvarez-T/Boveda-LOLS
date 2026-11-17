@@ -65,6 +65,15 @@ describe('periodosDe + motivoFuera', () => {
     });
 });
 
+describe('migración 153_solicitud_reingreso.sql', () => {
+    const sql = fs.readFileSync(path.join(__dirname, '../db/migrations/153_solicitud_reingreso.sql'), 'utf8')
+        .split('\n').filter(l => !l.trim().startsWith('--')).join('\n');
+    test('agrega tipo ingreso|reingreso con default ingreso, idempotente', () => {
+        expect(sql).toMatch(/ADD COLUMN IF NOT EXISTS tipo ENUM\('ingreso', 'reingreso'\) NOT NULL DEFAULT 'ingreso'/);
+        expect(sql).not.toMatch(/\bDELETE\b|\bDROP\b|permisos_/i);
+    });
+});
+
 describe('migración 152_reingreso_periodos.sql', () => {
     const sql = fs.readFileSync(path.join(__dirname, '../db/migrations/152_reingreso_periodos.sql'), 'utf8')
         .split('\n').filter(l => !l.trim().startsWith('--')).join('\n');

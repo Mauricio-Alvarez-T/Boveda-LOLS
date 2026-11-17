@@ -134,6 +134,8 @@ export const SolicitudesIngresoPanel: React.FC<Props> = ({ refreshKey = 0, onApr
                     <div className="flex-1 min-w-0">
                         <p className="text-ui font-bold text-brand-dark truncate leading-tight">{nombreCompleto(s)}</p>
                         <p className="mt-0.5 text-caption text-muted-foreground truncate">
+                            {/* Reingreso (mig 153): RUT de un finiquitado; aprobar reingresa su ficha. */}
+                            {s.tipo === 'reingreso' && <span className="font-semibold text-info">Reingreso · </span>}
                             {s.rut} · {s.cargo_nombre || 'Sin cargo'} · Ingreso {fmtFecha(normalizarFecha(s.fecha_ingreso)) || '—'}
                             {filtro !== 'pendiente' && <> · <MapPin className="inline h-3 w-3 -mt-0.5" /> {s.obra_nombre || 'Sin obra'}</>}
                         </p>

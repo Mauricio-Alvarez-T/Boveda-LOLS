@@ -37,6 +37,9 @@ export const CATEGORIA_REPORTE_OPTIONS = [
 export const avisoRutExiste = (nombre: string) =>
     `Ya existe un trabajador con este RUT (${nombre}). Revisa si hay un error en la digitación; si el RUT es correcto, contacta a administración vía WhatsApp.`;
 export const AVISO_SOLICITUD_PENDIENTE = 'Ya hay una solicitud de ingreso pendiente para este RUT.';
+/** RUT de un trabajador FINIQUITADO (mig 153): no bloquea; la solicitud viaja como REINGRESO. */
+export const avisoRutReingreso = (nombre: string) =>
+    `Este RUT ya trabajó con nosotros (${nombre}). Se enviará como solicitud de REINGRESO: administración la revisa y, al aprobarla, se abre un período nuevo en su misma ficha.`;
 
 /**
  * Campos opcionales de la ficha ("Datos personales" + tallas + pago). Todos string en
@@ -229,4 +232,6 @@ export interface AprobacionResultado {
     trabajador_id: number;
     /** Ficha en Word emitida post-commit; null si esa emisión falló (GET /:id/doc la genera al descargar). */
     solicitud_documento_id: number | null;
+    /** true = se reingresó una ficha existente (mig 153), no se creó un trabajador nuevo. */
+    reingreso?: boolean;
 }

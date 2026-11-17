@@ -222,7 +222,9 @@ const documentosLaboralesService = {
         const nombreBase = plantilla.nombreBase(ctx);
 
         if (s.estado === 'aprobada' && s.trabajador_id) {
-            const existente = await documentoService.buscarGenerado(s.trabajador_id, 'SOLICITUD_INGRESO');
+            // Por solicitud y no solo por trabajador: un reingreso tiene su propia ficha (la del período
+            // anterior no sirve para esta solicitud).
+            const existente = await documentoService.buscarGenerado(s.trabajador_id, 'SOLICITUD_INGRESO', { solicitudId: sid });
             if (existente) return { persistido: true, documento_id: existente.id, nombre_archivo: existente.nombre_archivo, trabajador_id: s.trabajador_id };
             if (!emitirSiFalta) throw httpError('La ficha de esta solicitud aún no fue emitida', 409);
             const html = g.wrapHtml(plantilla.titulo, plantilla.build(ctx), plantilla.pagina);
