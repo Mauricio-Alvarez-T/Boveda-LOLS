@@ -412,14 +412,31 @@ describe('POST /api/solicitudes-ingreso', () => {
         expect(sqlCalls(db.query).some(s => /INSERT/.test(s))).toBe(false);
     });
 
-    test('409 si el RUT es de un FINIQUITADO (la oficina reactiva, no se duplica)', async () => {
-        db.query.mockResolvedValueOnce([[TRAB_FINIQUITADO]]);
+    test('RUT de un FINIQUITADO → solicitud de REINGRESO (mig 153): tipo=reingreso + trabajador_id de la ficha existente', async () => {
+        db.query
+            .mockResolvedValueOnce([[TRAB_FINIQUITADO]])     // trabajador por RUT
+            .mockResolvedValueOnce([[]])                     // sin pendiente
+            .mockResolvedValueOnce([{ insertId: 50 }])       // INSERT
+            .mockResolvedValueOnce([[{ id: 50, tipo: 'reingreso', estado: 'pendiente' }]]);
+
+        const res = await post(tokenTerreno, FICHA);
+
+        expect(res.status).toBe(201);
+        const ins = db.query.mock.calls.find(([sql]) => /INSERT INTO solicitudes_ingreso/.test(String(sql)));
+        expect(String(ins[0])).toMatch(/solicitante_id, tipo, trabajador_id\)/);
+        expect(ins[1].slice(-3)).toEqual([TERRENO_ID, 'reingreso', TRAB_FINIQUITADO.id]);
+    });
+
+    test('RUT de un FINIQUITADO con la mig 153 pendiente (1054) → 409 como antes', async () => {
+        db.query
+            .mockResolvedValueOnce([[TRAB_FINIQUITADO]])
+            .mockResolvedValueOnce([[]])
+            .mockRejectedValueOnce(Object.assign(new Error("Unknown column 'tipo'"), { errno: 1054 }));
 
         const res = await post(tokenTerreno, FICHA);
 
         expect(res.status).toBe(409);
         expect(res.body.error).toMatch(/\(Pérez Soto Juan, finiquitado\)/);
-        expect(sqlCalls(db.query).some(s => /INSERT/.test(s))).toBe(false);
     });
 
     test('409 si ya hay una solicitud PENDIENTE con ese RUT', async () => {
@@ -755,15 +772,43 @@ describe('PUT /api/solicitudes-ingreso/:id/aprobar', () => {
         expect(db.getConnection).not.toHaveBeenCalled();
     });
 
-    test('409 si el RUT ya existe en trabajadores al momento de aprobar (creado por otra vía): rollback, sin INSERT', async () => {
+    test('RUT de un FINIQUITADO → REINGRESO (mig 152/153): sin INSERT; período nuevo + ficha sin nulls, en la misma transacción', async () => {
+        conn.query
+            .mockResolvedValueOnce([[{ id: 41, estado: 'pendiente' }]])                         // solicitud FOR UPDATE
+            .mockResolvedValueOnce([[TRAB_FINIQUITADO]])                                        // trabajador por RUT
+            .mockResolvedValueOnce([[{ es_prueba: 0 }]])                                        // obra es_prueba
+            .mockResolvedValueOnce([[{ ...TRAB_FINIQUITADO, fecha_ingreso: '2026-01-15', fecha_desvinculacion: '2026-06-30' }]]) // FOR UPDATE trabajador
+            .mockResolvedValueOnce([[{ id: 9, trabajador_id: TRAB_FINIQUITADO.id, fecha_desvinculacion: '2026-06-30', causal_codigo: 'RENUNCIA', reactivado_en: null }]]) // baja abierta
+            .mockResolvedValueOnce([[{ id: 5, finalizada: 0 }]])                                // obra no finalizada
+            .mockResolvedValueOnce([{ affectedRows: 1 }])                                       // UPDATE trabajadores (reingreso)
+            .mockResolvedValueOnce([{ affectedRows: 1 }])                                       // cierra baja
+            .mockResolvedValueOnce([{ affectedRows: 1 }])                                       // UPDATE ficha COALESCE
+            .mockResolvedValueOnce([{ affectedRows: 1 }])                                       // UPDATE solicitud
+            .mockResolvedValueOnce([{ affectedRows: 0 }]);                                      // auto-rechazo duplicadas
+
+        const res = await aprobar(tokenOficina, BODY_OFICINA);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data).toMatchObject({ trabajador_id: TRAB_FINIQUITADO.id, reingreso: true });
+        const sql = sqlCalls(conn.query);
+        expect(sql.some(s => /INSERT INTO trabajadores/.test(s))).toBe(false);
+        expect(sql[6]).toMatch(/UPDATE trabajadores SET activo = 1, fecha_desvinculacion = NULL, fecha_ingreso = \?/);
+        expect(conn.query.mock.calls[6][1][0]).toBe('2026-09-08');
+        expect(sql[8]).toMatch(/nombres = COALESCE\(\?, nombres\)/);
+        expect(sql[8]).not.toMatch(/[\s,](fecha_ingreso|rut|obra_id|cargo_id) = COALESCE/);
+        expect(conn.commit).toHaveBeenCalledTimes(1);
+        expect(logManualActivity.mock.calls.map(c => JSON.parse(c[4]).evento)).toEqual(['solicitud_aprobada', 'trabajador_reingresado']);
+    });
+
+    test('409 si el RUT es de un trabajador ACTIVO al momento de aprobar (creado por otra vía): rollback, sin INSERT', async () => {
         conn.query
             .mockResolvedValueOnce([[{ id: 41, estado: 'pendiente' }]])
-            .mockResolvedValueOnce([[TRAB_FINIQUITADO]]);
+            .mockResolvedValueOnce([[TRAB_ACTIVO]]);
 
         const res = await aprobar(tokenOficina, BODY_OFICINA);
 
         expect(res.status).toBe(409);
-        expect(res.body.error).toMatch(/Ya existe un trabajador con este RUT \(Pérez Soto Juan, finiquitado\)/);
+        expect(res.body.error).toMatch(/Ya existe un trabajador con este RUT \(Pérez Soto Juan\)/);
         expect(conn.query).toHaveBeenCalledTimes(2);
         expect(sqlCalls(conn.query).some(s => /INSERT INTO trabajadores/.test(s))).toBe(false);
         expect(conn.rollback).toHaveBeenCalledTimes(1);

@@ -25,7 +25,7 @@ import { copyAndShare } from '../../utils/whatsappShare';
 import { buildSolicitudIngresoMessage, fechaContratacion, nombreCompletoSolicitud } from './solicitudIngresoWhatsApp';
 import {
     solicitudIngresoSchema, buildSolicitudPayload, datosPersonalesDefaults,
-    avisoRutExiste, AVISO_SOLICITUD_PENDIENTE,
+    avisoRutExiste, avisoRutReingreso, AVISO_SOLICITUD_PENDIENTE,
     type SolicitudIngresoFormValues,
 } from './solicitudIngresoSchema';
 
@@ -38,7 +38,8 @@ export interface CheckRutResponse {
     ultima_desvinculacion?: UltimaDesvinculacion;
 }
 
-type RutStatus = 'idle' | 'checking' | 'existe' | 'pendiente' | 'disponible';
+// 'reingreso' = RUT de un finiquitado (mig 153): NO bloquea, la solicitud viaja como reingreso.
+type RutStatus = 'idle' | 'checking' | 'existe' | 'reingreso' | 'pendiente' | 'disponible';
 
 interface Props {
     /** Se llama apenas el POST responde OK (el padre refresca badge y lista). El modal sigue abierto. */
@@ -89,7 +90,10 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onEnviada, onClose, onCa
                 if (seq !== rutSeq.current) return; // llegó tarde, ignorar
                 const d = res.data.data;
                 setRutUltima(d.ultima_desvinculacion ?? null);
-                if (d.existe_trabajador) {
+                if (d.existe_trabajador && d.trabajador?.activo === false && !d.solicitud_pendiente) {
+                    setRutStatus('reingreso');
+                    setRutNombre(d.trabajador?.nombre || 'sin nombre');
+                } else if (d.existe_trabajador) {
                     setRutStatus('existe');
                     setRutNombre(d.trabajador?.nombre || 'sin nombre');
                 } else if (d.solicitud_pendiente) {
@@ -308,6 +312,26 @@ export const SolicitudIngresoForm: React.FC<Props> = ({ onEnviada, onClose, onCa
                                     {/* Detalle interno: el backend solo lo envía a quien puede desvincular/reactivar. */}
                                     {detalleDesvinculacion(rutUltima) && (
                                         <span className="block mt-1 font-normal italic">Motivo registrado: {detalleDesvinculacion(rutUltima)}</span>
+                                    )}
+                                </span>
+                            </div>
+                        )}
+                        {/* Reingreso (mig 153): finiquitado que vuelve — avisa, no bloquea. Rojo si está marcado «No recontratar». */}
+                        {!errors.rut && rutStatus === 'reingreso' && (
+                            <div role="alert" className={cn('mt-2 flex items-start gap-2 rounded-xl border p-3 text-sm',
+                                rutUltima?.no_recontratar
+                                    ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-800/60 dark:bg-red-500/10 dark:text-red-300'
+                                    : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-300')}>
+                                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                                <span>
+                                    {avisoRutReingreso(rutNombre)}
+                                    {rutUltima && (
+                                        <span className={cn('block mt-1', rutUltima.no_recontratar ? 'font-semibold' : 'font-medium')}>
+                                            Antecedente: {avisoDesvinculacion(rutUltima)}.
+                                            {detalleDesvinculacion(rutUltima) && (
+                                                <span className="block mt-0.5 font-normal italic">Motivo registrado: {detalleDesvinculacion(rutUltima)}</span>
+                                            )}
+                                        </span>
                                     )}
                                 </span>
                             </div>

@@ -158,6 +158,8 @@ export type SolicitudIngresoEstado = 'pendiente' | 'aprobada' | 'rechazada';
 export interface SolicitudIngreso {
     id: number;
     estado: SolicitudIngresoEstado;
+    /** 'reingreso' = RUT de un trabajador finiquitado (mig 153): aprobar reingresa su ficha. */
+    tipo?: 'ingreso' | 'reingreso';
     rut: string;
     nombres: string;
     apellido_paterno: string;

@@ -7,9 +7,10 @@
  * visible al solicitante. Sin SoD solicitante≠aprobador: un administrativo
  * puede crear y aprobar (decisión del dueño 2026-09-07).
  *
- * Anti-duplicados: el RUT bloquea si ya existe en `trabajadores` — ACTIVO o
- * FINIQUITADO (si está finiquitado, la oficina lo reactiva en vez de crear
- * otro) — o si hay otra solicitud PENDIENTE con ese RUT. Comparación por
+ * Anti-duplicados: el RUT bloquea si ya existe un trabajador ACTIVO con él o si
+ * hay otra solicitud PENDIENTE con ese RUT. Un RUT FINIQUITADO no bloquea desde
+ * la mig 153: la solicitud es de REINGRESO (`tipo='reingreso'`) y aprobarla
+ * reingresa la ficha existente (período laboral nuevo, mig 152). Comparación por
  * `rut_normalized` (columna GENERATED + índice, mig 053; collation _ci → la
  * K mayúscula/minúscula no importa).
  *
@@ -268,29 +269,38 @@ const solicitudIngresoService = {
 
     /**
      * POST / — terreno crea la solicitud (estado pendiente).
-     * 400 RUT inválido / faltan obligatorios; 409 RUT ya en trabajadores
-     * (activo o finiquitado) o con otra solicitud pendiente.
+     * 400 RUT inválido / faltan obligatorios; 409 RUT de un trabajador ACTIVO o con otra solicitud
+     * pendiente. RUT de un FINIQUITADO (mig 153) → solicitud de REINGRESO (`tipo='reingreso'`,
+     * `trabajador_id` = la ficha existente); sin la mig 153, 409 como antes.
      */
     async crear(data, userId) {
         const ficha = _normalizarFicha(data);
         const cleaned = cleanRut(ficha.rut);
 
         const existente = await _buscarTrabajadorPorRut(db, cleaned);
-        if (existente) throw _errorTrabajadorExiste(existente);
+        const esReingreso = !!existente && !existente.activo;
+        if (existente && !esReingreso) throw _errorTrabajadorExiste(existente);
 
         const pendiente = await _buscarPendientePorRut(db, cleaned);
         if (pendiente) {
             throw httpError(`Ya existe una solicitud de ingreso pendiente para este RUT (#${pendiente.id}).`, 409);
         }
 
-        const cols = [...CAMPOS_FICHA, 'solicitante_id'];
-        const values = [...CAMPOS_FICHA.map(c => ficha[c]), userId];
-        const [result] = await db.query(
-            `INSERT INTO solicitudes_ingreso (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
-            values
-        );
+        const cols = [...CAMPOS_FICHA, 'solicitante_id', ...(esReingreso ? ['tipo', 'trabajador_id'] : [])];
+        const values = [...CAMPOS_FICHA.map(c => ficha[c]), userId, ...(esReingreso ? ['reingreso', existente.id] : [])];
+        let result;
+        try {
+            [result] = await db.query(
+                `INSERT INTO solicitudes_ingreso (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+                values
+            );
+        } catch (err) {
+            // Mig 153 pendiente (sin columna `tipo`): el finiquitado sigue bloqueado como antes.
+            if (esReingreso && err.errno === 1054) throw _errorTrabajadorExiste(existente);
+            throw err;
+        }
 
-        logger.info('Solicitud de ingreso creada', { solicitudId: result.insertId, rut: ficha.rut, userId });
+        logger.info('Solicitud de ingreso creada', { solicitudId: result.insertId, rut: ficha.rut, userId, reingreso: esReingreso });
         return _getRow(result.insertId);
     },
 
@@ -353,6 +363,7 @@ const solicitudIngresoService = {
 
         const cleaned = cleanRut(ficha.rut);
         let trabajadorId;
+        let reingreso = null;   // resultado de _reingresarEnConn cuando el RUT es de un finiquitado
 
         const conn = await db.getConnection();
         try {
@@ -370,31 +381,49 @@ const solicitudIngresoService = {
             }
 
             // Re-validar RUT único: pudo crearse el trabajador por otra vía
-            // (WorkerForm) entre la solicitud y la aprobación.
+            // (WorkerForm) entre la solicitud y la aprobación. Un FINIQUITADO no es un
+            // duplicado: es un REINGRESO (mig 152/153) sobre la misma ficha.
             const existente = await _buscarTrabajadorPorRut(conn, cleaned);
-            if (existente) throw _errorTrabajadorExiste(existente);
+            if (existente && existente.activo) throw _errorTrabajadorExiste(existente);
 
             // Herencia es_prueba desde la obra (réplica del beforeCreate de
             // trabajadores en index.js): booleano real por typeCast, 1 legacy.
             const [obraRows] = await conn.query('SELECT es_prueba FROM obras WHERE id = ?', [ficha.obra_id]);
             const esPrueba = obraRows.length && (obraRows[0].es_prueba === 1 || obraRows[0].es_prueba === true) ? 1 : 0;
 
-            const trabCols = [...CAMPOS_TRABAJADOR, 'empresa_id', 'categoria_reporte', 'activo', 'es_prueba'];
-            const trabVals = [...CAMPOS_TRABAJADOR.map(c => ficha[c]), empresaId, categoria, 1, esPrueba];
-            let insert;
-            try {
-                [insert] = await conn.query(
-                    `INSERT INTO trabajadores (${trabCols.join(', ')}) VALUES (${trabCols.map(() => '?').join(', ')})`,
-                    trabVals
+            if (existente) {
+                // REINGRESO: período nuevo (fecha, obra, cargo, empresa, categoría; término NULL = a definir)
+                // en la MISMA transacción, y la ficha se actualiza SIN nulls: lo que terreno dejó vacío
+                // conserva el dato que ya tenía el trabajador (tallas, banco, cuenta…).
+                reingreso = await desvinculacionService._reingresarEnConn(conn, existente.id, {
+                    fecha_ingreso: ficha.fecha_ingreso, empresa_id: empresaId, obra_id: ficha.obra_id,
+                    cargo_id: ficha.cargo_id, categoria_reporte: categoria, fecha_termino_contrato: null,
+                }, userId);
+                const yaPuestos = new Set(['rut', 'fecha_ingreso', 'obra_id', 'cargo_id']);
+                const camposFicha = CAMPOS_TRABAJADOR.filter(c => !yaPuestos.has(c));
+                await conn.query(
+                    `UPDATE trabajadores SET ${camposFicha.map(c => `${c} = COALESCE(?, ${c})`).join(', ')}, es_prueba = ? WHERE id = ?`,
+                    [...camposFicha.map(c => ficha[c]), esPrueba, existente.id]
                 );
-            } catch (err) {
-                // Carrera perdida contra la UNIQUE(rut): mensaje del dominio, no el genérico.
-                if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
-                    throw httpError('Ya existe un trabajador con este RUT. Revisa la digitación o reactívalo desde Trabajadores.', 409);
+                trabajadorId = existente.id;
+            } else {
+                const trabCols = [...CAMPOS_TRABAJADOR, 'empresa_id', 'categoria_reporte', 'activo', 'es_prueba'];
+                const trabVals = [...CAMPOS_TRABAJADOR.map(c => ficha[c]), empresaId, categoria, 1, esPrueba];
+                let insert;
+                try {
+                    [insert] = await conn.query(
+                        `INSERT INTO trabajadores (${trabCols.join(', ')}) VALUES (${trabCols.map(() => '?').join(', ')})`,
+                        trabVals
+                    );
+                } catch (err) {
+                    // Carrera perdida contra la UNIQUE(rut): mensaje del dominio, no el genérico.
+                    if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
+                        throw httpError('Ya existe un trabajador con este RUT. Revisa la digitación o reingrésalo desde Trabajadores.', 409);
+                    }
+                    throw err;
                 }
-                throw err;
+                trabajadorId = insert.insertId;
             }
-            trabajadorId = insert.insertId;
 
             const setFicha = CAMPOS_FICHA.map(c => `${c} = ?`).join(', ');
             await conn.query(
@@ -416,7 +445,7 @@ const solicitudIngresoService = {
             await conn.query(
                 `UPDATE solicitudes_ingreso
                     SET estado = 'rechazada',
-                        motivo_rechazo = CONCAT('Trabajador ya creado desde la solicitud #', ?),
+                        motivo_rechazo = CONCAT('Trabajador ya creado o reingresado desde la solicitud #', ?),
                         resuelto_por = ?,
                         fecha_resolucion = NOW()
                   WHERE estado = 'pendiente'
@@ -440,11 +469,13 @@ const solicitudIngresoService = {
                 evento: 'solicitud_aprobada',
                 trabajador_id: trabajadorId,
                 rut: ficha.rut,
-                resumen: `Solicitud de ingreso #${sid} aprobada → trabajador #${trabajadorId} ${nombre}`,
+                reingreso: !!reingreso,
+                resumen: `Solicitud de ingreso #${sid} aprobada → trabajador #${trabajadorId} ${nombre}${reingreso ? ' (reingreso)' : ''}`,
             }),
             req
         );
-        logger.info('Solicitud de ingreso aprobada', { solicitudId: sid, trabajadorId, userId });
+        if (reingreso) await desvinculacionService._logReingreso(userId, reingreso, req);
+        logger.info('Solicitud de ingreso aprobada', { solicitudId: sid, trabajadorId, userId, reingreso: !!reingreso });
 
         // Ficha de solicitud en Word → queda en la ficha del trabajador (plan Gestiones B2, mig 110).
         // Post-commit y best-effort: la aprobación NUNCA falla por el documento.
@@ -457,7 +488,7 @@ const solicitudIngresoService = {
         }
 
         const solicitud = await _getRow(sid);
-        return { solicitud, trabajador_id: trabajadorId, solicitud_documento_id: solicitudDocumentoId };
+        return { solicitud, trabajador_id: trabajadorId, solicitud_documento_id: solicitudDocumentoId, reingreso: !!reingreso };
     },
 
     /**

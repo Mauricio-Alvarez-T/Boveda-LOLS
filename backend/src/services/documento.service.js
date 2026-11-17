@@ -115,14 +115,17 @@ const documentoService = {
     },
 
     /** Último documento generado ACTIVO de un tipo (por codigo) para el trabajador, o null. */
-    async buscarGenerado(trabajadorId, tipoCodigo) {
+    async buscarGenerado(trabajadorId, tipoCodigo, { solicitudId = null } = {}) {
         try {
+            // Reingreso (mig 152/153): un trabajador puede tener una ficha de solicitud por período; con
+            // `solicitudId` solo vale la emitida para ESA solicitud (metadata.solicitud.id).
+            const porSolicitud = solicitudId != null ? " AND JSON_VALUE(d.metadata, '$.solicitud.id') = ?" : '';
             const [rows] = await db.query(
                 `SELECT d.id, d.nombre_archivo FROM documentos d
                    JOIN tipos_documento td ON td.id = d.tipo_documento_id
-                  WHERE d.trabajador_id = ? AND td.codigo = ? AND d.origen = 'generado' AND d.activo = TRUE
+                  WHERE d.trabajador_id = ? AND td.codigo = ? AND d.origen = 'generado' AND d.activo = TRUE${porSolicitud}
                   ORDER BY d.id DESC LIMIT 1`,
-                [trabajadorId, tipoCodigo]
+                solicitudId != null ? [trabajadorId, tipoCodigo, String(solicitudId)] : [trabajadorId, tipoCodigo]
             );
             return rows[0] || null;
         } catch (err) {

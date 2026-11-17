@@ -385,5 +385,7 @@ export function workerDesdeSolicitud(s: SolicitudIngreso, trabajadorId: number):
         fecha_nacimiento: s.fecha_nacimiento ? String(s.fecha_nacimiento).slice(0, 10) : null,
         direccion: s.direccion ?? null,
         comuna: s.comuna ?? null,
+        // La cláusula 9 del contrato la imprime; sin ella el kit mostraba la fecha vacía y sin aviso.
+        fecha_ingreso: s.fecha_ingreso ? String(s.fecha_ingreso).slice(0, 10) : null,
     };
 }

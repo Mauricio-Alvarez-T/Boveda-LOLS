@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2, XCircle, UserPlus, Clock, User, AlertTriangle, FileDown, PackageOpen } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, UserPlus, UserCheck, Clock, User, AlertTriangle, FileDown, PackageOpen } from 'lucide-react';
 
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
@@ -27,7 +27,8 @@ import { DatosPersonalesFields, DatosPersonalesSilueta } from '../workers/DatosP
 import { CampoSilueta } from '../workers/CampoSilueta';
 import { Cargando } from '../ui/Skeleton';
 import { EmitirKitModal } from '../documents/EmitirKitModal';
-import { workerDesdeSolicitud, type DocumentoEmitido } from '../documents/documentosLaborales';
+import { workerDesdeSolicitud, type DocumentoEmitido, type WorkerBasico } from '../documents/documentosLaborales';
+import { AvisoReingreso } from '../workers/AvisoReingreso';
 import {
     aprobarSolicitudSchema, buildAprobarPayload, datosPersonalesDefaults, listarDatosPersonales,
     CATEGORIA_REPORTE_OPTIONS, type AprobarSolicitudFormValues, type AprobacionResultado,
@@ -99,7 +100,7 @@ const FichaSoloLectura: React.FC<{ s: SolicitudIngreso }> = ({ s }) => {
             {s.estado === 'aprobada' && (
                 <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-800/60 dark:bg-green-500/10 dark:text-green-300">
                     <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    <span>Trabajador creado en Bóveda{s.empresa_nombre ? ` · ${s.empresa_nombre}` : ''}.</span>
+                    <span>{s.tipo === 'reingreso' ? 'Trabajador reingresado en Bóveda' : 'Trabajador creado en Bóveda'}{s.empresa_nombre ? ` · ${s.empresa_nombre}` : ''}.</span>
                 </div>
             )}
 
@@ -146,6 +147,7 @@ const FormRevision: React.FC<{ s: SolicitudIngreso; onResuelta: (a: SolicitudAcc
             register,
             handleSubmit,
             control,
+            watch,
             formState: { errors, isDirty },
         } = useForm<AprobarSolicitudFormValues>({
             resolver: zodResolver(aprobarSolicitudSchema) as any,
@@ -193,7 +195,7 @@ const FormRevision: React.FC<{ s: SolicitudIngreso; onResuelta: (a: SolicitudAcc
             setAprobando(true);
             try {
                 const res = await api.put<{ data: AprobacionResultado }>(`/solicitudes-ingreso/${s.id}/aprobar`, buildAprobarPayload(data));
-                toast.success(`Trabajador creado: ${data.nombres.trim()} ${data.apellido_paterno.trim()}`);
+                toast.success(`${s.tipo === 'reingreso' ? 'Trabajador reingresado' : 'Trabajador creado'}: ${data.nombres.trim()} ${data.apellido_paterno.trim()}`);
                 // El padre desmonta este form (suelta el aviso de "cambios sin guardar") y muestra los siguientes pasos.
                 onAprobado(res.data.data);
             } catch (err) {
@@ -271,6 +273,11 @@ const FormRevision: React.FC<{ s: SolicitudIngreso; onResuelta: (a: SolicitudAcc
         return (
             <div className="space-y-6">
                 <Encabezado s={s} />
+
+                {/* Reingreso (mig 153): RUT de un finiquitado — aprobar reingresa su ficha, no crea otra. */}
+                {s.tipo === 'reingreso' && s.trabajador_id && (
+                    <AvisoReingreso trabajadorId={s.trabajador_id} empresaId={watch('empresa_id') || null} fechaIngreso={watch('fecha_ingreso')} />
+                )}
 
                 <form id="revisar-solicitud-form" onSubmit={handleSubmit(onAprobar)} className="space-y-6">
                     {/* ── Identificación (viene de terreno; corregible) ── */}
@@ -394,8 +401,8 @@ const FormRevision: React.FC<{ s: SolicitudIngreso; onResuelta: (a: SolicitudAcc
                                 <Button type="button" variant="ghost" onClick={onClose} disabled={aprobando}>
                                     Cancelar
                                 </Button>
-                                <Button type="submit" isLoading={aprobando} leftIcon={<UserPlus className="h-4 w-4" />}>
-                                    Aprobar y crear trabajador
+                                <Button type="submit" isLoading={aprobando} leftIcon={s.tipo === 'reingreso' ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}>
+                                    {s.tipo === 'reingreso' ? 'Aprobar reingreso' : 'Aprobar y crear trabajador'}
                                 </Button>
                             </div>
                         </div>
@@ -440,7 +447,11 @@ const SolicitudAprobada: React.FC<{ r: AprobacionResultado; onCerrar: () => void
     const s = r.solicitud;
     // En estado: si el kit completa datos personales (PUT /trabajadores/:id) y luego falla por otra cosa,
     // al reabrirlo no debe volver a pedirlos.
-    const [worker, setWorker] = useState(() => workerDesdeSolicitud(s, r.trabajador_id));
+    // Reingreso: los campos vacíos de la solicitud CONSERVARON el dato de la ficha → el kit relee la ficha
+    // (sin datos personales en el objeto) en vez de tomar los null de la solicitud como «faltantes».
+    const [worker, setWorker] = useState<WorkerBasico>(() => r.reingreso
+        ? { id: r.trabajador_id, nombres: s.nombres, apellido_paterno: s.apellido_paterno, apellido_materno: s.apellido_materno, rut: s.rut, activo: true, fecha_ingreso: s.fecha_ingreso }
+        : workerDesdeSolicitud(s, r.trabajador_id));
 
     const descargar = async () => {
         setDescargando(true);
@@ -454,7 +465,7 @@ const SolicitudAprobada: React.FC<{ r: AprobacionResultado; onCerrar: () => void
             <div role="status" className="flex items-start gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-800 dark:border-green-800/60 dark:bg-green-500/10 dark:text-green-300">
                 <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
                 <div>
-                    <p className="font-bold">Trabajador creado en Bóveda</p>
+                    <p className="font-bold">{r.reingreso ? 'Trabajador reingresado en Bóveda' : 'Trabajador creado en Bóveda'}</p>
                     <p className="mt-0.5 text-xs opacity-90">
                         {nombreCompleto(s)}{s.empresa_nombre ? ` · ${s.empresa_nombre}` : ''}.
                         {r.solicitud_documento_id != null
