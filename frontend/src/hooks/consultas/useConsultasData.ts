@@ -32,6 +32,8 @@ export interface FetchWorkersParams {
     filterSalidaDesde: string;
     filterSalidaHasta: string;
     filterNoRecontratar: boolean;
+    /** Reingreso (mig 152): reactivados con el flujo viejo que conservan el ingreso del primer período. */
+    filterReingresoSinFecha: boolean;
     filterFiniquito: string;
     filterSoloPrueba: boolean;
 }
@@ -117,6 +119,7 @@ export const useConsultasData = (filters: FetchWorkersParams, enabled: boolean =
             if (filters.filterSalidaDesde) urlParams.append('fecha_desvinc_desde', filters.filterSalidaDesde);
             if (filters.filterSalidaHasta) urlParams.append('fecha_desvinc_hasta', filters.filterSalidaHasta);
             if (filters.filterNoRecontratar) urlParams.append('no_recontratar', 'true');
+            if (filters.filterReingresoSinFecha) urlParams.append('reingreso_sin_fecha', 'true');
             if (filters.filterFiniquito) urlParams.append('finiquito', filters.filterFiniquito);
             if (filters.filterSoloPrueba) urlParams.append('solo_prueba', 'true');
             // Consultas es superficie de administración: incluir trabajadores de
@@ -169,7 +172,7 @@ export const useConsultasData = (filters: FetchWorkersParams, enabled: boolean =
         }, 300);
         return () => clearTimeout(timeoutId);
     // `enabled` en deps: la grilla se monta al entrar a la sección (B8) y debe consultar recién ahí.
-    }, [enabled, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes, filters.filterAniversario10m, filters.filterIngresoDesde, filters.filterIngresoHasta, filters.filterFaltaDato, filters.filterDocTipoFalta, filters.filterDocVigencia, filters.filterSalidaDesde, filters.filterSalidaHasta, filters.filterNoRecontratar, filters.filterFiniquito, filters.filterSoloPrueba]);
+    }, [enabled, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes, filters.filterAniversario10m, filters.filterIngresoDesde, filters.filterIngresoHasta, filters.filterFaltaDato, filters.filterDocTipoFalta, filters.filterDocVigencia, filters.filterSalidaDesde, filters.filterSalidaHasta, filters.filterNoRecontratar, filters.filterReingresoSinFecha, filters.filterFiniquito, filters.filterSoloPrueba]);
 
     // Abortar cualquier búsqueda en vuelo al desmontar.
     useEffect(() => () => abortRef.current?.abort(), []);

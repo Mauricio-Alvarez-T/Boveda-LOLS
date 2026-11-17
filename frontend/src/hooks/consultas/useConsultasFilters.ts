@@ -62,6 +62,7 @@ export const useConsultasFilters = () => {
     const [filterSalidaHasta, setFilterSalidaHasta] = useState<string>(searchParams.get('salida_hasta') || '');
     // Atajos de un clic (chips), sin control propio en el panel.
     const [filterNoRecontratar, setFilterNoRecontratar] = useState<boolean>(searchParams.get('no_recontratar') === 'true');
+    const [filterReingresoSinFecha, setFilterReingresoSinFecha] = useState<boolean>(searchParams.get('reingreso_sin_fecha') === 'true');
     const [filterFiniquito, setFilterFiniquito] = useState<string>(searchParams.get('finiquito') || '');
     const [filterSoloPrueba, setFilterSoloPrueba] = useState<boolean>(searchParams.get('solo_prueba') === 'true');
 
@@ -91,6 +92,7 @@ export const useConsultasFilters = () => {
         setFilterSalidaDesde('');
         setFilterSalidaHasta('');
         setFilterNoRecontratar(false);
+        setFilterReingresoSinFecha(false);
         setFilterFiniquito('');
         setFilterSoloPrueba(false);
         // Limpia los filtros de la URL pero conserva la sección (B8): sin esto "Limpiar" saltaría a la portada.
@@ -124,10 +126,11 @@ export const useConsultasFilters = () => {
             !!filterDocVigencia,
             !!filterSalidaDesde || !!filterSalidaHasta,   // el rango cuenta como uno
             filterNoRecontratar,
+            filterReingresoSinFecha,
             !!filterFiniquito,
             filterSoloPrueba
         ].filter(Boolean).length;
-    }, [busquedaDiferida, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, filterIngresoDesde, filterIngresoHasta, filterFaltaDato, filterDocTipoFalta, filterDocVigencia, filterSalidaDesde, filterSalidaHasta, filterNoRecontratar, filterFiniquito, filterSoloPrueba, selectedObra]);
+    }, [busquedaDiferida, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, filterIngresoDesde, filterIngresoHasta, filterFaltaDato, filterDocTipoFalta, filterDocVigencia, filterSalidaDesde, filterSalidaHasta, filterNoRecontratar, filterReingresoSinFecha, filterFiniquito, filterSoloPrueba, selectedObra]);
 
     return {
         search, busquedaDiferida, resetBusqueda, publicarBusqueda, leerBusquedaInicial,
@@ -147,6 +150,7 @@ export const useConsultasFilters = () => {
         filterSalidaDesde, setFilterSalidaDesde,
         filterSalidaHasta, setFilterSalidaHasta,
         filterNoRecontratar, setFilterNoRecontratar,
+        filterReingresoSinFecha, setFilterReingresoSinFecha,
         filterFiniquito, setFilterFiniquito,
         filterSoloPrueba, setFilterSoloPrueba,
         clearAniversario10m,

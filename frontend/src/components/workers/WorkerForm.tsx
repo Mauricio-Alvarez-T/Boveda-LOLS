@@ -286,7 +286,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                             {!errors.rut && (rutStatus === 'exists' || rutStatus === 'available') && rutUltimaDesv && (
                                 <p className={cn('flex items-center gap-1.5 text-xs mt-1 ml-0.5', rutUltimaDesv.no_recontratar ? 'font-semibold text-destructive' : 'text-muted-foreground')}>
                                     <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                    {avisoDesvinculacion(rutUltimaDesv)}{rutUltimaDesv.trabajador_depurado ? '' : ' — para recontratarlo, reactívalo desde Gestiones.'}
+                                    {avisoDesvinculacion(rutUltimaDesv)}{rutUltimaDesv.trabajador_depurado ? '' : ' — para recontratarlo, reingrésalo desde Gestiones (botón Reingresar de su fila).'}
                                 </p>
                             )}
                             {/* Detalle interno de la baja: el backend solo lo envía con trabajadores.eliminar / .reactivar. */}

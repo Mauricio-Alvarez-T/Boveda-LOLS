@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { JustificativoViewer } from './JustificativoViewer';
+import { fueraDePeriodo, periodosDe, tituloFuera } from '../../utils/periodosLaborales';
 
 const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -250,11 +251,10 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                         const isEnd = rangeHi === dateStr;
                         const isSelected = !!(rangeLo && rangeHi && dateStr >= rangeLo && dateStr <= rangeHi) || isStart;
 
-                        const fIngreso = worker.fecha_ingreso ? String(worker.fecha_ingreso).split('T')[0] : null;
-                        const fDesvinc = worker.fecha_desvinculacion ? String(worker.fecha_desvinculacion).split('T')[0] : null;
-                        const isDesvinculado = fDesvinc ? dateStr > fDesvinc : false;
-                        const isPreContrato = fIngreso ? dateStr < fIngreso : false;
-                        const isOutOfRange = isDesvinculado || isPreContrato;
+                        // Reingreso (mig 152): fuera de TODO período laboral (antes del contrato, después del finiquito
+                        // o entre una baja y el reingreso).
+                        const motivoFuera = fueraDePeriodo(dateStr, periodosDe(worker));
+                        const isOutOfRange = motivoFuera !== null;
 
                         let periodClasses = "";
                         if (periodo) {
@@ -280,7 +280,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                             buttonClass += "border-transparent bg-transparent hover:shadow-md hover:border-brand-primary/30";
                         }
 
-                        const buttonTitle = isOutOfRange ? (isPreContrato ? 'Bloqueado: Aún no contratado' : 'Bloqueado por Finiquito') : (periodo ? `Período: ${periodo.estado_nombre}${periodo.observacion ? ' \n📝 ' + periodo.observacion : ''}` : (holiday ? `Feriado: ${holiday.nombre}` : (isSelected ? 'Seleccionado para nuevo trámite' : '')));
+                        const buttonTitle = isOutOfRange ? tituloFuera(motivoFuera) : (periodo ? `Período: ${periodo.estado_nombre}${periodo.observacion ? ' \n📝 ' + periodo.observacion : ''}` : (holiday ? `Feriado: ${holiday.nombre}` : (isSelected ? 'Seleccionado para nuevo trámite' : '')));
 
                         return (
                             <div key={`day-${day}`} className="relative aspect-square md:aspect-auto md:h-20">

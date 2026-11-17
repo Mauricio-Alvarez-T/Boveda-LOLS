@@ -23,6 +23,7 @@ import { contarObligatorios, docsSubidos, faltanDatosContrato } from '../documen
 import { DATOS_PERSONALES_LABELS } from '../consultas/solicitudIngresoSchema';
 import { descargarArchivo } from '../../utils/descargarArchivo';
 import { antiguedad, porcentajeDocs, terminoContrato, type TerminoContrato } from './fichaTrabajador';
+import { agruparDocsPorPeriodo, periodosDe, type PeriodoLaboral } from '../../utils/periodosLaborales';
 import { useAuth } from '../../context/AuthContext';
 import type { Trabajador, EstadoAsistencia } from '../../types/entities';
 
@@ -82,6 +83,10 @@ interface ResumenData {
     dias_vacaciones: number;
     dias_licencia: number;
     dias_registrados: number;
+    /** Reingreso (mig 152): los campos de arriba son del PERÍODO ACTUAL; `total` suma todos los períodos. */
+    total?: { dias_trabajados: number; faltas: number; dias_vacaciones: number; dias_licencia: number };
+    /** Períodos laborales anteriores (cerrados por un reingreso), sin detalle interno. */
+    periodos_laborales?: PeriodoLaboral[];
     /** Última desvinculación (resumida, sin detalle) — solo viene si el trabajador está inactivo (mig 112). */
     ultima_desvinculacion?: UltimaDesvinculacion | null;
 }
@@ -91,6 +96,8 @@ interface DocInfo {
     tipo_nombre: string;
     nombre_archivo: string;
     fecha_vencimiento: string | null;
+    fecha_subida?: string | null;
+    fecha_generacion?: string | null;
     activo?: boolean;
     // Mig 110 (plan Gestiones B2): los generados van en su propia lista; los restringidos se bajan por /documentos-laborales.
     origen?: 'subido' | 'generado';
@@ -229,6 +236,12 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     const anios = worker ? antiguedad(worker.fecha_ingreso, worker.activo ? null : worker.fecha_desvinculacion) : null;
     // Término del contrato a plazo fijo (mig 138): solo mientras está activo; la baja real manda sobre él.
     const termino = worker?.activo && !worker.fecha_desvinculacion ? terminoContrato(worker.fecha_termino_contrato) : null;
+    // Reingreso (mig 152): períodos anteriores. Los documentos que caen en uno se marcan «período anterior».
+    const periodosAnteriores = resumen?.periodos_laborales ?? [];
+    const docsPeriodoAnterior = new Set<DocInfo>(worker && periodosAnteriores.length
+        ? agruparDocsPorPeriodo(subidos as DocInfo[], periodosDe({ ...worker, periodos_laborales: periodosAnteriores }))
+            .filter(g => g.indice < periodosAnteriores.length).flatMap(g => g.docs)
+        : []);
 
     const TABS = [
         { id: 'resumen' as const, label: 'Resumen' },
@@ -453,7 +466,9 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
 
                                         {resumen && (
                                             <section className="rounded-2xl border border-border bg-background p-4">
-                                                <p className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Asistencia registrada</p>
+                                                <p className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">
+                                                    {periodosAnteriores.length ? 'Asistencia de este período' : 'Asistencia registrada'}
+                                                </p>
                                                 <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-3">
                                                     <div>
                                                         <p className="text-title-sm font-bold tabular-nums leading-none text-brand-dark">{resumen.dias_trabajados}</p>
@@ -466,6 +481,30 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                     {resumen.dias_vacaciones > 0 && dato('Vacaciones', `${resumen.dias_vacaciones} días`)}
                                                     {resumen.dias_licencia > 0 && dato('Licencia médica', `${resumen.dias_licencia} días`)}
                                                 </div>
+                                                {periodosAnteriores.length > 0 && resumen.total && (
+                                                    <p className="mt-3 border-t border-border pt-2.5 text-caption text-muted-foreground">
+                                                        Total histórico: {resumen.total.dias_trabajados} días trabajados y {resumen.total.faltas} faltas en {periodosAnteriores.length + 1} períodos.
+                                                    </p>
+                                                )}
+                                            </section>
+                                        )}
+
+                                        {/* Reingreso (mig 152): períodos laborales anteriores, del más reciente al más antiguo. */}
+                                        {periodosAnteriores.length > 0 && (
+                                            <section className="rounded-2xl border border-border bg-background p-4">
+                                                <p className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Historial laboral</p>
+                                                <ul className="mt-2 space-y-2">
+                                                    {[...periodosAnteriores].reverse().map((p, i) => (
+                                                        <li key={`${p.desde}-${p.hasta}-${i}`} className="text-sm">
+                                                            <p className="font-medium text-brand-dark">
+                                                                {p.desde ? fmtFecha(p.desde) : '¿?'} → {p.hasta ? fmtFecha(p.hasta) : '—'}
+                                                            </p>
+                                                            <p className="text-caption text-muted-foreground">
+                                                                {[p.empresa_nombre, p.cargo_nombre, p.causal_nombre].filter(Boolean).join(' · ') || 'Período anterior'}
+                                                            </p>
+                                                        </li>
+                                                    ))}
+                                                </ul>
                                             </section>
                                         )}
 
@@ -529,6 +568,9 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                             title="Ver documento">
                                                             <div className="min-w-0 flex-1">
                                                                 <p className="text-section font-semibold text-brand-dark truncate">{doc.tipo_nombre || doc.nombre_archivo}</p>
+                                                                {docsPeriodoAnterior.has(doc) && (
+                                                                    <p className="mt-0.5 text-caption text-muted-foreground">Período anterior</p>
+                                                                )}
                                                                 {doc.fecha_vencimiento && (
                                                                     <p className="mt-0.5 flex items-center gap-1 text-caption text-muted-foreground">
                                                                         <Clock className="h-3 w-3" />
