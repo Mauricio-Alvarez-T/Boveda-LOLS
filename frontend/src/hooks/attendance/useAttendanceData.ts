@@ -7,6 +7,7 @@ import api from '../../services/api';
 import type { Trabajador, Asistencia, EstadoAsistencia, ConfiguracionHorario, Feriado } from '../../types/entities';
 import type { ApiResponse } from '../../types';
 import { indexar, tokenizar, coincide } from '../../utils/busquedaTrabajadores';
+import { fueraDePeriodo, periodosDe } from '../../utils/periodosLaborales';
 
 export type AlertaFalta = { trabajador_id: number; total_faltas: number; alertas: { tipo: string; mensaje: string }[] };
 
@@ -313,11 +314,8 @@ export function useAttendanceData() {
         // asistencia. Estos no dependen del query.
         let result = sortedSearchable.filter(({ worker: w }) => {
             if (!w.activo) return false;
-            const fIngreso = w.fecha_ingreso ? String(w.fecha_ingreso).split('T')[0] : null;
-            const fDesvinc = w.fecha_desvinculacion ? String(w.fecha_desvinculacion).split('T')[0] : null;
-            const isDesvinculado = fDesvinc ? date > fDesvinc : false;
-            const isPreContrato = fIngreso ? date < fIngreso : false;
-            if (isDesvinculado || isPreContrato) return false;
+            // Reingreso (mig 152): solo quien está dentro de algún período laboral ese día.
+            if (fueraDePeriodo(date, periodosDe(w))) return false;
             if (selectedEmpresaId !== null && w.empresa_id !== selectedEmpresaId) return false;
             if (statusFilter !== null) {
                 const a = attendance[w.id];

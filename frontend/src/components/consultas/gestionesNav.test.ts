@@ -71,7 +71,7 @@ describe('gestionesNav (plan Gestiones B8)', () => {
             'aniversario10m', 'ingreso_desde', 'ingreso_hasta',
             // Tanda 2026-09-15
             'falta_dato', 'doc_tipo_falta', 'doc_vigencia', 'salida_desde', 'salida_hasta',
-            'no_recontratar', 'finiquito', 'solo_prueba',
+            'no_recontratar', 'reingreso_sin_fecha', 'finiquito', 'solo_prueba',
         ]);
         for (const k of PARAMS_GRILLA) expect(esParamGrilla(k)).toBe(true);
         expect(esParamGrilla('tab')).toBe(false);

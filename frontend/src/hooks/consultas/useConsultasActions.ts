@@ -6,8 +6,8 @@ import type { Trabajador } from '../../types/entities';
 export type ModalType = 'form' | 'finiquito' | 'reactivar' | 'empresa' | 'obra' | 'cargo' | 'tipodoc' | 'depurar' | 'solicitud' | null;
 
 /**
- * Acciones por fila de Gestiones. Desvincular y reactivar abren sus propios modales
- * (DesvincularModal / ReactivarModal, plan Gestiones B4): el PUT genérico
+ * Acciones por fila de Gestiones. Desvincular y reingresar abren sus propios modales
+ * (DesvincularModal / ReingresoModal, plan Gestiones B4 + reingreso mig 152): el PUT genérico
  * `/trabajadores/:id {activo, fecha_desvinculacion}` ya no existe — ahora hay endpoints
  * dedicados con causal e historial (`/:id/desvincular`, `/:id/reactivar`).
  */
@@ -22,7 +22,7 @@ export const useConsultasActions = (onRefreshList: () => void) => {
         setModalType('finiquito');
     }, []);
 
-    /** Abre el modal de reactivación (muestra la última desvinculación y la marca "no recontratar"). */
+    /** Abre el modal de reingreso (fecha nueva + última desvinculación + marca "no recontratar"). */
     const handleReactivate = useCallback((worker: Trabajador) => {
         setSelectedWorkerForAction(worker);
         setModalType('reactivar');

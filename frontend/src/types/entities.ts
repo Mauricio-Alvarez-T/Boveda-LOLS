@@ -110,6 +110,9 @@ export interface Trabajador {
     /** Fin del contrato a plazo fijo (mig 138); null = indefinido (o aún sin el dato). */
     fecha_termino_contrato?: string | null;
     fecha_desvinculacion: string | null;
+    /** Períodos laborales anteriores (reingreso, mig 152) como 'desde|hasta,desde|hasta'; null si nunca volvió.
+     *  Leer con utils/periodosLaborales (periodosDe / fueraDePeriodo). */
+    periodos_cerrados?: string | null;
     /** Causal de la baja vigente (código del catálogo, mig 112); null si activo. */
     causal_desvinculacion?: string | null;
     /** Marca de aviso al recontratar (solo advierte). */

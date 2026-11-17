@@ -33,6 +33,7 @@ import { AttendanceHeaderActions, AttendanceSummaryRow, SiluetaRegistroDiario } 
 
 import type { Trabajador, Asistencia } from '../../types/entities';
 import { conDuracion } from '../../utils/avisos';
+import { fueraDePeriodo, periodosDe, tituloFuera } from '../../utils/periodosLaborales';
 
 /**
  * Tab "Asistencia Diaria" — contiene toda la funcionalidad original de la
@@ -399,11 +400,9 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                                 const currentEstado = estados.find(e => e.id === state.estado_id);
                                 const isExpanded = expandedWorkerId === worker.id;
                                 const isNotPresent = currentEstado && !currentEstado.es_presente;
-                                const fIngreso = worker.fecha_ingreso ? String(worker.fecha_ingreso).split('T')[0] : null;
-                                const fDesvinc = worker.fecha_desvinculacion ? String(worker.fecha_desvinculacion).split('T')[0] : null;
-                                const isDesvinculado = fDesvinc ? date > fDesvinc : false;
-                                const isPreContrato = fIngreso ? date < fIngreso : false;
-                                const isOutOfRange = isDesvinculado || isPreContrato;
+                                // Reingreso (mig 152): fuera de TODO período laboral (también entre una baja y el reingreso).
+                                const motivoFuera = fueraDePeriodo(date, periodosDe(worker));
+                                const isOutOfRange = motivoFuera !== null;
                                 const workerAlerta = alertasFaltas.find(a => a.trabajador_id === worker.id);
                                 // Controles de la fila (nº, A/F/JI/TO, Detalle, horas extra) en `text-base`: 16 px es lo que
                                 // siempre se vio. Los `text-caption`/`text-micro` que tenían los borraba `cn()` antes de
@@ -514,7 +513,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                                                 </div>
                                                 <div className="flex items-center justify-end gap-2">
                                                     {/* eslint-disable-next-line no-restricted-syntax -- link "Detalle" inline en el grid (text-only, hover:underline); Button (pill) rompe la celda */}
-                                                    <div className="flex-1"><button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} title={isOutOfRange ? (isPreContrato ? "Bloqueado: Aún no contratado" : "Bloqueado por Finiquito") : "Ver detalle"} className={cn("text-base text-green-700 dark:text-green-300 font-medium hover:underline w-full text-center", (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed no-underline grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button></div>
+                                                    <div className="flex-1"><button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} title={isOutOfRange ? tituloFuera(motivoFuera) : "Ver detalle"} className={cn("text-base text-green-700 dark:text-green-300 font-medium hover:underline w-full text-center", (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed no-underline grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button></div>
                                                     {/* eslint-disable-next-line no-restricted-syntax -- botón calendario por fila (forma/tamaño tuneados al grid); IconButton fijo regresa layout */}
                                                     <button onClick={() => setCalendarWorker(worker)} disabled={!!feriadoActual || isSunday || isSaturday} className={cn("p-1.5 rounded-full text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors flex-shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} title="Ver Calendario / Asignar Período"><CalendarDays className="h-4 w-4" /></button>
                                                 </div>

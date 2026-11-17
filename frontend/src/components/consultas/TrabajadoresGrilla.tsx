@@ -121,7 +121,7 @@ const TrabajadoresGrillaImpl: React.FC<Props> = ({
                     disabled={!hasPermission('trabajadores.eliminar')}
                     onClick={() => onDesvincular(w)} icon={<UserMinus className="h-4 w-4" />} />
             ) : (<>
-                <AccionFila aria-label="Reactivar trabajador" title="Reactivar"
+                <AccionFila aria-label="Reingresar trabajador" title="Reingresar (nuevo período laboral)"
                     disabled={!hasPermission('trabajadores.reactivar')}
                     onClick={() => onReactivar(w)} icon={<UserCheck className="h-4 w-4" />} />
                 {hasPermission('trabajadores.depurar') && (

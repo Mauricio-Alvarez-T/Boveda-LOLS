@@ -4,6 +4,7 @@ import { useObra } from '../../context/ObraContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import type { Trabajador, Asistencia, Feriado } from '../../types/entities';
+import { fueraDePeriodo, periodosDe } from '../../utils/periodosLaborales';
 
 interface UseAttendanceActionsProps {
     date: string;
@@ -63,11 +64,8 @@ export function useAttendanceActions({
         setUltimoGuardado({ estado: 'cargando', ...contexto });
         try {
             const validWorkers = currentWorkers.filter(w => {
-                const fIngreso = w.fecha_ingreso ? String(w.fecha_ingreso).split('T')[0] : null;
-                const fDesvinc = w.fecha_desvinculacion ? String(w.fecha_desvinculacion).split('T')[0] : null;
-                const isDesvinculado = fDesvinc ? currentDate > fDesvinc : false;
-                const isPreContrato = fIngreso ? currentDate < fIngreso : false;
-                return !isDesvinculado && !isPreContrato;
+                // Reingreso (mig 152): dentro de algún período laboral (no en el hueco entre períodos).
+                return fueraDePeriodo(currentDate, periodosDe(w)) === null;
             });
 
             const globalObraId = isGlobal ? 'ALL' : currentObra.id;
@@ -204,11 +202,8 @@ export function useAttendanceActions({
 
             // Filtrar trabajadores válidos hoy (no finiquitados, ya contratados)
             const validToday = currentWorkers.filter(w => {
-                const fIngreso = w.fecha_ingreso ? String(w.fecha_ingreso).split('T')[0] : null;
-                const fDesvinc = w.fecha_desvinculacion ? String(w.fecha_desvinculacion).split('T')[0] : null;
-                const isDesvinculado = fDesvinc ? currentDate > fDesvinc : false;
-                const isPreContrato = fIngreso ? currentDate < fIngreso : false;
-                return !isDesvinculado && !isPreContrato;
+                // Reingreso (mig 152): dentro de algún período laboral (no en el hueco entre períodos).
+                return fueraDePeriodo(currentDate, periodosDe(w)) === null;
             });
 
             let applied = 0;

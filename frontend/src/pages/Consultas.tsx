@@ -22,6 +22,7 @@ import {
     FileSignature,
     FlaskConical,
     AlertTriangle,
+    History,
     Save,
     ChevronLeft,
 } from 'lucide-react';
@@ -42,7 +43,9 @@ import EnvioEmailModal from '../components/workers/EnvioEmailModal';
 import ActividadesSemana from '../components/dashboard/widgets/ActividadesSemana';
 import WorkerQuickView from '../components/workers/WorkerQuickView';
 import { DesvincularModal } from '../components/workers/DesvincularModal';
-import { ReactivarModal } from '../components/workers/ReactivarModal';
+import { ReingresoModal } from '../components/workers/ReingresoModal';
+import api from '../services/api';
+import { showApiError } from '../utils/toastUtils';
 import { EmitirAmonestacionModal } from '../components/documents/EmitirAmonestacionModal';
 import { useSetCentroMovil, useSetPageHeader } from '../context/PageHeaderContext';
 import { useAuth } from '../context/AuthContext';
@@ -161,6 +164,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
         filterSalidaDesde, setFilterSalidaDesde,
         filterSalidaHasta, setFilterSalidaHasta,
         filterNoRecontratar, setFilterNoRecontratar,
+        filterReingresoSinFecha, setFilterReingresoSinFecha,
         filterFiniquito, setFilterFiniquito,
         filterSoloPrueba, setFilterSoloPrueba,
         handleClearFilters,
@@ -174,7 +178,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     } = useConsultasData({
         filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, filterIngresoDesde, filterIngresoHasta,
         filterFaltaDato, filterDocTipoFalta, filterDocVigencia, filterSalidaDesde, filterSalidaHasta,
-        filterNoRecontratar, filterFiniquito, filterSoloPrueba
+        filterNoRecontratar, filterReingresoSinFecha, filterFiniquito, filterSoloPrueba
     }, puedeVerTrabajadores && esGrilla);
 
     // Búsqueda por texto: se filtra EN EL CLIENTE (2026-09-17). El backend ya devuelve el set completo de
@@ -220,11 +224,11 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     const exportIds = useMemo(
         () => (busquedaDiferida || filterIngresoDesde || filterIngresoHasta || filterCompletitud || filterAusentes
             || filterAniversario10m || filterFaltaDato || filterDocTipoFalta || filterDocVigencia
-            || filterSalidaDesde || filterSalidaHasta || filterNoRecontratar || filterFiniquito
+            || filterSalidaDesde || filterSalidaHasta || filterNoRecontratar || filterReingresoSinFecha || filterFiniquito
             || filterSoloPrueba) ? workerIds : undefined,
         [busquedaDiferida, filterIngresoDesde, filterIngresoHasta, filterCompletitud, filterAusentes, filterAniversario10m,
             filterFaltaDato, filterDocTipoFalta, filterDocVigencia, filterSalidaDesde, filterSalidaHasta,
-            filterNoRecontratar, filterFiniquito, filterSoloPrueba, workerIds]
+            filterNoRecontratar, filterReingresoSinFecha, filterFiniquito, filterSoloPrueba, workerIds]
     );
 
     /**
@@ -270,6 +274,15 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 encender: () => { setFilterNoRecontratar(true); setFilterActivo(''); },
                 apagar: () => setFilterNoRecontratar(false),
             },
+            // Reingreso (mig 152): reactivados con el flujo viejo, que conservaban el ingreso del primer
+            // período. RRHH les pone la fecha real de reingreso (Editar) y salen solos de la lista.
+            ...(hasPermission('trabajadores.ver') ? [{
+                id: 'reingreso-sin-fecha', label: 'Reactivados con ingreso antiguo', icon: History, tono: 'aviso' as const,
+                nota: 'Volvieron antes del cambio de reingreso: ponles la fecha real de reingreso en Editar',
+                activo: filterReingresoSinFecha,
+                encender: () => { setFilterReingresoSinFecha(true); setFilterActivo('true'); },
+                apagar: () => setFilterReingresoSinFecha(false),
+            }] : []),
             {
                 id: 'prueba', label: 'Fichas de prueba', icon: FlaskConical, tono: 'aviso',
                 activo: filterSoloPrueba,
@@ -278,6 +291,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
             },
         ];
     }, [filterIngresoDesde, filterIngresoHasta, filterAniversario10m, aniversario10mLabel, filterFiniquito, filterNoRecontratar,
+        filterReingresoSinFecha, setFilterReingresoSinFecha, hasPermission,
         filterSoloPrueba, setFilterIngresoDesde, setFilterIngresoHasta, setFilterAniversario10m,
         clearAniversario10m, setFilterFiniquito, setFilterActivo, setFilterSalidaDesde, setFilterSalidaHasta,
         setFilterNoRecontratar, setFilterSoloPrueba]);
@@ -819,11 +833,22 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 onClose={() => setModalType(null)}
                 onDone={handleAccionCompletada}
             />
-            <ReactivarModal
+            <ReingresoModal
                 isOpen={modalType === 'reactivar'}
                 worker={selectedWorkerForAction}
                 onClose={() => setModalType(null)}
-                onDone={handleAccionCompletada}
+                onDone={async (opts) => {
+                    handleAccionCompletada();
+                    if (!opts?.editarFicha || !selectedWorkerForAction) return;
+                    // La fila de la grilla quedó vieja (inactivo, ingreso anterior): Editar con la ficha recién leída,
+                    // si no WorkerForm reenviaría la fecha vieja y el backend la rechazaría por solaparse.
+                    try {
+                        const res = await api.get(`/trabajadores/${selectedWorkerForAction.id}`);
+                        abrirEdicion(((res.data as { data?: Trabajador }).data ?? res.data) as Trabajador);
+                    } catch (e) {
+                        showApiError(e, 'No se pudo abrir la ficha para editar');
+                    }
+                }}
             />
 
             {/* Depurar Modal */}
