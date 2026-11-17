@@ -79,7 +79,8 @@ export const AvisoReingreso: React.FC<Props> = ({ trabajadorId, empresaId, fecha
                     </p>
                     {empresaUltimoNombre && (
                         <p>
-                            Su último contrato fue con <strong>{empresaUltimoNombre}</strong>.
+                            {/* Sin doble punto cuando la razón social ya termina en «.» (Ltda., S.A.). */}
+                            Su último contrato fue con <strong>{empresaUltimoNombre}</strong>{empresaUltimoNombre.endsWith('.') ? '' : '.'}
                             {otraEmpresa && ' La empresa elegida abajo es otro empleador: los contratos anteriores no se suman para el Art. 159 N°4.'}
                         </p>
                     )}
