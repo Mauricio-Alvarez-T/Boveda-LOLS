@@ -1,6 +1,6 @@
 import {
     CAMPOS_EN_LUGAR, P, V, esHolaDelSitio, itemDe, leerMensaje, msgBorrador, msgCampo, msgFoto, msgIniciar, msgModo, msgMostrar,
-    rutaInterna, slugDeItem, urlMarco, validarCambio, type MsgCambio,
+    rutaInterna, slugDeItem, urlMarco, validarCambio, validarMover, ESTADO_DE_REGLA, REGLAS, type MsgCambio, type MsgMover,
 } from './protocolo';
 import { LARGOS } from '../reglas';
 
@@ -117,5 +117,35 @@ describe('mensajes de la Bóveda', () => {
         expect(b).toEqual({ p: P, v: V, tipo: 'borrador', obras: [{ json, meta: { incluir: true, nueva: false } }] });
         const bytes = new ArrayBuffer(4);
         expect(msgFoto('a', bytes)).toEqual({ p: P, v: V, tipo: 'foto', item: 'obras/a', bytes });
+    });
+});
+
+describe('A2: nueva y mover', () => {
+    const base = { p: P, v: V };
+    test('nueva: solo con una de las 5 listas del sitio; cada lista dice el estado de la obra nueva', () => {
+        for (const lista of REGLAS) expect(leerMensaje({ ...base, tipo: 'nueva', lista })).toEqual({ ...base, tipo: 'nueva', lista });
+        expect(leerMensaje({ ...base, tipo: 'nueva', lista: 'han-confiado' })).toBeNull();
+        expect(leerMensaje({ ...base, tipo: 'nueva' })).toBeNull();
+        expect(ESTADO_DE_REGLA['portada-en-obra']).toBe('en_construccion');
+        expect(ESTADO_DE_REGLA['proyectos-contratados']).toBe('contratado');
+        expect(ESTADO_DE_REGLA['proyectos-terminados']).toBe('terminado');
+    });
+
+    test('mover: lista válida, item obras/<slug> (también ~n1) e índice entero ≥ 0', () => {
+        const m = { ...base, tipo: 'mover', lista: 'proyectos-en-curso', item: 'obras/maipu-40', indice: 2 };
+        expect(leerMensaje(m)).toEqual(m);
+        expect(leerMensaje({ ...m, item: 'obras/~n1' })).toEqual({ ...m, item: 'obras/~n1' });
+        for (const malo of [{ indice: -1 }, { indice: 1.5 }, { indice: '2' }, { lista: 'otra' }, { item: 'maipu-40' }, { item: 'obras/~x1' }, { item: 'obras/~n0' }]) {
+            expect(leerMensaje({ ...m, ...malo })).toBeNull();
+        }
+    });
+
+    test('validarMover: la obra tiene que estar en el borrador; ~n1 y los slugs reales se reconocen', () => {
+        const m = (item: string): MsgMover => ({ p: P, v: V, tipo: 'mover', lista: 'proyectos-en-curso', item, indice: 0 });
+        expect(validarMover(m('obras/maipu-40'), new Set(['maipu-40']))).toEqual({ ok: true, slug: 'maipu-40' });
+        expect(validarMover(m('obras/~n1'), new Set(['~n1']))).toEqual({ ok: true, slug: '~n1' });
+        expect(validarMover(m('obras/gorbea-3082'), new Set(['maipu-40']))).toEqual({ ok: false, motivo: 'obra_desconocida' });
+        expect(slugDeItem('obras/~n12')).toBe('~n12');
+        expect(validarCambio(cambio({ item: 'obras/~n1' }), new Set(['~n1']))).toEqual({ ok: true, slug: '~n1', clave: 'nombre' });
     });
 });

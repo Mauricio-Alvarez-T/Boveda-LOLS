@@ -6,6 +6,10 @@
  * `/sitio-web/editor/borrador` armado con las 27 obras reales de backend/tests/fixtures/sitio-web/obras), abre Sitio web,
  * espera el saludo con el iframe (el sitio con el puente), escribe en el título de una obra DENTRO del iframe, revisa que
  * la barra diga «Guardar (1)», abre el diálogo de guardar y revisa el cuerpo del POST /sitio-web/editor/guardar.
+ * Etapa A2 (estructura): «Nueva obra» desde la barra (y, si el puente ya trae A2, también la tarjeta «+ Nueva obra» del
+ * sitio), el nombre en el panel, cambiar el estado de una obra, ◀ «Mover antes» y guardar: el POST lleva `nuevas`, el
+ * `estado` en `cambios` y `orden`. Lo que depende del puente A2 (que pinte `~n1`, la tarjeta, el slug definitivo después
+ * de guardar) se revisa solo si el puente responde; si no, esos pasos dicen «SKIP (puente sin A2)» y el resto sigue.
  *
  * Cómo correrlo:
  *   1. El sitio con el puente en http://localhost:4321 (repo lols.cl, rama del editor visual):
@@ -63,9 +67,11 @@ const OBRAS = fs.readdirSync(DIR_FIX).filter(f => f.endsWith('.json')).sort().ma
             id: 500 + i, incluir: true, nueva: false, faltantes: [], estadoDerivado: 'publicada',
             updated_at: `2026-11-10T12:00:${String(i % 60).padStart(2, '0')}.000Z`, slug_congelado: true, foto: null,
             fotos_por_aprobar: 0, mandante: json.mandante, mandante_autoriza: json.mandante !== null,
+            publicado_at: '2026-11-01T10:00:00.000Z', nunca_publicada: false,
         },
     };
 });
+const ESTADO_SITIO = { en_construccion: 'en-curso', contratado: 'contratado', terminado: 'terminado' };
 const ESTADO_BOVEDA = { 'en-curso': 'en_construccion', contratado: 'contratado', terminado: 'terminado' };
 
 const CONFIG = {
@@ -97,12 +103,45 @@ function montarApi(context, guardados, sinSimular) {
         if (ruta === '/sitio-web/editor/guardar' && req.method() === 'POST') {
             const cuerpo = req.postDataJSON();
             guardados.push(cuerpo);
-            const obras = cuerpo.obras.map(o => ({ id: o.id, updated_at: '2026-11-17T12:00:00.000Z' }));
+            // Lo que haría el servidor, lo justo para que el borrador siguiente lo traiga (A1: nombre; A2: crear, estado, orden).
+            const version = `2026-11-17T12:00:${String(guardados.length).padStart(2, '0')}.000Z`;
+            const nuevas = {};
+            for (const n of cuerpo.nuevas || []) {
+                const id = 9000 + OBRAS.length;
+                const slug = n.cambios.nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+                const estado = ESTADO_SITIO[n.cambios.estado || 'en_construccion'];
+                const orden = Math.max(0, ...OBRAS.filter(o => o.json.estado === estado).map(o => o.json.orden)) + 10;
+                OBRAS.push({
+                    json: {
+                        slug, orden, estado, nombre: n.cambios.nombre, titular: null, tipo: null, mandante: null, comuna: n.cambios.comuna ?? null, direccion: null,
+                        superficieM2: null, anio: null, inicio: null, servicios: n.cambios.servicios || [], desafio: null, solucion: null, resultado: null, fotos: [],
+                    },
+                    meta: {
+                        id, incluir: false, nueva: false, faltantes: [], estadoDerivado: 'borrador', updated_at: version, slug_congelado: false, foto: null,
+                        fotos_por_aprobar: 0, mandante: null, mandante_autoriza: false, publicado_at: null, nunca_publicada: true,
+                    },
+                });
+                nuevas[n.tmp] = { id, slug, updated_at: version };
+            }
             for (const o of cuerpo.obras) {
                 const x = OBRAS.find(y => y.meta.id === o.id);
-                if (x && typeof o.cambios.nombre === 'string') { x.json = { ...x.json, nombre: o.cambios.nombre }; x.meta = { ...x.meta, updated_at: '2026-11-17T12:00:00.000Z' }; }
+                if (!x) continue;
+                if (typeof o.cambios.nombre === 'string') x.json = { ...x.json, nombre: o.cambios.nombre };
+                if (o.cambios.estado) {
+                    const estado = ESTADO_SITIO[o.cambios.estado];
+                    x.json = { ...x.json, estado, orden: Math.max(0, ...OBRAS.filter(y => y.json.estado === estado).map(y => y.json.orden)) + 10 };
+                }
+                x.meta = { ...x.meta, updated_at: version };
             }
-            return json(route, { data: { obras } });
+            for (const g of cuerpo.orden || []) {
+                g.ids.forEach((ref, i) => {
+                    const id = typeof ref === 'string' ? nuevas[ref].id : ref;
+                    const x = OBRAS.find(y => y.meta.id === id);
+                    if (x) x.json = { ...x.json, orden: (i + 1) * 10 };
+                });
+            }
+            const obras = cuerpo.obras.map(o => ({ id: o.id, updated_at: version }));
+            return json(route, { data: { obras, nuevas, orden: cuerpo.orden || [], incluir: [] } });
         }
         if (ruta === '/sitio-web/obras') {
             return json(route, { data: OBRAS.map(o => ({
@@ -195,6 +234,91 @@ async function main() {
             throw new Error(`Cuerpo del guardado inesperado:\n  recibido ${JSON.stringify(recibido)}\n  esperado ${JSON.stringify(esperado)}`);
         }
         log('POST /sitio-web/editor/guardar:', JSON.stringify(recibido));
+
+        /* ─────────── A2: estructura ─────────── */
+        const panel = page.locator('aside[aria-label="Obra seleccionada"]');
+        const skipA2 = (paso) => log(`SKIP (puente sin A2): ${paso}`);
+        const aparece = (loc, ms = 4000) => loc.first().waitFor({ timeout: ms }).then(() => true, () => false);
+
+        // 1. «Nueva obra» desde la barra → «En proyecto» (sale en la portada: «Próximos proyectos» muestra todas).
+        await page.getByRole('button', { name: 'Nueva obra' }).first().click();
+        await page.getByRole('menuitem', { name: /En proyecto/ }).click();
+        await panel.getByText('Sin guardar · se crea al guardar').waitFor({ timeout: 5000 });
+        const nombreNueva = panel.locator('input').first();
+        // El sitio enfoca su ficha al mostrarla; el panel recupera el foco del Nombre poco después.
+        const enfocado = await page.waitForFunction(() => document.activeElement?.tagName === 'INPUT'
+            && !!document.activeElement.closest('aside[aria-label="Obra seleccionada"]'), null, { timeout: 2000 }).then(() => true, () => false);
+        log(`Obra nueva ~n1 en el panel (Nombre ${enfocado ? 'con el cursor' : 'SIN el cursor'}).`);
+        if (!enfocado) throw new Error(`El panel de la obra nueva no dejó el cursor en Nombre (foco en: ${await page.evaluate(() => (document.activeElement?.outerHTML || "").slice(0, 160))})`);
+        await nombreNueva.fill('Edificio E2E Nuevo');
+        const puenteA2 = await aparece(sitio.locator('[data-ed-item="obras/~n1"]'));
+        if (puenteA2) log('El puente pinta la obra nueva (obras/~n1).');
+        else skipA2('el sitio no pintó obras/~n1');
+
+        // 1b. La tarjeta «+ Nueva obra» del puente (solo con A2): crea ~n2, que se descarta (el guardado lleva solo ~n1).
+        if (puenteA2) {
+            const tarjeta = sitio.locator('[data-ed-lista]').getByText(/Nueva obra/).first();
+            if (await aparece(tarjeta, 3000)) {
+                await tarjeta.click();
+                await panel.getByRole('heading', { name: 'Nueva obra' }).waitFor({ timeout: 5000 });
+                log('La tarjeta «+ Nueva obra» del sitio crea una obra provisoria.');
+                await panel.getByRole('button', { name: 'Descartar' }).click();
+                await page.getByText('Obra nueva descartada.').waitFor({ timeout: 5000 });
+            } else skipA2('no se encontró la tarjeta «+ Nueva obra» en el sitio');
+        }
+
+        // 2. Cambiar el estado de una obra que ya existe: la primera de «Obras en esta página» pasa a «En proyecto».
+        // (Descartar ya la cerró; si no, se cierra la obra abierta.)
+        const cerrar = panel.getByRole('button', { name: 'Cerrar la obra' });
+        if (await cerrar.count()) await cerrar.click();
+        const primera = panel.locator('ul li button').first();
+        await primera.waitFor({ timeout: 5000 });
+        const nombreObra = (await primera.innerText()).trim();
+        const cambiada = OBRAS.find(o => o.json.nombre === nombreObra);
+        if (!cambiada) throw new Error(`«${nombreObra}» no está en el borrador simulado`);
+        const versionCambiada = cambiada.meta.updated_at;   // la API simulada la cambia al guardar
+        await primera.click();
+        const lugar = panel.locator('section[aria-label="Lugar en el sitio"]');
+        await lugar.locator('select').selectOption('contratado');
+        await lugar.getByText(/en Proyectos › En proyecto/).waitFor({ timeout: 5000 });
+        log(`«${nombreObra}» pasó a «En proyecto» (queda última de su lista).`);
+
+        // 3. ◀ «Mover antes»: queda antes de la nueva.
+        await lugar.getByRole('button', { name: 'Mover antes' }).click();
+        const contratadas = OBRAS.filter(o => o.json.estado === 'contratado').length;
+        await lugar.getByText(new RegExp(`N\\.º ${contratadas + 1} de ${contratadas + 2}`)).waitFor({ timeout: 5000 });
+        log('◀ «Mover antes» la deja antes de la nueva.');
+
+        // 4. Guardar: nuevas + estado en cambios + orden con el slug provisorio.
+        await page.getByRole('button', { name: /^Guardar \(\d+\)$/ }).click();
+        await page.getByText('Guardar cambios', { exact: true }).waitFor({ timeout: 5000 });
+        await page.locator('li', { hasText: 'Nueva obra' }).first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /^Guardar$/ }).click();
+        await page.getByText('Guardar cambios', { exact: true }).waitFor({ state: 'detached', timeout: 5000 });
+        if (guardados.length !== 2) throw new Error(`Se esperaban 2 POST /editor/guardar y hubo ${guardados.length}`);
+        const a2 = guardados[1];
+        const fallas = [];
+        if (!(a2.nuevas?.length === 1 && a2.nuevas[0].tmp === '~n1' && a2.nuevas[0].cambios.nombre === 'Edificio E2E Nuevo' && a2.nuevas[0].cambios.estado === 'contratado')) {
+            fallas.push('nuevas');
+        }
+        if (!a2.obras.some(o => o.id === cambiada.meta.id && o.cambios.estado === 'contratado' && o.updated_at === versionCambiada)) fallas.push('obras[].cambios.estado');
+        const ordenContratado = (a2.orden || []).find(g => g.estado === 'contratado');
+        if (!ordenContratado || JSON.stringify(ordenContratado.ids.slice(-2)) !== JSON.stringify([cambiada.meta.id, '~n1'])) fallas.push('orden');
+        if (fallas.length) throw new Error(`Cuerpo del guardado A2 inesperado (${fallas.join(', ')}): ${JSON.stringify(a2)}`);
+        log('POST A2:', JSON.stringify({ nuevas: a2.nuevas, obras: a2.obras, orden: a2.orden }));
+
+        // 5. Después de guardar, el borrador nuevo trae la obra con su slug definitivo y FUERA del sitio (se crea así):
+        //    el provisorio desaparece de la página y la obra queda en la bandeja «Fuera del sitio (1)».
+        await page.getByRole('button', { name: /Fuera del sitio \(1\)/ }).waitFor({ timeout: 5000 });
+        if (puenteA2) {
+            const fin = Date.now() + 5000;
+            while (await sitio.locator('[data-ed-item="obras/~n1"]:not([hidden])').count()) {
+                if (Date.now() > fin) throw new Error('El puente siguió mostrando obras/~n1 después de guardar');
+                await new Promise(r => setTimeout(r, 200));
+            }
+            log('El provisorio obras/~n1 ya no está en el sitio; la obra guardada queda en «Fuera del sitio (1)».');
+        } else skipA2('el provisorio desaparece del sitio después de guardar');
+        await panel.getByText(/N\.º \d+ de \d+ en Proyectos › En proyecto/).first().waitFor({ timeout: 5000 });
         const capturas = process.env.E2E_CAPTURAS_DIR;
         if (capturas) {
             // Opcional: cómo se ve (escritorio con la obra en el panel, y el teléfono con la hoja inferior).

@@ -70,15 +70,34 @@ const resincronizar = {
     confirmo: { required: true, type: 'boolean' },
 };
 
-// POST /editor/guardar (editor visual) — `obras: [{ id, updated_at, cambios }]`. La lista y cada elemento los revisa la
-// ruta; `cambios` se valida con el mismo schema del PUT (sin la versión, que viene al lado).
+// POST /editor/guardar (editor visual) — `{ obras: [{ id, updated_at, cambios }], nuevas?: [{ tmp, cambios }],
+// orden?: [{ estado, ids }], incluir?: [{ id, incluir }] }` (A2: crear, ordenar, quitar e incluir en el mismo guardado).
+// Las listas y cada elemento los revisa la ruta; `cambios` de una obra con el schema del PUT (sin la versión, que viene
+// al lado) y el de una nueva con el del POST /obras. `tmp` = slug provisorio de la pantalla (`~n1`, `~n2`…).
+const TMP_RE = /^~n[1-9]\d{0,5}$/;
 const editorGuardar = {
-    obras: { required: true, type: 'array', minLength: 1 },
+    obras: { required: true, type: 'array' },
+    nuevas: { type: 'array' },
+    orden: { type: 'array' },
+    incluir: { type: 'array' },
 };
 const editorObra = {
     id: { required: true, type: 'integer', min: 1 },
     updated_at: { required: true, type: 'string', maxLength: 40 },
 };
+const editorNueva = {
+    tmp: { required: true, type: 'string', maxLength: 10, pattern: TMP_RE },
+};
+const editorOrden = {
+    estado: { required: true, type: 'string', in: ESTADOS },
+    ids: { required: true, type: 'array', minLength: 1 },
+};
+const editorIncluir = {
+    incluir: { required: true, type: 'boolean' },
+};
 const { updated_at: _version, ...cambiosObra } = editarObra;
 
-module.exports = { crearObra, editarObra, incluir, orden, editarFoto, publicar, resincronizar, editorGuardar, editorObra, cambiosObra };
+module.exports = {
+    crearObra, editarObra, incluir, orden, editarFoto, publicar, resincronizar,
+    editorGuardar, editorObra, editorNueva, editorOrden, editorIncluir, cambiosObra, TMP_RE,
+};

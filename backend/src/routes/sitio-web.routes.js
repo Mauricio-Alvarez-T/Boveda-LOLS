@@ -89,36 +89,105 @@ router.get('/editor/borrador', ...ver, async (req, res, next) => {
 });
 
 /**
- * `{ obras: [{ id, updated_at, cambios }] }`: hasta MAX_GUARDAR_EDITOR obras, sin repetir, y cada `cambios` con el
- * schema del PUT /obras/:id (las claves de más se descartan). Un error dice en qué obra (`obras[i]`).
+ * `{ obras: [{ id, updated_at, cambios }], nuevas?: [{ tmp, cambios }], orden?: [{ estado, ids }], incluir?: [{ id,
+ * incluir }] }` (editor visual A1 + A2). Cada lista hasta MAX_GUARDAR_EDITOR, sin repetir; `cambios` de una obra con el
+ * schema del PUT /obras/:id y el de una nueva con el del POST /obras (las claves de más se descartan); `ids` de orden e
+ * `id` de incluir = un id o el `tmp` de una nueva del mismo guardado. Al menos una cosa que guardar. Un error dice dónde
+ * (`obras[i]`, `nuevas[i]`…).
  */
 const validarGuardarEditor = (req, res, next) => {
     const malo = (error) => res.status(400).json({ error });
     const general = validateBody.validarObjeto(schemas.editorGuardar, req.body);
     if (general.error) return malo(general.error);
-    const lista = req.body.obras;
-    if (lista.length > svc.MAX_GUARDAR_EDITOR) return malo(`obras: a lo más ${svc.MAX_GUARDAR_EDITOR} obras por guardado`);
-    const limpias = [];
+    const MAX = svc.MAX_GUARDAR_EDITOR;
+    const objeto = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
+    const listas = { obras: req.body.obras, nuevas: req.body.nuevas || [], orden: req.body.orden || [], incluir: req.body.incluir || [] };
+    for (const [k, l] of Object.entries(listas)) if (l.length > MAX) return malo(`${k}: a lo más ${MAX} por guardado`);
+    if (!Object.values(listas).some(l => l.length)) return malo('No hay nada que guardar');
+
+    const obras = [];
     const vistas = new Set();
-    for (let i = 0; i < lista.length; i += 1) {
-        const item = lista[i];
-        if (!item || typeof item !== 'object' || Array.isArray(item)) return malo(`obras[${i}] debe ser un objeto`);
+    for (let i = 0; i < listas.obras.length; i += 1) {
+        const item = listas.obras[i];
+        if (!objeto(item)) return malo(`obras[${i}] debe ser un objeto`);
         const cab = validateBody.validarObjeto(schemas.editorObra, item, { strip: true, prefijo: `obras[${i}].` });
         if (cab.error) return malo(cab.error);
         const obraId = Number(item.id);
         if (vistas.has(obraId)) return malo(`obras[${i}].id está repetida`);
         vistas.add(obraId);
-        if (!item.cambios || typeof item.cambios !== 'object' || Array.isArray(item.cambios)) return malo(`obras[${i}].cambios debe ser un objeto`);
+        if (!objeto(item.cambios)) return malo(`obras[${i}].cambios debe ser un objeto`);
         const c = validateBody.validarObjeto(schemas.cambiosObra, item.cambios, { strip: true, prefijo: `obras[${i}].cambios.` });
         if (c.error) return malo(c.error);
-        limpias.push({ id: obraId, updated_at: item.updated_at, cambios: c.valor });
+        obras.push({ id: obraId, updated_at: item.updated_at, cambios: c.valor });
     }
-    req.body = { obras: limpias };
+
+    const nuevas = [];
+    const tmps = new Set();
+    for (let i = 0; i < listas.nuevas.length; i += 1) {
+        const item = listas.nuevas[i];
+        if (!objeto(item)) return malo(`nuevas[${i}] debe ser un objeto`);
+        const cab = validateBody.validarObjeto(schemas.editorNueva, item, { prefijo: `nuevas[${i}].` });
+        if (cab.error) return malo(cab.error);
+        if (tmps.has(item.tmp)) return malo(`nuevas[${i}].tmp está repetido`);
+        tmps.add(item.tmp);
+        if (!objeto(item.cambios)) return malo(`nuevas[${i}].cambios debe ser un objeto`);
+        const c = validateBody.validarObjeto(schemas.crearObra, item.cambios, { strip: true, prefijo: `nuevas[${i}].cambios.` });
+        if (c.error) return malo(c.error);
+        nuevas.push({ tmp: item.tmp, cambios: c.valor });
+    }
+    /** Un id real (entero ≥ 1) o el tmp de una nueva de este guardado; undefined si no es ninguno. */
+    const ref = (x) => {
+        if (typeof x === 'string' && schemas.TMP_RE.test(x)) return tmps.has(x) ? x : undefined;
+        const n = typeof x === 'number' ? x : (typeof x === 'string' && /^\d+$/.test(x) ? Number(x) : NaN);
+        return Number.isInteger(n) && n >= 1 ? n : undefined;
+    };
+
+    const orden = [];
+    const estados = new Set();
+    for (let i = 0; i < listas.orden.length; i += 1) {
+        const g = listas.orden[i];
+        if (!objeto(g)) return malo(`orden[${i}] debe ser un objeto`);
+        const cab = validateBody.validarObjeto(schemas.editorOrden, g, { prefijo: `orden[${i}].` });
+        if (cab.error) return malo(cab.error);
+        if (estados.has(g.estado)) return malo(`orden[${i}].estado está repetido`);
+        estados.add(g.estado);
+        if (g.ids.length > MAX + listas.nuevas.length) return malo(`orden[${i}].ids es demasiado larga`);
+        const ids = g.ids.map(ref);
+        const malo1 = ids.findIndex(x => x === undefined);
+        if (malo1 >= 0) return malo(`orden[${i}].ids[${malo1}] no es una obra ni una nueva de este guardado`);
+        if (new Set(ids).size !== ids.length) return malo(`orden[${i}].ids tiene obras repetidas`);
+        orden.push({ estado: g.estado, ids });
+    }
+
+    const incluir = [];
+    const vistasInc = new Set();
+    for (let i = 0; i < listas.incluir.length; i += 1) {
+        const x = listas.incluir[i];
+        if (!objeto(x)) return malo(`incluir[${i}] debe ser un objeto`);
+        const cab = validateBody.validarObjeto(schemas.editorIncluir, x, { prefijo: `incluir[${i}].` });
+        if (cab.error) return malo(cab.error);
+        const r = ref(x.id);
+        if (r === undefined) return malo(`incluir[${i}].id no es una obra ni una nueva de este guardado`);
+        if (vistasInc.has(r)) return malo(`incluir[${i}].id está repetida`);
+        vistasInc.add(r);
+        incluir.push({ id: r, incluir: x.incluir });
+    }
+
+    req.body = { obras, nuevas, orden, incluir };
     return next();
 };
 
 router.post('/editor/guardar', ...editar, validarGuardarEditor, async (req, res, next) => {
-    try { res.json({ data: await svc.guardarEditor(req.body.obras, req.user.id, { permisos: permisos(req) }) }); } catch (e) { next(e); }
+    try {
+        const { registro, ...r } = await svc.guardarEditor(req.body, req.user.id, { permisos: permisos(req) });
+        // Historial general (Configuración → Historial), como POST /obras y PUT /obras/:id/incluir.
+        for (const c of registro.creadas) await registrarActividad(req, 'CREATE', c.id, `Creó la obra «${c.nombre}» del sitio web (editor visual)`);
+        for (const x of registro.incluidas) {
+            await registrarActividad(req, 'UPDATE', x.id, x.incluir
+                ? `Incluyó «${x.nombre}» en el sitio web (editor visual)` : `Quitó «${x.nombre}» del sitio web (editor visual)`);
+        }
+        res.json({ data: r });
+    } catch (e) { next(e); }
 });
 
 router.get('/obras/:id', ...ver, async (req, res, next) => {

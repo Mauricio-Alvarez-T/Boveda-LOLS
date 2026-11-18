@@ -10,7 +10,7 @@ interface Props {
     diferencias: Diferencia[];
     /** Lo que impide guardar (nombre vacío, superficie que no es número…). */
     errores: { id: number; nombre: string; mensaje: string }[];
-    onGuardar: () => Promise<{ ok: true } | { ok: false; choques: { id: number; nombre: string | null }[] | null; mensaje: string }>;
+    onGuardar: () => Promise<{ ok: true } | { ok: false; choques: { id: number; nombre: string | null }[] | null; mensaje: string; recargable?: boolean }>;
     onRecargar: (ids: number[]) => Promise<void>;
     onClose: () => void;
 }
@@ -26,12 +26,15 @@ export const GuardarModal: React.FC<Props> = ({ diferencias, errores, onGuardar,
     const [error, setError] = useState<string | null>(null);
     const [choques, setChoques] = useState<{ id: number; nombre: string | null }[] | null>(null);
     const [recargando, setRecargando] = useState(false);
+    // El orden cambió en el servidor: «Recargar» trae lo último SIN perder nada de lo hecho (se recalcula el orden).
+    const [recargable, setRecargable] = useState(false);
 
-    const porObra = diferencias.reduce<{ id: number; obra: string; filas: Diferencia[] }[]>((acc, d) => {
-        const g = acc.find(x => x.id === d.id);
-        if (g) g.filas.push(d); else acc.push({ id: d.id, obra: d.obra, filas: [d] });
+    const porObra = diferencias.reduce<{ grupo: string; obra: string; filas: Diferencia[] }[]>((acc, d) => {
+        const g = acc.find(x => x.grupo === d.grupo);
+        if (g) g.filas.push(d); else acc.push({ grupo: d.grupo, obra: d.obra, filas: [d] });
         return acc;
     }, []);
+    const obras = porObra.filter(g => g.grupo.startsWith('obra:')).length;
 
     const guardar = async () => {
         setGuardando(true);
@@ -40,13 +43,14 @@ export const GuardarModal: React.FC<Props> = ({ diferencias, errores, onGuardar,
         setGuardando(false);
         if (r.ok) { onClose(); return; }
         if (r.choques) setChoques(r.choques);
+        setRecargable(!!('recargable' in r && r.recargable));
         setError(r.mensaje);
     };
 
     const recargar = async () => {
-        if (!choques) return;
+        if (!choques && !recargable) return;
         setRecargando(true);
-        await onRecargar(choques.map(c => c.id));
+        await onRecargar(choques ? choques.map(c => c.id) : []);
         setRecargando(false);
         onClose();
     };
@@ -55,11 +59,11 @@ export const GuardarModal: React.FC<Props> = ({ diferencias, errores, onGuardar,
 
     return (
         <Modal isOpen onClose={guardando ? () => undefined : onClose} size="md" title="Guardar cambios" icon={Save}
-            description={`${diferencias.length} cambio${diferencias.length === 1 ? '' : 's'} en ${porObra.length} obra${porObra.length === 1 ? '' : 's'}`}
+            description={`${diferencias.length} cambio${diferencias.length === 1 ? '' : 's'}${obras ? ` en ${obras} obra${obras === 1 ? '' : 's'}` : ''}`}
             footer={
                 <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                     <Button variant="ghost" onClick={onClose} disabled={guardando || recargando} className="h-11 md:h-9">Seguir editando</Button>
-                    {choques ? (
+                    {choques || recargable ? (
                         <Button variant="secondary" onClick={recargar} isLoading={recargando} leftIcon={<RefreshCw className="h-4 w-4" />} className="h-11 md:h-9">Recargar</Button>
                     ) : (
                         <Button onClick={guardar} isLoading={guardando} disabled={bloqueado || !diferencias.length} leftIcon={<Save className="h-4 w-4" />} className="h-11 md:h-9">
@@ -81,6 +85,7 @@ export const GuardarModal: React.FC<Props> = ({ diferencias, errores, onGuardar,
                     </Aviso>
                 )}
                 {!choques && <FormError message={error} />}
+                {recargable && <p className="text-muted-foreground">«Recargar» trae lo último sin perder lo que hiciste; después revisa el orden y vuelve a guardar.</p>}
 
                 {bloqueado && (
                     <Aviso icon={AlertTriangle} tono="peligro">
@@ -91,17 +96,19 @@ export const GuardarModal: React.FC<Props> = ({ diferencias, errores, onGuardar,
 
                 <div className="flex flex-col gap-3">
                     {porObra.map(g => (
-                        <section key={g.id} className="rounded-xl border border-border bg-card">
+                        <section key={g.grupo} className="rounded-xl border border-border bg-card">
                             <h3 className="border-b border-border px-3 py-2 text-sm font-semibold text-brand-dark">{g.obra}</h3>
                             <ul className="flex flex-col divide-y divide-border">
                                 {g.filas.map(d => (
                                     <li key={d.campo} className="flex flex-col gap-1 px-3 py-2">
                                         <span className="text-xs font-medium text-muted-foreground">{d.etiqueta}</span>
-                                        <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
-                                            <span className="min-w-0 break-words text-muted-foreground line-through decoration-muted-foreground/50 line-clamp-3 sm:flex-1">{d.antes}</span>
-                                            <ArrowRight className="hidden h-4 w-4 shrink-0 text-muted-foreground sm:mt-0.5 sm:block" aria-label="pasa a" />
-                                            <span className="min-w-0 break-words line-clamp-4 sm:flex-1">{d.despues}</span>
-                                        </div>
+                                        {d.antes ? (
+                                            <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
+                                                <span className="min-w-0 break-words text-muted-foreground line-through decoration-muted-foreground/50 line-clamp-3 sm:flex-1">{d.antes}</span>
+                                                <ArrowRight className="hidden h-4 w-4 shrink-0 text-muted-foreground sm:mt-0.5 sm:block" aria-label="pasa a" />
+                                                <span className="min-w-0 break-words line-clamp-4 sm:flex-1">{d.despues}</span>
+                                            </div>
+                                        ) : <span className="min-w-0 break-words">{d.despues}</span>}
                                     </li>
                                 ))}
                             </ul>

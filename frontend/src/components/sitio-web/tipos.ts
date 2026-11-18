@@ -304,7 +304,7 @@ export interface ResultadoResincronizar {
 export interface MetaObraEditor {
     id: number;
     incluir: boolean;
-    /** Siempre false en la etapa A1 (crear obras en el editor es A2). */
+    /** Obra creada en el editor y todavía sin guardar (A2: slug provisorio `~n1`, id negativo en la pantalla). */
     nueva: boolean;
     faltantes: Faltante[];
     estadoDerivado: EstadoDerivado;
@@ -316,6 +316,9 @@ export interface MetaObraEditor {
     /** El mandante guardado (el JSON solo lo trae si está autorizado). */
     mandante: string | null;
     mandante_autoriza: boolean;
+    publicado_at: string | null;
+    /** Nunca salió al sitio: se puede borrar (si además está fuera del sitio). */
+    nunca_publicada: boolean;
 }
 
 /** Una fila de GET /editor/borrador: `json` = lo que publicaría hoy serializarObra. */
@@ -324,7 +327,10 @@ export interface ObraEditor {
     meta: MetaObraEditor;
 }
 
-/** POST /editor/guardar. */
+/** POST /editor/guardar. `nuevas` = slug provisorio (`~n1`) → la obra creada. */
 export interface ResultadoGuardarEditor {
     obras: { id: number; updated_at: string; sin_cambios?: boolean }[];
+    nuevas?: Record<string, { id: number; slug: string; updated_at: string }>;
+    orden?: { estado: EstadoObra; ids: number[] }[];
+    incluir?: { id: number; incluir: boolean }[];
 }

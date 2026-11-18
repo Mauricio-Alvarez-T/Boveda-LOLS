@@ -2,7 +2,7 @@
  * Dobles de prueba del módulo Sitio web (mig 147): una BD en memoria y un repo de GitHub en memoria.
  *
  * crearBd()      entiende las sentencias que usa el módulo (INSERT / UPDATE / DELETE / SELECT de una tabla, sin
- *                JOIN): WHERE con AND/OR de `col = ?`, `<>`, `IN (?)`, `IN ('a','b')`, `IS [NOT] NULL`; ORDER BY con
+ *                JOIN; también `COALESCE(MAX(col), 0)` y `SET col = CASE id WHEN ? THEN ? … END`): WHERE con AND/OR de `col = ?`, `<>`, `IN (?)`, `IN ('a','b')`, `IS [NOT] NULL`; ORDER BY con
  *                FIELD(); LIMIT. GET_LOCK/RELEASE_LOCK (el nombre TIENE que llevar la base: GET_LOCK es de todo el
  *                servidor MySQL y staging comparte instancia con producción), transacciones (copia y restaura) y
  *                `ON UPDATE` de updated_at.
@@ -161,6 +161,12 @@ function crearBd({ usuarios = [{ id: 5, nombre: 'Ana Pérez' }], idInicial = 990
             const m = a.match(/^(\w+) = (.+)$/);
             if (!m) throw new Error(`BD falsa: SET no soportado: ${a}`);
             const [, col, expr] = m;
+            // `col = CASE id WHEN ? THEN ? … END` (reordenar): un valor por fila según su id.
+            const caso = expr.match(/^CASE (\w+) ((?:WHEN \? THEN \? ?)+)END$/);
+            if (caso) {
+                const pares = (caso[2].match(/WHEN/g) || []).map(() => [params.shift(), params.shift()]);
+                return { col, segun: { col: caso[1], pares } };
+            }
             if (/^\w+$/.test(expr) && !/^(NULL|TRUE|FALSE|\d+)$/i.test(expr)) return { col, de: expr };
             return { col, valor: literal(expr, params) };
         });
@@ -170,7 +176,12 @@ function crearBd({ usuarios = [{ id: 5, nombre: 'Ana Pérez' }], idInicial = 990
             if (!cumple(f)) continue;
             n++;
             const nueva = { ...f };
-            for (const a of asignaciones) nueva[a.col] = a.de !== undefined ? f[a.de] : copiar(a.valor);
+            for (const a of asignaciones) {
+                if (a.segun) {
+                    const par = a.segun.pares.find(([k]) => igual(f[a.segun.col], k));
+                    nueva[a.col] = par ? par[1] : null;
+                } else nueva[a.col] = a.de !== undefined ? f[a.de] : copiar(a.valor);
+            }
             if ('updated_at' in f && !asignaciones.some(a => a.col === 'updated_at')) nueva.updated_at = new Date();
             Object.assign(f, nueva);
         }
@@ -225,6 +236,12 @@ function crearBd({ usuarios = [{ id: 5, nombre: 'Ana Pérez' }], idInicial = 990
             const f = tablas.sitio_obra_fotos.find(x => igual(x.id, p[0]));
             const o = f && tablas.sitio_obras.find(x => igual(x.id, f.sitio_obra_id));
             return [f && o ? [{ ...copiarFila(f), obra_nombre: o.nombre, obra_slug: o.slug }] : []];
+        }
+        // siguienteOrden: el mayor `orden` de un estado (0 si no hay).
+        if ((m = sql.match(/^SELECT COALESCE\(MAX\((\w+)\), 0\) AS (\w+) FROM (\w+) WHERE (.+)$/))) {
+            const cumple = condicion(m[4], p);
+            const valores = tablas[m[3]].filter(cumple).map(f => Number(f[m[1]]) || 0);
+            return [[{ [m[2]]: valores.length ? Math.max(...valores) : 0 }]];
         }
         if ((m = sql.match(/^INSERT INTO (\w+) \(([^)]*)\) VALUES \((.*)\)$/))) {
             return insertar(m[1], partir(m[2], ','), partir(m[3], ',').map(t => literal(t, p)));

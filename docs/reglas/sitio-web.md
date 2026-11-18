@@ -373,15 +373,15 @@ Menú lateral **«Sitio web»** (`/sitio-web`, ícono `Globe`, después de Presu
   azul publicando o simulada, rojo no llegó / falló / rechazada, gris borrador.
 - `ui/VisorAdjunto` acepta `pie` (botones propios en vez de «Abrir aparte» / «Descargar»).
 
-## Editor visual (etapa A1, 2026-11-17)
+## Editor visual (etapa A1 2026-11-17, A2 estructura 2026-11-18)
 
 El sitio **real** dentro de la Bóveda para editar en el lugar: se toca un título y se escribe; lo formateado y la
 portada, en el panel de la derecha (hoja inferior en el teléfono). **Contrato con el sitio: `docs/editor-visual.md` del
 repo lols.cl** (marcas `data-ed-*`, protocolo v1 de mensajes); la Bóveda implementa su lado tal cual.
 
 - **Pestañas** de `/sitio-web`: «Editor visual» (por defecto), «Lista» (la de siempre: `?vista=lista`; `?filtro=…`,
-  `?vista=obras` y `?obra=…` siguen abriéndola) y «Publicaciones». Crear, ordenar, cambiar de estado y quitar obras es la
-  etapa A2: en el editor el estado se ve y «Cambiar en Lista» lleva a la obra.
+  `?vista=obras` y `?obra=…` siguen abriéndola) y «Publicaciones». Desde A2 la estructura también se arma en el editor
+  (abajo); la Lista sigue pudiendo todo.
 - **Flujo**: lo escrito es un borrador en la pantalla (deshacer/rehacer, una ráfaga de teclas del mismo campo = un
   paso) hasta **«Guardar (n)»** (n = campos por guardar), que muestra «campo: antes → después» y guarda todo junto.
   **Guardar no publica**: «Publicar cambios» (`sitio_web.publicar`, apagado mientras haya cambios sin guardar) abre el
@@ -398,6 +398,48 @@ repo lols.cl** (marcas `data-ed-*`, protocolo v1 de mensajes); la Bóveda implem
   updated_at }] }`.
 - **Slug reservado `molde`**: el sitio lo usa para `/editor/moldes/` (la obra completa de muestra de la que el puente
   clona lo que falta).
+- **A2 — estructura** (contrato § «Etapa A2: estructura»). El `borrador` que recibe el puente es **la verdad** de qué
+  obras hay, su estado, `orden` e `incluir`; el puente rearma cada lista con las reglas de `selecciones.ts`
+  (`portada-en-obra` = las 3 primeras en construcción; `proyectos-terminados` por año, la más nueva primero, y en el
+  mismo año primero las con foto propia). `borradorSitio.ts` es espejo de esas reglas (`listaVisible`) y guarda, sobre lo
+  cargado, una **capa** (lo escrito + obras nuevas + estructura) que deshacer/rehacer restaura entera.
+  - **Nueva obra**: botón de la barra (pregunta el estado; en el teléfono, hoja sobre la barra de abajo) o la tarjeta
+    «+ Nueva obra» del puente (mensaje `nueva {lista}`: el estado sale de la lista). Nace con slug provisorio `~n1`,
+    `~n2`… (id negativo en la pantalla, `meta.nueva: true`), fuera del sitio, al final de su estado, con «Construcción»
+    marcado; el sitio la muestra con su insignia mientras se escribe, el panel se abre con el cursor en Nombre (el sitio
+    enfoca su ficha al mostrarla: el panel recupera el foco una vez). La portada se sube después de guardar.
+  - **Panel → «Lugar en el sitio»**: selector de **estado** (Terminado pide el año ahí mismo si no lo tiene; la obra
+    pasa al final de su lista nueva, como el servidor), **N.º k de n en <lista>** con ◀ ▶ «Mover antes/después» dentro
+    de su lista de /proyectos/ (apagados con el porqué: primera, última, fuera del sitio, otro año, foto propia),
+    **Quitar del sitio** (`ConfirmarModal tono="aviso"`, ámbar; se deshace), **Incluir en el sitio** (solo sin
+    faltantes; si no, la lista de lo que falta) y **Borrar** solo una guardada que nunca salió al sitio y está fuera
+    (`meta.nunca_publicada`; DELETE de siempre, rojo, al momento) o **Descartar** una nueva sin guardar (local; deshacer
+    la trae).
+  - **Arrastrar en el sitio** (mensaje `mover {lista, item, indice}`, índice entre las visibles de esa lista): se
+    traduce al `orden` de todo su estado (10, 20, 30…; las que esa lista no muestra —fuera del sitio, o después de las 3
+    de la portada— conservan su lugar). Las terminadas solo dentro de su año (y de su grupo con o sin foto propia): si
+    no, aviso con el porqué. El puente recibe SIEMPRE el borrador después de un `mover` (vuelve atrás si no se pudo).
+  - **Bandeja «Fuera del sitio (n)»** (`BandejaFueraDelSitio.tsx`; bajo el panel en el escritorio, bajo la vista en el
+    teléfono): las guardadas que el sitio no muestra, con «Ver» (abre el panel) e «Incluir» (o cuántos datos faltan).
+  - **Avisos** (sonner): cuando una obra cambia de lista o deja de estar entre las 3 de la portada, dice dónde quedó con
+    «Ver» (`mostrar`; si está en la otra página, el iframe la abre y la muestra al saludar).
+  - **Guardar**: «Guardar (n)» cuenta campos + obras nuevas + listas reordenadas + fuera/dentro. El diálogo muestra
+    «Nueva obra», «Estado: X → Y», «Orden en «Proyectos › …»» (antes → después) y «Fuera del sitio» / «Vuelve al
+    sitio». `orden` solo va para un estado cuyo orden en la pantalla NO es el que el servidor dejaría solo (las que
+    estaban; después las nuevas en el orden en que se crearon; después las que llegaron de otro estado). Tras guardar
+    se relee `GET /editor/borrador` y se le manda al puente: los `~nN` desaparecen y aparecen las obras con su slug real
+    (fuera del sitio, salvo que se hayan incluido en el mismo guardado). El respaldo de la pestaña guarda también las
+    nuevas (número, estado, lugar) y la estructura.
+  - **Backend** `POST /editor/guardar` acepta además `nuevas: [{ tmp: '~n1', cambios }]` (`cambios` con el schema de
+    `POST /obras`), `orden: [{ estado, ids }]` (ids = id o `tmp`) e `incluir: [{ id | tmp, incluir }]`, todo en la
+    MISMA transacción y en este orden: crear (`crearObra` con la conexión: slug desde el nombre, reservados, único,
+    `incluir=0`, al final) → editar (`editarObra`, también estado/año) → ordenar (`reordenar` **exacto**: la lista tiene
+    que ser exactamente las obras de ese estado, si no 409 `SITIO_WEB_ORDEN_DESACTUALIZADO` con `estado`; la pantalla
+    ofrece «Recargar» sin perder nada) → incluir (`cambiarIncluir`: con faltantes 409 `SITIO_WEB_FALTAN_DATOS` con la
+    lista). Cualquier error deshace TODO y dice dónde (`obra_id` o `tmp`). Responde `{ obras, nuevas: { '~n1': { id, slug,
+    updated_at } }, orden, incluir }`. Historial «(editor visual)» por cada crear/orden/incluir/quitar y en el historial
+    general CREATE/UPDATE como `POST /obras` e `/incluir`. `GET /editor/borrador` suma `meta.publicado_at` y
+    `meta.nunca_publicada`.
 - **Seguridad**:
   - iframe `https://<urlSitio de /config><ruta>?editor` con `sandbox="allow-scripts allow-same-origin"` (sin
     formularios, ventanas ni navegar la Bóveda) y `referrerPolicy="origin"`.
@@ -407,7 +449,9 @@ repo lols.cl** (marcas `data-ed-*`, protocolo v1 de mensajes); la Bóveda implem
     editar todavía» con «Ir a la Lista».
   - Todo lo que llega del iframe es una **propuesta**: zod (`editor/protocolo.ts`) y, un `cambio`, además campo de la
     lista blanca (`/nombre /titular /comuna /direccion /inicio /desafio /solucion /resultado`), obra del borrador y largo
-    de `LARGOS`. `navegar` solo a una ruta interna del sitio. **Nada se guarda hasta «Guardar»**.
+    de `LARGOS`. `navegar` solo a una ruta interna del sitio. `nueva` solo con una de las 5 listas; `mover` con lista,
+    obra del borrador (`obras/<slug>` o `obras/~nN`) e índice entero ≥ 0 (el resto —año, foto— lo decide el borrador).
+    **Nada se guarda hasta «Guardar»**.
   - La portada nueva (aprobada, sin publicar) se le pasa al puente como bytes transferidos (`foto`, WebP de 1600);
     el puente revisa la firma y arma su `blob:` (nunca HTML desde un mensaje).
 - **Cambios sin guardar**: el navegador pregunta antes de cerrar; el menú lateral y las pestañas preguntan «Salir sin
@@ -417,11 +461,16 @@ repo lols.cl** (marcas `data-ed-*`, protocolo v1 de mensajes); la Bóveda implem
   y el panel en hoja inferior. Tocar un texto del sitio no abre la hoja (taparía lo que se escribe); tocar la obra o
   «Datos de la obra», sí.
 - **Pruebas**: `sitio_web_editor.test.js` (backend: las 27 obras dan su JSON exacto, guardado en transacción, 409 sin
-  cambiar nada, 400, 403, `molde`); `editor/protocolo.test.ts` y `editor/borradorSitio.test.ts` (frontend);
-  `frontend/e2e/editor_visual_e2e.js` (Playwright con Chrome y la API simulada; necesita el sitio con el puente en
-  `http://localhost:4321`, si no hay, SKIP — cómo correrlo, arriba del archivo).
+  cambiar nada, 400, 403, `molde`; A2: nueva + orden con su tmp + incluir, cambio de estado, incluir con faltantes → 409 y
+  rollback, orden que no calza → 409, slug reservado/ocupado de una nueva, validación); `editor/protocolo.test.ts` y
+  `editor/borradorSitio.test.ts` (frontend; A2: nuevas, estado, mover en las 5 listas con las reglas del año y la foto,
+  fuera/dentro, avisos, cuerpo del guardado, rebasar con el mapa, respaldo); `frontend/e2e/editor_visual_e2e.js`
+  (Playwright con Chrome y la API simulada; necesita el sitio con el puente en `http://localhost:4321`, si no hay, SKIP;
+  los pasos que dependen del puente A2 dicen «SKIP (puente sin A2)» si el puente no los atiende — cómo correrlo, arriba
+  del archivo). La BD falsa (`tests/helpers/sitioWebFalsos.js`) entiende `COALESCE(MAX(col), 0)` y `CASE id WHEN`.
 - Archivos: `components/sitio-web/editor/` (`protocolo.ts`, `borradorSitio.ts`, `useBorradorSitio.ts`, `MarcoSitio.tsx`,
-  `EditorVisual.tsx`, `BarraEditor.tsx`, `PanelSeleccion.tsx`, `GuardarModal.tsx`); `useFotoUrl.ts` exporta `pedirBlob`.
+  `EditorVisual.tsx`, `BarraEditor.tsx`, `PanelSeleccion.tsx`, `BandejaFueraDelSitio.tsx`, `GuardarModal.tsx`);
+  `useFotoUrl.ts` exporta `pedirBlob`.
 
 ## Incidente «persona reconocible» (plan 7.3)
 

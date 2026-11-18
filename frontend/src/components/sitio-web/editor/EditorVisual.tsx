@@ -14,25 +14,30 @@ import { ConfirmarModal } from '../piezas';
 import { PublicarModal } from '../PublicarModal';
 import { useEstadoPublicacion } from '../useEstadoPublicacion';
 import { pedirBlob } from '../useFotoUrl';
-import type { ConfigSitio, ResultadoPublicacion } from '../tipos';
+import api from '../../../services/api';
+import { mensajeError } from '../sitioWebConfig';
+import type { ConfigSitio, EstadoObra, ObraEditor, ResultadoPublicacion } from '../tipos';
+import { BandejaFueraDelSitio } from './BandejaFueraDelSitio';
 import { BarraEditor, BarraEditorAbajo, BarraEditorArriba, type PropsBarra } from './BarraEditor';
 import { GuardarModal } from './GuardarModal';
 import { MarcoSitio, type AnchoMarco, type Enviar, type EstadoMarco } from './MarcoSitio';
-import { PanelSeleccion } from './PanelSeleccion';
+import { PanelSeleccion, type LugarObra } from './PanelSeleccion';
 import {
-    camposTocados, contarCambios, diferencias, erroresGuardar, esCampoTexto, faltantesDe, formActual, obraPorId, obraPorSlug, obrasParaPuente,
-    puedeDeshacer, puedeRehacer, respaldoDesactualizado, type CambiosObra, type EstadoBorrador,
+    REGLA_PRINCIPAL, avisosDeLugar, cambiarEstado, cambioEstructura, camposTocados, contarCambios, crearNueva, descartarNueva, diferencias,
+    erroresGuardar, esCampoTexto, estadoDe, faltantesDe, formActual, fueraDelSitio, idsDeLista, incluirDe, incluirEnSitio, mover, moverPaso,
+    obraPorId, obraPorSlug, obrasParaPuente, puedeBorrar, puedeDeshacer, puedeRehacer, quitarDelSitio, respaldoDesactualizado, todas,
+    type CambiosObra, type EstadoBorrador, type ResultadoOp,
 } from './borradorSitio';
-import { useBorradorSitio, type Transicion } from './useBorradorSitio';
+import { useBorradorSitio, type ResultadoEstructura, type Transicion } from './useBorradorSitio';
 import {
-    esCampoEnLugar, msgBorrador, msgCampo, msgFoto, msgModo, msgMostrar, rutaInterna, slugDeItem, validarCambio, type MensajeBoveda, type MensajePuente,
-    type MsgHola,
+    ESTADO_DE_REGLA, esCampoEnLugar, msgBorrador, msgCampo, msgFoto, msgModo, msgMostrar, rutaInterna, slugDeItem, validarCambio, validarMover,
+    type MensajeBoveda, type MensajePuente, type MsgHola, type Regla,
 } from './protocolo';
 
 interface Props {
     config: ConfigSitio;
     permisos: { editar: boolean; publicar: boolean; verComo: boolean };
-    /** La Lista (con la obra abierta, si viene): el estado y lo estructural se cambian ahí. */
+    /** La Lista (con la obra abierta, si viene): adonde ir si el sitio no responde al editor. */
     destinoLista: (id?: number) => string;
     /** Terminó una publicación: la portada vuelve a pedir obras, publicaciones y el número del menú. */
     onPublicado: (r: ResultadoPublicacion) => void;
@@ -42,12 +47,19 @@ interface Props {
 /** Espera antes de mandar el borrador completo tras un cambio del panel en un dato formateado (tipo, superficie…). */
 const DEMORA_BORRADOR_MS = 150;
 
+/** La página del sitio donde está cada lista (para «Ver» una obra que quedó en otra página). */
+const PAGINA_DE_REGLA: Record<Regla, string> = {
+    'portada-en-obra': '/', 'portada-proximos': '/',
+    'proyectos-en-curso': '/proyectos/', 'proyectos-contratados': '/proyectos/', 'proyectos-terminados': '/proyectos/',
+};
+
 /**
- * Editor visual del sitio (etapa A1; contrato con el sitio en `docs/editor-visual.md` de lols.cl): el sitio REAL en un
- * iframe y, encima, el borrador de la Bóveda. Se toca un título y se escribe; lo formateado y la portada, en el panel.
- * Nada llega al sitio hasta «Guardar» (Bóveda) y después «Publicar cambios» (el flujo de siempre, `sitio_web.publicar`).
- * Todo lo que manda el iframe es una propuesta: zod + `validarCambio` (campo permitido, obra del borrador, largo).
- * Estructura (crear, ordenar, cambiar de estado, quitar) es A2: el estado se ve aquí y se cambia en la Lista.
+ * Editor visual del sitio (contrato con el sitio en `docs/editor-visual.md` de lols.cl): el sitio REAL en un iframe y,
+ * encima, el borrador de la Bóveda. Se toca un título y se escribe; lo formateado y la portada, en el panel. Etapa A2:
+ * la estructura también se arma aquí —«Nueva obra» (barra o la tarjeta «+ Nueva obra» del puente), estado, orden (◀ ▶
+ * del panel o arrastrar en el sitio), quitar e incluir— y el borrador que recibe el puente es la verdad de qué obras hay,
+ * dónde y en qué orden. Nada llega al sitio hasta «Guardar» (Bóveda) y después «Publicar cambios» (el flujo de siempre,
+ * `sitio_web.publicar`). Todo lo que manda el iframe es una propuesta: zod + `validarCambio` / `validarMover`.
  */
 export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, onPublicado, onVerPublicaciones }) => {
     const navigate = useNavigate();
@@ -56,7 +68,7 @@ export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, 
     const puedePublicar = permisos.publicar && !permisos.verComo;
 
     const b = useBorradorSitio({ puedeEditar });
-    const { estado, cambiar, atras, adelante } = b;
+    const { estado, cambiar, operar, atras, adelante } = b;
     const estadoRef = useRef<EstadoBorrador | null>(estado);
     useLayoutEffect(() => { estadoRef.current = estado; });
 
@@ -109,6 +121,8 @@ export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, 
      */
     const sincronizar = useCallback((t: Transicion | null) => {
         if (!t || t.antes === t.despues) return;
+        // Deshacer o rehacer algo estructural (nueva, orden, fuera/dentro): el puente rearma las listas con el borrador.
+        if (cambioEstructura(t.antes, t.despues)) { mandarBorrador(t.despues); return; }
         const tocados = camposTocados(t.antes, t.despues);
         if (!tocados.length) return;
         if (!tocados.every(x => esCampoTexto(x.campo))) { programarBorrador(); return; }
@@ -117,15 +131,18 @@ export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, 
             const f = formActual(t.despues, x.id);
             if (o && f && esCampoTexto(x.campo)) enviar(msgCampo(o.json.slug, `/${x.campo}`, f[x.campo]));
         }
-    }, [enviar, programarBorrador]);
+    }, [enviar, programarBorrador, mandarBorrador]);
 
+    // «Ver» una obra que está en otra página del sitio: se navega y, cuando esa página saluda, se le pide mostrarla.
+    const mostrarAlCargar = useRef<string | null>(null);
     // Cada saludo (cada página que carga) y cuando llega el borrador: el estado completo, el modo y las fotos.
     const cargado = !!estado;
     useEffect(() => {
         if (!conexion || !cargado) return;
         mandarBorrador();
         mandarFotos(estadoRef.current);
-    }, [conexion, cargado, mandarBorrador, mandarFotos]);
+        if (mostrarAlCargar.current) { enviar(msgMostrar(mostrarAlCargar.current)); mostrarAlCargar.current = null; }
+    }, [conexion, cargado, mandarBorrador, mandarFotos, enviar]);
     useEffect(() => {
         if (conexion) enviar(msgModo(mirar ? 'mirar' : 'editar'));
     }, [conexion, mirar, enviar]);
@@ -141,6 +158,47 @@ export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, 
     const pendientes = estado ? contarCambios(estado) : 0;
     const abrirGuardar = useCallback(() => { if (puedeEditar && estadoRef.current && contarCambios(estadoRef.current) > 0) setGuardando(true); }, [puedeEditar]);
 
+    // ── Estructura (A2) ──
+    const holaRef = useRef<MsgHola | null>(null);
+    useLayoutEffect(() => { holaRef.current = hola; });
+    /**
+     * Llevar una obra a la vista: si una lista de ESTA página la muestra, `mostrar`; si no, se abre la página de su lista
+     * y se muestra cuando esa página salude.
+     */
+    const verObra = useCallback((id: number, e: EstadoBorrador | null = estadoRef.current) => {
+        const o = e ? obraPorId(e, id) : undefined;
+        if (!e || !o) return;
+        setSeleccion(id);
+        const enEstaPagina = (holaRef.current?.listas ?? []).some(l => (l.regla in PAGINA_DE_REGLA) && idsDeLista(e, l.regla as Regla).includes(id));
+        if (enEstaPagina || !incluirDe(e, o) && !o.meta.nueva) { enviar(msgMostrar(o.json.slug)); return; }
+        const pagina = PAGINA_DE_REGLA[REGLA_PRINCIPAL[estadoDe(e, o)]];
+        mostrarAlCargar.current = o.json.slug;
+        setRuta(pagina);
+        setRecarga(n => n + 1);
+    }, [enviar]);
+    const avisarLugar = useCallback((antes: EstadoBorrador, despues: EstadoBorrador) => {
+        for (const a of avisosDeLugar(antes, despues)) {
+            toast(a.texto, { duration: 8000, action: a.regla ? { label: 'Ver', onClick: () => verObra(a.id) } : undefined });
+        }
+    }, [verObra]);
+    /** Una operación de estructura: al borrador (un paso de deshacer), el puente rearma la página y se avisa dónde quedó. */
+    const estructural = useCallback((fn: (e: EstadoBorrador) => ResultadoOp, { avisar = true } = {}): ResultadoEstructura => {
+        if (!puedeEditar) return { ok: false, motivo: 'Para editar las obras del sitio se necesita «Editar obras del sitio».' };
+        const r = operar(fn);
+        if (r.ok && r.antes !== r.despues) {
+            mandarBorrador(r.despues);
+            if (avisar) avisarLugar(r.antes, r.despues);
+        }
+        return r;
+    }, [puedeEditar, operar, mandarBorrador, avisarLugar]);
+    /** «Nueva obra» (barra o la tarjeta del puente): al final de su lista, se muestra y el panel pide el nombre. */
+    const crearNuevaEn = useCallback((estadoObra: EstadoObra) => {
+        const r = estructural(e => crearNueva(e, estadoObra), { avisar: false });
+        if (!r.ok || r.id === undefined) return;
+        setHoja(true);
+        verObra(r.id, r.despues);
+    }, [estructural, verObra]);
+
     const alMensaje = useCallback((m: MensajePuente) => {
         const e = estadoRef.current;
         switch (m.tipo) {
@@ -155,7 +213,7 @@ export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, 
             }
             case 'cambio': {
                 if (!puedeEditar || mirar || !e) return;
-                const v = validarCambio(m, new Set(e.obras.map(o => o.json.slug)));
+                const v = validarCambio(m, new Set(todas(e).map(o => o.json.slug)));
                 if (!v.ok) return;   // propuesta inválida: el borrador no se toca
                 const o = obraPorSlug(e, v.slug);
                 if (!o) return;
@@ -176,10 +234,21 @@ export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, 
                 else if (m.accion === 'rehacer') hacerRehacer();
                 else abrirGuardar();
                 return;
+            case 'nueva':
+                if (puedeEditar && !mirar) crearNuevaEn(ESTADO_DE_REGLA[m.lista]);
+                return;
+            case 'mover': {
+                // Una propuesta: se recalcula aquí y el puente recibe SIEMPRE el borrador (vuelve atrás si no se pudo).
+                const v = e ? validarMover(m, new Set(todas(e).map(o => o.json.slug))) : null;
+                if (!puedeEditar || mirar || !v || !v.ok) { mandarBorrador(); return; }
+                const r = estructural(x => mover(x, m.lista, v.slug, m.indice));
+                if (!r.ok) { toast.error(r.motivo); mandarBorrador(); } else if (r.antes === r.despues) mandarBorrador();
+                return;
+            }
             default:
                 return;
         }
-    }, [puedeEditar, mirar, cambiar, hacerDeshacer, hacerRehacer, abrirGuardar]);
+    }, [puedeEditar, mirar, cambiar, hacerDeshacer, hacerRehacer, abrirGuardar, crearNuevaEn, estructural, mandarBorrador]);
 
     const alListo = useCallback((fn: Enviar, h: MsgHola) => {
         enviarRef.current = fn;
@@ -251,8 +320,14 @@ export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, 
     const difs = useMemo(() => (estado ? diferencias(estado) : []), [estado]);
     const errs = useMemo(() => (estado ? erroresGuardar(estado) : []), [estado]);
     const guardar = async () => {
+        const antes = estadoRef.current;
         const r = await b.guardar();
         if (!r.ok) return r;
+        // La obra nueva abierta en el panel sigue abierta, ya con su id de verdad.
+        if (seleccion !== null && seleccion < 0) {
+            const tmp = antes ? obraPorId(antes, seleccion)?.json.slug : undefined;
+            setSeleccion(tmp && r.mapa[tmp] ? r.mapa[tmp] : null);
+        }
         mandarBorrador(r.despues);
         recargarPendientesSitioWeb();
         toast.success('Cambios guardados. El sitio no cambia hasta que se publiquen.');
@@ -275,6 +350,49 @@ export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, 
         if (fotoAhora && fotoAhora !== fotoAntes) mandarFotos(nuevo, seleccion);
         // La vista previa que el sitio tenía ya no corresponde (rechazada o volvió la publicada): la página de nuevo.
         else if (!fotoAhora && fotoAntes) setRecarga(n => n + 1);
+        recargarPendientesSitioWeb();
+    };
+
+    // ── Lugar, incluir y borrar (panel y bandeja) ──
+    function lugarDe(e: EstadoBorrador, o: ObraEditor): LugarObra {
+        const regla = REGLA_PRINCIPAL[estadoDe(e, o)];
+        const ids = idsDeLista(e, regla);
+        const n = ids.indexOf(o.meta.id);
+        const motivo = (r: ResultadoOp) => ('motivo' in r ? r.motivo : null);
+        return {
+            incluida: incluirDe(e, o),
+            lista: n >= 0 ? { regla, n: n + 1, total: ids.length } : null,
+            motivoAntes: motivo(moverPaso(e, o.meta.id, -1)),
+            motivoDespues: motivo(moverPaso(e, o.meta.id, 1)),
+            puedeBorrar: puedeBorrar(e, o),
+        };
+    }
+    const incluir = (id: number) => {
+        const r = estructural(e => incluirEnSitio(e, id));
+        if (!r.ok) { toast.error(r.motivo); setSeleccion(id); setHoja(true); return; }
+        const o = obraPorId(r.despues, id);
+        if (o && r.antes !== r.despues) {
+            toast.success('Vuelve al sitio al guardar y publicar.', { action: { label: 'Ver', onClick: () => verObra(id) } });
+        }
+    };
+    /** Una nueva sin guardar se descarta (deshacer la trae); una guardada nunca publicada, DELETE de siempre. */
+    const borrarObra = async (o: ObraEditor) => {
+        if (o.meta.nueva) {
+            const r = estructural(e => descartarNueva(e, o.meta.id), { avisar: false });
+            if (r.ok) { setSeleccion(null); toast('Obra nueva descartada.', { action: { label: 'Deshacer', onClick: hacerDeshacer } }); }
+            return;
+        }
+        try {
+            await api.delete(`/sitio-web/obras/${o.meta.id}`);
+        } catch (err) {
+            toast.error(mensajeError(err, 'No se pudo borrar la obra.'));
+            return;
+        }
+        setSeleccion(null);
+        setHoja(false);
+        toast.success(`«${o.json.nombre}» se borró.`);
+        const nuevo = await b.cargar();
+        if (nuevo) mandarBorrador(nuevo);
         recargarPendientesSitioWeb();
     };
 
@@ -304,9 +422,26 @@ export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, 
         <PanelSeleccion key={obraSel.meta.id} obra={obraSel} form={formSel} faltantes={faltantesDe(estado!, obraSel.meta.id)}
             puedeEditar={puedeEditar} puedePublicar={puedePublicar}
             onCambiar={(p, g) => cambiarDesdePanel(obraSel.meta.id, p, g)}
-            onIrALista={() => irA(destinoLista(obraSel.meta.id))}
+            lugar={lugarDe(estado!, obraSel)}
+            onCambiarEstado={(est, anio) => { const r = estructural(e => cambiarEstado(e, obraSel.meta.id, est, anio)); return r.ok ? null : r.motivo; }}
+            onMover={(d) => { const r = estructural(e => moverPaso(e, obraSel.meta.id, d)); if (!r.ok) toast.error(r.motivo); }}
+            onQuitar={() => {
+                const r = estructural(e => quitarDelSitio(e, obraSel.meta.id));
+                if (r.ok) toast('Queda fuera del sitio. Se retira al guardar y publicar.', { action: { label: 'Deshacer', onClick: hacerDeshacer } });
+            }}
+            onIncluir={() => incluir(obraSel.meta.id)}
+            onBorrar={() => borrarObra(obraSel)}
             onFotoCambiada={fotoCambiada} onCerrar={() => (escritorio ? setSeleccion(null) : setHoja(false))} />
     ) : null;
+
+    const fuera = estado ? fueraDelSitio(estado).map(o => ({
+        id: o.meta.id, nombre: formActual(estado, o.meta.id)?.nombre.trim() || o.json.nombre, estado: estadoDe(estado, o),
+        faltan: faltantesDe(estado, o.meta.id).length,
+    })) : [];
+    const bandeja = (
+        <BandejaFueraDelSitio obras={fuera} puedeEditar={puedeEditar}
+            onVer={(id) => { setSeleccion(id); setHoja(true); }} onIncluir={incluir} />
+    );
 
     const propsBarra: PropsBarra = {
         ruta, onRuta: irARuta, ancho, onAncho: setAnchoElegido,
@@ -315,6 +450,7 @@ export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, 
         pendientes, onGuardar: abrirGuardar, puedeEditar,
         puedePublicar, simulacion: config.modo !== 'publicar', onPublicar: () => setPublicando(true),
         onDatos: obraSel ? () => setHoja(true) : undefined,
+        onNuevaObra: puedeEditar && !mirar ? crearNuevaEn : undefined,
     };
 
     const vista = (
@@ -353,7 +489,9 @@ export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, 
         <div className="flex flex-col gap-3">
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
                 <MousePointerClick className="mt-0.5 h-4 w-4 shrink-0" />
-                <p>{puedeEditar ? 'Toca un texto del sitio y escribe, o toca una obra para ver todos sus datos y su portada.' : 'Toca una obra del sitio para ver sus datos.'}</p>
+                <p>{puedeEditar
+                    ? 'Toca un texto del sitio y escribe, o toca una obra para ver todos sus datos, su portada y su lugar en el sitio. «Nueva obra» agrega una.'
+                    : 'Toca una obra del sitio para ver sus datos.'}</p>
             </div>
             {enPagina.length > 0 && (
                 <div className="flex flex-col gap-1.5">
@@ -403,8 +541,9 @@ export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, 
                     <BarraEditor {...propsBarra} />
                     <div className="flex h-[calc(100dvh-15rem)] min-h-[30rem] gap-3">
                         {vista}
-                        <aside className="w-[22rem] shrink-0 overflow-y-auto overscroll-contain rounded-card border border-border bg-card p-4" aria-label="Obra seleccionada">
+                        <aside className="flex w-[22rem] shrink-0 flex-col gap-4 overflow-y-auto overscroll-contain rounded-card border border-border bg-card p-4" aria-label="Obra seleccionada">
                             {panel ?? vacio}
+                            {bandeja}
                         </aside>
                     </div>
                 </>
@@ -412,6 +551,7 @@ export const EditorVisual: React.FC<Props> = ({ config, permisos, destinoLista, 
                 <>
                     <BarraEditorArriba {...propsBarra} />
                     {vista}
+                    {bandeja}
                     <BarraEditorAbajo {...propsBarra} />
                     {panel && hoja && (
                         <div className="fixed inset-x-0 bottom-0 z-50 max-h-[65dvh] overflow-y-auto overscroll-contain rounded-t-3xl border-t border-border bg-card px-4 pt-2 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-lg"

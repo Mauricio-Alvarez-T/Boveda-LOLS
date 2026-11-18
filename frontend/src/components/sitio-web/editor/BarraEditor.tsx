@@ -1,9 +1,13 @@
-import React from 'react';
-import { Eye, EyeOff, FlaskConical, Monitor, Redo2, Save, Send, SlidersHorizontal, Smartphone, Undo2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Eye, EyeOff, FlaskConical, Monitor, Plus, Redo2, Save, Send, SlidersHorizontal, Smartphone, Undo2 } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
+import { useCierreExterno } from '../../../hooks/useCierreExterno';
 import { cn } from '../../../utils/cn';
-import { PAGINAS } from './protocolo';
+import { ESTADOS, ETIQUETA_ESTADO } from '../reglas';
+import type { EstadoObra } from '../tipos';
+import { REGLA_PRINCIPAL } from './borradorSitio';
+import { ETIQUETA_REGLA, PAGINAS } from './protocolo';
 import type { AnchoMarco } from './MarcoSitio';
 
 /** Opciones de un toque (página, ancho): 44 px en el teléfono, 36 px con puntero fino. */
@@ -43,6 +47,8 @@ export interface PropsBarra {
     onPublicar: () => void;
     /** Teléfono: abre la hoja con los datos de la obra tocada (undefined = no hay obra tocada). */
     onDatos?: () => void;
+    /** «Nueva obra» (A2): se elige el estado y nace al final de esa lista, fuera del sitio. Sin permiso, undefined. */
+    onNuevaObra?: (estado: EstadoObra) => void;
 }
 
 const paginas = PAGINAS.map(p => ({ valor: p.ruta, texto: p.etiqueta }));
@@ -79,6 +85,44 @@ const visitante = (p: PropsBarra, soloIcono: boolean) => p.puedeEditar && (soloI
     </Button>
 ));
 
+/**
+ * «Nueva obra»: pregunta en qué estado está (cada uno es una lista del sitio). Escritorio: menú bajo el botón; teléfono:
+ * hoja fija sobre la barra de abajo, opciones de 44 px. Se cierra al tocar fuera o con Esc (`useCierreExterno`).
+ */
+const MenuNuevaObra: React.FC<{ onElegir: (e: EstadoObra) => void; telefono?: boolean }> = ({ onElegir, telefono = false }) => {
+    const [abierto, setAbierto] = useState(false);
+    const ancla = useCierreExterno<HTMLDivElement>({ abierto, alCerrar: () => setAbierto(false), escape: true });
+    return (
+        <div ref={ancla} className="relative">
+            {telefono ? (
+                <IconButton aria-label="Nueva obra" title="Nueva obra" icon={<Plus className="h-4 w-4" />} aria-haspopup="menu" aria-expanded={abierto}
+                    onClick={() => setAbierto(a => !a)} />
+            ) : (
+                <Button variant="secondary" size="sm" className="h-9" leftIcon={<Plus className="h-4 w-4" />} aria-haspopup="menu" aria-expanded={abierto}
+                    onClick={() => setAbierto(a => !a)}>
+                    Nueva obra
+                </Button>
+            )}
+            {abierto && (
+                <div role="menu" aria-label="Estado de la obra nueva"
+                    className={cn('z-50 flex flex-col gap-0.5 rounded-xl border border-border bg-card p-1.5 shadow-lg',
+                        telefono ? 'fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))]' : 'absolute left-0 top-full mt-2 w-72')}>
+                    <p className="px-2.5 pt-1 pb-1.5 text-xs font-semibold text-muted-foreground">¿En qué estado está la obra?</p>
+                    {ESTADOS.map(e => (
+                        <Button key={e} role="menuitem" variant="ghost" className="h-11 w-full justify-start rounded-lg px-2.5 text-left md:h-10"
+                            onClick={() => { setAbierto(false); onElegir(e); }}>
+                            <span className="flex min-w-0 flex-col items-start">
+                                <span className="text-sm font-medium text-brand-dark">{ETIQUETA_ESTADO[e]}</span>
+                                <span className="text-caption text-muted-foreground">{ETIQUETA_REGLA[REGLA_PRINCIPAL[e]]}</span>
+                            </span>
+                        </Button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 /** Escritorio: una fila sobre la vista del sitio. */
 export const BarraEditor: React.FC<PropsBarra> = (p) => (
     <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Editor visual">
@@ -88,6 +132,7 @@ export const BarraEditor: React.FC<PropsBarra> = (p) => (
             { valor: 'celular', texto: <><Smartphone className="h-3.5 w-3.5" /> Celular</>, titulo: 'Como se ve en un celular' },
         ]} />
         <div className="flex items-center gap-1">{historia(p)}</div>
+        {p.puedeEditar && p.onNuevaObra && <MenuNuevaObra onElegir={p.onNuevaObra} />}
         {visitante(p, false)}
         <div className="ml-auto flex items-center gap-2">
             {p.pendientes > 0 && <span className="text-xs text-amber-800 dark:text-amber-300">Sin guardar</span>}
@@ -112,6 +157,7 @@ export const BarraEditorAbajo: React.FC<PropsBarra> = (p) => (
             role="toolbar" aria-label="Editor visual">
             {historia(p)}
             {visitante(p, true)}
+            {p.onNuevaObra && <MenuNuevaObra onElegir={p.onNuevaObra} telefono />}
             {p.onDatos && <IconButton aria-label="Datos de la obra" title="Datos de la obra" icon={<SlidersHorizontal className="h-4 w-4" />} onClick={p.onDatos} />}
             <div className="ml-auto">{botonGuardar(p, 'px-4')}</div>
         </div>

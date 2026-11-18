@@ -248,3 +248,157 @@ describe('slug reservado «molde»', () => {
         expect(r.body.code).toBe('SITIO_WEB_SLUG_RESERVADO');
     });
 });
+
+/* ──────────────── A2: estructura (crear, cambiar de estado, ordenar, quitar e incluir) ──────────────── */
+
+describe('POST /editor/guardar — estructura (A2)', () => {
+    const { logManualActivity } = require('../src/middleware/logger');
+    const delEstado = (estado) => db.tablas.sitio_obras.filter(o => o.estado === estado)
+        .sort((a, b) => (a.orden - b.orden) || a.nombre.localeCompare(b.nombre) || (a.id - b.id));
+    const nuevaContratada = (extra = {}) => ({
+        tmp: '~n1', cambios: { nombre: 'Edificio Nueva Prueba 123', estado: 'contratado', comuna: 'Santiago', servicios: ['construccion'], ...extra },
+    });
+
+    test('obra nueva + orden con su tmp + incluirla, en una transacción: mapa tmp → id/slug y todo el historial', async () => {
+        const contratadas = delEstado('contratado').map(o => o.id);
+        const r = await guardar(EDITAR, {
+            obras: [],
+            nuevas: [nuevaContratada()],
+            orden: [{ estado: 'contratado', ids: ['~n1', ...contratadas] }],
+            incluir: [{ id: '~n1', incluir: true }],
+        });
+        expect(r.status).toBe(200);
+        const fila = obra('edificio-nueva-prueba-123');
+        expect(fila).toMatchObject({ estado: 'contratado', incluir: true, orden: 10, comuna: 'Santiago', creado_por: 5 });
+        expect(r.body.data.nuevas).toEqual({ '~n1': { id: fila.id, slug: 'edificio-nueva-prueba-123', updated_at: fila.updated_at.toISOString() } });
+        expect(r.body.data.orden).toEqual([{ estado: 'contratado', ids: [fila.id, ...contratadas] }]);
+        expect(r.body.data.incluir).toEqual([{ id: fila.id, incluir: true }]);
+        expect(r.body.data).not.toHaveProperty('registro');
+        // Las que estaban corren un lugar (20, 30…).
+        expect(delEstado('contratado').map(o => o.id)).toEqual([fila.id, ...contratadas]);
+        expect(delEstado('contratado').map(o => o.orden)).toEqual([fila.id, ...contratadas].map((_, i) => (i + 1) * 10));
+        expect(historial().map(h => h.accion)).toEqual(['crear', 'orden', 'incluir']);
+        expect(historial().every(h => /\(editor visual\)/.test(h.resumen))).toBe(true);
+        expect(logManualActivity.mock.calls.map(c => c[2])).toEqual(['CREATE', 'UPDATE']);
+        // El borrador la trae como nunca publicada (se puede borrar) y las importadas no.
+        const borr = await request(app).get('/api/sitio-web/editor/borrador').set('Authorization', `Bearer ${VER}`);
+        const x = borr.body.data.find(d => d.meta.id === fila.id);
+        expect(x.meta).toMatchObject({ incluir: true, nunca_publicada: true, publicado_at: null });
+        expect(x.json.orden).toBe(10);
+        expect(borr.body.data.filter(d => d.meta.nunca_publicada)).toHaveLength(1);
+    });
+
+    test('cambiar de estado por el camino de la edición: pasa al final de su estado nuevo; con orden, donde se pidió', async () => {
+        const a = delEstado('en_construccion')[0];
+        const terminadas = delEstado('terminado').map(o => o.id);
+        const maxAntes = Math.max(...delEstado('terminado').map(o => o.orden));
+        const r1 = await guardar(EDITAR, { obras: [item(a, { estado: 'terminado', anio: 2025 })] });
+        expect(r1.status).toBe(200);
+        expect(a).toMatchObject({ estado: 'terminado', anio: 2025, orden: maxAntes + 10 });
+
+        const b = delEstado('en_construccion')[0];
+        const r2 = await guardar(EDITAR, {
+            obras: [item(b, { estado: 'terminado', anio: 2024 })],
+            orden: [{ estado: 'terminado', ids: [b.id, ...terminadas, a.id] }],
+        });
+        expect(r2.status).toBe(200);
+        expect(delEstado('terminado').map(o => o.id)).toEqual([b.id, ...terminadas, a.id]);
+        expect(r2.body.data.obras[0]).toMatchObject({ id: b.id });
+    });
+
+    test('incluir una obra a la que le falta algo → 409 FALTAN_DATOS con la lista y NADA cambia (ni la nueva ni las otras)', async () => {
+        const a = db.tablas.sitio_obras[0];
+        const filas = JSON.stringify(db.tablas.sitio_obras);
+        const r = await guardar(EDITAR, {
+            obras: [item(a, { comuna: 'Esto se deshace' })],
+            nuevas: [{ tmp: '~n1', cambios: { nombre: 'En obra sin portada', estado: 'en_construccion', comuna: 'Santiago', servicios: ['construccion'] } }],
+            incluir: [{ id: '~n1', incluir: true }],
+        });
+        expect(r.status).toBe(409);
+        expect(r.body.code).toBe('SITIO_WEB_FALTAN_DATOS');
+        expect(r.body.tmp).toBe('~n1');
+        expect(r.body.faltantes.map(f => f.campo)).toContain('portada');
+        expect(JSON.stringify(db.tablas.sitio_obras)).toBe(filas);
+        expect(historial()).toHaveLength(0);
+        expect(logManualActivity).not.toHaveBeenCalled();
+    });
+
+    test('quitar del sitio nunca se bloquea (también con faltantes)', async () => {
+        const a = db.tablas.sitio_obras[0];
+        a.comuna = null;
+        const r = await guardar(EDITAR, { obras: [], incluir: [{ id: a.id, incluir: false }] });
+        expect(r.status).toBe(200);
+        expect(a.incluir).toBe(false);
+        expect(historial().map(h => h.accion)).toEqual(['quitar']);
+    });
+
+    test('orden que no calza con las obras de ese estado → 409 ORDEN_DESACTUALIZADO y rollback', async () => {
+        const a = db.tablas.sitio_obras[0];
+        const contratadas = delEstado('contratado').map(o => o.id);
+        const otraEnCurso = delEstado('en_construccion')[0].id;
+        const filas = JSON.stringify(db.tablas.sitio_obras);
+        for (const ids of [contratadas.slice(1), [...contratadas, otraEnCurso]]) {
+            // El rollback restaura copias de las filas: la obra se vuelve a buscar en cada vuelta.
+            const fresca = db.tablas.sitio_obras.find(o => o.id === a.id);
+            const r = await guardar(EDITAR, { obras: [item(fresca, { comuna: 'Se deshace' })], orden: [{ estado: 'contratado', ids }] });
+            expect(r.status).toBe(409);
+            expect(r.body.code).toBe('SITIO_WEB_ORDEN_DESACTUALIZADO');
+            expect(r.body.estado).toBe('contratado');
+            expect(JSON.stringify(db.tablas.sitio_obras)).toBe(filas);
+        }
+        // La nueva del mismo guardado TIENE que venir en la lista de su estado.
+        const r = await guardar(EDITAR, { obras: [], nuevas: [nuevaContratada()], orden: [{ estado: 'contratado', ids: contratadas }] });
+        expect(r.status).toBe(409);
+        expect(db.tablas.sitio_obras.some(o => o.nombre === 'Edificio Nueva Prueba 123')).toBe(false);
+        expect(historial()).toHaveLength(0);
+    });
+
+    test('nombre que da un slug reservado u ocupado → 409 con el tmp y nada creado', async () => {
+        const total = db.tablas.sitio_obras.length;
+        const r1 = await guardar(EDITAR, { obras: [], nuevas: [{ tmp: '~n1', cambios: { nombre: 'Molde' } }] });
+        expect(r1.status).toBe(409);
+        expect(r1.body).toMatchObject({ code: 'SITIO_WEB_SLUG_RESERVADO', tmp: '~n1' });
+        const existente = db.tablas.sitio_obras[0];
+        const r2 = await guardar(EDITAR, { obras: [], nuevas: [{ tmp: '~n1', cambios: { nombre: 'Una sola' } }, { tmp: '~n2', cambios: { nombre: existente.slug } }] });
+        expect(r2.status).toBe(409);
+        expect(r2.body).toMatchObject({ code: 'SITIO_WEB_SLUG_OCUPADO', tmp: '~n2' });
+        expect(db.tablas.sitio_obras).toHaveLength(total);
+        expect(historial()).toHaveLength(0);
+    });
+
+    test('validación de las partes nuevas: 400 sin tocar la BD', async () => {
+        const a = db.tablas.sitio_obras[0];
+        const casos = [
+            { obras: [] },                                                                           // nada que guardar
+            { obras: [], nuevas: [{ tmp: 'n1', cambios: { nombre: 'X' } }] },                        // tmp sin ~
+            { obras: [], nuevas: [{ tmp: '~n1', cambios: {} }] },                                    // sin nombre
+            { obras: [], nuevas: [{ tmp: '~n1', cambios: { nombre: 'X' } }, { tmp: '~n1', cambios: { nombre: 'Y' } }] },
+            { obras: [], nuevas: [{ tmp: '~n1', cambios: { nombre: 'X', estado: 'demolida' } }] },
+            { obras: [], orden: [{ estado: 'contratado', ids: ['~n9'] }] },                          // tmp que no viene
+            { obras: [], orden: [{ estado: 'contratado', ids: [a.id, a.id] }] },
+            { obras: [], orden: [{ estado: 'otro', ids: [a.id] }] },
+            { obras: [], orden: [{ estado: 'contratado', ids: [] }] },
+            { obras: [], orden: [{ estado: 'contratado', ids: [a.id] }, { estado: 'contratado', ids: [a.id] }] },
+            { obras: [], incluir: [{ id: a.id, incluir: 'si' }] },
+            { obras: [], incluir: [{ id: 'x', incluir: true }] },
+            { obras: [], incluir: [{ id: a.id, incluir: true }, { id: a.id, incluir: false }] },
+            { obras: [], nuevas: 'x' },
+            { obras: [], orden: [3] },
+        ];
+        for (const body of casos) {
+            const r = await guardar(EDITAR, body);
+            expect({ body: JSON.stringify(body).slice(0, 90), status: r.status }).toEqual({ body: JSON.stringify(body).slice(0, 90), status: 400 });
+            expect(r.body.error).toEqual(expect.any(String));
+        }
+        expect(historial()).toHaveLength(0);
+        expect(db.sentencias.some(s => /^(UPDATE|INSERT)/.test(s))).toBe(false);
+    });
+
+    test('las claves de más en una nueva se descartan (no se puede crear incluida ni con orden propio)', async () => {
+        const r = await guardar(EDITAR, { obras: [], nuevas: [nuevaContratada({ incluir: true, orden: 1, publicado_hash: 'x' })] });
+        expect(r.status).toBe(200);
+        const fila = obra('edificio-nueva-prueba-123');
+        expect(fila).toMatchObject({ incluir: false, publicado_hash: null });
+        expect(fila.orden).toBe(Math.max(...delEstado('contratado').filter(o => o.id !== fila.id).map(o => o.orden)) + 10);
+    });
+});

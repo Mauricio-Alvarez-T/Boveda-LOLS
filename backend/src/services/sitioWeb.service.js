@@ -638,29 +638,33 @@ const api = {
         };
     },
 
-    /** POST /obras. El slug sale del nombre si no viene. Queda fuera del sitio (incluir = 0) hasta que se incluya. */
-    async crearObra(data, userId, { permisos = [] } = {}) {
+    /**
+     * POST /obras. El slug sale del nombre si no viene. Queda fuera del sitio (incluir = 0) hasta que se incluya.
+     * `conn` = la transacción del guardado del editor visual (obras nuevas creadas en el editor).
+     */
+    async crearObra(data, userId, { permisos = [], conn = null } = {}) {
+        const q = conn || db;
         const o = leerObra(data);
         if (o.obra_id) {
             exigirObrasVer(permisos);
-            await obraInternaOFalla(o.obra_id);
+            await obraInternaOFalla(o.obra_id, q);
         }
         o.slug = o.slug || slugDesde(o.nombre);
         if (!o.slug) throw err(400, 'No se pudo armar la dirección web desde el nombre: escríbela a mano.', { code: 'SITIO_WEB_SLUG' });
-        await slugLibreOFalla(o.slug);
+        await slugLibreOFalla(o.slug, null, q);
         o.estado = o.estado || 'en_construccion';
-        o.orden = await siguienteOrden(o.estado);
+        o.orden = await siguienteOrden(o.estado, q);
         if (o.mandante_autoriza) Object.assign(o, { mandante_autoriza_por: userId, mandante_autoriza_at: new Date() });
         const fila = { ...o, incluir: false, creado_por: userId, actualizado_por: userId };
         const cols = Object.keys(fila);
         let r;
         try {
-            [r] = await db.query(
+            [r] = await q.query(
                 `INSERT INTO sitio_obras (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, Object.values(fila)
             );
         } catch (e) { throw traducirDuplicado(e); }
-        await registrar(null, { sitio_obra_id: r.insertId, entidad: 'obra', entidad_id: r.insertId, accion: 'crear',
-            resumen: `Creó la obra «${o.nombre}» del sitio (${o.slug})`, usuario_id: userId });
+        await registrar(conn, { sitio_obra_id: r.insertId, entidad: 'obra', entidad_id: r.insertId, accion: 'crear',
+            resumen: `Creó la obra «${o.nombre}» del sitio (${o.slug})${conn ? ' (editor visual)' : ''}`, usuario_id: userId });
         return { id: r.insertId, slug: o.slug };
     },
 
@@ -751,21 +755,49 @@ const api = {
                     fotos_por_aprobar: c.porAprobar,
                     mandante: o.mandante ?? null,
                     mandante_autoriza: !!o.mandante_autoriza,
+                    publicado_at: o.publicado_at ?? null,
+                    // «Borrar» en el editor (A2): solo una obra que nunca salió al sitio (el DELETE lo vuelve a revisar).
+                    nunca_publicada: !o.publicado_hash && !o.publicado_at,
                 },
             };
         });
     },
 
     /**
-     * POST /editor/guardar: los cambios del editor visual de VARIAS obras, todo o nada en UNA transacción (cada obra
-     * pasa por editarObra con su `updated_at`, igual que el PUT: limpieza, slug, mandante, historial). Si alguna la
-     * guardó otra persona → rollback y 409 SITIO_WEB_EDITADA_POR_OTRO con `obras: [{ id, nombre }]` (todas las que
-     * chocaron). Cualquier otro error de una obra → rollback, con `obra_id` en el cuerpo del error.
+     * POST /editor/guardar: lo del editor visual, todo o nada en UNA transacción (docs/reglas/sitio-web.md § Editor
+     * visual). `cuerpo` = `{ obras, nuevas, orden, incluir }` (ya revisado por la ruta; un arreglo = solo `obras`, A1):
+     *   1. `nuevas: [{ tmp, cambios }]` → crearObra (slug desde el nombre, reservados, único; fuera del sitio, al final
+     *      de su estado). `tmp` = el slug provisorio de la pantalla (`~n1`), que `orden` e `incluir` pueden nombrar.
+     *   2. `obras: [{ id, updated_at, cambios }]` → editarObra con su versión (también el estado: la obra pasa al final
+     *      de su estado nuevo). Si alguna la guardó otra persona → 409 SITIO_WEB_EDITADA_POR_OTRO con TODAS las que
+     *      chocaron.
+     *   3. `orden: [{ estado, ids }]` → reordenar exacto: la lista completa de ese estado (con los `tmp`); si no calza
+     *      con lo que hay (otra persona creó o movió una obra) → 409 SITIO_WEB_ORDEN_DESACTUALIZADO.
+     *   4. `incluir: [{ id, incluir }]` → cambiarIncluir (incluir con faltantes → 409 SITIO_WEB_FALTAN_DATOS).
+     * Cualquier error → rollback de TODO, con `obra_id` o `tmp` en el cuerpo del error. Responde las versiones nuevas y
+     * el mapa `tmp → { id, slug, updated_at }`. `registro` (creadas e incluidas, con nombre) es para el historial
+     * general de la ruta; no sale en la respuesta.
      */
-    async guardarEditor(lista, userId, { permisos = [] } = {}) {
+    async guardarEditor(cuerpo, userId, { permisos = [] } = {}) {
+        const { obras: lista = [], nuevas = [], orden = [], incluir = [] } = Array.isArray(cuerpo) ? { obras: cuerpo } : (cuerpo || {});
+        const conDonde = (e, donde) => {
+            if (e && e.statusCode && e.statusCode < 500) e.details = { ...(e.details || {}), ...donde };
+            return e;
+        };
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
+            const mapa = {};
+            const creadas = [];
+            for (const n of nuevas) {
+                try {
+                    const r = await api.crearObra(n.cambios, userId, { permisos, conn });
+                    mapa[n.tmp] = { id: r.id, slug: r.slug };
+                    creadas.push({ tmp: n.tmp, id: r.id, nombre: null });
+                } catch (e) { throw conDonde(e, { tmp: n.tmp }); }
+            }
+            const real = (x) => (typeof x === 'string' ? mapa[x].id : x);
+
             const hechas = [];
             const choques = [];
             for (const item of lista) {
@@ -774,8 +806,7 @@ const api = {
                     hechas.push({ id: item.id, updated_at: r.updated_at, ...(r.sin_cambios ? { sin_cambios: true } : {}) });
                 } catch (e) {
                     if (e && e.code === 'SITIO_WEB_EDITADA_POR_OTRO') { choques.push(e.obra || { id: item.id, nombre: null }); continue; }
-                    if (e && e.statusCode && e.statusCode < 500) e.details = { ...(e.details || {}), obra_id: item.id };
-                    throw e;
+                    throw conDonde(e, { obra_id: item.id });
                 }
             }
             if (choques.length) {
@@ -784,8 +815,33 @@ const api = {
                     : `Otras personas guardaron cambios en ${choques.length} obras mientras editabas. No se guardó nada: recarga y vuelve a hacer tus cambios.`,
                 { code: 'SITIO_WEB_EDITADA_POR_OTRO', details: { obras: choques } });
             }
+
+            const ordenes = [];
+            for (const g of orden) ordenes.push(await api.reordenar(g.estado, g.ids.map(real), userId, { conn, exacto: true }));
+
+            const incluidas = [];
+            for (const x of incluir) {
+                const idReal = real(x.id);
+                try {
+                    const r = await api.cambiarIncluir(idReal, x.incluir, userId, { conn });
+                    incluidas.push({ id: idReal, incluir: x.incluir, nombre: r.nombre ?? null, sin_cambios: !!r.sin_cambios });
+                } catch (e) { throw conDonde(e, typeof x.id === 'string' ? { tmp: x.id } : { obra_id: idReal }); }
+            }
+
+            // Las versiones finales de las nuevas (crear las fija; el orden y el incluir no cambian `updated_at`).
+            for (const c of creadas) {
+                const [[f]] = await conn.query('SELECT nombre, updated_at FROM sitio_obras WHERE id = ?', [c.id]);
+                mapa[c.tmp].updated_at = f ? f.updated_at : null;
+                c.nombre = f ? f.nombre : null;
+            }
             await conn.commit();
-            return { obras: hechas };
+            return {
+                obras: hechas,
+                nuevas: mapa,
+                orden: ordenes,
+                incluir: incluidas.filter(x => !x.sin_cambios).map(x => ({ id: x.id, incluir: x.incluir })),
+                registro: { creadas, incluidas: incluidas.filter(x => !x.sin_cambios) },
+            };
         } catch (e) {
             try { await conn.rollback(); } catch (eR) { logger.error('No se pudo deshacer el guardado del editor visual', { err: eR.message }); }
             throw e;
@@ -798,8 +854,9 @@ const api = {
      * PUT /obras/:id/incluir. Incluir una obra que nunca se publicó exige que no le falte nada (409
      * SITIO_WEB_FALTAN_DATOS con la lista). Quitarla del sitio NUNCA se bloquea.
      */
-    async cambiarIncluir(id, incluir, userId) {
-        const o = await obraOFalla(id);
+    async cambiarIncluir(id, incluir, userId, { conn = null } = {}) {
+        const q = conn || db;
+        const o = await obraOFalla(id, q);
         if (!!o.incluir === incluir) return { id, incluir, sin_cambios: true };
         if (incluir && !o.publicado_hash) {
             const { faltantes: f } = calcular(o, (await fotosPorObra([id])).get(id) || [], null);
@@ -808,10 +865,11 @@ const api = {
                     { code: 'SITIO_WEB_FALTAN_DATOS', details: { faltantes: f } });
             }
         }
-        await db.query('UPDATE sitio_obras SET incluir = ?, actualizado_por = ?, updated_at = updated_at WHERE id = ?', [incluir, userId, id]);
-        await registrar(null, { sitio_obra_id: id, entidad: 'obra', entidad_id: id, accion: incluir ? 'incluir' : 'quitar',
-            resumen: incluir ? `Incluyó «${o.nombre}» en el sitio (sale en la próxima publicación)`
-                : `Quitó «${o.nombre}» del sitio (se retira en la próxima publicación)`,
+        await q.query('UPDATE sitio_obras SET incluir = ?, actualizado_por = ?, updated_at = updated_at WHERE id = ?', [incluir, userId, id]);
+        const via = conn ? ' (editor visual)' : '';
+        await registrar(conn, { sitio_obra_id: id, entidad: 'obra', entidad_id: id, accion: incluir ? 'incluir' : 'quitar',
+            resumen: incluir ? `Incluyó «${o.nombre}» en el sitio${via} (sale en la próxima publicación)`
+                : `Quitó «${o.nombre}» del sitio${via} (se retira en la próxima publicación)`,
             usuario_id: userId });
         return { id, incluir, nombre: o.nombre };
     },
@@ -819,26 +877,29 @@ const api = {
     /**
      * PUT /obras/orden: las obras de UN estado en el orden nuevo → orden 10, 20, 30… Las de ese estado que no
      * vinieron en la lista (creadas mientras tanto) quedan al final, en su orden de antes.
+     * `exacto` (guardado del editor visual, dentro de su transacción `conn`): la lista tiene que ser EXACTAMENTE las
+     * obras de ese estado (también las creadas o movidas en el mismo guardado); si sobra o falta una, 409.
      */
-    async reordenar(estado, ids, userId) {
+    async reordenar(estado, ids, userId, { conn = null, exacto = false } = {}) {
+        const q = conn || db;
         const lista = (ids || []).map(Number);
         if (lista.some(n => !Number.isInteger(n) || n < 1) || new Set(lista).size !== lista.length) {
             throw err(400, 'La lista de obras para ordenar no es válida.', { code: 'SITIO_WEB_ORDEN' });
         }
-        const [filas] = await db.query('SELECT id FROM sitio_obras WHERE estado = ? ORDER BY orden ASC, nombre ASC, id ASC', [estado]);
+        const [filas] = await q.query('SELECT id FROM sitio_obras WHERE estado = ? ORDER BY orden ASC, nombre ASC, id ASC', [estado]);
         const delEstado = filas.map(f => f.id);
-        if (lista.some(n => !delEstado.includes(n))) {
+        if (lista.some(n => !delEstado.includes(n)) || (exacto && delEstado.some(n => !lista.includes(n)))) {
             throw err(409, 'La lista cambió mientras ordenabas (una obra ya no está en ese estado). Recarga e inténtalo de nuevo.',
-                { code: 'SITIO_WEB_ORDEN_DESACTUALIZADO' });
+                { code: 'SITIO_WEB_ORDEN_DESACTUALIZADO', details: { estado } });
         }
         const final = [...lista, ...delEstado.filter(n => !lista.includes(n))];
         const casos = final.map(() => 'WHEN ? THEN ?').join(' ');
-        await db.query(
+        await q.query(
             `UPDATE sitio_obras SET orden = CASE id ${casos} END, updated_at = updated_at WHERE id IN (?)`,
             [...final.flatMap((n, i) => [n, (i + 1) * 10]), final]
         );
-        await registrar(null, { entidad: 'obra', accion: 'orden',
-            resumen: `Cambió el orden de «${cfg.ETIQUETA_ESTADO[estado]}»`, detalle: { estado, ids: final }, usuario_id: userId });
+        await registrar(conn, { entidad: 'obra', accion: 'orden',
+            resumen: `Cambió el orden de «${cfg.ETIQUETA_ESTADO[estado]}»${conn ? ' (editor visual)' : ''}`, detalle: { estado, ids: final }, usuario_id: userId });
         return { estado, ids: final };
     },
 

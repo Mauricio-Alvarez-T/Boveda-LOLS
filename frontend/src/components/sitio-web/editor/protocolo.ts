@@ -1,6 +1,6 @@
 import * as z from 'zod';
 import { LARGOS } from '../reglas';
-import type { JsonObraSitio } from '../tipos';
+import type { EstadoObra, JsonObraSitio } from '../tipos';
 
 /**
  * Protocolo v1 entre la Bóveda y el puente del editor visual que vive en el sitio (contrato: `docs/editor-visual.md`
@@ -22,8 +22,14 @@ export type ClaveEnLugar = CampoEnLugar extends `/${infer K}` ? K : never;
 export const claveDe = (c: CampoEnLugar): ClaveEnLugar => c.slice(1) as ClaveEnLugar;
 export const esCampoEnLugar = (c: unknown): c is CampoEnLugar => (CAMPOS_EN_LUGAR as readonly unknown[]).includes(c);
 
-export const SLUG_ITEM_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const ITEM_RE = /^obras\/[a-z0-9]+(-[a-z0-9]+)*$/;
+/**
+ * El slug de una obra en un mensaje: uno real (`maipu-40`) o el provisorio de una obra nueva sin guardar (`~n1`, A2:
+ * el `~` no pasa el esquema del sitio, así que nunca choca con uno real).
+ */
+export const SLUG_ITEM_RE = /^(?:[a-z0-9]+(-[a-z0-9]+)*|~n[1-9]\d{0,5})$/;
+const ITEM_RE = /^obras\/(?:[a-z0-9]+(-[a-z0-9]+)*|~n[1-9]\d{0,5})$/;
+export const TMP_RE = /^~n[1-9]\d{0,5}$/;
+export const esSlugProvisorio = (slug: string): boolean => TMP_RE.test(slug);
 export const itemDe = (slug: string): string => `obras/${slug}`;
 export const slugDeItem = (item: string): string | null => (ITEM_RE.test(item) ? item.slice('obras/'.length) : null);
 
@@ -53,13 +59,38 @@ const cambio = z.object({ ...cabecera, tipo: z.literal('cambio'), item, campo: z
 const navegar = z.object({ ...cabecera, tipo: z.literal('navegar'), ruta });
 const atajo = z.object({ ...cabecera, tipo: z.literal('atajo'), accion: z.enum(['deshacer', 'rehacer', 'guardar']) });
 
-const mensajePuente = z.discriminatedUnion('tipo', [hola, seleccion, cambio, navegar, atajo]);
+/* A2: estructura. Las 5 listas con nombre del sitio (`src/data/selecciones.ts` de lols.cl, contrato § 2). */
+export const REGLAS = ['portada-en-obra', 'portada-proximos', 'proyectos-en-curso', 'proyectos-contratados', 'proyectos-terminados'] as const;
+export type Regla = typeof REGLAS[number];
+/** El estado de las obras de cada lista (una obra nueva creada en esa lista nace con él). */
+export const ESTADO_DE_REGLA: Record<Regla, EstadoObra> = {
+    'portada-en-obra': 'en_construccion',
+    'portada-proximos': 'contratado',
+    'proyectos-en-curso': 'en_construccion',
+    'proyectos-contratados': 'contratado',
+    'proyectos-terminados': 'terminado',
+};
+/** Cómo se nombra cada lista en los avisos (página › sección, como se ve en el sitio). */
+export const ETIQUETA_REGLA: Record<Regla, string> = {
+    'portada-en-obra': 'Inicio › En obra ahora',
+    'portada-proximos': 'Inicio › Próximos proyectos',
+    'proyectos-en-curso': 'Proyectos › En construcción',
+    'proyectos-contratados': 'Proyectos › En proyecto',
+    'proyectos-terminados': 'Proyectos › Terminados',
+};
+const regla = z.enum(REGLAS);
+const nueva = z.object({ ...cabecera, tipo: z.literal('nueva'), lista: regla });
+const mover = z.object({ ...cabecera, tipo: z.literal('mover'), lista: regla, item, indice: z.number().int().nonnegative().max(10000) });
+
+const mensajePuente = z.discriminatedUnion('tipo', [hola, seleccion, cambio, navegar, atajo, nueva, mover]);
 
 export type MsgHola = z.infer<typeof hola>;
 export type MsgSeleccion = z.infer<typeof seleccion>;
 export type MsgCambio = z.infer<typeof cambio>;
 export type MsgNavegar = z.infer<typeof navegar>;
 export type MsgAtajo = z.infer<typeof atajo>;
+export type MsgNueva = z.infer<typeof nueva>;
+export type MsgMover = z.infer<typeof mover>;
 export type MensajePuente = z.infer<typeof mensajePuente>;
 
 /** Un mensaje del puente con su forma, o null (otro protocolo, otra versión, un campo de más largo, basura). */
@@ -87,6 +118,12 @@ export function validarCambio(m: MsgCambio, slugsConocidos: ReadonlySet<string>)
     const clave = claveDe(m.campo);
     if (m.valor.length > LARGOS[clave]) return { ok: false, motivo: 'muy_largo' };
     return { ok: true, slug, clave };
+}
+
+/** Un `mover` que ya pasó por zod: ¿es de una obra del borrador? (El resto —la lista, el año— lo decide el borrador.) */
+export function validarMover(m: MsgMover, slugsConocidos: ReadonlySet<string>): { ok: true; slug: string } | { ok: false; motivo: 'obra_desconocida' } {
+    const slug = slugDeItem(m.item);
+    return slug && slugsConocidos.has(slug) ? { ok: true, slug } : { ok: false, motivo: 'obra_desconocida' };
 }
 
 /**
