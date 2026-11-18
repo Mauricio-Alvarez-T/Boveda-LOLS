@@ -20,7 +20,13 @@ export function useAttendanceData() {
     const { hasPermission } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    // ?fecha=YYYY-MM-DD abre ese día (desde el Inicio: «Pasar la lista» de una obra que no la pasó, 2026-11-18).
+    // Solo un día pasado o de hoy; si no, el de hoy como siempre.
+    const [date, setDate] = useState(() => {
+        const hoy = new Date().toISOString().split('T')[0];
+        const pedida = searchParams.get('fecha') ?? '';
+        return /^\d{4}-\d{2}-\d{2}$/.test(pedida) && pedida <= hoy ? pedida : hoy;
+    });
     const [loading, setLoading] = useState(false);
     const [registrosGuardados, setRegistrosGuardados] = useState(0);
     const [hayCambios, setHayCambios] = useState(false);

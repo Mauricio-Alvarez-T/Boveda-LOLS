@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckSquare } from 'lucide-react';
+import { ArrowDown, CheckSquare } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { NumeroRodante } from '../../ui/NumeroRodante';
 import { Cargando, Skeleton } from '../../ui/Skeleton';
@@ -8,12 +8,15 @@ import { CIFRA_SOBRE_VERDE, useTarjetaActiva, type TonoTarjeta } from './tarjeta
 import { BotonVerMas } from './BotonVerMas';
 import { ordenarReiterados, reglasDe, REGLA_FALTA, type FaltasMesData } from './resumenFaltasMes';
 import { desgloseAusentes, listaObras, segmentosObras, type AusentesHoy, type ObrasHoy, type SeccionAsistencia } from './resumenAsistenciaHoy';
+import { bajadaCasilla, type SinListaData } from './resumenSinLista';
 
 interface Props {
     faltas: FaltasMesData | null;
     ausentes: AusentesHoy | null;
     /** null = sin datos de obras (el perfil no ve asistencia por obra). */
     obras: ObrasHoy | null;
+    /** Obras que no pasaron la lista en días hábiles anteriores (Marcos 2026-11-18); null mientras carga o sin permiso. */
+    sinLista?: SinListaData | null;
     /** «martes 20 de octubre». */
     fechaTexto: string;
     /** «octubre». */
@@ -39,13 +42,15 @@ const ZONA = 'block w-full text-left rounded-lg -mx-2 px-2 transition-colors hov
  * trabajador vive solo en el detalle: en la tarjeta saturaba (dueño 2026-10-20, fiel al boceto B).
  */
 const AsistenciaInicio: React.FC<Props> = ({
-    faltas, ausentes, obras, fechaTexto, mesNombre,
+    faltas, ausentes, obras, sinLista, fechaTexto, mesNombre,
     onTrabajador, onObras, onSeccion, activo, onVerMas,
 }) => {
     const sobreVerde = useTarjetaActiva();
     const reiterados = faltas?.reiterados ?? 0;
     const pendientesObras = obras && !obras.finDeSemana ? obras.sinGuardar.length : 0;
-    const tono: TonoTarjeta = reiterados > 0 ? 'rojo' : pendientesObras > 0 ? 'ambar' : 'verde';
+    // Una lista que no se pasó un día anterior ya afecta remuneraciones: pesa como los reiterados (rojo).
+    const nSinLista = sinLista?.obras.length ?? 0;
+    const tono: TonoTarjeta = reiterados > 0 || nSinLista > 0 ? 'rojo' : pendientesObras > 0 ? 'ambar' : 'verde';
     const filas = faltas ? ordenarReiterados(faltas.lista).slice(0, MAX_FILAS) : [];
     const resto = reiterados - filas.length;
     const segmentos = obras ? segmentosObras(obras.total, obras.guardadas) : null;
@@ -110,6 +115,22 @@ const AsistenciaInicio: React.FC<Props> = ({
                     <span className="mt-1.5 block text-xs font-semibold text-foreground">Faltas reiteradas</span>
                     <span className="mt-0.5 block text-label text-muted-foreground">en {mesNombre}</span>
                 </button>
+                {/* Obras que no pasaron la lista un día anterior (Marcos 2026-11-18: «que diga 1 obra no pasó asistencia
+                    y si uno pincha va abajo a un apartado con el detalle»). Solo aparece si hay alguna. */}
+                {sinLista && nSinLista > 0 && (
+                    // eslint-disable-next-line no-restricted-syntax -- zona de la tarjeta
+                    <button type="button" onClick={() => onSeccion('sinLista')}
+                        className="col-span-2 flex items-center gap-3 rounded-lg border-t border-border py-3 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40">
+                        <NumeroRodante value={nSinLista} className={cn('text-headline font-bold leading-none tracking-tight', cifraAlerta)} />
+                        <span className="min-w-0 flex-1">
+                            <span className="block text-xs font-semibold text-foreground">
+                                {plural(nSinLista, 'Obra no pasó la lista', 'Obras no pasaron la lista')}
+                            </span>
+                            <span className="mt-0.5 block truncate text-label text-muted-foreground">{bajadaCasilla(sinLista)}</span>
+                        </span>
+                        <ArrowDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                    </button>
+                )}
             </div>
 
             {faltas && filas.length === 0 && (
