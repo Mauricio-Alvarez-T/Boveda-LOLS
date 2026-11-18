@@ -112,7 +112,6 @@ export function useAttendanceExport({
         // (NAC/DF/MT mig 065 — RH pidió desglose individual, sin PL).
         const counts: Record<string, number> = {
             A: 0, F: 0, JI: 0, TO: 0, V: 0, LM: 0,
-            NAC: 0, DF: 0, MT: 0, PSG: 0, FJ: 0,
         };
 
         currentWorkers.forEach(w => {
@@ -125,7 +124,9 @@ export function useAttendanceExport({
             // AT (atraso legacy) absorbido por JI. NAC/DF/MT NO consolidan.
             if (code === 'AT') code = 'JI';
 
-            if (counts[code] !== undefined) counts[code]++;
+            // Cualquier código cuenta (antes solo una lista fija: el AL —accidente laboral— se perdía
+            // del resumen aunque el trabajador estaba en la grilla; 2026-11-18).
+            counts[code] = (counts[code] ?? 0) + 1;
         });
 
         text += `Total: ${total}\n`;
@@ -134,9 +135,13 @@ export function useAttendanceExport({
         ['A', 'F', 'JI', 'TO', 'V', 'LM'].forEach(c => {
             text += `${c}: ${counts[c].toString().padStart(2, '0')}\n`;
         });
-        // FJ (falta justificada, mig 118) va aparte de F: no es la misma falta.
-        ['FJ', 'NAC', 'DF', 'MT', 'PSG'].forEach(c => {
-            if (counts[c] > 0) {
+        // FJ (falta justificada, mig 118) va aparte de F: no es la misma falta. Después, cualquier otro
+        // código con registros (orden alfabético), para que la suma siempre cuadre con el Total.
+        const FIJOS = ['A', 'F', 'JI', 'TO', 'V', 'LM'];
+        const OPCIONALES = ['AL', 'FJ', 'NAC', 'DF', 'MT', 'PSG'];
+        const otros = Object.keys(counts).filter(c => !FIJOS.includes(c) && !OPCIONALES.includes(c)).sort();
+        [...OPCIONALES, ...otros].forEach(c => {
+            if ((counts[c] ?? 0) > 0) {
                 text += `${c}: ${counts[c].toString().padStart(2, '0')}\n`;
             }
         });
@@ -226,7 +231,7 @@ export function useAttendanceExport({
                 // registrado (caso típico: se asignó vía el dropdown "OTRO" de la
                 // fila, no por PeriodAssignModal), igual mostramos "1 día: fecha
                 // del reporte" para que RRHH no quede sin contexto del día.
-                const PERIOD_CODES = ['V', 'LM', 'DF', 'NAC', 'MT', 'PSG'];
+                const PERIOD_CODES = ['V', 'LM', 'AL', 'DF', 'NAC', 'MT', 'PSG'];
                 const periodo = est ? periodMap.get(`${w.id}_${est.id}`) : undefined;
                 if (periodo) {
                     const fi = String(periodo.fecha_inicio).split('T')[0];
