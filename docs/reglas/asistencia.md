@@ -137,6 +137,26 @@ solo cuentan las obras que deben marcar — activas, no finalizadas ni de prueba
 `participa_asistencia = 1` y **al menos un trabajador activo** (2026-10-20: antes una obra sin
 trabajadores figuraba siempre como pendiente).
 
+**Obras que no pasaron la lista en días anteriores** (Marcos 2026-11-18: «al jefe de obra se le olvidó mandar; que
+Daphne lo vea en la tarjeta y al entrar al otro día»). **`GET /api/dashboard/asistencia/sin-lista?obra_id=`**
+(`asistencia.ver`; `asistenciaSinLista.service`): mira los **5 días hábiles anteriores** (lunes a viernes, sin
+feriados activos y **sin hoy**: hoy ya lo dice «Faltan …»). Mismas obras que deben marcar (activas, no finalizadas
+ni de prueba, `participa_asistencia = 1`) y además ya iniciadas ese día (`fecha_inicio`) y con algún trabajador activo
+ingresado a esa fecha. «Pasó la lista» = el mismo criterio que «guardada hoy» (filas que no cubre un período activo,
+o fila para toda la dotación). Por obra: los días sin lista con **qué pasó** (`nadie` o `solo_periodos`: solo
+estaban las licencias o vacaciones), el **encargado** (`obras.encargado_nombre`) y **quién guardó la última lista**
+antes de hoy (`asistencias.registrado_por`). Al guardar ese día, la obra deja de aparecer. Se ve en tres lugares:
+- **Tarjeta «Asistencia»**: una casilla a lo ancho bajo «Ausentes hoy / Faltas reiteradas», solo si hay alguna
+  («1 · Obra no pasó la lista · ayer · DOMEYKO»), y la tarjeta pasa a **rojo** como con los reiterados. Pincharla
+  abre el detalle (sin mover la pantalla, como las otras cifras).
+- **Detalle**: primera sección, «Requiere acción · obras que no pasaron la lista», una ficha por obra
+  (`ObrasSinLista`): cada día abre Asistencia en esa obra y ese día (`/asistencia?fecha=YYYY-MM-DD` + la obra
+  elegida arriba; la fecha solo se acepta si no es futura), «Pedir la lista» por WhatsApp.
+- **Ventana al entrar** (`AvisoSinListaAlEntrar`, en MainLayout): **una vez al día** por persona (marca en
+  `localStorage` con el día de Chile del servidor), solo a **RR.HH.** (`asistencia.ver` + `trabajadores.editar` o
+  `documentos.laborales.emitir`), nunca en «Ver como». Si hay otra ventana abierta (documentos fuera de plazo,
+  novedades), espera a que se cierre. «Ver el detalle» abre el detalle de Asistencia del Inicio.
+
 **`GET /api/dashboard/asistencia?obra_id=`** (`asistencia.ver`; `inicioAsistencia.service`, fase 2 del
 detalle del Inicio, se pide al abrirlo). Tres bloques, cada uno `null` sin su permiso o si falla:
 - `proximos` — períodos activos (`asistencia.periodo.ver`) que **empiezan** en (hoy, hoy+14] o
