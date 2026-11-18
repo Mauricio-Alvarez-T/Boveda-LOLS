@@ -34,7 +34,7 @@ import { AttendanceHeaderActions, AttendanceSummaryRow, SiluetaRegistroDiario } 
 import type { Trabajador, Asistencia } from '../../types/entities';
 import { conDuracion } from '../../utils/avisos';
 import { fueraDePeriodo, periodosDe, tituloFuera } from '../../utils/periodosLaborales';
-import { esDiaPasado, PERMISO_DIAS_PASADOS } from '../../utils/fechaChile';
+import { diaCerradoPara, esDiaPasado, PERMISO_DIAS_DEL_MES, PERMISO_DIAS_PASADOS } from '../../utils/fechaChile';
 
 /**
  * Tab "Asistencia Diaria" — contiene toda la funcionalidad original de la
@@ -68,11 +68,14 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
         summary, isSaturday, isSunday, registrosGuardados
     } = attendanceData;
 
-    // Día cerrado (Marcos 2026-11-18: «que no tenga la opción de marcar la asistencia si ya pasó, que mejor lo vea
-    // Daphne»): un día anterior a hoy (hora de Chile) solo lo marca o corrige quien tiene `asistencia.dias_pasados`
-    // (RR.HH.). Los demás lo ven, sin poder cambiarlo. El servidor lo hace cumplir igual (middleware/diaCerrado.js).
+    // Día cerrado (Marcos 2026-11-18): un día anterior a hoy (hora de Chile) lo marca o corrige RR.HH.
+    // (`asistencia.dias_pasados`, cualquier día) y el jefe de obra dentro del mes en curso
+    // (`asistencia.dias_pasados_mes`, confirmado por Daphne). Los demás lo ven, sin poder cambiarlo. El servidor lo
+    // hace cumplir igual (middleware/diaCerrado.js).
     const diaPasado = esDiaPasado(date);
-    const diaCerrado = diaPasado && !hasPermission(PERMISO_DIAS_PASADOS);
+    const { cerrado: diaCerrado, motivo: motivoCierre } = diaCerradoPara(date, hasPermission);
+    // El jefe de obra que puede marcar días del mes (no RR.HH.): se le dice hasta cuándo.
+    const hastaFinDeMes = !hasPermission(PERMISO_DIAS_PASADOS) && hasPermission(PERMISO_DIAS_DEL_MES);
     const puedeGuardar = hasPermission('asistencia.guardar') && !diaCerrado;
     const noLaboral = !!feriadoActual || isSunday || isSaturday;
     const noEditable = noLaboral || diaCerrado;
@@ -409,7 +412,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                             )}
                         </AnimatePresence>
 
-                        {/* Día que ya pasó (2026-11-18): cerrado para el jefe de obra; RR.HH. sí lo marca. */}
+                        {/* Día que ya pasó (2026-11-18): RR.HH. cualquier día; el jefe de obra, los del mes en curso. */}
                         {diaPasado && !noLaboral && (
                             diaCerrado ? (
                                 <section className="mb-2 flex shrink-0 items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
@@ -419,8 +422,9 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                                     <div className="min-w-0 space-y-1">
                                         <h3 className="text-sm font-bold text-foreground">Este día ya cerró</h3>
                                         <p className="text-sm text-muted-foreground">
-                                            La asistencia se marca el mismo día. Un día que ya pasó solo lo puede marcar o corregir RR.HH.
-                                            Si se le olvidó, avísele a RR.HH.
+                                            {motivoCierre === 'mes'
+                                                ? 'Es de un mes que ya cerró: solo lo puede marcar o corregir RR.HH. Si falta algo, avísele a RR.HH.'
+                                                : 'La asistencia se marca el mismo día. Un día que ya pasó solo lo puede marcar o corregir RR.HH. Si se le olvidó, avísele a RR.HH.'}
                                         </p>
                                         <p className="text-xs text-muted-foreground">Puede ver lo guardado, pero no cambiarlo.</p>
                                     </div>
@@ -433,7 +437,8 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                                     <div className="min-w-0 space-y-1">
                                         <h3 className="text-sm font-bold text-foreground">{selectedObra.nombre} no pasó la lista este día</h3>
                                         <p className="text-sm text-muted-foreground">
-                                            Es un día que ya pasó: solo RR.HH. puede marcarlo. Lo que guarde quedará registrado a su nombre.
+                                            Es un día que ya pasó: puede pasarla ahora{hastaFinDeMes ? ', hasta el último día del mes' : ''}.
+                                            Quedará registrado que la guardó usted, hoy.
                                         </p>
                                     </div>
                                 </section>
@@ -445,7 +450,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                                     <div className="min-w-0 space-y-1">
                                         <h3 className="text-sm font-bold text-foreground">Día que ya pasó</h3>
                                         <p className="text-sm text-muted-foreground">
-                                            Solo RR.HH. puede corregirlo. Lo que cambie quedará registrado a su nombre.
+                                            Puede corregirlo{hastaFinDeMes ? ' hasta el último día del mes' : ''}. Lo que cambie quedará registrado a su nombre.
                                         </p>
                                     </div>
                                 </section>

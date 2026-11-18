@@ -111,6 +111,7 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'asistencia.guardar':                      { seccion: 'asistencia', subseccion: 'Lectura Base',     verbo: 'editar' },
     'asistencia.tomar.global':                 { seccion: 'asistencia', subseccion: 'Lectura Base',     verbo: 'editar' },
     'asistencia.dias_pasados':                 { seccion: 'asistencia', subseccion: 'Lectura Base',     verbo: 'editar' },
+    'asistencia.dias_pasados_mes':             { seccion: 'asistencia', subseccion: 'Lectura Base',     verbo: 'editar' },
     'asistencia.exportar_excel':               { seccion: 'asistencia', subseccion: 'Exportación',      verbo: 'exportar' },
     'asistencia.enviar_whatsapp':              { seccion: 'asistencia', subseccion: 'Exportación',      verbo: 'enviar' },
     'asistencia.periodo.ver':                  { seccion: 'asistencia', subseccion: 'Períodos',         verbo: 'ver' },
