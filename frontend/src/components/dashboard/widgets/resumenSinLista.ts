@@ -20,6 +20,8 @@ export interface ObraSinLista {
     dotacion: number;
     /** Del más reciente al más antiguo. */
     dias: DiaSinLista[];
+    /** Días del último mes en que SÍ se guardó la lista (para el calendario); los demás hábiles no le correspondían. */
+    guardadas?: string[];
     /** Última lista guardada antes de hoy y quién la guardó. */
     ultima: { fecha: string; por: string | null } | null;
 }
@@ -27,9 +29,71 @@ export interface ObraSinLista {
 export interface SinListaData {
     /** 'YYYY-MM-DD' de hoy en Chile. */
     hoy: string;
+    /** Primer día revisado (30 días corridos atrás: el último mes). */
+    desde?: string;
     /** Días hábiles revisados, del más reciente al más antiguo. */
     dias: string[];
     obras: ObraSinLista[];
+}
+
+/**
+ * La ventana al entrar avisa solo lo reciente (los últimos `RECIENTES` días hábiles): lo del último mes queda en la
+ * tarjeta y el detalle del Inicio, para controlar sin que la ventana repita todos los días algo de hace semanas.
+ */
+export const RECIENTES = 5;
+
+/** Los mismos datos, pero solo con los días sin lista de los últimos `n` días hábiles (y las obras que los tengan). */
+export function soloRecientes(s: SinListaData, n = RECIENTES): SinListaData {
+    const recientes = new Set(s.dias.slice(0, n));
+    const obras = s.obras
+        .map(o => ({ ...o, dias: o.dias.filter(d => recientes.has(d.fecha)) }))
+        .filter(o => o.dias.length > 0);
+    return { ...s, dias: s.dias.slice(0, n), obras };
+}
+
+export type EstadoDia = 'falta' | 'guardada' | 'feriado' | 'no_aplica' | 'hoy';
+export interface CeldaMes { fecha: string; dia: number; estado: EstadoDia; motivo?: DiaSinLista }
+
+/**
+ * Calendario del último mes de una obra: semanas de lunes a viernes (fines de semana fuera), de la más antigua a la
+ * de hoy. `null` = fuera del mes revisado. Hábil sin lista → `falta`; guardada → `guardada`; día de semana que no
+ * está entre los revisados → `feriado`; revisado pero sin trabajadores o antes de empezar la obra → `no_aplica`.
+ */
+export function calendarioMes(s: SinListaData, o: ObraSinLista): (CeldaMes | null)[][] {
+    const desde = s.desde ?? s.dias[s.dias.length - 1];
+    if (!desde) return [];
+    const habiles = new Set(s.dias);
+    const faltas = new Map(o.dias.map(d => [d.fecha, d]));
+    const guardadas = new Set(o.guardadas ?? []);
+    const [y, m, d] = desde.split('-').map(Number);
+    const inicio = new Date(Date.UTC(y, m - 1, d));
+    inicio.setUTCDate(inicio.getUTCDate() - ((inicio.getUTCDay() + 6) % 7)); // lunes de esa semana
+    const semanas: (CeldaMes | null)[][] = [];
+    for (const dia = new Date(inicio); dia.toISOString().slice(0, 10) <= s.hoy; dia.setUTCDate(dia.getUTCDate() + 7)) {
+        const semana: (CeldaMes | null)[] = [];
+        for (let i = 0; i < 5; i++) {
+            const f = new Date(dia);
+            f.setUTCDate(f.getUTCDate() + i);
+            const fecha = f.toISOString().slice(0, 10);
+            if (fecha < desde || fecha > s.hoy) { semana.push(null); continue; }
+            const estado: EstadoDia = fecha === s.hoy ? 'hoy'
+                : faltas.has(fecha) ? 'falta'
+                : guardadas.has(fecha) ? 'guardada'
+                : habiles.has(fecha) ? 'no_aplica' : 'feriado';
+            semana.push({ fecha, dia: f.getUTCDate(), estado, motivo: faltas.get(fecha) });
+        }
+        if (semana.some(Boolean)) semanas.push(semana);
+    }
+    return semanas;
+}
+
+/** «19 de octubre al 17 de noviembre»: el tramo que muestra el calendario (sin hoy). */
+export function tramoMes(s: SinListaData): string {
+    const desde = s.desde ?? s.dias[s.dias.length - 1];
+    const hasta = s.dias[0];
+    if (!desde || !hasta) return '';
+    const sinDia = (iso: string) => fechaLarga(iso).replace(/^\S+ /, '');
+    return `${sinDia(desde)} al ${sinDia(hasta)}`;
 }
 
 const sumarDias = (iso: string, n: number) => {

@@ -153,7 +153,7 @@ const DetalleAsistencia: React.FC<Props> = ({
                             Requiere acción · {sinLista.obras.length === 1 ? 'obra que no pasó la lista' : 'obras que no pasaron la lista'}
                         </h3>
                         <span className="text-xs text-muted-foreground">
-                            Últimos {sinLista.dias.length} días hábiles, sin contar hoy. Desaparece al guardarla.
+                            Último mes ({sinLista.dias.length} días hábiles), sin contar hoy. Cada día sale al guardarlo.
                         </span>
                     </div>
                     <ObrasSinLista datos={sinLista} onPasarLista={(o, f) => (onPasarLista ? onPasarLista(o, f) : onAsistencia())} />

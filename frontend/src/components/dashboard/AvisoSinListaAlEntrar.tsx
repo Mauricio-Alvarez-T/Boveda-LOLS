@@ -1,6 +1,7 @@
 /**
- * Ventana al ENTRAR con las obras que no pasaron la lista en los días hábiles anteriores (Marcos 2026-11-18: «que
- * cuando Daphne ingrese al otro día le aparezca un mensaje avisando»). Una vez al día por persona (la marca guarda el
+ * Ventana al ENTRAR con las obras que no pasaron la lista en los últimos días hábiles (Marcos 2026-11-18: «que
+ * cuando Daphne ingrese al otro día le aparezca un mensaje avisando»). Solo los últimos `RECIENTES` (5) hábiles: el
+ * último mes completo se controla en el Inicio, y la ventana no repite todos los días algo de hace semanas. Una vez al día por persona (la marca guarda el
  * día de Chile que mandó el servidor), en cualquier pantalla. La ve RR.HH., que controla la asistencia: quien tiene
  * `asistencia.ver` y además `trabajadores.editar` o `documentos.laborales.emitir` (el mismo criterio de RR.HH. que los
  * avisos al celular). No sale en una sesión «Ver como» (es de solo lectura y marcaría como visto el día del otro).
@@ -16,7 +17,7 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { claveVisto, cuando, cuandoDias, queEPaso, textoUltima, type SinListaData } from './widgets/resumenSinLista';
+import { claveVisto, cuando, cuandoDias, queEPaso, soloRecientes, textoUltima, type SinListaData } from './widgets/resumenSinLista';
 
 const leer = (clave: string) => { try { return localStorage.getItem(clave); } catch { return null; } };
 const guardar = (clave: string, valor: string) => { try { localStorage.setItem(clave, valor); } catch { /* sin marca: puede repetirse */ } };
@@ -37,7 +38,8 @@ export const AvisoSinListaAlEntrar: React.FC = () => {
         let vivo = true;
         api.get<{ data: SinListaData }>('/dashboard/asistencia/sin-lista')
             .then(res => {
-                const d = res.data.data;
+                // Solo lo reciente: el último mes completo queda en el Inicio (ver `soloRecientes`).
+                const d = res.data.data ? soloRecientes(res.data.data) : null;
                 if (!vivo || !d?.obras?.length || leer(claveVisto(user.id)) === d.hoy) return;
                 setDatos(d);
             })
@@ -103,7 +105,7 @@ export const AvisoSinListaAlEntrar: React.FC = () => {
                     ))}
                 </ul>
                 <p className="text-xs text-muted-foreground">
-                    Esta ventana sale una vez al día. En el Inicio, la tarjeta de Asistencia lo sigue mostrando hasta que se guarde.
+                    Esta ventana sale una vez al día. En el Inicio, la tarjeta de Asistencia muestra el último mes completo.
                 </p>
             </div>
         </Modal>
