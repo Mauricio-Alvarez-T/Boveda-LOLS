@@ -1,4 +1,8 @@
-import { bajadaCasilla, cuando, cuandoDias, queEPaso, textoUltima, type ObraSinLista, type SinListaData } from './resumenSinLista';
+import {
+    bajadaCasilla, calendarioMes, cuando, cuandoDias, queEPaso, soloRecientes, textoUltima, tramoMes,
+    type ObraSinLista, type SinListaData,
+} from './resumenSinLista';
+import { diasPorMes, mensajeSinLista } from './mensajesWhatsApp';
 
 // Miércoles 18 de noviembre de 2026.
 const HOY = '2026-11-18';
@@ -34,6 +38,50 @@ describe('obras sin pasar la lista (Marcos 2026-11-18)', () => {
         expect(queEPaso({ fecha: '2026-11-17', motivo: 'nadie', registros: 0 })).toBe('Nadie pasó la lista');
         expect(queEPaso({ fecha: '2026-11-17', motivo: 'solo_periodos', registros: 2 }))
             .toBe('Nadie pasó la lista: solo estaban las licencias o vacaciones de 2 personas');
+    });
+
+    it('la ventana al entrar solo lleva los últimos 5 días hábiles', () => {
+        const dias = ['2026-11-17', '2026-11-16', '2026-11-13', '2026-11-12', '2026-11-11', '2026-11-10', '2026-10-21'];
+        const s: SinListaData = {
+            hoy: HOY, dias, obras: [
+                obra('DOMEYKO', ['2026-11-17', '2026-10-21']),
+                obra('GORBEA', ['2026-10-21']), // solo un día viejo: no sale en la ventana
+            ],
+        };
+        const r = soloRecientes(s);
+        expect(r.obras.map(o => o.obra)).toEqual(['DOMEYKO']);
+        expect(r.obras[0].dias.map(d => d.fecha)).toEqual(['2026-11-17']);
+        expect(r.dias).toHaveLength(5);
+        expect(s.obras[0].dias).toHaveLength(2); // no toca el original
+    });
+
+    it('calendario del mes: semanas de lunes a viernes, cada día con su estado', () => {
+        // 30 días atrás = lunes 19 de octubre; feriado el viernes 13 (no está entre los hábiles).
+        const dias = ['2026-11-17', '2026-11-16', '2026-11-12', '2026-11-11', '2026-10-20', '2026-10-19'];
+        const s: SinListaData = { hoy: HOY, desde: '2026-10-19', dias, obras: [] };
+        const o = obra('DOMEYKO', ['2026-11-17', '2026-10-19'], { guardadas: ['2026-11-16', '2026-11-12'] });
+        const semanas = calendarioMes(s, o);
+        expect(semanas).toHaveLength(5); // 19-oct, 26-oct, 2-nov, 9-nov, 16-nov
+        expect(semanas.every(w => w.length === 5)).toBe(true);
+        const de = (f: string) => semanas.flat().find(c => c?.fecha === f)?.estado;
+        expect(de('2026-10-19')).toBe('falta');
+        expect(de('2026-11-17')).toBe('falta');
+        expect(de('2026-11-16')).toBe('guardada');
+        expect(de('2026-11-13')).toBe('feriado');
+        expect(de('2026-11-11')).toBe('no_aplica');
+        expect(de('2026-11-18')).toBe('hoy');
+        // Después de hoy, vacío.
+        expect(semanas[4][3]).toBeNull();
+        expect(semanas[0][0]?.dia).toBe(19);
+        expect(tramoMes(s)).toBe('19 de octubre al 17 de noviembre');
+    });
+
+    it('el mensaje de WhatsApp con muchos días los agrupa por mes', () => {
+        expect(diasPorMes(['2026-10-20', '2026-10-21', '2026-11-03', '2026-11-17']))
+            .toBe('el 20 y 21 de octubre, y el 3 y 17 de noviembre');
+        expect(mensajeSinLista('DOMEYKO', ['2026-11-16', '2026-11-17'])).toContain('falta la asistencia del lunes 16 de noviembre y martes 17 de noviembre');
+        expect(mensajeSinLista('DOMEYKO', ['2026-10-20', '2026-10-21', '2026-11-03', '2026-11-17']))
+            .toContain('falta la asistencia de 4 días: el 20 y 21 de octubre, y el 3 y 17 de noviembre.');
     });
 
     it('quién guardó la última lista', () => {

@@ -12,8 +12,8 @@ const pool = require('../src/config/db');
 const servicio = require('../src/services/asistenciaSinLista.service');
 
 /**
- * Obras que no pasaron la lista en los días hábiles anteriores (Marcos 2026-11-18): Daphne lo ve en el Inicio y al
- * entrar al otro día.
+ * Obras que no pasaron la lista en los días hábiles del último mes (Marcos 2026-11-18): Daphne lo ve en el Inicio y
+ * al entrar al otro día.
  */
 describe('asistenciaSinLista', () => {
     afterEach(() => {
@@ -21,14 +21,20 @@ describe('asistenciaSinLista', () => {
         pool.query.mockResolvedValue([[]]);
     });
 
-    test('días hábiles: sin hoy, sin fin de semana ni feriados, del más reciente al más antiguo', async () => {
+    test('días hábiles del último mes: sin hoy, sin fin de semana ni feriados, del más reciente al más antiguo', async () => {
         pool.query.mockImplementation(async (sql) => {
             if (sql.includes('FROM feriados')) return [[{ fecha: '2026-11-13' }]]; // viernes 13: feriado
             return [[]];
         });
         const dias = await servicio._internal.diasHabilesAnteriores('2026-11-18');
-        // mar 17, lun 16, (vie 13 feriado), jue 12, mié 11, mar 10.
-        expect(dias).toEqual(['2026-11-17', '2026-11-16', '2026-11-12', '2026-11-11', '2026-11-10']);
+        // mar 17, lun 16, (vie 13 feriado), jue 12, mié 11, mar 10…
+        expect(dias.slice(0, 5)).toEqual(['2026-11-17', '2026-11-16', '2026-11-12', '2026-11-11', '2026-11-10']);
+        // …hasta el lunes 19 de octubre (30 días corridos atrás): 22 hábiles menos el feriado.
+        expect(dias[dias.length - 1]).toBe('2026-10-19');
+        expect(dias).toHaveLength(21);
+        expect(dias).not.toContain('2026-11-14'); // sábado
+        const [, params] = pool.query.mock.calls.find(([s]) => s.includes('FROM feriados'));
+        expect(params).toEqual(['2026-10-19', '2026-11-17']);
     });
 
     test('«pasó la lista»: filas propias, o fila para toda la dotación; solo licencias no cuenta', () => {
@@ -39,7 +45,7 @@ describe('asistenciaSinLista', () => {
         expect(paso({ registros: 3, propios: 0, dotacion: 3 })).toBe(true);
     });
 
-    test('junta por obra los días sin lista, dice qué pasó y quién guardó la última', async () => {
+    test('junta por obra los días sin lista y los guardados, dice qué pasó y quién guardó la última', async () => {
         pool.query.mockImplementation(async (sql, params) => {
             if (sql.includes('FROM feriados')) return [[]];
             if (sql.includes('CROSS JOIN')) {
@@ -67,6 +73,7 @@ describe('asistenciaSinLista', () => {
         const r = await servicio.getSinLista();
 
         expect(r.hoy).toBe('2026-11-18');
+        expect(r.desde).toBe('2026-10-19');
         expect(r.dias[0]).toBe('2026-11-17');
         expect(r.obras.map(o => o.obra)).toEqual(['DOMEYKO', 'GORBEA']);
         expect(r.obras[0]).toEqual({
@@ -75,9 +82,11 @@ describe('asistenciaSinLista', () => {
                 { fecha: '2026-11-17', motivo: 'nadie', registros: 0 },
                 { fecha: '2026-11-16', motivo: 'solo_periodos', registros: 2 },
             ],
+            guardadas: ['2026-11-13'],
             ultima: { fecha: '2026-11-13', por: 'Pedro Soto' },
         });
         expect(r.obras[1].ultima).toBeNull();
+        expect(r.obras[1].guardadas).toEqual([]);
 
         const [sql] = pool.query.mock.calls.find(([s]) => s.includes('CROSS JOIN'));
         expect(sql).toContain('o.participa_asistencia = 1');
