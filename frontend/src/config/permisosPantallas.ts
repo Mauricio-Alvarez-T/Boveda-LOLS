@@ -112,7 +112,9 @@ const DEFS: PantallaDef[] = [
         i('asistencia.enviar_whatsapp', 'Enviar por WhatsApp', 2),
         i('asistencia.feriado.gestionar', 'Marcar feriados', 3),
         i('asistencia.tomar.global', 'Tomar todas las obras a la vez', 3),
-        i('asistencia.dias_pasados', 'Marcar días que ya pasaron', 3),
+        // Días pasados (mig 154/155): aparte de los escalones (no se regalan al subir de nivel; afectan la nómina).
+        x('asistencia.dias_pasados_mes', 'Marcar días pasados del mes'),
+        x('asistencia.dias_pasados', 'Marcar días que ya pasaron'),
         $('asistencia.horas_extra.ver', 'Ver horas extra')] },
     { id: 'periodos', nombre: 'Períodos de ausencia', grupo: 'asistencia', items: [
         i('asistencia.periodo.ver', 'Ver licencias, vacaciones y permisos', 1),

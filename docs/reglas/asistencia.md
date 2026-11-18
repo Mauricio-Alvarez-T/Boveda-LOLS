@@ -44,13 +44,19 @@ Cada estado tiene 2 flags con semántica DISTINTA:
 - **Día cerrado** (Marcos 2026-11-18: «que no tenga la opción de marcar la asistencia si ya pasó, que mejor lo vea
   Daphne»): la asistencia se marca **el mismo día** (hora de Chile; cierra a las 23:59, sin margen). Un día anterior
   solo lo marca, corrige, borra o traslada quien tiene **`asistencia.dias_pasados`** («Marcar días que ya pasaron»,
-  mig 154: Super Administrador y RR.HH.; se da o quita en Configuración). El servidor lo hace cumplir en `/bulk`,
+  mig 154: Super Administrador y RR.HH.; cualquier día) o **`asistencia.dias_pasados_mes`** («Marcar días pasados del
+  mes», mig 155: **jefes de obra** = rol «Supervisor de Obra», confirmado por Daphne el mismo 18-11: «que en obra
+  pasen asistencia si se olvidaron cualquier día del mes»; solo días del **mes en curso**: un mes anterior ya cerró
+  para la nómina y queda para RR.HH.). Ambos van aparte de los escalones de la matriz de Roles (marca «delicado»: no
+  se regalan al subir de nivel); se dan o quitan en Configuración. El servidor lo hace cumplir en `/bulk`,
   `/batch`, `PUT /:id` (la fecha de esa fila), `/borrar-dia` y `/traslado-obra` (`middleware/diaCerrado.js`, 403
   `codigo: 'DIA_CERRADO'` con el día). Los **períodos** (licencias, vacaciones) no cambian: se siguen ingresando hacia
-  atrás. En pantalla (`AttendanceDailyTab`): sin el permiso, el día pasado se ve con «Este día ya cerró… Si se le
-  olvidó, avísele a RR.HH.», los estados y campos bloqueados y sin Guardar/Repetir/Borrar (el calendario y el detalle
-  se pueden abrir para ver); con el permiso, «{obra} no pasó la lista este día» (si no tiene filas) o «Día que ya
-  pasó», y queda a su nombre (`registrado_por`).
+  atrás. En pantalla (`AttendanceDailyTab`, `utils/fechaChile.diaCerradoPara`): si no puede, el día se ve con «Este
+  día ya cerró… avísele a RR.HH.» (o «Es de un mes que ya cerró…» para el jefe de obra), los estados y campos
+  bloqueados y sin Guardar/Repetir/Borrar (el calendario y el detalle se pueden abrir para ver); si puede, «{obra} no
+  pasó la lista este día… puede pasarla ahora» (al jefe: «hasta el último día del mes») o «Día que ya pasó», y queda
+  a su nombre (`registrado_por`). En el Inicio, «Pasar la lista» de la ficha sale solo si puede marcar el día más
+  reciente sin lista. La campana y el aviso «Importante» siguen siendo solo de `asistencia.dias_pasados` (RR.HH.).
 - **Ventana laboral = la UNIÓN de los períodos laborales** del trabajador (reingreso, mig 152 — ver
   `rrhh-trabajadores.md` § Reingreso y períodos laborales): antes del primer ingreso, después del finiquito
   vigente o **entre una baja y el reingreso** no se registra (400 desde 2026-11-17; antes salía 500), ni en

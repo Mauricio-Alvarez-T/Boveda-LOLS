@@ -5,7 +5,7 @@ jest.mock('../src/utils/fechaChile', () => {
 });
 
 const {
-    bloquearDiasPasados, primerDiaPasado, fechasDeRegistros, fechaDelCuerpo, PERMISO_DIAS_PASADOS,
+    bloquearDiasPasados, primerDiaPasado, inicioDeMes, fechasDeRegistros, fechaDelCuerpo, PERMISO_DIAS_PASADOS, PERMISO_DIAS_DEL_MES,
 } = require('../src/middleware/diaCerrado');
 
 /**
@@ -53,6 +53,21 @@ describe('día cerrado', () => {
         expect(next).toHaveBeenCalledWith();
         expect(res.statusCode).toBeNull();
         expect(fechasDe).not.toHaveBeenCalled();
+    });
+
+    test('jefe de obra con «días pasados del mes»: cualquier día de noviembre sí; octubre no (confirmado por Daphne)', async () => {
+        const mw = bloquearDiasPasados(fechasDeRegistros);
+        const user = { p: ['asistencia.guardar', PERMISO_DIAS_DEL_MES] };
+
+        const mes = await correr(mw, { user, body: { registros: [{ fecha: '2026-11-02' }, { fecha: '2026-11-17' }] } });
+        expect(mes.next).toHaveBeenCalledWith();
+
+        const octubre = await correr(mw, { user, body: { registros: [{ fecha: '2026-11-17' }, { fecha: '2026-10-30' }] } });
+        expect(octubre.next).not.toHaveBeenCalled();
+        expect(octubre.res.statusCode).toBe(403);
+        expect(octubre.res.body).toMatchObject({ codigo: 'DIA_CERRADO', fecha: '2026-10-30' });
+        expect(octubre.res.body.error).toMatch(/mes que ya cerró/);
+        expect(inicioDeMes('2026-11-18')).toBe('2026-11-01');
     });
 
     test('borrar el día / traslado: la fecha del cuerpo; corregir una fila: la fecha de esa fila (async)', async () => {

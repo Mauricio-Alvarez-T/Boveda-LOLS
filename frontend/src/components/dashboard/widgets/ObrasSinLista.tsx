@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { useAuth } from '../../../context/AuthContext';
-import { PERMISO_DIAS_PASADOS } from '../../../utils/fechaChile';
+import { diaCerradoPara } from '../../../utils/fechaChile';
 import { shareViaWhatsApp } from '../../../utils/whatsappShare';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
 import { CabezaFicha, EnlaceFicha, Ficha, GrillaFichas, PieFicha } from './FichaInicio';
@@ -82,8 +82,10 @@ const CalendarioMes: React.FC<{ datos: SinListaData; obra: ObraSinLista; onDia: 
 
 const FichaObra: React.FC<{ datos: SinListaData; o: ObraSinLista; onPasarLista: Props['onPasarLista'] }> = ({ datos, o, onPasarLista }) => {
     const [todos, setTodos] = useState(false);
-    // Un día que ya pasó lo marca solo RR.HH. (mig 154): los demás pueden abrirlo para verlo, sin «Pasar la lista».
-    const puedeMarcar = useAuth().hasPermission(PERMISO_DIAS_PASADOS);
+    // Un día que ya pasó lo marca RR.HH. (cualquiera) o el jefe de obra (del mes en curso): si no puede marcar el más
+    // reciente, la ficha queda sin «Pasar la lista» (igual puede abrir cada día para verlo).
+    const { hasPermission } = useAuth();
+    const puedeMarcar = !diaCerradoPara(o.dias[0].fecha, hasPermission).cerrado;
     const dias = todos ? o.dias : o.dias.slice(0, VISIBLES);
     const ocultos = o.dias.length - VISIBLES;
     return (

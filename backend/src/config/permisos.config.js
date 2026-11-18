@@ -19,6 +19,9 @@ const MAESTRO_PERMISOS = [
     ['asistencia.tomar.global',     'Asistencia', 'Asistencia Global',           'Tomar asistencia de todas las obras simultáneamente', 11],
     // Mig 154 (Marcos 2026-11-18): la asistencia se marca el mismo día; un día que ya pasó solo con este permiso.
     ['asistencia.dias_pasados',     'Asistencia', 'Marcar días que ya pasaron',  'Marcar o corregir la asistencia de un día que ya pasó (sin este permiso, solo el mismo día). Recibe el aviso «Importante» cuando una obra no pasó la lista', 11],
+    // Mig 155 (Marcos 2026-11-18, confirmado por Daphne): los jefes de obra pasan la lista olvidada de cualquier día
+    // del mes en curso; un mes anterior queda para «Marcar días que ya pasaron».
+    ['asistencia.dias_pasados_mes', 'Asistencia', 'Marcar días pasados del mes', 'Marcar o corregir la asistencia de un día que ya pasó, solo dentro del mes en curso (un mes anterior, solo con «Marcar días que ya pasaron»)', 11],
     // Lista de trabajadores en actividades sugeridas (antes "sábados extra"; renombrado por
     // jefatura 2026-09-21, mig 116). Claves nuevas: las viejas se repuntaron en la migración.
     ['asistencia.actividades_sugeridas.ver',             'Asistencia', 'Ver actividades sugeridas',                     'Ver las listas de trabajadores en actividades sugeridas', 12],
