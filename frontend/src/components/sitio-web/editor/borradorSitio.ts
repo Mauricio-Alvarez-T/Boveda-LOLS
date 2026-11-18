@@ -634,9 +634,16 @@ export function jsonConCambios(o: ObraEditor, c: CambiosObra | undefined, orden:
     };
 }
 
-/** Las obras para el mensaje `borrador` (estado completo: qué obras hay, su estado, orden e incluir; A2). */
+/**
+ * Las obras para el mensaje `borrador` (estado completo: qué obras hay, su estado, orden e incluir; A2).
+ * Una obra guardada que nunca salió al sitio y sigue fuera va como `nueva`: el puente la deja a la vista con la
+ * insignia «Borrador · fuera del sitio» (si no, desaparecería de la página apenas se guarda).
+ */
 export const obrasParaPuente = (e: Vista): { json: JsonObraSitio; meta: { incluir: boolean; nueva: boolean } }[] =>
-    todas(e).map(o => ({ json: jsonConCambios(o, e.cambios[o.meta.id], ordenDe(e, o)), meta: { incluir: incluirDe(e, o), nueva: o.meta.nueva } }));
+    todas(e).map(o => {
+        const incluir = incluirDe(e, o);
+        return { json: jsonConCambios(o, e.cambios[o.meta.id], ordenDe(e, o)), meta: { incluir, nueva: o.meta.nueva || (o.meta.nunca_publicada && !incluir) } };
+    });
 
 /** Lo que le falta a la obra para salir al sitio, con lo escrito (espejo del backend: `reglas.faltantes`). */
 export function faltantesDe(e: Vista, id: number): Faltante[] {

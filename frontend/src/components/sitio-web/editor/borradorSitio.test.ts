@@ -474,3 +474,14 @@ describe('A2: después de guardar y respaldo', () => {
         expect(leerRespaldo(a)).toBeNull();
     });
 });
+
+describe('A2: borrador guardado que nunca salió al sitio', () => {
+    test('va al puente como `nueva` (sigue a la vista con su insignia) hasta incluirlo', () => {
+        const borrador = { ...A, meta: { ...A.meta, incluir: false, nunca_publicada: true, publicado_at: null } };
+        const e = crearBorrador([borrador, ...OBRAS.slice(1)]);
+        expect(obrasParaPuente(e)[0].meta).toEqual({ incluir: false, nueva: true });
+        // Una publicada que se quitó del sitio no: va a la bandeja «Fuera del sitio».
+        const quitada = { ...A, meta: { ...A.meta, incluir: false } };
+        expect(obrasParaPuente(crearBorrador([quitada, ...OBRAS.slice(1)]))[0].meta).toEqual({ incluir: false, nueva: false });
+    });
+});
