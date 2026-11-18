@@ -63,6 +63,16 @@ export function mensajeObrasSinGuardar(obras: string[], hoyIso: string): string 
         + `¿Pueden marcarla en Bóveda? Gracias.${PIE_WHATSAPP}`;
 }
 
+/**
+ * Obra que no pasó la lista en días hábiles anteriores (Marcos 2026-11-18): pedir que la pasen. «Hola, en *DOMEYKO*
+ * falta la asistencia del martes 17 de noviembre. ¿Pueden pasarla en Bóveda? …».
+ */
+export function mensajeSinLista(obra: string, fechas: string[]): string {
+    const dias = enumerar(fechas.map(f => fechaLarga(f)));
+    return `Hola, en *${obra}* falta la asistencia del ${dias}. ¿Pueden pasarla en Bóveda? `
+        + `Si ese día no hubo faena, avísenme para dejarlo anotado. Gracias.${PIE_WHATSAPP}`;
+}
+
 /** Fila «Falta» de «Hoy · ausentes por motivo»: preguntar al grupo por los que faltaron sin justificar hoy. */
 export function mensajeFaltasHoy(personas: Pick<AusenteHoy, 'nombres' | 'apellido_paterno' | 'obra'>[], hoyIso: string): string {
     const uno = personas.length === 1;

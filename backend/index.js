@@ -606,6 +606,18 @@ app.get('/api/dashboard/asistencia', require('./src/middleware/auth'), require('
   } catch (err) { next(err); }
 });
 
+// Obras que no pasaron la lista en los últimos días hábiles (Marcos 2026-11-18): casilla de la tarjeta «Asistencia»,
+// su apartado en el detalle y la ventana al entrar de RRHH. Aparte del resumen: si falla, lo demás del Inicio sigue.
+const asistenciaSinListaService = require('./src/services/asistenciaSinLista.service');
+app.get('/api/dashboard/asistencia/sin-lista', require('./src/middleware/auth'), require('./src/middleware/rbac').checkPermission('asistencia.ver'), async (req, res, next) => {
+  try {
+    const obraId = req.query.obra_id ? Number(req.query.obra_id) : null;
+    if (obraId !== null && !Number.isInteger(obraId)) return res.status(400).json({ error: 'obra_id inválido' });
+    const data = await asistenciaSinListaService.getSinLista(obraId);
+    res.json({ data });
+  } catch (err) { next(err); }
+});
+
 // «Inicio de gerencia» (don Luis, opción B «Tablero por tema», 2026-10-23): los seis temas que esperan una decisión
 // en una respuesta. Gate `inicio.gerencia` (mig 134); cada bloque se recorta además por el permiso de su módulo y los
 // $ de Inventario solo con permiso de valores (inicioGerencia.service).

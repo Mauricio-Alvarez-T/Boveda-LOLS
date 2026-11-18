@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
 import { AlertaAtrasosAlEntrar } from '../documentos-fisicos/AlertaAtrasosAlEntrar';
+import { AvisoSinListaAlEntrar } from '../dashboard/AvisoSinListaAlEntrar';
 import { AvisoSoporte } from '../soporte/AvisoSoporte';
 import { ActivarAvisos } from './ActivarAvisos';
 import { IconButton } from '../ui/IconButton';
@@ -80,6 +81,8 @@ export const MainLayout: React.FC = () => {
                 <EntornoBanner />
                 {/* Al iniciar sesión: documentos en terreno pasados de 4 días hábiles (jefatura 2026-10-21). */}
                 <AlertaAtrasosAlEntrar />
+                {/* Una vez al día, a RR.HH.: obras que no pasaron la lista en días hábiles anteriores (Marcos 2026-11-18). */}
+                <AvisoSinListaAlEntrar />
                 {/* «Le avisamos a soporte…» y «Contar qué pasó» (errores de Soporte, mig 141). */}
                 <AvisoSoporte />
                 {/* Franja «Active los avisos de sus pendientes» a quien está en el horario (la X: hasta mañana). */}

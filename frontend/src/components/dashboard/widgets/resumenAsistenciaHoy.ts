@@ -39,12 +39,13 @@ export interface ObrasHoy {
 }
 
 /** Secciones del detalle a las que lleva una cifra de la tarjeta. */
-export type SeccionAsistencia = 'reiterados' | 'hoy';
+export type SeccionAsistencia = 'reiterados' | 'hoy' | 'sinLista';
 
 /** id de cada sección del detalle, para que la tarjeta lleve directo a ella. */
 export const ID_SECCION: Record<SeccionAsistencia, string> = {
     reiterados: 'inicio-asistencia-reiterados',
     hoy: 'inicio-asistencia-hoy',
+    sinLista: 'inicio-asistencia-sin-lista',
 };
 
 /** «5 F · 4 LM · 3 otros»: los `max` motivos más numerosos y el resto junto. Vacío si nadie faltó. */

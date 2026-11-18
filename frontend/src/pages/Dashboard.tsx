@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAparecer } from '../hooks/useAparecer';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import api from '../services/api';
@@ -32,6 +32,7 @@ import AsistenciaInicio, { AsistenciaInicioSilueta } from '../components/dashboa
 import DetalleAsistencia from '../components/dashboard/widgets/DetalleAsistencia';
 import type { AusentesHoy } from '../components/dashboard/widgets/resumenAsistenciaHoy';
 import type { DetalleAsistenciaApi } from '../components/dashboard/widgets/resumenAsistenciaDetalle';
+import type { ObraSinLista, SinListaData } from '../components/dashboard/widgets/resumenSinLista';
 import InventarioInicio from '../components/dashboard/widgets/InventarioInicio';
 import DetalleInventario from '../components/dashboard/widgets/DetalleInventario';
 import RespaldoInventario from '../components/dashboard/widgets/inventarioPerfil/RespaldoInventario';
@@ -179,8 +180,9 @@ const COLUMNAS: Record<number, string> = {
 // ─── Dashboard ───
 const Dashboard: React.FC = () => {
     const { user } = useAuth();
-    const { selectedObra, isLoading: cargandoObras } = useObra();
+    const { obras: listaObras, selectedObra, setSelectedObra, isLoading: cargandoObras } = useObra();
     const navigate = useNavigate();
+    const location = useLocation();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -273,6 +275,26 @@ const Dashboard: React.FC = () => {
     }, [selectedObra]);
 
     useEffect(() => { if (!cargandoObras) fetchSummary(); }, [fetchSummary, cargandoObras]);
+
+    // Obras que no pasaron la lista en días hábiles anteriores (Marcos 2026-11-18): casilla de la tarjeta Asistencia y
+    // su apartado en el detalle. Aparte del resumen (si falla, la tarjeta sigue sin la casilla); se pide junto con él.
+    const verAsistencia = permisos.includes('asistencia.ver');
+    const [sinLista, setSinLista] = useState<SinListaData | null>(null);
+    const turnoSinLista = useRef(0);
+    useEffect(() => {
+        if (!verAsistencia || !lastUpdated) return;
+        const turno = ++turnoSinLista.current;
+        const query = selectedObra ? `?obra_id=${selectedObra.id}` : '';
+        api.get<ApiResponse<SinListaData>>(`/dashboard/asistencia/sin-lista${query}`)
+            .then(res => { if (turno === turnoSinLista.current) setSinLista(res.data.data ?? null); })
+            .catch(() => { if (turno === turnoSinLista.current) setSinLista(null); });
+    }, [verAsistencia, selectedObra, lastUpdated]);
+    // «Pasar la lista»: Asistencia en esa obra y ese día.
+    const pasarLista = useCallback((o: ObraSinLista, fecha: string) => {
+        const obra = listaObras.find(x => x.id === o.obra_id);
+        if (obra) setSelectedObra(obra);
+        navigate(`/asistencia?fecha=${fecha}`);
+    }, [listaObras, setSelectedObra, navigate]);
 
     // Inventario: fetch DIFERIDO y gated por permiso (no bloquea la bandeja de
     // asistencia/docs; si falla o no hay permiso, simplemente no agrega filas).
@@ -474,6 +496,13 @@ const Dashboard: React.FC = () => {
     }, []);
     // Las cifras de la tarjeta abren el detalle (sin cerrarlo si ya estaba abierto) y tampoco mueven la pantalla.
     const abrirSeccion = useCallback(() => setElegido('asistencia'), []);
+    // La ventana «Obras sin lista» al entrar (AvisoSinListaAlEntrar) llega con `abrirInicio: 'asistencia'`: abre ese
+    // detalle una vez y limpia la marca (recargar no lo vuelve a abrir).
+    useEffect(() => {
+        if ((location.state as { abrirInicio?: string } | null)?.abrirInicio !== 'asistencia') return;
+        setElegido('asistencia');
+        navigate(location.pathname, { replace: true, state: null });
+    }, [location.state, location.pathname, navigate]);
     // Las píldoras de etapa de la tarjeta Gestiones abren el detalle directo en su paso (dueño 2026-10-23).
     const abrirEtapa = useCallback((paso: PasoFlujo['key']) => {
         setPasoGestiones(paso);
@@ -512,7 +541,7 @@ const Dashboard: React.FC = () => {
 
     // ─── Franjas compactas (tarjetas plegadas mientras hay un detalle abierto, dueño 2026-10-20) ───
     const reiteradosN = ready ? (data?.faltasMes?.reiterados ?? 0) : null;
-    const tonoAsistencia: TonoTarjeta = (reiteradosN ?? 0) > 0 ? 'rojo'
+    const tonoAsistencia: TonoTarjeta = (reiteradosN ?? 0) > 0 || (sinLista?.obras.length ?? 0) > 0 ? 'rojo'
         : obrasHoy && !obrasHoy.finDeSemana && obrasHoy.sinGuardar.length > 0 ? 'ambar' : 'verde';
     const tonoGestiones: TonoTarjeta = canRegistrarEntregas ? resumenDocs.tono
         : gestionesItems.some(i => i.severity === 'critical') ? 'rojo' : totalGestiones > 0 ? 'ambar' : 'verde';
@@ -582,7 +611,7 @@ const Dashboard: React.FC = () => {
                         <Panel className="h-full" activa={activo === 'asistencia'} onClick={() => verMas('asistencia')}
                             compacta={activo !== null} resumen={compactas.asistencia} cola={colaVisible}>
                             {ready && data
-                                ? <AsistenciaInicio faltas={data.faltasMes ?? null} ausentes={data.ausentesHoy ?? null} obras={obrasHoy}
+                                ? <AsistenciaInicio faltas={data.faltasMes ?? null} ausentes={data.ausentesHoy ?? null} obras={obrasHoy} sinLista={sinLista}
                                     fechaTexto={fechaDelDia(hoy)} mesNombre={mes}
                                     onTrabajador={irATrabajador} onObras={() => navigate('/asistencia')} onSeccion={abrirSeccion}
                                     activo={activo === 'asistencia'} onVerMas={() => verMas('asistencia')} />
@@ -649,7 +678,8 @@ const Dashboard: React.FC = () => {
                         mesNombre={mes} {...fechaAsistencia} cargando={!ready}
                         mesExtra={mesAsistencia} cargandoMes={cargandoMesAsistencia}
                         verMes={permisos.includes('asistencia.exportar_excel') || permisos.includes('asistencia.horas_extra.ver')}
-                        onTrabajador={irATrabajador} onAsistencia={() => navigate('/asistencia')}>
+                        onTrabajador={irATrabajador} onAsistencia={() => navigate('/asistencia')}
+                        sinLista={sinLista} onPasarLista={pasarLista}>
                         {(canActividades || showRanking) && (
                             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                                 {/* Trae sus datos (tiene selector de semana), por eso no depende de `ready`. */}

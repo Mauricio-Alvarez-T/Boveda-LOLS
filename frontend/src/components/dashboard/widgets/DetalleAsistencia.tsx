@@ -12,6 +12,8 @@ import { DescuentosMes, FaltasPorObra, HorasExtraObras, PatronFinde, ProximosDia
 import type { DetalleAsistenciaApi } from './resumenAsistenciaDetalle';
 import { ordenarReiterados, type FaltasMesData } from './resumenFaltasMes';
 import { colorEstado, gruposAusentes, ID_SECCION, type AusentesHoy, type ObrasHoy } from './resumenAsistenciaHoy';
+import ObrasSinLista from './ObrasSinLista';
+import type { ObraSinLista, SinListaData } from './resumenSinLista';
 
 const CARD = 'rounded-3xl bg-card p-6 text-foreground shadow-[var(--shadow-md)]';
 const ROTULO = 'text-label font-bold uppercase tracking-[0.08em] text-muted-foreground';
@@ -90,6 +92,9 @@ interface Props {
     verMes: boolean;
     onTrabajador: (rut: string) => void;
     onAsistencia: () => void;
+    /** Obras que no pasaron la lista en días hábiles anteriores (Marcos 2026-11-18); null mientras carga o sin permiso. */
+    sinLista?: SinListaData | null;
+    onPasarLista?: (obra: ObraSinLista, fecha: string) => void;
     /** Tendencia, actividades y ranking de obras (lo que ya existía), al final. */
     children?: React.ReactNode;
 }
@@ -101,7 +106,8 @@ interface Props {
  * después el mes para remuneraciones (descuentos y horas extra, según permisos) y al final tendencia y obras.
  */
 const DetalleAsistencia: React.FC<Props> = ({
-    faltas, ausentes, obras, mesNombre, anio, mes, hoyDia, cargando, mesExtra, cargandoMes, verMes, onTrabajador, onAsistencia, children,
+    faltas, ausentes, obras, mesNombre, anio, mes, hoyDia, cargando, mesExtra, cargandoMes, verMes, onTrabajador, onAsistencia,
+    sinLista, onPasarLista, children,
 }) => {
     const reiterados = faltas ? ordenarReiterados(faltas.lista) : [];
     const grupos = ausentes ? gruposAusentes(ausentes) : [];
@@ -138,6 +144,22 @@ const DetalleAsistencia: React.FC<Props> = ({
 
     return (
         <div className="space-y-8">
+            {/* Primero: obras que no pasaron la lista en días anteriores (Marcos 2026-11-18). Va arriba porque es lo que
+                la casilla de la tarjeta promete al pincharla, y el detalle se abre sin mover la pantalla. */}
+            {sinLista && sinLista.obras.length > 0 && (
+                <section id={ID_SECCION.sinLista} className="scroll-mt-6 space-y-3" aria-labelledby={`${ID_SECCION.sinLista}-t`}>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                        <h3 id={`${ID_SECCION.sinLista}-t`} className={ROTULO}>
+                            Requiere acción · {sinLista.obras.length === 1 ? 'obra que no pasó la lista' : 'obras que no pasaron la lista'}
+                        </h3>
+                        <span className="text-xs text-muted-foreground">
+                            Últimos {sinLista.dias.length} días hábiles, sin contar hoy. Desaparece al guardarla.
+                        </span>
+                    </div>
+                    <ObrasSinLista datos={sinLista} onPasarLista={(o, f) => (onPasarLista ? onPasarLista(o, f) : onAsistencia())} />
+                </section>
+            )}
+
             <section id={ID_SECCION.reiterados} className="scroll-mt-6 space-y-3" aria-labelledby={`${ID_SECCION.reiterados}-t`}>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                     <h3 id={`${ID_SECCION.reiterados}-t`} className={ROTULO}>Requiere acción · faltas reiteradas de {mesNombre}</h3>
