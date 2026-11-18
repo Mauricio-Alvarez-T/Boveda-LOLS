@@ -312,9 +312,21 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         // Estado de la asistencia de hoy por obra. Solo cuentan las obras que DEBEN marcarla: activas, no
         // finalizadas ni de prueba, que participan en Asistencia (mig 075) y con al menos un trabajador
         // activo (2026-10-20: antes una obra vacía figuraba para siempre como «sin guardar»).
+        //
+        // «Guardada» = alguien pasó la lista de hoy (dueño 2026-11-18). Un período (licencia, vacaciones, permiso)
+        // escribe su fila de cada día por adelantado: esas filas solas NO cuentan. `propios` = filas de hoy que
+        // no cubre un período activo; si toda la dotación tiene fila (todos de licencia, por ejemplo), también
+        // cuenta como guardada. El widget «Asistencia por obra» NO usa esto: su «0%» delata justo esos casos.
         const [attendanceStatusRows] = await pool.query(`
             SELECT o.id as obra_id, o.nombre as obra_nombre,
-                   COUNT(a.id) as registros
+                   COUNT(a.id) as registros,
+                   COUNT(CASE WHEN a.id IS NOT NULL AND NOT EXISTS (
+                       SELECT 1 FROM periodos_ausencia p
+                       WHERE p.trabajador_id = a.trabajador_id AND p.activo = 1
+                         AND p.fecha_inicio <= a.fecha AND p.fecha_fin >= a.fecha
+                   ) THEN 1 END) as propios,
+                   (SELECT COUNT(*) FROM trabajadores t2
+                    WHERE t2.obra_id = o.id AND t2.activo = 1 AND t2.es_prueba = 0) as dotacion
             FROM obras o
             LEFT JOIN asistencias a ON a.obra_id = o.id AND a.fecha = ?
             WHERE o.activa = 1 AND o.es_prueba = 0 AND o.finalizada = 0
@@ -324,17 +336,23 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
             GROUP BY o.id, o.nombre
         `, [today]);
 
+        const guardadaHoy = (r) => {
+            const registros = Number(r.registros) || 0;
+            const propios = r.propios == null ? registros : Number(r.propios);
+            const dotacion = r.dotacion == null ? null : Number(r.dotacion);
+            return propios > 0 || (dotacion != null && registros > 0 && registros >= dotacion);
+        };
         const attendanceStatusMap = {};
         attendanceStatusRows.forEach(r => {
             attendanceStatusMap[r.obra_id] = {
                 nombre: r.obra_nombre,
-                guardada: r.registros > 0
+                guardada: guardadaHoy(r)
             };
         });
         result.attendanceStatus = attendanceStatusMap;
 
         // Pending task: attendance not saved
-        const obrasSinAsistencia = attendanceStatusRows.filter(r => r.registros === 0);
+        const obrasSinAsistencia = attendanceStatusRows.filter(r => !guardadaHoy(r));
         if (obrasSinAsistencia.length > 0) {
             obrasSinAsistencia.forEach(o => {
                 pendingTasks.push({

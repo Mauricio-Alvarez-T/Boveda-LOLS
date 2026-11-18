@@ -80,6 +80,32 @@ describe('dashboard.getSummary — ausentesHoy', () => {
         expect(r.pendingTasks.filter(t => t.category === 'asistencia').map(t => t.description)).toEqual(['Obra: Obra Demo Poniente']);
     });
 
+    test('filas de un período (licencia, vacaciones) no cuentan como asistencia guardada (dueño 2026-11-18)', async () => {
+        jest.spyOn(asistenciaService, 'getFaltasMes').mockResolvedValue([]);
+        pool.query.mockImplementation(async (sql) => {
+            if (sql.includes('COUNT(a.id) as registros')) {
+                return [[
+                    // Solo la licencia de uno: nadie pasó la lista → pendiente.
+                    { obra_id: 1, obra_nombre: 'CONFERENCIA 622', registros: 1, propios: 0, dotacion: 24 },
+                    // Pasaron la lista (aunque haya alguien de licencia) → guardada.
+                    { obra_id: 2, obra_nombre: 'ULA 325', registros: 16, propios: 15, dotacion: 16 },
+                    // Toda la dotación de vacaciones: con todos con fila, cuenta como guardada.
+                    { obra_id: 3, obra_nombre: 'OFICINA', registros: 3, propios: 0, dotacion: 3 },
+                ]];
+            }
+            return [[]];
+        });
+        const r = await dashboardService.getSummary(null, permisos, 'Test');
+        const [sql] = pool.query.mock.calls.find(([s]) => s.includes('COUNT(a.id) as registros'));
+        expect(sql).toContain('FROM periodos_ausencia p');
+        expect(r.attendanceStatus).toEqual({
+            1: { nombre: 'CONFERENCIA 622', guardada: false },
+            2: { nombre: 'ULA 325', guardada: true },
+            3: { nombre: 'OFICINA', guardada: true },
+        });
+        expect(r.pendingTasks.filter(t => t.category === 'asistencia').map(t => t.description)).toEqual(['Obra: CONFERENCIA 622']);
+    });
+
     test('pregunta por el día de Chile', async () => {
         jest.spyOn(asistenciaService, 'getFaltasMes').mockResolvedValue([]);
         await dashboardService.getSummary(null, permisos, 'Test');
