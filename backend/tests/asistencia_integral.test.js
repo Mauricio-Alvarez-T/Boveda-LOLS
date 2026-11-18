@@ -86,8 +86,10 @@ const makeToken = (permisos) => jwt.sign({
     id: 1, email: 'admin@lols.cl', rol_id: 1, rv: 1, p: permisos
 }, SECRET);
 
+// Con `asistencia.dias_pasados` (mig 154): estas pruebas usan días ya pasados; el día cerrado se prueba aparte
+// (asistencia_dia_cerrado.test.js).
 const fullToken = makeToken([
-    'asistencia.ver', 'asistencia.guardar', 'asistencia.exportar_excel',
+    'asistencia.ver', 'asistencia.guardar', 'asistencia.dias_pasados', 'asistencia.exportar_excel',
     'asistencia.periodo.ver', 'asistencia.periodo.crear', 'asistencia.periodo.eliminar',
     'asistencia.horarios.ver', 'asistencia.horarios.editar',
 ]);

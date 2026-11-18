@@ -3,7 +3,9 @@ const permisosService = require('./permisos.service');
 const transferenciaService = require('./transferencia.service');
 const inicioGerencia = require('./inicioGerencia.service');
 const avisosCelular = require('./avisosCelular.service');
+const asistenciaSinLista = require('./asistenciaSinLista.service');
 const { ahoraChile, finDeSemana, esFeriado } = require('../utils/horarioHabil');
+const { sumarDias } = require('../utils/fechaChile');
 
 /**
  * Recordatorios de pendientes al celular (Marcos 2026-10-27, decisión de don Luis; docs/reglas/seguridad-rbac.md
@@ -212,7 +214,50 @@ async function temasDe(usuario, hora) {
         if (tiene('trabajadores.ver')) temas.push('Contratos vencidos o por vencer');
     }
     if (hora >= 12 && tiene('asistencia.guardar') && usuario.obra_id) temas.push('Asistencia de hoy sin registrar');
+    if (tiene(PERMISO_DIAS_PASADOS)) temas.push('Obras que no pasaron la lista (importante)');
     return temas;
+}
+
+/**
+ * Aviso «Importante» (Marcos 2026-11-18: «que le llegue a su perfil importante si alguien se olvidó de pasar
+ * lista»): a quien puede marcar días pasados (`asistencia.dias_pasados`, RR.HH.), en la ronda de la mañana, si alguna
+ * obra no pasó la lista el ÚLTIMO día hábil. Solo ese día: lo más viejo queda en la campana y el Inicio, y el aviso no
+ * se repite cada mañana. Va aparte del recordatorio de pendientes y antes que él.
+ */
+const PERMISO_DIAS_PASADOS = 'asistencia.dias_pasados';
+const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+/** «ayer, martes 17» o «el viernes 13» (el último día hábil visto desde `hoy`). */
+function cuandoFue(fecha, hoy) {
+    const [y, m, d] = fecha.split('-').map(Number);
+    const dia = `${DIAS_SEMANA[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${d}`;
+    return fecha === sumarDias(hoy, -1) ? `ayer, ${dia}` : `el ${dia}`;
+}
+
+/** El aviso «Importante» con los datos de `asistenciaSinLista.getSinLista()`; null si el último día hábil está al día. */
+function mensajeImportante(s) {
+    const ultimo = s?.dias?.[0];
+    if (!ultimo) return null;
+    const obras = (s.obras || []).filter(o => (o.dias || []).some(d => d.fecha === ultimo));
+    if (!obras.length) return null;
+    const cuando = cuandoFue(ultimo, s.hoy);
+    if (obras.length === 1) {
+        const o = obras[0];
+        return {
+            titulo: 'Importante: una obra no pasó la lista',
+            cuerpo: `${o.obra} no pasó la lista ${cuando}.${o.encargado ? ` Encargado: ${o.encargado}.` : ''} Toque para pasarla o pedirla.`,
+            url: '/',
+        };
+    }
+    const nombres = obras.map(o => o.obra);
+    const lista = nombres.length <= 3
+        ? `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`
+        : `${nombres.slice(0, 2).join(', ')} y ${nombres.length - 2} más`;
+    return {
+        titulo: `Importante: ${obras.length} obras no pasaron la lista`,
+        cuerpo: `${lista} no pasaron la lista ${cuando}. Toque para pasarlas o pedirlas.`,
+        url: '/',
+    };
 }
 
 /** El aviso (título y texto, en «usted») para esos pendientes; null si no hay nada. */
@@ -248,6 +293,12 @@ async function enviarRonda(hora, fecha) {
     let alDia = 0;
     let sinCelular = 0;
     let yaEnviados = 0;
+    // Las obras sin lista se calculan una sola vez por ronda (y solo si alguien recibe el aviso «Importante»).
+    let sinLista;
+    const obrasSinLista = async () => {
+        if (sinLista === undefined) sinLista = await asistenciaSinLista.getSinLista().catch(() => null);
+        return sinLista;
+    };
     for (const h of HORARIO) {
         const [[u]] = await db.query('SELECT id, nombre, rol_id, obra_id, bodega_id FROM usuarios WHERE email = ? AND activo = 1', [h.email]);
         if (!u) continue;
@@ -260,11 +311,23 @@ async function enviarRonda(hora, fecha) {
         if (!r.affectedRows) { yaEnviados++; continue; }
         let items = [];
         try { items = await pendientesDe(u, hora); } catch (e) { items = []; }
+        let importante = null;
+        try {
+            const p = await permisosService.getPermisosEfectivos(u.id, u.rol_id);
+            if (p.includes(PERMISO_DIAS_PASADOS)) importante = mensajeImportante(await obrasSinLista());
+        } catch (e) { importante = null; }
         const m = mensajeDe(items);
         let enviados = 0;
+        if (importante) {
+            // Primero y con su propia etiqueta (no lo reemplaza el recordatorio); en el computador queda en pantalla.
+            const res = await avisosCelular.enviarA([u.id], { ...importante, etiqueta: 'importante-sin-lista', tipo: 'importante: sin lista', computadorSoloSiNoEsta: true, importante: true });
+            enviados += res.enviados;
+        }
         if (m) {
             const res = await avisosCelular.enviarA([u.id], { ...m, etiqueta: `pendientes-${hora}`, tipo: `recordatorio ${hora}:00`, computadorSoloSiNoEsta: true });
-            enviados = res.enviados;
+            enviados += res.enviados;
+        }
+        if (m || importante) {
             if (enviados) {
                 avisados++;
             } else {
@@ -277,9 +340,10 @@ async function enviarRonda(hora, fecha) {
         } else {
             alDia++;
         }
+        const resumen = [importante, m].filter(Boolean).map(x => `${x.titulo} — ${x.cuerpo}`).join(' | ');
         await db.query(
             'UPDATE avisos_celular_envios SET pendientes = ?, enviados = ?, resumen = ? WHERE usuario_id = ? AND fecha = ? AND hora = ?',
-            [items.length, enviados, m ? `${m.titulo} — ${m.cuerpo}`.slice(0, 255) : 'al día', u.id, fecha, hora]
+            [items.length + (importante ? 1 : 0), enviados, resumen ? resumen.slice(0, 255) : 'al día', u.id, fecha, hora]
         );
     }
     return `recordatorios de las ${hora}:00 → ${avisados} avisado(s), ${alDia} al día, ${sinCelular} sin celular activo, ${yaEnviados} ya enviado(s)`;
@@ -296,5 +360,5 @@ async function horaDeRonda(ahora = ahoraChile()) {
 
 module.exports = {
     HORARIO, HORA_POR_DEFECTO, HORA_MIN, HORA_MAX, VENTANA_MIN, estaEnHorario, debeActivarComputador, horaRecordatorios, guardarHora,
-    pendientesDe, temasDe, mensajeDe, enviarRonda, ahoraChile, horaDeRonda, textoDias,
+    pendientesDe, temasDe, mensajeDe, mensajeImportante, enviarRonda, ahoraChile, horaDeRonda, textoDias,
 };

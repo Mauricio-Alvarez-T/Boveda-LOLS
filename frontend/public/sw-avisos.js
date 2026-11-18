@@ -43,6 +43,8 @@ self.addEventListener('push', (e) => {
             badge: '/aviso-insignia.png',
             tag: d.etiqueta || undefined,
             renotify: !!d.etiqueta,
+            // «Importante» (una obra no pasó la lista): en el computador no se va solo, queda hasta que lo toquen.
+            requireInteraction: !!d.importante,
             data: { url: typeof d.url === 'string' && d.url.startsWith('/') ? d.url : '/', aviso: d.aviso || null },
         });
         await acuse(d.aviso, 'mostrado');

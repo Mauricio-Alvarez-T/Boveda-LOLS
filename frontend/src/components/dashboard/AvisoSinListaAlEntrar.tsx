@@ -2,9 +2,9 @@
  * Ventana al ENTRAR con las obras que no pasaron la lista en los últimos días hábiles (Marcos 2026-11-18: «que
  * cuando Daphne ingrese al otro día le aparezca un mensaje avisando»). Solo los últimos `RECIENTES` (5) hábiles: el
  * último mes completo se controla en el Inicio, y la ventana no repite todos los días algo de hace semanas. Una vez al día por persona (la marca guarda el
- * día de Chile que mandó el servidor), en cualquier pantalla. La ve RR.HH., que controla la asistencia: quien tiene
- * `asistencia.ver` y además `trabajadores.editar` o `documentos.laborales.emitir` (el mismo criterio de RR.HH. que los
- * avisos al celular). No sale en una sesión «Ver como» (es de solo lectura y marcaría como visto el día del otro).
+ * día de Chile que mandó el servidor), en cualquier pantalla. La ve RR.HH., que controla la asistencia y es quien
+ * puede marcar días pasados: `asistencia.ver` + `asistencia.dias_pasados` (mig 154, 2026-11-18). No sale en una sesión
+ * «Ver como» (es de solo lectura y marcaría como visto el día del otro).
  *
  * Si ya hay otra ventana abierta (documentos fuera de plazo al iniciar sesión, novedades…), espera a que se cierre
  * para no apilar dos.
@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { claveVisto, cuando, cuandoDias, queEPaso, soloRecientes, textoUltima, type SinListaData } from './widgets/resumenSinLista';
+import { PERMISO_DIAS_PASADOS } from '../../utils/fechaChile';
 
 const leer = (clave: string) => { try { return localStorage.getItem(clave); } catch { return null; } };
 const guardar = (clave: string, valor: string) => { try { localStorage.setItem(clave, valor); } catch { /* sin marca: puede repetirse */ } };
@@ -30,8 +31,8 @@ export const AvisoSinListaAlEntrar: React.FC = () => {
     const navigate = useNavigate();
     const [datos, setDatos] = useState<SinListaData | null>(null);
     const [abierta, setAbierta] = useState(false);
-    const puede = hasPermission('asistencia.ver')
-        && (hasPermission('trabajadores.editar') || hasPermission('documentos.laborales.emitir'));
+    // Quien puede marcar días pasados (RR.HH., mig 154): es quien arregla un día sin lista.
+    const puede = hasPermission('asistencia.ver') && hasPermission(PERMISO_DIAS_PASADOS);
 
     useEffect(() => {
         if (!user || !puede || verComo) return;

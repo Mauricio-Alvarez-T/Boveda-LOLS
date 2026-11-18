@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
 import { AlertaAtrasosAlEntrar } from '../documentos-fisicos/AlertaAtrasosAlEntrar';
 import { AvisoSinListaAlEntrar } from '../dashboard/AvisoSinListaAlEntrar';
+import { CampanaImportante } from './CampanaImportante';
 import { AvisoSoporte } from '../soporte/AvisoSoporte';
 import { ActivarAvisos } from './ActivarAvisos';
 import { IconButton } from '../ui/IconButton';
@@ -114,6 +115,9 @@ export const MainLayout: React.FC = () => {
                                 {actions}
                             </div>
                         )}
+
+                        {/* «Importante» para RR.HH.: obras que no pasaron la lista (2026-11-18). Solo si hay alguna. */}
+                        <CampanaImportante />
 
                         {/* Usuario (nombre en el header) */}
                         {user && (

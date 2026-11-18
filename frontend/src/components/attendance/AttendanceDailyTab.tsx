@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
     CheckSquare, Users, CalendarDays, CalendarRange, ChevronDown,
-    AlertTriangle, FileDown, Search, X, Save
+    AlertTriangle, FileDown, Search, X, Save, Lock, ClipboardX
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -34,6 +34,7 @@ import { AttendanceHeaderActions, AttendanceSummaryRow, SiluetaRegistroDiario } 
 import type { Trabajador, Asistencia } from '../../types/entities';
 import { conDuracion } from '../../utils/avisos';
 import { fueraDePeriodo, periodosDe, tituloFuera } from '../../utils/periodosLaborales';
+import { esDiaPasado, PERMISO_DIAS_PASADOS } from '../../utils/fechaChile';
 
 /**
  * Tab "Asistencia Diaria" — contiene toda la funcionalidad original de la
@@ -64,8 +65,22 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
         searchQuery, setSearchQuery, selectedEmpresaId, setSelectedEmpresaId,
         statusFilter, setStatusFilter, alertasFaltas, periodosMap,
         reportMonth, setReportMonth, reportYear, setReportYear, fetchAttendanceInfo,
-        summary, isSaturday, isSunday
+        summary, isSaturday, isSunday, registrosGuardados
     } = attendanceData;
+
+    // Día cerrado (Marcos 2026-11-18: «que no tenga la opción de marcar la asistencia si ya pasó, que mejor lo vea
+    // Daphne»): un día anterior a hoy (hora de Chile) solo lo marca o corrige quien tiene `asistencia.dias_pasados`
+    // (RR.HH.). Los demás lo ven, sin poder cambiarlo. El servidor lo hace cumplir igual (middleware/diaCerrado.js).
+    const diaPasado = esDiaPasado(date);
+    const diaCerrado = diaPasado && !hasPermission(PERMISO_DIAS_PASADOS);
+    const puedeGuardar = hasPermission('asistencia.guardar') && !diaCerrado;
+    const noLaboral = !!feriadoActual || isSunday || isSaturday;
+    const noEditable = noLaboral || diaCerrado;
+    // A los botones de arriba (Guardar, Repetir, Borrar) se les dice que no hay «Guardar» en un día cerrado.
+    const permisoDelDia = useCallback(
+        (clave: string) => (clave === 'asistencia.guardar' && diaCerrado ? false : hasPermission(clave)),
+        [diaCerrado, hasPermission]
+    );
 
     const { handleSave, saving, saveStatus, toggleFeriado, repetirDiaAnterior, repeating } = useAttendanceActions({
         date, workers, attendance, feriadoActual, fetchAttendanceInfo, updateAttendance
@@ -234,7 +249,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                 pendiente={attendanceData.pendienteGuardar}
                 loading={loading}
                 hasWorkers={workers.length > 0}
-                hasPermission={hasPermission}
+                hasPermission={permisoDelDia}
                 isFeriado={!!feriadoActual}
                 isWeekend={isSunday || isSaturday}
                 selectedEmpresaId={selectedEmpresaId}
@@ -254,7 +269,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                 setReportYear={setReportYear}
             />
         );
-    }, [selectedObra, canTakeGlobal, handleShareWhatsApp, handleExportExcel, toggleFeriado, handleSave, saving, saveStatus, loading, workers.length, hasPermission, feriadoActual, isSunday, isSaturday, selectedEmpresaId, setSelectedEmpresaId, availableEmpresas, repetirDiaAnterior, repeating, reportMonth, reportYear, setReportMonth, setReportYear]);
+    }, [selectedObra, canTakeGlobal, handleShareWhatsApp, handleExportExcel, toggleFeriado, handleSave, saving, saveStatus, loading, workers.length, permisoDelDia, feriadoActual, isSunday, isSaturday, selectedEmpresaId, setSelectedEmpresaId, availableEmpresas, repetirDiaAnterior, repeating, reportMonth, reportYear, setReportMonth, setReportYear]);
 
     useSetPageHeader(headerTitle, headerActionsRef);
 
@@ -394,6 +409,49 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                             )}
                         </AnimatePresence>
 
+                        {/* Día que ya pasó (2026-11-18): cerrado para el jefe de obra; RR.HH. sí lo marca. */}
+                        {diaPasado && !noLaboral && (
+                            diaCerrado ? (
+                                <section className="mb-2 flex shrink-0 items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground" aria-hidden>
+                                        <Lock className="h-5 w-5" />
+                                    </span>
+                                    <div className="min-w-0 space-y-1">
+                                        <h3 className="text-sm font-bold text-foreground">Este día ya cerró</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            La asistencia se marca el mismo día. Un día que ya pasó solo lo puede marcar o corregir RR.HH.
+                                            Si se le olvidó, avísele a RR.HH.
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">Puede ver lo guardado, pero no cambiarlo.</p>
+                                    </div>
+                                </section>
+                            ) : selectedObra && registrosGuardados === 0 ? (
+                                <section className="mb-2 flex shrink-0 items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm dark:border-red-900/60 dark:bg-red-950/30">
+                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-600 text-white" aria-hidden>
+                                        <ClipboardX className="h-5 w-5" />
+                                    </span>
+                                    <div className="min-w-0 space-y-1">
+                                        <h3 className="text-sm font-bold text-foreground">{selectedObra.nombre} no pasó la lista este día</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Es un día que ya pasó: solo RR.HH. puede marcarlo. Lo que guarde quedará registrado a su nombre.
+                                        </p>
+                                    </div>
+                                </section>
+                            ) : (
+                                <section className="mb-2 flex shrink-0 items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground" aria-hidden>
+                                        <CalendarDays className="h-5 w-5" />
+                                    </span>
+                                    <div className="min-w-0 space-y-1">
+                                        <h3 className="text-sm font-bold text-foreground">Día que ya pasó</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Solo RR.HH. puede corregirlo. Lo que cambie quedará registrado a su nombre.
+                                        </p>
+                                    </div>
+                                </section>
+                            )
+                        )}
+
                         <AnimatePresence>
                             {filteredWorkers.map((worker, idx) => {
                                 const state = attendance[worker.id] || {};
@@ -465,13 +523,13 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                                                         const isActive = state.estado_id === est.id;
                                                         return (
                                                             // eslint-disable-next-line no-restricted-syntax -- toggle de estado A/F/JI/TO con color de BD inline (estado.color) y tamaño de grid; el primitivo Button no soporta este patrón
-                                                            <button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("flex-1 rounded-xl text-xs font-black uppercase transition-all border shrink-0 active:scale-95", isActive ? "text-white border-transparent shadow-md" : "bg-card border-border text-muted-foreground/60")} style={isActive ? { backgroundColor: est.color } : undefined}>{est.codigo}</button>
+                                                            <button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !puedeGuardar || noEditable} className={cn("flex-1 rounded-xl text-xs font-black uppercase transition-all border shrink-0 active:scale-95", isActive ? "text-white border-transparent shadow-md" : "bg-card border-border text-muted-foreground/60")} style={isActive ? { backgroundColor: est.color } : undefined}>{est.codigo}</button>
                                                         );
                                                     });
                                                 })()}
                                             </div>
                                             {/* eslint-disable-next-line no-restricted-syntax -- toggle "Detalle" full-width tuneado a la fila; mantiene layout del grid */}
-                                            <button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} className={cn("mt-2 flex items-center justify-center gap-1.5 w-full py-2 text-base text-green-700 dark:text-green-300 font-bold uppercase tracking-tight rounded-xl bg-slate-50/50 dark:bg-muted/40 border border-slate-100 dark:border-border transition-all active:scale-98", (!!feriadoActual || isSunday || isSaturday || isOutOfRange) && "opacity-50 cursor-not-allowed grayscale")}>
+                                            <button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || noLaboral} className={cn("mt-2 flex items-center justify-center gap-1.5 w-full py-2 text-base text-green-700 dark:text-green-300 font-bold uppercase tracking-tight rounded-xl bg-slate-50/50 dark:bg-muted/40 border border-slate-100 dark:border-border transition-all active:scale-98", (noLaboral || isOutOfRange) && "opacity-50 cursor-not-allowed grayscale")}>
                                                 <span>{isExpanded ? 'Cerrar' : 'Detalle'}</span><ChevronDown className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-180")} />
                                             </button>
                                         </div>
@@ -505,7 +563,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                                                                     if (!est) return null;
                                                                     const isActive2 = state.estado_id === est.id;
                                                                     // eslint-disable-next-line no-restricted-syntax -- toggle de estado A/F/JI/TO con color de BD inline (estado.color) y tamaño de grid; Button no soporta este patrón
-                                                                    return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-8 px-3 rounded-xl text-base font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]", isActive2 ? "text-white border-transparent shadow-md scale-105" : "bg-card border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)] hover:text-slate-600 dark:hover:text-foreground active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
+                                                                    return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !puedeGuardar || noEditable} className={cn("h-8 px-3 rounded-xl text-base font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]", isActive2 ? "text-white border-transparent shadow-md scale-105" : "bg-card border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)] hover:text-slate-600 dark:hover:text-foreground active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
                                                                 })}
                                                             </div>
                                                         );
@@ -513,13 +571,13 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                                                 </div>
                                                 <div className="flex items-center justify-end gap-2">
                                                     {/* eslint-disable-next-line no-restricted-syntax -- link "Detalle" inline en el grid (text-only, hover:underline); Button (pill) rompe la celda */}
-                                                    <div className="flex-1"><button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} title={isOutOfRange ? tituloFuera(motivoFuera) : "Ver detalle"} className={cn("text-base text-green-700 dark:text-green-300 font-medium hover:underline w-full text-center", (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed no-underline grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button></div>
+                                                    <div className="flex-1"><button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || noLaboral} title={isOutOfRange ? tituloFuera(motivoFuera) : "Ver detalle"} className={cn("text-base text-green-700 dark:text-green-300 font-medium hover:underline w-full text-center", (isOutOfRange || noLaboral) && "opacity-50 cursor-not-allowed no-underline grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button></div>
                                                     {/* eslint-disable-next-line no-restricted-syntax -- botón calendario por fila (forma/tamaño tuneados al grid); IconButton fijo regresa layout */}
-                                                    <button onClick={() => setCalendarWorker(worker)} disabled={!!feriadoActual || isSunday || isSaturday} className={cn("p-1.5 rounded-full text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors flex-shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} title="Ver Calendario / Asignar Período"><CalendarDays className="h-4 w-4" /></button>
+                                                    <button onClick={() => setCalendarWorker(worker)} disabled={noLaboral} className={cn("p-1.5 rounded-full text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors flex-shrink-0", (noLaboral) && "opacity-50 cursor-not-allowed")} title="Ver Calendario / Asignar Período"><CalendarDays className="h-4 w-4" /></button>
                                                 </div>
                                                 {verHorasExtra && (
                                                     <div className="w-[56px]">
-                                                        <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-full bg-muted border border-border rounded-lg px-2 py-1.5 text-base text-center text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
+                                                        <input type="number" min="0" max="24" step="any" placeholder="0" disabled={noEditable} inputMode="decimal" className={cn("w-full bg-muted border border-border rounded-lg px-2 py-1.5 text-base text-center text-brand-dark focus:outline-none focus:border-brand-primary", (noEditable) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
                                                     </div>
                                                 )}
                                             </div>
@@ -537,9 +595,9 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                                                     </div>
                                                     <div className="flex items-center gap-1 shrink-0">
                                                         {/* eslint-disable-next-line no-restricted-syntax -- "Detalle" inline compacto del grid md; Button (pill) rompe la fila */}
-                                                        <button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} className={cn("text-base text-green-700 dark:text-green-300 font-bold px-2 py-1 rounded-md hover:bg-brand-primary/5 transition-colors", (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button>
+                                                        <button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || noLaboral} className={cn("text-base text-green-700 dark:text-green-300 font-bold px-2 py-1 rounded-md hover:bg-brand-primary/5 transition-colors", (isOutOfRange || noLaboral) && "opacity-50 cursor-not-allowed grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button>
                                                         {/* eslint-disable-next-line no-restricted-syntax -- botón calendario por fila (md), forma/tamaño tuneados al grid; IconButton fijo regresa layout */}
-                                                        <button onClick={() => setCalendarWorker(worker)} disabled={!!feriadoActual || isSunday || isSaturday} className={cn("p-1 rounded-md text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} title="Ver Calendario / Asignar Período"><CalendarDays className="h-3.5 w-3.5" /></button>
+                                                        <button onClick={() => setCalendarWorker(worker)} disabled={noLaboral} className={cn("p-1 rounded-md text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors", (noLaboral) && "opacity-50 cursor-not-allowed")} title="Ver Calendario / Asignar Período"><CalendarDays className="h-3.5 w-3.5" /></button>
                                                     </div>
                                                 </div>
                                                 {/* Row 2: Status buttons + Horas extra */}
@@ -559,13 +617,13 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                                                                     if (!est) return null;
                                                                     const isActive2 = state.estado_id === est.id;
                                                                     // eslint-disable-next-line no-restricted-syntax -- toggle de estado A/F/JI/TO con color de BD inline (estado.color) y tamaño de grid; Button no soporta este patrón
-                                                                    return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-7 px-2 rounded-lg text-base font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[28px]", isActive2 ? "text-white border-transparent shadow-md" : "bg-card border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)] hover:text-slate-600 dark:hover:text-foreground active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
+                                                                    return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !puedeGuardar || noEditable} className={cn("h-7 px-2 rounded-lg text-base font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[28px]", isActive2 ? "text-white border-transparent shadow-md" : "bg-card border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)] hover:text-slate-600 dark:hover:text-foreground active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
                                                                 })}
                                                             </div>
                                                         );
                                                     })()}
                                                     {verHorasExtra && (
-                                                        <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-[48px] bg-muted border border-border rounded-lg px-1.5 py-1 text-base text-center text-brand-dark focus:outline-none focus:border-brand-primary shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
+                                                        <input type="number" min="0" max="24" step="any" placeholder="0" disabled={noEditable} inputMode="decimal" className={cn("w-[48px] bg-muted border border-border rounded-lg px-1.5 py-1 text-base text-center text-brand-dark focus:outline-none focus:border-brand-primary shrink-0", (noEditable) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
                                                     )}
                                                 </div>
                                             </div>
@@ -575,20 +633,20 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                                             {isExpanded && (
                                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-muted">
                                                     <div className="px-3 md:px-5 pb-4 pt-2 grid grid-cols-2 md:grid-cols-5 gap-3">
-                                                        <TimeStepperInput disabled={!!feriadoActual || isSunday || isSaturday} label="Entrada" value={state.hora_entrada || ''} onChange={(val) => updateAttendance(worker.id, { hora_entrada: val || null })} />
-                                                        <TimeStepperInput disabled={!!feriadoActual || isSunday || isSaturday} label="Salida" value={state.hora_salida || ''} onChange={(val) => updateAttendance(worker.id, { hora_salida: val || null })} />
-                                                        <TimeStepperInput disabled={!!feriadoActual || isSunday || isSaturday} label="Colación Ini." value={state.hora_colacion_inicio || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_inicio: val || null })} />
-                                                        <TimeStepperInput disabled={!!feriadoActual || isSunday || isSaturday} label="Colación Fin" value={state.hora_colacion_fin || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_fin: val || null })} />
+                                                        <TimeStepperInput disabled={noEditable} label="Entrada" value={state.hora_entrada || ''} onChange={(val) => updateAttendance(worker.id, { hora_entrada: val || null })} />
+                                                        <TimeStepperInput disabled={noEditable} label="Salida" value={state.hora_salida || ''} onChange={(val) => updateAttendance(worker.id, { hora_salida: val || null })} />
+                                                        <TimeStepperInput disabled={noEditable} label="Colación Ini." value={state.hora_colacion_inicio || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_inicio: val || null })} />
+                                                        <TimeStepperInput disabled={noEditable} label="Colación Fin" value={state.hora_colacion_fin || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_fin: val || null })} />
                                                         <div className={cn("col-span-2 md:col-span-1 grid gap-3", verHorasExtra ? "grid-cols-2" : "grid-cols-1")}>
                                                             {verHorasExtra && (
                                                                 <div>
                                                                     <label className="text-micro font-semibold text-muted-foreground uppercase block mb-1">H. Extra</label>
-                                                                    <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-full h-10 md:h-10 bg-card border border-border rounded-xl px-3 text-sm text-center text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-muted")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
+                                                                    <input type="number" min="0" max="24" step="any" placeholder="0" disabled={noEditable} inputMode="decimal" className={cn("w-full h-10 md:h-10 bg-card border border-border rounded-xl px-3 text-sm text-center text-brand-dark focus:outline-none focus:border-brand-primary", (noEditable) && "opacity-50 cursor-not-allowed bg-muted")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
                                                                 </div>
                                                             )}
                                                             <div>
                                                                 <label className="text-micro font-semibold text-muted-foreground uppercase block mb-1">Nota</label>
-                                                                <input type="text" placeholder="..." disabled={!!feriadoActual || isSunday || isSaturday} className={cn("w-full h-10 md:h-10 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-muted")} value={state.observacion || ''} onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })} />
+                                                                <input type="text" placeholder="..." disabled={noEditable} className={cn("w-full h-10 md:h-10 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary", (noEditable) && "opacity-50 cursor-not-allowed bg-muted")} value={state.observacion || ''} onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })} />
                                                             </div>
                                                         </div>
                                                     </div>

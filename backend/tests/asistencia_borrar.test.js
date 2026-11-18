@@ -267,7 +267,7 @@ describe('POST /api/asistencias/borrar-dia — gate de permiso', () => {
         expect(db.query).not.toHaveBeenCalled();
     });
 
-    test('con asistencia.guardar borra y responde el conteo', async () => {
+    test('con asistencia.guardar borra y responde el conteo (día pasado: también con asistencia.dias_pasados)', async () => {
         db.query
             .mockResolvedValueOnce([FILAS.slice(0, 1)])
             .mockResolvedValueOnce([{ affectedRows: 1 }])
@@ -276,10 +276,21 @@ describe('POST /api/asistencias/borrar-dia — gate de permiso', () => {
 
         const res = await request(app)
             .post('/api/asistencias/borrar-dia')
-            .set('Authorization', 'Bearer ' + makeToken(['asistencia.guardar']))
+            .set('Authorization', 'Bearer ' + makeToken(['asistencia.guardar', 'asistencia.dias_pasados']))
             .send({ fecha: '2026-08-27', trabajador_ids: [1] });
 
         expect(res.status).toBe(200);
         expect(res.body.data).toEqual({ borrados: 1, trabajadores: 1, con_periodo: 0, traslados_restantes: 0 });
+    });
+
+    test('día que ya pasó, sin asistencia.dias_pasados: 403 «día cerrado» y no borra nada (Marcos 2026-11-18)', async () => {
+        const res = await request(app)
+            .post('/api/asistencias/borrar-dia')
+            .set('Authorization', 'Bearer ' + makeToken(['asistencia.guardar']))
+            .send({ fecha: '2026-08-27', trabajador_ids: [1] });
+
+        expect(res.status).toBe(403);
+        expect(res.body).toMatchObject({ codigo: 'DIA_CERRADO', fecha: '2026-08-27' });
+        expect(db.query).not.toHaveBeenCalled();
     });
 });

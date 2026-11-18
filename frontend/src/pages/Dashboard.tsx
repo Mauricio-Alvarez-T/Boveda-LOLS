@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAparecer } from '../hooks/useAparecer';
+import { usePasarLista } from '../hooks/usePasarLista';
 import { toast } from 'sonner';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -179,7 +180,7 @@ const COLUMNAS: Record<number, string> = {
 // ─── Dashboard ───
 const Dashboard: React.FC = () => {
     const { user } = useAuth();
-    const { obras: listaObras, selectedObra, setSelectedObra, isLoading: cargandoObras } = useObra();
+    const { selectedObra, isLoading: cargandoObras } = useObra();
     const navigate = useNavigate();
     const location = useLocation();
     const [data, setData] = useState<DashboardData | null>(null);
@@ -288,12 +289,8 @@ const Dashboard: React.FC = () => {
             .then(res => { if (turno === turnoSinLista.current) setSinLista(res.data.data ?? null); })
             .catch(() => { if (turno === turnoSinLista.current) setSinLista(null); });
     }, [verAsistencia, selectedObra, lastUpdated]);
-    // «Pasar la lista»: Asistencia en esa obra y ese día.
-    const pasarLista = useCallback((o: ObraSinLista, fecha: string) => {
-        const obra = listaObras.find(x => x.id === o.obra_id);
-        if (obra) setSelectedObra(obra);
-        navigate(`/asistencia?fecha=${fecha}`);
-    }, [listaObras, setSelectedObra, navigate]);
+    // «Pasar la lista»: Asistencia en esa obra y ese día (lo mismo que la campana «Importante»).
+    const pasarLista: (o: ObraSinLista, fecha: string) => void = usePasarLista();
 
     // Inventario: fetch DIFERIDO y gated por permiso (no bloquea la bandeja de
     // asistencia/docs; si falla o no hay permiso, simplemente no agrega filas).
