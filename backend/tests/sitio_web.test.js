@@ -279,10 +279,10 @@ describe('crear y editar', () => {
         expect(db.query.mock.calls[3][0]).toMatch(/INSERT INTO sitio_web_historial/);
     });
 
-    test('slug reservado → 409; ocupado → 409; servicio fuera del catálogo → 400', async () => {
-        await expect(svc.crearObra({ nombre: 'Ejemplo' }, 5)).rejects.toMatchObject({ statusCode: 409, code: 'SITIO_WEB_SLUG_RESERVADO' });
+    test('slug escrito a mano: reservado → 409; ocupado → 409; servicio fuera del catálogo → 400', async () => {
+        await expect(svc.crearObra({ nombre: 'Ejemplo', slug: 'ejemplo' }, 5)).rejects.toMatchObject({ statusCode: 409, code: 'SITIO_WEB_SLUG_RESERVADO' });
         db.query.mockResolvedValueOnce([[{ id: 3 }]]);
-        await expect(svc.crearObra({ nombre: 'Maipú 40' }, 5)).rejects.toMatchObject({ statusCode: 409, code: 'SITIO_WEB_SLUG_OCUPADO' });
+        await expect(svc.crearObra({ nombre: 'Maipú 40', slug: 'maipu-40' }, 5)).rejects.toMatchObject({ statusCode: 409, code: 'SITIO_WEB_SLUG_OCUPADO' });
         await expect(svc.crearObra({ nombre: 'X', servicios: ['mantencion'] }, 5)).rejects.toMatchObject({ statusCode: 400, code: 'SITIO_WEB_SERVICIO' });
     });
 

@@ -55,7 +55,9 @@ si allá cambia, se cambia aquí; el build del sitio es la segunda red.
   opcionales.
 - Slug: sale del nombre (`slugDesde`: sin tildes ni eñes, minúsculas y guiones, máx. 80). Reservados: `ejemplo`,
   `molde` (editor visual), `muestra-*` y los ids de las muestras de un carrusel (`terminados-1`, `en-construccion-2`…). Se **congela** tras la
-  primera publicación (409 `SITIO_WEB_SLUG_CONGELADO`); reservado u ocupado → 409.
+  primera publicación (409 `SITIO_WEB_SLUG_CONGELADO`). Al **crear sin escribirlo**, si el que sale del nombre está
+  ocupado o reservado, se le agrega `-2`, `-3`… (cortando el nombre en un guion para no pasar de 80; dueño, 18-nov);
+  si ni así hay uno libre (`muestra-…`) → 409. Uno **escrito a mano** que esté ocupado o reservado → 409 (es una elección).
 
 ## Obras: incluir, orden, edición y borrado
 
@@ -462,7 +464,7 @@ repo lols.cl** (marcas `data-ed-*`, protocolo v1 de mensajes); la Bóveda implem
   «Datos de la obra», sí.
 - **Pruebas**: `sitio_web_editor.test.js` (backend: las 27 obras dan su JSON exacto, guardado en transacción, 409 sin
   cambiar nada, 400, 403, `molde`; A2: nueva + orden con su tmp + incluir, cambio de estado, incluir con faltantes → 409 y
-  rollback, orden que no calza → 409, slug reservado/ocupado de una nueva, validación); `editor/protocolo.test.ts` y
+  rollback, orden que no calza → 409, slug de una nueva con sufijo -2/-3 y corte a 80, `muestra-…` → 409, validación); `editor/protocolo.test.ts` y
   `editor/borradorSitio.test.ts` (frontend; A2: nuevas, estado, mover en las 5 listas con las reglas del año y la foto,
   fuera/dentro, avisos, cuerpo del guardado, rebasar con el mapa, respaldo); `frontend/e2e/editor_visual_e2e.js`
   (Playwright con Chrome y la API simulada; necesita el sitio con el puente en `http://localhost:4321`, si no hay, SKIP;

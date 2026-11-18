@@ -239,13 +239,16 @@ describe('POST /editor/guardar', () => {
 });
 
 describe('slug reservado «molde»', () => {
-    test('el sitio lo usa para su página de moldes: reservado, inválido para una obra y 409 al crear', async () => {
+    test('el sitio lo usa para su página de moldes: reservado, inválido para una obra y 409 al crear con esa dirección escrita a mano (desde el nombre, molde-2)', async () => {
         expect(svc.slugReservado('molde')).toBe(true);
         expect(svc.slugValido('molde')).toBe(false);
         expect(svc.slugValido('molde-2')).toBe(true);
-        const r = await request(app).post('/api/sitio-web/obras').set('Authorization', `Bearer ${EDITAR}`).send({ nombre: 'Molde' });
+        const r = await request(app).post('/api/sitio-web/obras').set('Authorization', `Bearer ${EDITAR}`).send({ nombre: 'Molde', slug: 'molde' });
         expect(r.status).toBe(409);
         expect(r.body.code).toBe('SITIO_WEB_SLUG_RESERVADO');
+        const r2 = await request(app).post('/api/sitio-web/obras').set('Authorization', `Bearer ${EDITAR}`).send({ nombre: 'Molde' });
+        expect(r2.status).toBe(201);
+        expect(r2.body.data.slug).toBe('molde-2');
     });
 });
 
@@ -353,15 +356,35 @@ describe('POST /editor/guardar — estructura (A2)', () => {
         expect(historial()).toHaveLength(0);
     });
 
-    test('nombre que da un slug reservado u ocupado → 409 con el tmp y nada creado', async () => {
-        const total = db.tablas.sitio_obras.length;
-        const r1 = await guardar(EDITAR, { obras: [], nuevas: [{ tmp: '~n1', cambios: { nombre: 'Molde' } }] });
-        expect(r1.status).toBe(409);
-        expect(r1.body).toMatchObject({ code: 'SITIO_WEB_SLUG_RESERVADO', tmp: '~n1' });
+    test('nombre que da un slug ocupado o reservado → se le agrega -2, -3… (también entre dos nuevas del mismo guardado)', async () => {
         const existente = db.tablas.sitio_obras[0];
-        const r2 = await guardar(EDITAR, { obras: [], nuevas: [{ tmp: '~n1', cambios: { nombre: 'Una sola' } }, { tmp: '~n2', cambios: { nombre: existente.slug } }] });
-        expect(r2.status).toBe(409);
-        expect(r2.body).toMatchObject({ code: 'SITIO_WEB_SLUG_OCUPADO', tmp: '~n2' });
+        const r = await guardar(EDITAR, { obras: [], nuevas: [
+            { tmp: '~n1', cambios: { nombre: existente.slug } },
+            { tmp: '~n2', cambios: { nombre: existente.slug } },
+            { tmp: '~n3', cambios: { nombre: 'Molde' } },
+        ] });
+        expect(r.status).toBe(200);
+        expect(Object.values(r.body.data.nuevas).map(n => n.slug)).toEqual([`${existente.slug}-2`, `${existente.slug}-3`, 'molde-2']);
+        expect(obra(existente.slug).id).toBe(existente.id);   // la que estaba no se toca
+        expect(historial().map(h => h.resumen)).toEqual(expect.arrayContaining([expect.stringContaining(`(${existente.slug}-2)`)]));
+    });
+
+    test('el sufijo no pasa de 80: corta el nombre en un guion', async () => {
+        const nombre = 'Edificio Habitacional '.repeat(5);   // slug > 80
+        const r1 = await guardar(EDITAR, { obras: [], nuevas: [{ tmp: '~n1', cambios: { nombre } }, { tmp: '~n2', cambios: { nombre } }] });
+        expect(r1.status).toBe(200);
+        const [a, b] = Object.values(r1.body.data.nuevas).map(n => n.slug);
+        expect(a.length).toBeLessThanOrEqual(80);
+        expect(b.length).toBeLessThanOrEqual(80);
+        expect(b).toMatch(/^edificio-habitacional(-[a-z]+)*-2$/);
+        expect(b).not.toBe(a);
+    });
+
+    test('un nombre reservado con cualquier sufijo (muestra-…) → 409 con el tmp y nada creado', async () => {
+        const total = db.tablas.sitio_obras.length;
+        const r = await guardar(EDITAR, { obras: [], nuevas: [{ tmp: '~n1', cambios: { nombre: 'Una sola' } }, { tmp: '~n2', cambios: { nombre: 'Muestra 1' } }] });
+        expect(r.status).toBe(409);
+        expect(r.body).toMatchObject({ code: 'SITIO_WEB_SLUG_RESERVADO', tmp: '~n2' });
         expect(db.tablas.sitio_obras).toHaveLength(total);
         expect(historial()).toHaveLength(0);
     });

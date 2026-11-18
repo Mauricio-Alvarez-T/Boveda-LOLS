@@ -176,7 +176,11 @@ export const EditorObra: React.FC<Props> = ({ obra, form, setForm, base, vigente
         try {
             if (nueva) {
                 const res = await api.post<{ data: { id: number; slug: string } }>('/sitio-web/obras', cuerpoDesdeForm(form, { nueva: true }));
-                toast.success('Obra creada. Queda fuera del sitio hasta que la incluyas.');
+                const { slug } = res.data.data;
+                // Sin dirección escrita, el servidor la arma del nombre y, si ya estaba tomada, le agrega -2, -3…
+                toast.success(!form.slug.trim() && slug !== slugDesde(form.nombre)
+                    ? `Obra creada con la dirección web «${slug}» (ya había otra «${slugDesde(form.nombre)}»). Queda fuera del sitio hasta que la incluyas.`
+                    : 'Obra creada. Queda fuera del sitio hasta que la incluyas.');
                 onGuardada({ id: res.data.data.id, nueva: true });
             } else {
                 const cambios = soloCambios(cuerpoDesdeForm(form, { slugCongelado: congelado }), cuerpoDesdeForm(base, { slugCongelado: congelado }));

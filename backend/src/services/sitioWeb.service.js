@@ -88,8 +88,13 @@ function nombreLegible(nombre) {
 function slugDesde(nombre) {
     const base = String(nombre || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
         .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    if (base.length <= cfg.LARGOS.slug) return base;
-    const corto = base.slice(0, cfg.LARGOS.slug);
+    return cortarSlug(base, cfg.LARGOS.slug);
+}
+
+/** Corta un slug a `max` en un guion (sin dejar uno al final). */
+function cortarSlug(base, max) {
+    if (base.length <= max) return base;
+    const corto = base.slice(0, max);
     const corte = corto.lastIndexOf('-');
     return (corte > 0 ? corto.slice(0, corte) : corto).replace(/-+$/, '');
 }
@@ -462,6 +467,30 @@ async function slugLibreOFalla(slug, idPropio = null, q = db) {
     if (otra) throw err(409, `Ya hay una obra con la dirección web «${slug}»: elige otra.`, { code: 'SITIO_WEB_SLUG_OCUPADO' });
 }
 
+/**
+ * Slug armado desde el nombre (nadie lo escribió): si ya lo tiene otra obra o está reservado, prueba `-2`, `-3`…
+ * (cortando el nombre para no pasar de 80). Un slug escrito a mano no pasa por aquí: ese da 409, porque es una elección.
+ * Si ni con sufijo hay uno libre (p. ej. `muestra-…`, reservado con cualquier sufijo), el 409 de siempre.
+ */
+const MAX_SUFIJO = 50;
+async function slugLibreDesdeNombre(nombre, q = db) {
+    const base = slugDesde(nombre);
+    if (!base) throw err(400, 'No se pudo armar la dirección web desde el nombre: escríbela a mano.', { code: 'SITIO_WEB_SLUG' });
+    for (let n = 1; n <= MAX_SUFIJO; n++) {
+        const sufijo = n === 1 ? '' : `-${n}`;
+        const slug = cortarSlug(base, cfg.LARGOS.slug - sufijo.length) + sufijo;
+        if (!cfg.SLUG_RE.test(slug)) break;
+        if (slugReservado(slug)) {
+            if (n > 1) break;   // un patrón reservado se come también los sufijos
+            continue;
+        }
+        const [[otra]] = await q.query('SELECT id FROM sitio_obras WHERE slug = ? AND id <> ?', [slug, 0]);
+        if (!otra) return slug;
+    }
+    await slugLibreOFalla(base, null, q);   // lanza el 409 que corresponde (reservado u ocupado)
+    throw err(409, `Ya hay una obra con la dirección web «${base}»: elige otra.`, { code: 'SITIO_WEB_SLUG_OCUPADO' });
+}
+
 /** Un UNIQUE que saltó en carrera → el 409 que corresponde. */
 function traducirDuplicado(e) {
     if (e && e.code === 'ER_DUP_ENTRY') {
@@ -639,7 +668,8 @@ const api = {
     },
 
     /**
-     * POST /obras. El slug sale del nombre si no viene. Queda fuera del sitio (incluir = 0) hasta que se incluya.
+     * POST /obras. El slug sale del nombre si no viene (con `-2`, `-3`… si ya está tomado; uno escrito a mano que
+     * esté tomado da 409). Queda fuera del sitio (incluir = 0) hasta que se incluya.
      * `conn` = la transacción del guardado del editor visual (obras nuevas creadas en el editor).
      */
     async crearObra(data, userId, { permisos = [], conn = null } = {}) {
@@ -649,9 +679,8 @@ const api = {
             exigirObrasVer(permisos);
             await obraInternaOFalla(o.obra_id, q);
         }
-        o.slug = o.slug || slugDesde(o.nombre);
-        if (!o.slug) throw err(400, 'No se pudo armar la dirección web desde el nombre: escríbela a mano.', { code: 'SITIO_WEB_SLUG' });
-        await slugLibreOFalla(o.slug, null, q);
+        if (o.slug) await slugLibreOFalla(o.slug, null, q);
+        else o.slug = await slugLibreDesdeNombre(o.nombre, q);
         o.estado = o.estado || 'en_construccion';
         o.orden = await siguienteOrden(o.estado, q);
         if (o.mandante_autoriza) Object.assign(o, { mandante_autoriza_por: userId, mandante_autoriza_at: new Date() });
