@@ -22,7 +22,8 @@ Cada estado tiene 2 flags con semántica DISTINTA:
 | DF | Defunción | ✗ | ✓ | Legal pagada (mig 065) |
 | MT | Matrimonio | ✗ | ✓ | Legal pagada (mig 065) |
 
-- En el WhatsApp diario se muestran fijos A/F/JI/TO/V/LM; FJ/NAC/DF/MT/PSG solo si >0
+- En el WhatsApp diario se muestran fijos A/F/JI/TO/V/LM; AL/FJ/NAC/DF/MT/PSG y cualquier otro código solo si >0
+  (2026-11-18: el AL —accidente laboral— no salía porque el conteo era una lista cerrada; ahora cuenta todo código)
   (`frontend/src/hooks/attendance/useAttendanceExport.ts`).
 
 ## Registro diario
