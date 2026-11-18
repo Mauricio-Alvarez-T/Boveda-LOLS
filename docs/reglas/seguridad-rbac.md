@@ -522,6 +522,10 @@ tocarlo se abre Bóveda en ese tema.
     practicarla.
   · Al subir esta versión, la mig 148 cerró la sesión de todos (salvo el rol 1, `roles.version` + 1) para que la vieran
     al volver a entrar.
+- **«Importante»: obras que no pasaron la lista** (2026-11-18, mig 154): a quien tiene `asistencia.dias_pasados`
+  (RR.HH.), en la misma ronda y antes del recordatorio, un aviso aparte si alguna obra no pasó la lista el último día
+  hábil; en el computador queda en pantalla hasta que lo toquen. Detalle en `asistencia.md` § Obras que no pasaron la
+  lista.
 - **Celular siempre; computador solo si no está mirando Bóveda** (Marcos 2026-10-27): el recordatorio llega SIEMPRE al
   celular. Quien trabaja casi siempre en el computador (`HORARIO` → `computador: true`: Paula, Matías, Daphne, Héctor
   Herrera y don Luis; `GET /estado` → `debe_activar_computador`) tiene la misma franja en el computador, y ahí el

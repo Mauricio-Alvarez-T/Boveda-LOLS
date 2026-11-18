@@ -14,8 +14,10 @@ jest.mock('../src/services/inicioGerencia.service', () => ({
     getGerencia: jest.fn(),
     _internal: { papeles: jest.fn().mockResolvedValue({ total: 0, lista: [] }), contratos: jest.fn().mockResolvedValue({ vencidos: 0, por_vencer: 0 }) },
 }));
+jest.mock('../src/services/asistenciaSinLista.service', () => ({ getSinLista: jest.fn().mockResolvedValue({ hoy: '2026-11-18', dias: [], obras: [] }) }));
 
 const db = require('../src/config/db');
+const sinListaSvc = require('../src/services/asistenciaSinLista.service');
 const avisos = require('../src/services/avisosCelular.service');
 const permisos = require('../src/services/permisos.service');
 const transferencias = require('../src/services/transferencia.service');
@@ -248,6 +250,58 @@ describe('la ronda', () => {
         expect(avisos.enviarA).not.toHaveBeenCalled();
         expect(db.query.mock.calls.some(([s]) => String(s).startsWith('INSERT IGNORE INTO avisos_celular_envios'))).toBe(false);
         expect(r).toMatch(/10 ya enviado\(s\)/);
+    });
+
+    test('RR.HH. (asistencia.dias_pasados): el «Importante» de obras sin lista va primero y aparte (Marcos 2026-11-18)', async () => {
+        permisos.getPermisosEfectivos.mockResolvedValue(['asistencia.ver', 'asistencia.dias_pasados']);
+        sinListaSvc.getSinLista.mockResolvedValue({
+            hoy: '2026-11-18', dias: ['2026-11-17', '2026-11-16'],
+            obras: [{ obra: 'DOMEYKO', encargado: 'Pedro Soto', dias: [{ fecha: '2026-11-17' }] }],
+        });
+        db.query.mockImplementation(async (sql, params) => {
+            const s = String(sql);
+            if (s.startsWith('SELECT id, nombre, rol_id, obra_id, bodega_id FROM usuarios WHERE email = ?')) return usuarios(s, params);
+            if (s.startsWith('SELECT COUNT(*) AS n FROM avisos_celular_envios')) return [[{ n: 0 }]];
+            if (s.startsWith('INSERT IGNORE INTO avisos_celular_envios')) return [{ affectedRows: params[0] === 4 ? 1 : 0 }];
+            return [{ affectedRows: 1 }];
+        });
+        const r = await svc.enviarRonda(8, '2026-11-18');
+        expect(avisos.enviarA).toHaveBeenCalledTimes(1);
+        expect(avisos.enviarA.mock.calls[0][0]).toEqual([4]);
+        expect(avisos.enviarA.mock.calls[0][1]).toMatchObject({
+            titulo: 'Importante: una obra no pasó la lista',
+            cuerpo: 'DOMEYKO no pasó la lista ayer, martes 17. Encargado: Pedro Soto. Toque para pasarla o pedirla.',
+            etiqueta: 'importante-sin-lista', importante: true,
+        });
+        expect(r).toMatch(/1 avisado\(s\)/);
+        // Se calcula una sola vez por ronda.
+        expect(sinListaSvc.getSinLista).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('el aviso «Importante»: solo el último día hábil', () => {
+    const obra = (nombre, fechas, encargado = null) => ({ obra: nombre, encargado, dias: fechas.map(fecha => ({ fecha })) });
+
+    test('sin obras del último día hábil (solo días viejos) → nada', () => {
+        expect(svc.mensajeImportante({ hoy: '2026-11-18', dias: ['2026-11-17', '2026-11-16'], obras: [obra('ULA', ['2026-11-16'])] })).toBeNull();
+        expect(svc.mensajeImportante(null)).toBeNull();
+    });
+
+    test('un lunes: el último hábil es «el viernes 13»; varias obras', () => {
+        const m = svc.mensajeImportante({
+            hoy: '2026-11-16', dias: ['2026-11-13'],
+            obras: [obra('DOMEYKO', ['2026-11-13']), obra('GORBEA', ['2026-11-13']), obra('ULA', ['2026-11-13'])],
+        });
+        expect(m).toEqual({
+            titulo: 'Importante: 3 obras no pasaron la lista',
+            cuerpo: 'DOMEYKO, GORBEA y ULA no pasaron la lista el viernes 13. Toque para pasarlas o pedirlas.',
+            url: '/',
+        });
+    });
+
+    test('la franja «Active los avisos» lo cuenta entre sus temas', async () => {
+        permisos.getPermisosEfectivos.mockResolvedValue(['asistencia.ver', 'asistencia.dias_pasados']);
+        expect(await svc.temasDe({ id: 1, rol_id: 2 }, 8)).toEqual(['Obras que no pasaron la lista (importante)']);
     });
 });
 

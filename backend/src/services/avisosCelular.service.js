@@ -143,8 +143,9 @@ const avisosCelularService = {
      *   · `computadorSoloSiNoEsta` (los recordatorios): en un computador con Bóveda abierto y al frente no se muestra,
      *     la persona ya está ahí. Al celular llega siempre.
      *   · `tipo` es para el centro de avisos (por defecto, la etiqueta).
+     *   · `importante`: el aviso no se va solo de la pantalla del computador (`requireInteraction` en sw-avisos.js).
      */
-    async enviarA(usuarioIds, { titulo, cuerpo, url = '/', etiqueta, tipo, computadorSoloSiNoEsta = false } = {}) {
+    async enviarA(usuarioIds, { titulo, cuerpo, url = '/', etiqueta, tipo, computadorSoloSiNoEsta = false, importante = false } = {}) {
         const ids = [...new Set((usuarioIds || []).map(Number).filter(n => Number.isInteger(n) && n > 0))];
         if (!ids.length) return { enviados: 0, fallidos: 0 };
         try {
@@ -159,6 +160,8 @@ const avisosCelularService = {
                 cuerpo: corto(cuerpo, MAX_CUERPO),
                 url: String(url || '/').startsWith('/') ? String(url) : '/',
                 etiqueta: etiqueta ? corto(etiqueta, 60) : undefined,
+                // «Importante» (obras sin lista, 2026-11-18): en el computador queda en pantalla hasta que lo toquen.
+                ...(importante ? { importante: true } : {}),
             };
             const tipoAviso = corto(tipo || etiqueta || 'aviso', 40);
             let enviados = 0;

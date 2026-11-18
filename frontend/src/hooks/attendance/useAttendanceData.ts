@@ -76,6 +76,16 @@ export function useAttendanceData() {
         const q = searchParams.get('q') || '';
         setSearchQueryRaw(prev => (prev === q ? prev : q));
     }, [searchParams]);
+
+    // ?fecha= nuevo con Asistencia ya abierta (la campana «Importante» → «Pasar la lista», 2026-11-18): ir a ese día.
+    // Solo cuando el valor cambia: si no, al escribir en el buscador (que reescribe la URL) volvería a ese día.
+    const fechaAplicada = useRef(searchParams.get('fecha'));
+    useEffect(() => {
+        const pedida = searchParams.get('fecha');
+        if (!pedida || pedida === fechaAplicada.current) return;
+        fechaAplicada.current = pedida;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(pedida) && pedida <= new Date().toISOString().split('T')[0]) setDate(pedida);
+    }, [searchParams]);
     const [selectedEmpresaId, setSelectedEmpresaId] = useState<number | null>(null);
     const [statusFilter, setStatusFilter] = useState<number | null>(null);
     const [alertasFaltas, setAlertasFaltas] = useState<AlertaFalta[]>([]);
@@ -386,5 +396,7 @@ export function useAttendanceData() {
         summary,
         isSaturday, isSunday,
         pendienteGuardar,
+        /** Filas guardadas del día cargado (0 = nadie pasó la lista; aviso del día pasado para RR.HH.). */
+        registrosGuardados,
     };
 }

@@ -6,6 +6,16 @@ const logger = require('../utils/logger-structured');
 const validateBody = require('../middleware/validateBody');
 const asistenciaSchemas = require('../schemas/asistencias.schema');
 const uploadJustificativos = require('../middleware/upload-justificativos');
+const db = require('../config/db');
+const { bloquearDiasPasados, fechasDeRegistros, fechaDelCuerpo } = require('../middleware/diaCerrado');
+
+// Día cerrado (Marcos 2026-11-18): sin `asistencia.dias_pasados`, solo se escribe la asistencia de hoy o adelante.
+const diaCerradoRegistros = bloquearDiasPasados(fechasDeRegistros);
+const diaCerradoCuerpo = bloquearDiasPasados(fechaDelCuerpo);
+const diaCerradoFila = bloquearDiasPasados(async (req) => {
+    const [filas] = await db.query("SELECT DATE_FORMAT(fecha, '%Y-%m-%d') AS fecha FROM asistencias WHERE id = ?", [req.params.id]);
+    return filas.map(f => f.fecha);
+});
 
 /**
  * RUTAS DE EXPORTACIÓN (Poner arriba para evitar conflictos)
@@ -47,7 +57,7 @@ router.get('/estados', auth, async (req, res, next) => {
 });
 
 // Batch upsert multi-obra / multi-fecha (usado por "Repetir día anterior" y futuras cargas masivas)
-router.post('/batch', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.batch, { strip: true }), async (req, res, next) => {
+router.post('/batch', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.batch, { strip: true }), diaCerradoRegistros, async (req, res, next) => {
     try {
         const { registros } = req.body;
         const result = await asistenciaService.batchSave(registros, req.user.id, req);
@@ -56,7 +66,7 @@ router.post('/batch', auth, checkPermission('asistencia.guardar'), validateBody(
 });
 
 // Bulk create/update
-router.post('/bulk/:obra_id', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.bulk, { strip: true }), async (req, res, next) => {
+router.post('/bulk/:obra_id', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.bulk, { strip: true }), diaCerradoRegistros, async (req, res, next) => {
     try {
         const { obra_id } = req.params;
         const { registros } = req.body;
@@ -105,7 +115,7 @@ router.get('/resumen/:obraId', auth, checkPermission('asistencia.ver'), async (r
 });
 
 // Update with audit log
-router.put('/:id', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.actualizar, { strip: true }), async (req, res, next) => {
+router.put('/:id', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.actualizar, { strip: true }), diaCerradoFila, async (req, res, next) => {
     try {
         const result = await asistenciaService.update(req.params.id, req.body, req.user.id);
         res.json(result);
@@ -191,13 +201,13 @@ router.get('/borrables', auth, checkPermission('asistencia.guardar'), async (req
 
 // Borrado correctivo del día (goma de borrar). MISMA gate que escribir asistencia:
 // quien puede guardarla puede corregirla — sin permiso nuevo ni re-login.
-router.post('/borrar-dia', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.borrarDia, { strip: true }), async (req, res, next) => {
+router.post('/borrar-dia', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.borrarDia, { strip: true }), diaCerradoCuerpo, async (req, res, next) => {
     try {
         res.json({ data: await asistenciaService.borrarDia(req.body, req.user.id, req) });
     } catch (err) { next(err); }
 });
 
-router.post('/traslado-obra', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.trasladoObra, { strip: true }), async (req, res, next) => {
+router.post('/traslado-obra', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.trasladoObra, { strip: true }), diaCerradoCuerpo, async (req, res, next) => {
     try {
         const result = await asistenciaService.trasladoObra(req.body, req.user.id, req);
         res.status(201).json({ data: result });

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import type { Trabajador, Asistencia, Feriado } from '../../types/entities';
 import { fueraDePeriodo, periodosDe } from '../../utils/periodosLaborales';
+import { EVENTO_ASISTENCIA_GUARDADA } from '../usePasarLista';
 
 interface UseAttendanceActionsProps {
     date: string;
@@ -88,12 +89,14 @@ export function useAttendanceActions({
 
             await api.post(`/asistencias/bulk/${globalObraId}`, payload);
             toast.success('Asistencia guardada correctamente');
+            window.dispatchEvent(new Event(EVENTO_ASISTENCIA_GUARDADA));
             setUltimoGuardado({ estado: 'listo', ...contexto });
             statusTimer.current = window.setTimeout(() => setUltimoGuardado(u => ({ ...u, estado: 'idle' })), 1600);
             fetchAttendanceInfo();
         } catch (error) {
             console.error('Error saving attendance', error);
-            toast.error('Error al guardar la asistencia');
+            // El servidor explica los rechazos con sentido (p. ej. «Este día ya cerró…», 2026-11-18).
+            toast.error((error as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al guardar la asistencia');
             setUltimoGuardado({ estado: 'fallo', ...contexto });
             statusTimer.current = window.setTimeout(() => setUltimoGuardado(u => ({ ...u, estado: 'idle' })), 2500);
         } finally {

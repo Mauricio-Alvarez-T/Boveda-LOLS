@@ -14,7 +14,7 @@ describe('frasePantalla', () => {
     test('un rol: lo que puede y lo que no, sin nombrar montos que no tiene', () => {
         const f = frasePantalla(asistencia, set(['asistencia.ver', 'asistencia.exportar_excel']));
         expect(claves(f.puede)).toEqual(['asistencia.ver', 'asistencia.exportar_excel']);
-        expect(claves(f.noPuede)).toEqual(['asistencia.guardar', 'asistencia.enviar_whatsapp', 'asistencia.feriado.gestionar', 'asistencia.tomar.global']);
+        expect(claves(f.noPuede)).toEqual(['asistencia.guardar', 'asistencia.enviar_whatsapp', 'asistencia.feriado.gestionar', 'asistencia.tomar.global', 'asistencia.dias_pasados']);
         expect(f.puede.every(x => !x.marca)).toBe(true);
     });
 

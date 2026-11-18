@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { useAuth } from '../../../context/AuthContext';
+import { PERMISO_DIAS_PASADOS } from '../../../utils/fechaChile';
 import { shareViaWhatsApp } from '../../../utils/whatsappShare';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
 import { CabezaFicha, EnlaceFicha, Ficha, GrillaFichas, PieFicha } from './FichaInicio';
@@ -80,6 +82,8 @@ const CalendarioMes: React.FC<{ datos: SinListaData; obra: ObraSinLista; onDia: 
 
 const FichaObra: React.FC<{ datos: SinListaData; o: ObraSinLista; onPasarLista: Props['onPasarLista'] }> = ({ datos, o, onPasarLista }) => {
     const [todos, setTodos] = useState(false);
+    // Un día que ya pasó lo marca solo RR.HH. (mig 154): los demás pueden abrirlo para verlo, sin «Pasar la lista».
+    const puedeMarcar = useAuth().hasPermission(PERMISO_DIAS_PASADOS);
     const dias = todos ? o.dias : o.dias.slice(0, VISIBLES);
     const ocultos = o.dias.length - VISIBLES;
     return (
@@ -121,7 +125,7 @@ const FichaObra: React.FC<{ datos: SinListaData; o: ObraSinLista; onPasarLista: 
                     icono={<WhatsAppIcon className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" />}>
                     Pedir la lista
                 </EnlaceFicha>
-                <EnlaceFicha onClick={() => onPasarLista(o, o.dias[0].fecha)}>Pasar la lista</EnlaceFicha>
+                {puedeMarcar && <EnlaceFicha onClick={() => onPasarLista(o, o.dias[0].fecha)}>Pasar la lista</EnlaceFicha>}
             </PieFicha>
         </Ficha>
     );

@@ -41,6 +41,16 @@ Cada estado tiene 2 flags con semántica DISTINTA:
   feriados por ley especial **no** vienen de ninguna fuente fija: se cargan a mano. **Cada año** conviene
   agregar el año siguiente a la tabla, contrastando dos fuentes (ante diferencias manda la ley).
 - Bulk valida fines de semana (sáb/dom lanzan error) y futuro máximo 30 días (`MAX_DIAS_FUTURO`).
+- **Día cerrado** (Marcos 2026-11-18: «que no tenga la opción de marcar la asistencia si ya pasó, que mejor lo vea
+  Daphne»): la asistencia se marca **el mismo día** (hora de Chile; cierra a las 23:59, sin margen). Un día anterior
+  solo lo marca, corrige, borra o traslada quien tiene **`asistencia.dias_pasados`** («Marcar días que ya pasaron»,
+  mig 154: Super Administrador y RR.HH.; se da o quita en Configuración). El servidor lo hace cumplir en `/bulk`,
+  `/batch`, `PUT /:id` (la fecha de esa fila), `/borrar-dia` y `/traslado-obra` (`middleware/diaCerrado.js`, 403
+  `codigo: 'DIA_CERRADO'` con el día). Los **períodos** (licencias, vacaciones) no cambian: se siguen ingresando hacia
+  atrás. En pantalla (`AttendanceDailyTab`): sin el permiso, el día pasado se ve con «Este día ya cerró… Si se le
+  olvidó, avísele a RR.HH.», los estados y campos bloqueados y sin Guardar/Repetir/Borrar (el calendario y el detalle
+  se pueden abrir para ver); con el permiso, «{obra} no pasó la lista este día» (si no tiene filas) o «Día que ya
+  pasó», y queda a su nombre (`registrado_por`).
 - **Ventana laboral = la UNIÓN de los períodos laborales** del trabajador (reingreso, mig 152 — ver
   `rrhh-trabajadores.md` § Reingreso y períodos laborales): antes del primer ingreso, después del finiquito
   vigente o **entre una baja y el reingreso** no se registra (400 desde 2026-11-17; antes salía 500), ni en
@@ -158,11 +168,24 @@ Al guardar un día, ese día deja de contar (y la obra sale cuando no le queda n
   el resto al desplegar). Cada día sin lista —en el calendario o en la lista— abre Asistencia en esa obra y ese día
   (`/asistencia?fecha=YYYY-MM-DD` + la obra elegida arriba; la fecha solo se acepta si no es futura). «Pedir la
   lista» por WhatsApp (más de 3 días: agrupados por mes).
+- **Campana «Importante»** (`layout/CampanaImportante.tsx`, junto al nombre; opción A del lienzo, Marcos
+  2026-11-18: «que le llegue a su perfil importante si alguien se olvidó de pasar lista»): para quien tiene
+  `asistencia.dias_pasados`, **solo si hay alguna obra** del último mes, roja con el número de obras. Al abrirla:
+  cada obra con sus días y el encargado, «Pasar la lista» (el día más reciente) y «Pedir la lista»; «Ver el
+  detalle» abre el del Inicio. **Se queda hasta que la lista se guarde**: vuelve a preguntar al cambiar de pantalla,
+  al guardar la asistencia (evento `boveda-asistencia-guardada`) y cada 5 min. No sale en «Ver como». En el Inicio,
+  «Pasar la lista» de las fichas también es solo para ese permiso (los demás pueden abrir el día para verlo).
+- **Aviso «Importante» al celular** (`avisosPendientes.mensajeImportante`): en la ronda de la mañana (la hora del
+  recordatorio, 8:00 por defecto), a quien del `HORARIO` tiene `asistencia.dias_pasados`, si alguna obra no pasó la
+  lista **el último día hábil** (solo ese día: lo más viejo queda en la campana y el Inicio). Va **antes y aparte** del
+  recordatorio (etiqueta `importante-sin-lista`): «Importante: una obra no pasó la lista — DOMEYKO no pasó la lista
+  ayer, martes 17. Encargado: … Toque para pasarla o pedirla.» En el computador **no se va solo** de la pantalla
+  (`requireInteraction`, `sw-avisos.js`).
 - **Ventana al entrar** (`AvisoSinListaAlEntrar`, en MainLayout): solo lo **reciente**, los últimos **5 días
   hábiles** (`soloRecientes`; el mes completo queda en el Inicio, para no repetir cada día algo de hace semanas);
   **una vez al día** por persona (marca en
-  `localStorage` con el día de Chile del servidor), solo a **RR.HH.** (`asistencia.ver` + `trabajadores.editar` o
-  `documentos.laborales.emitir`), nunca en «Ver como». Si hay otra ventana abierta (documentos fuera de plazo,
+  `localStorage` con el día de Chile del servidor), solo a **RR.HH.** (`asistencia.ver` + `asistencia.dias_pasados`,
+  desde la mig 154; antes `trabajadores.editar` o `documentos.laborales.emitir`), nunca en «Ver como». Si hay otra ventana abierta (documentos fuera de plazo,
   novedades), espera a que se cierre. «Ver el detalle» abre el detalle de Asistencia del Inicio.
 
 **`GET /api/dashboard/asistencia?obra_id=`** (`asistencia.ver`; `inicioAsistencia.service`, fase 2 del
