@@ -12,6 +12,9 @@ describe('obras sin pasar la lista (Marcos 2026-11-18)', () => {
         expect(cuando('2026-11-17', HOY)).toBe('ayer');
         expect(cuando('2026-11-16', HOY)).toBe('anteayer');
         expect(cuando('2026-11-13', HOY)).toBe('viernes 13');
+        // Más de una semana atrás, con el mes (sin él se leía como de este mes).
+        expect(cuando('2026-11-10', HOY)).toBe('martes 10 de noviembre');
+        expect(cuando('2026-10-21', HOY)).toBe('miércoles 21 de octubre');
     });
 
     it('junta los días: uno, dos o «N días»', () => {
@@ -38,6 +41,8 @@ describe('obras sin pasar la lista (Marcos 2026-11-18)', () => {
             .toBe('La última la guardó Pedro Soto el viernes 13.');
         expect(textoUltima(obra('A', [], { ultima: { fecha: '2026-11-17', por: 'Pedro Soto' } }), HOY))
             .toBe('La última la guardó Pedro Soto ayer.');
+        expect(textoUltima(obra('A', [], { ultima: { fecha: '2026-10-21', por: 'Mauricio Álvarez' } }), HOY))
+            .toBe('La última la guardó Mauricio Álvarez el miércoles 21 de octubre.');
         expect(textoUltima(obra('A', []), HOY)).toBe('No tiene listas guardadas antes de hoy.');
     });
 });
