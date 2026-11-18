@@ -37,11 +37,15 @@ const sumarDias = (iso: string, n: number) => {
     return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
 };
 
-/** «ayer», «anteayer» o «lunes 16». */
+/**
+ * «ayer», «anteayer», «lunes 16» (dentro de la última semana) o «miércoles 21 de octubre» (más atrás: sin el mes se
+ * leía como de este mes, visto en test el 2026-11-18).
+ */
 export function cuando(fecha: string, hoy: string): string {
     if (fecha === sumarDias(hoy, -1)) return 'ayer';
     if (fecha === sumarDias(hoy, -2)) return 'anteayer';
-    return fechaLarga(fecha).replace(/ de \S+$/, '');
+    const larga = fechaLarga(fecha);
+    return fecha >= sumarDias(hoy, -6) ? larga.replace(/ de \S+$/, '') : larga;
 }
 
 /** «ayer», «ayer y el lunes 16», «3 días». */
