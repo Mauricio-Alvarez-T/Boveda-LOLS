@@ -23,7 +23,8 @@ const SEMANA = ['L', 'M', 'M', 'J', 'V'];
  * por el relleno y no solo por el tono); guardada es neutra y lo que no correspondía va con borde punteado.
  */
 const CELDA: Record<EstadoDia, string> = {
-    falta: 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600',
+    // Mismo rojo en claro y oscuro: con red-500 el número blanco no llega a 4,5:1.
+    falta: 'bg-red-600 text-white hover:bg-red-700',
     guardada: 'bg-muted text-foreground',
     feriado: 'border border-dashed border-border text-muted-foreground',
     no_aplica: 'border border-dashed border-border text-muted-foreground',
@@ -69,7 +70,7 @@ const CalendarioMes: React.FC<{ datos: SinListaData; obra: ObraSinLista; onDia: 
                 })}
             </div>
             <ul className="flex flex-wrap gap-x-4 gap-y-1 text-label text-muted-foreground" aria-label="Leyenda">
-                <li className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-red-600 dark:bg-red-500" aria-hidden />Sin lista</li>
+                <li className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-red-600" aria-hidden />Sin lista</li>
                 <li className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-muted ring-1 ring-border" aria-hidden />Guardada</li>
                 <li className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-dashed border-muted-foreground/60" aria-hidden />Feriado o no correspondía</li>
             </ul>
