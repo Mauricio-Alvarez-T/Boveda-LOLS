@@ -179,7 +179,7 @@ Al guardar un día, ese día deja de contar (y la obra sale cuando no le queda n
   («1 · Obra no pasó la lista · ayer · DOMEYKO»), y la tarjeta pasa a **rojo** como con los reiterados. Pincharla
   abre el detalle (sin mover la pantalla, como las otras cifras).
 - **Detalle**: primera sección, «Requiere acción · obras que no pasaron la lista», una ficha por obra
-  (`ObrasSinLista`) con el **calendario del mes** de lunes a viernes (sin lista = rojo relleno; guardada = gris;
+  (`ObrasSinLista`) con el **calendario del mes** de lunes a viernes (sin lista = rojo relleno; guardada = verde suave, Marcos 19-11;
   feriado o no correspondía = borde punteado; hoy = borde) y los días sin lista con qué pasó (los 3 más recientes;
   el resto al desplegar). Cada día sin lista —en el calendario o en la lista— abre Asistencia en esa obra y ese día
   (`/asistencia?fecha=YYYY-MM-DD` + la obra elegida arriba; la fecha solo se acepta si no es futura). «Pedir la

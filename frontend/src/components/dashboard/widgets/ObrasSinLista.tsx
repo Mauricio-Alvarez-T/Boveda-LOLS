@@ -21,13 +21,14 @@ const VISIBLES = 3;
 const SEMANA = ['L', 'M', 'M', 'J', 'V'];
 
 /**
- * Cómo se ve cada día del calendario. Solo el día sin lista lleva color (relleno rojo sólido, se distingue también
- * por el relleno y no solo por el tono); guardada es neutra y lo que no correspondía va con borde punteado.
+ * Cómo se ve cada día del calendario (Marcos 2026-11-19: «los días que sí pasan que queden en verde y solo los días que
+ * faltan aparezcan en rojo»). Sin lista = rojo SÓLIDO; guardada = verde SUAVE (tinte + número verde): además del tono
+ * se distinguen por la intensidad, así no se confunden con daltonismo. Lo que no correspondía va con borde punteado.
  */
 const CELDA: Record<EstadoDia, string> = {
     // Mismo rojo en claro y oscuro: con red-500 el número blanco no llega a 4,5:1.
     falta: 'bg-red-600 text-white hover:bg-red-700',
-    guardada: 'bg-muted text-foreground',
+    guardada: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300',
     feriado: 'border border-dashed border-border text-muted-foreground',
     no_aplica: 'border border-dashed border-border text-muted-foreground',
     hoy: 'border border-foreground/40 text-foreground',
@@ -73,7 +74,7 @@ const CalendarioMes: React.FC<{ datos: SinListaData; obra: ObraSinLista; onDia: 
             </div>
             <ul className="flex flex-wrap gap-x-4 gap-y-1 text-label text-muted-foreground" aria-label="Leyenda">
                 <li className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-red-600" aria-hidden />Sin lista</li>
-                <li className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-muted ring-1 ring-border" aria-hidden />Guardada</li>
+                <li className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-green-100 ring-1 ring-green-300 dark:bg-green-500/20 dark:ring-green-700" aria-hidden />Guardada</li>
                 <li className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-dashed border-muted-foreground/60" aria-hidden />Feriado o no correspondía</li>
             </ul>
         </div>
