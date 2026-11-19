@@ -24,6 +24,7 @@ import { useSetPageHeader } from '../../context/PageHeaderContext';
 import { useAuth } from '../../context/AuthContext';
 import { WorkerDocsContent } from './modals/WorkerDocsContent';
 import { BorrarAsistenciaModal } from './modals/BorrarAsistenciaModal';
+import { RecordatorioListaOlvidada } from './RecordatorioListaOlvidada';
 import { toast } from 'sonner';
 import api from '../../services/api';
 
@@ -397,6 +398,10 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                     />
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar bg-muted/80 p-2 md:p-4 flex flex-col gap-2 relative">
+                        {/* Recordatorio al jefe de obra de las listas que se le olvidaron este mes (Marcos 2026-11-19). */}
+                        {selectedObra && (
+                            <RecordatorioListaOlvidada key={selectedObra.id} obraId={selectedObra.id} obraNombre={selectedObra.nombre} fecha={date} onIr={setDate} />
+                        )}
                         {/* initial={false}: el aviso de día no laboral está al entrar, sin animarse (solo al cambiar de fecha). */}
                         <AnimatePresence initial={false}>
                             {(isSaturday || isSunday || !!feriadoActual) && (
