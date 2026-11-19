@@ -57,6 +57,16 @@ Cada estado tiene 2 flags con semántica DISTINTA:
   pasó la lista este día… puede pasarla ahora» (al jefe: «hasta el último día del mes») o «Día que ya pasó», y queda
   a su nombre (`registrado_por`). En el Inicio, «Pasar la lista» de la ficha sale solo si puede marcar el día más
   reciente sin lista. La campana y el aviso «Importante» siguen siendo solo de `asistencia.dias_pasados` (RR.HH.).
+- **Recordatorio de listas olvidadas** (Marcos 2026-11-19: «a los supervisores tendría que aparecer un cartelito en
+  asistencia que diga te olvidaste ayer o X días de pasar lista… y cuando lo tome desaparece»): arriba del registro
+  diario de la obra elegida (`attendance/RecordatorioListaOlvidada.tsx` + `recordatorioLista.ts`), cartel ámbar «Se
+  le olvidó pasar la lista de ayer» / «… en N días de este mes» con un botón por día (abre ese día; 5 a la vista, el
+  resto al desplegar). Solo los días que **todavía puede pasar** (los del mes en curso); los de un mes anterior van en
+  una línea aparte («ya cerraron: esos los pasa RR.HH.») y por sí solos no muestran el cartel. Cada día sale al
+  guardarlo (vuelve a preguntar a `GET /dashboard/asistencia/sin-lista?obra_id=` con el evento de asistencia
+  guardada) y cuando no queda ninguno el cartel se va. Lo ve quien tiene `asistencia.guardar` y NO
+  `asistencia.dias_pasados` (RR.HH. tiene la campana). Mientras se está en uno de esos días no se muestra (ahí ya
+  está «{obra} no pasó la lista este día»).
 - **Ventana laboral = la UNIÓN de los períodos laborales** del trabajador (reingreso, mig 152 — ver
   `rrhh-trabajadores.md` § Reingreso y períodos laborales): antes del primer ingreso, después del finiquito
   vigente o **entre una baja y el reingreso** no se registra (400 desde 2026-11-17; antes salía 500), ni en
