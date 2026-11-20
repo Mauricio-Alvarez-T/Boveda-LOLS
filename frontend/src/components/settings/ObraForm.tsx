@@ -13,6 +13,9 @@ import api from '../../services/api';
 import type { Obra, Empresa } from '../../types/entities';
 import type { ApiResponse } from '../../types';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
+import { hoyChile } from '../../utils/fechaChile';
+import { cuerpoAsistencia, valorAsistencia, type ValorAsistenciaObra } from './asistenciaObra';
+import { OpcionesAsistenciaObra } from './EditorAsistenciaObra';
 
 const schema = z.object({
     nombre: z.string().min(1, 'Nombre es requerido'),
@@ -20,7 +23,7 @@ const schema = z.object({
     direccion: z.string().optional(),
     encargado_nombre: z.string().optional(),
     participa_inventario: z.boolean().optional(),
-    participa_asistencia: z.boolean().optional(),
+    asistencia: z.object({ estado: z.enum(['preparacion', 'desde', 'no']), fecha: z.string() }),
     participa_transferencias: z.boolean().optional(),
     participa_bombas: z.boolean().optional(),
     es_prueba: z.boolean().optional(),
@@ -32,7 +35,8 @@ type FormData = {
     direccion?: string;
     encargado_nombre?: string;
     participa_inventario?: boolean;
-    participa_asistencia?: boolean;
+    /** Preparando / pasa lista desde / no pasa (mig 156); se manda como participa_asistencia + asistencia_desde. */
+    asistencia: ValorAsistenciaObra;
     participa_transferencias?: boolean;
     participa_bombas?: boolean;
     es_prueba?: boolean;
@@ -57,7 +61,8 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _o
             // Default TRUE para obras nuevas (se comportan como antes).
             // En edición respetamos el valor actual.
             participa_inventario: initialData ? (initialData.participa_inventario ?? true) : true,
-            participa_asistencia: initialData ? (initialData.participa_asistencia ?? true) : true,
+            // Obra nueva: «En preparación» (Marcos 2026-11-20: se crea antes de que haya gente trabajando).
+            asistencia: valorAsistencia(initialData ?? {}, hoyChile()),
             participa_transferencias: initialData ? (initialData.participa_transferencias ?? true) : true,
             participa_bombas: initialData ? (initialData.participa_bombas ?? true) : true,
             es_prueba: initialData?.es_prueba ?? false,
@@ -75,10 +80,11 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _o
 
     const onSubmit = async (data: FormData) => {
         try {
+            const { asistencia, ...resto } = data;
             const payload = {
-                ...data,
+                ...resto,
+                ...cuerpoAsistencia(asistencia),
                 participa_inventario: data.participa_inventario ?? true,
-                participa_asistencia: data.participa_asistencia ?? true,
                 participa_transferencias: data.participa_transferencias ?? true,
                 participa_bombas: data.participa_bombas ?? true,
                 es_prueba: data.es_prueba ?? false,
@@ -94,7 +100,7 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _o
             // tras un submit exitoso (no se compara contra los nuevos valores), lo que
             // deja el atributo `data-modal-dirty` colgado (useFormDirtyProtection) y
             // puede disparar el confirm de "cambios sin guardar" en el próximo cierre.
-            reset(payload);
+            reset({ ...payload, asistencia });
             onSuccess();
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Error al guardar obra');
@@ -154,7 +160,6 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _o
                 <span className="text-xs font-bold text-brand-dark/60 uppercase tracking-wider">Participa en otros apartados</span>
                 <div className="mt-2 space-y-2">
                     {[
-                        { field: 'participa_asistencia' as const, label: 'Asistencia' },
                         { field: 'participa_transferencias' as const, label: 'Transferencias' },
                         { field: 'participa_bombas' as const, label: 'Bombas de hormigón' },
                     ].map(({ field, label }) => (
@@ -169,6 +174,22 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _o
                         </label>
                     ))}
                 </div>
+            </div>
+
+            {/* Asistencia (mig 156, maqueta aprobada por Marcos 2026-11-20): una obra nueva parte «En preparación». */}
+            <div className="rounded-xl border border-border p-3 space-y-2">
+                <span className="text-xs font-bold text-brand-dark/60 uppercase tracking-wider">Asistencia</span>
+                <Controller
+                    name="asistencia"
+                    control={control}
+                    render={({ field }) => (
+                        <OpcionesAsistenciaObra nombre="obra-asistencia" valor={field.value} onCambiar={field.onChange} />
+                    )}
+                />
+                <p className="text-xs text-muted-foreground">
+                    Mientras la obra se prepara (llevan hormigón, juntan herramientas) no avisa días sin lista. Pasa sola a
+                    «Pasa lista desde» el día que el jefe de obra guarde la primera lista.
+                </p>
             </div>
 
             <div className="py-2">

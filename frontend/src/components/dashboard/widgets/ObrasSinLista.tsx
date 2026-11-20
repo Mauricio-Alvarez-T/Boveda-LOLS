@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { ArrowRight, ChevronDown } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, Pencil } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { useAuth } from '../../../context/AuthContext';
 import { diaCerradoPara } from '../../../utils/fechaChile';
 import { shareViaWhatsApp } from '../../../utils/whatsappShare';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
+import { EditorAsistenciaObra } from '../../settings/EditorAsistenciaObra';
 import { CabezaFicha, EnlaceFicha, Ficha, GrillaFichas, PieFicha } from './FichaInicio';
 import { fechaLarga, mensajeSinLista } from './mensajesWhatsApp';
 import {
@@ -31,6 +32,7 @@ const CELDA: Record<EstadoDia, string> = {
     guardada: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300',
     feriado: 'border border-dashed border-border text-muted-foreground',
     no_aplica: 'border border-dashed border-border text-muted-foreground',
+    antes: 'border border-dashed border-border text-muted-foreground',
     hoy: 'border border-foreground/40 text-foreground',
 };
 
@@ -40,7 +42,8 @@ function textoCelda(c: CeldaMes): string {
         case 'falta': return `${dia}: ${c.motivo ? queEPaso(c.motivo) : 'Nadie pasó la lista'}. Abrir Asistencia en ese día`;
         case 'guardada': return `${dia}: lista guardada`;
         case 'feriado': return `${dia}: feriado`;
-        case 'no_aplica': return `${dia}: no correspondía (la obra aún no empezaba o no tenía trabajadores)`;
+        case 'no_aplica': return `${dia}: no correspondía (la obra no tenía trabajadores)`;
+        case 'antes': return `${dia}: la obra todavía no pasaba lista`;
         case 'hoy': return `${dia}: hoy (se revisa a partir de mañana)`;
     }
 }
@@ -75,9 +78,35 @@ const CalendarioMes: React.FC<{ datos: SinListaData; obra: ObraSinLista; onDia: 
             <ul className="flex flex-wrap gap-x-4 gap-y-1 text-label text-muted-foreground" aria-label="Leyenda">
                 <li className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-red-600" aria-hidden />Sin lista</li>
                 <li className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-green-100 ring-1 ring-green-300 dark:bg-green-500/20 dark:ring-green-700" aria-hidden />Guardada</li>
-                <li className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-dashed border-muted-foreground/60" aria-hidden />Feriado o no correspondía</li>
+                <li className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-dashed border-muted-foreground/60" aria-hidden />Antes de empezar o feriado</li>
             </ul>
+            <InicioLista obra={obra} />
         </div>
+    );
+};
+
+/**
+ * «Pasa lista desde el lunes 16 de noviembre · Cambiar» (Marcos 2026-11-20, mig 156): desde qué día cuenta la obra;
+ * quien puede editar obras lo corrige aquí mismo con las tres opciones de Configuración → Obras.
+ */
+const InicioLista: React.FC<{ obra: ObraSinLista }> = ({ obra }) => {
+    const { hasPermission } = useAuth();
+    const desde = (obra.asistencia_desde ?? '').slice(0, 10);
+    if (!desde) return null;
+    return (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-start gap-1.5">
+                <Check className="mt-px h-3.5 w-3.5 shrink-0 text-brand-primary" aria-hidden />
+                Pasa lista desde el {fechaLarga(desde)}
+            </span>
+            {hasPermission('obras.editar') && (
+                <EditorAsistenciaObra obraId={obra.obra_id} obraNombre={obra.obra} inicial={{ estado: 'desde', fecha: desde }}
+                    title="Cambiar desde qué día pasa lista esta obra"
+                    claseDisparador="inline-flex min-h-8 items-center gap-1 rounded-md font-semibold text-green-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 dark:text-green-300">
+                    <Pencil className="h-3 w-3" aria-hidden />Cambiar
+                </EditorAsistenciaObra>
+            )}
+        </p>
     );
 };
 

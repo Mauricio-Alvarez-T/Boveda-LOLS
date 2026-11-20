@@ -146,7 +146,7 @@ try {
     // 'finalizada' NO va en allowedFields: finalizar/reactivar es exclusivo de
     // los endpoints /finalizar y /reactivar (permiso obras.finalizar + validación).
     // Dejarlo aquí permitía finalizar vía el PUT genérico con solo obras.editar.
-    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario', 'participa_asistencia', 'participa_transferencias', 'participa_bombas', 'encargado_nombre', 'es_prueba', 'fecha_inicio', 'fecha_termino'],
+    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario', 'participa_asistencia', 'asistencia_desde', 'participa_transferencias', 'participa_bombas', 'encargado_nombre', 'es_prueba', 'fecha_inicio', 'fecha_termino'],
     testFlagColumn: 'es_prueba',
     // Aislamiento de obras finalizadas: GET /obras las excluye por defecto;
     // ?incluir_finalizadas=true las incluye; ?finalizada=1 sólo finalizadas.

@@ -17,6 +17,8 @@ export interface ObraSinLista {
     obra_id: number;
     obra: string;
     encargado: string | null;
+    /** Desde qué día pasa lista (mig 156): los días anteriores no le correspondían («antes de empezar»). */
+    asistencia_desde?: string | null;
     dotacion: number;
     /** Del más reciente al más antiguo. */
     dias: DiaSinLista[];
@@ -51,13 +53,14 @@ export function soloRecientes(s: SinListaData, n = RECIENTES): SinListaData {
     return { ...s, dias: s.dias.slice(0, n), obras };
 }
 
-export type EstadoDia = 'falta' | 'guardada' | 'feriado' | 'no_aplica' | 'hoy';
+export type EstadoDia = 'falta' | 'guardada' | 'feriado' | 'no_aplica' | 'antes' | 'hoy';
 export interface CeldaMes { fecha: string; dia: number; estado: EstadoDia; motivo?: DiaSinLista }
 
 /**
  * Calendario del último mes de una obra: semanas de lunes a viernes (fines de semana fuera), de la más antigua a la
  * de hoy. `null` = fuera del mes revisado. Hábil sin lista → `falta`; guardada → `guardada`; día de semana que no
- * está entre los revisados → `feriado`; revisado pero sin trabajadores o antes de empezar la obra → `no_aplica`.
+ * está entre los revisados → `feriado`; antes del día desde el que la obra pasa lista → `antes`; revisado pero sin
+ * trabajadores → `no_aplica`.
  */
 export function calendarioMes(s: SinListaData, o: ObraSinLista): (CeldaMes | null)[][] {
     const desde = s.desde ?? s.dias[s.dias.length - 1];
@@ -65,6 +68,7 @@ export function calendarioMes(s: SinListaData, o: ObraSinLista): (CeldaMes | nul
     const habiles = new Set(s.dias);
     const faltas = new Map(o.dias.map(d => [d.fecha, d]));
     const guardadas = new Set(o.guardadas ?? []);
+    const inicioLista = (o.asistencia_desde ?? '').slice(0, 10);
     const [y, m, d] = desde.split('-').map(Number);
     const inicio = new Date(Date.UTC(y, m - 1, d));
     inicio.setUTCDate(inicio.getUTCDate() - ((inicio.getUTCDay() + 6) % 7)); // lunes de esa semana
@@ -79,6 +83,7 @@ export function calendarioMes(s: SinListaData, o: ObraSinLista): (CeldaMes | nul
             const estado: EstadoDia = fecha === s.hoy ? 'hoy'
                 : faltas.has(fecha) ? 'falta'
                 : guardadas.has(fecha) ? 'guardada'
+                : inicioLista && fecha < inicioLista ? 'antes'
                 : habiles.has(fecha) ? 'no_aplica' : 'feriado';
             semana.push({ fecha, dia: f.getUTCDate(), estado, motivo: faltas.get(fecha) });
         }

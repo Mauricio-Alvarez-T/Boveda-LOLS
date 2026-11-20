@@ -21,6 +21,8 @@ export interface Obra {
     participa_inventario?: boolean;
     /** Participación por apartado (mig 075): si FALSE, la obra no aparece en ese módulo. */
     participa_asistencia?: boolean;
+    /** Desde qué día pasa lista (mig 156). Vacía con `participa_asistencia` = «En preparación»: aún no avisa. */
+    asistencia_desde?: string | null;
     participa_transferencias?: boolean;
     participa_bombas?: boolean;
     /** Encargado que solicita material en obras de inventario (texto libre). */

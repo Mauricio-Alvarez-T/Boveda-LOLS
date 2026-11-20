@@ -76,6 +76,18 @@ describe('obras sin pasar la lista (Marcos 2026-11-18)', () => {
         expect(tramoMes(s)).toBe('19 de octubre al 17 de noviembre');
     });
 
+    it('calendario: lo de antes del día en que la obra empezó a pasar lista sale «antes» (mig 156)', () => {
+        const dias = ['2026-11-17', '2026-11-16', '2026-11-12', '2026-11-11', '2026-10-20', '2026-10-19'];
+        const s: SinListaData = { hoy: HOY, desde: '2026-10-19', dias, obras: [] };
+        const o = obra('BASCUÑAN', ['2026-11-17'], { guardadas: ['2026-11-16'], asistencia_desde: '2026-11-16' });
+        const de = (f: string) => calendarioMes(s, o).flat().find(c => c?.fecha === f)?.estado;
+        expect(de('2026-10-19')).toBe('antes');
+        expect(de('2026-11-12')).toBe('antes');
+        expect(de('2026-11-13')).toBe('antes'); // feriado, pero antes de empezar: da lo mismo
+        expect(de('2026-11-16')).toBe('guardada');
+        expect(de('2026-11-17')).toBe('falta');
+    });
+
     it('el mensaje de WhatsApp con muchos días los agrupa por mes', () => {
         expect(diasPorMes(['2026-10-20', '2026-10-21', '2026-11-03', '2026-11-17']))
             .toBe('el 20 y 21 de octubre, y el 3 y 17 de noviembre');

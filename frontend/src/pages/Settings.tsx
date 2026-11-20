@@ -56,6 +56,7 @@ import { FeriadosPanel } from '../components/settings/FeriadosPanel';
 import { UserCog, Package, Warehouse, Wrench, Archive, Bell, Banknote, Lock, FileWarning } from 'lucide-react';
 import { FinalizarObraModal } from '../components/obras/FinalizarObraModal';
 import { ParticipaToggle } from '../components/settings/ParticipaToggle';
+import { ChipAsistenciaObra } from '../components/settings/EditorAsistenciaObra';
 import { CategoriaInventarioForm } from '../components/settings/CategoriaInventarioForm';
 import { BodegaForm } from '../components/settings/BodegaForm';
 import { ItemInventarioForm } from '../components/settings/ItemInventarioForm';
@@ -491,7 +492,8 @@ const SettingsPage: React.FC = () => {
                                         {hasPermission('obras.editar') && (
                                             <div className="hidden sm:flex items-center gap-1 flex-wrap">
                                                 <ParticipaToggle id={row.id} endpoint="/obras" field="participa_inventario" value={row.participa_inventario} label="Inv" onDone={() => setObrasNonce(n => n + 1)} />
-                                                <ParticipaToggle id={row.id} endpoint="/obras" field="participa_asistencia" value={row.participa_asistencia} label="Asis" onDone={() => setObrasNonce(n => n + 1)} />
+                                                {/* Asis: preparando / desde una fecha / no pasa (mig 156, Marcos 2026-11-20). */}
+                                                <ChipAsistenciaObra obra={row} onDone={() => setObrasNonce(n => n + 1)} />
                                                 <ParticipaToggle id={row.id} endpoint="/obras" field="participa_transferencias" value={row.participa_transferencias} label="Transf" onDone={() => setObrasNonce(n => n + 1)} />
                                                 <ParticipaToggle id={row.id} endpoint="/obras" field="participa_bombas" value={row.participa_bombas} label="Bombas" onDone={() => setObrasNonce(n => n + 1)} />
                                             </div>
