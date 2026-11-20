@@ -55,6 +55,59 @@ export const OpcionesAsistenciaObra: React.FC<{
     </div>
 );
 
+/**
+ * Lo de adentro de la ventanita: las tres opciones, la nota y Cancelar/Guardar. Guarda con PUT /obras/:id y avisa al
+ * resto (campana, recordatorio, Inicio) para que vuelvan a preguntar. Lo usan el flotante de abajo y la ventana que
+ * abre «Ya empezó…» en la campana de RR.HH.
+ */
+export const PanelAsistenciaObra: React.FC<{
+    obraId: number;
+    obraNombre: string;
+    inicial: ValorAsistenciaObra;
+    onCerrar: () => void;
+    onGuardado?: () => void;
+    /** Sin el título (cuando ya lo pone la ventana que lo contiene). */
+    sinTitulo?: boolean;
+}> = ({ obraId, obraNombre, inicial, onCerrar, onGuardado, sinTitulo }) => {
+    const [borrador, setBorrador] = useState<ValorAsistenciaObra>(inicial);
+    const [guardando, setGuardando] = useState(false);
+
+    const guardar = async () => {
+        setGuardando(true);
+        try {
+            await api.put(`/obras/${obraId}`, cuerpoAsistencia(borrador));
+            toast.success(borrador.estado === 'desde' ? 'Listo: la obra pasa lista desde esa fecha'
+                : borrador.estado === 'preparacion' ? 'Listo: la obra quedó en preparación'
+                : 'Listo: la obra no pasa asistencia');
+            window.dispatchEvent(new Event(EVENTO_ASISTENCIA_GUARDADA));
+            onCerrar();
+            onGuardado?.();
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+            toast.error(msg || 'No se pudo guardar la asistencia de la obra');
+        } finally {
+            setGuardando(false);
+        }
+    };
+
+    return (
+        <div className="space-y-3">
+            {!sinTitulo && (
+                <div>
+                    <p className="text-sm font-bold text-foreground">Asistencia · {obraNombre}</p>
+                    <p className="text-xs text-muted-foreground">Desde cuándo esta obra pasa lista.</p>
+                </div>
+            )}
+            <OpcionesAsistenciaObra nombre={`asis-${obraId}`} valor={borrador} onCambiar={setBorrador} />
+            <p className="text-xs text-muted-foreground">{NOTA_PREPARACION}</p>
+            <div className="flex justify-end gap-2 pt-1">
+                <Button type="button" variant="ghost" size="sm" onClick={onCerrar}>Cancelar</Button>
+                <Button type="button" size="sm" onClick={() => { void guardar(); }} isLoading={guardando}>Guardar</Button>
+            </div>
+        </div>
+    );
+};
+
 interface EditorProps {
     obraId: number;
     obraNombre: string;
@@ -74,15 +127,13 @@ const MARGEN = 12;
 
 /**
  * Botón que abre la ventanita «Asistencia · obra» (flotante fijo, sigue al botón al hacer scroll y no lo recorta la
- * tabla). Guarda con PUT /obras/:id y avisa al resto (campana, recordatorio, Inicio) para que vuelvan a preguntar.
+ * tabla). Cada vez que se abre parte de cómo está la obra ahora.
  */
 export const EditorAsistenciaObra: React.FC<EditorProps> = ({
     obraId, obraNombre, inicial, onGuardado, claseDisparador, title, disabled, children,
 }) => {
     const [abierto, setAbierto] = useState(false);
-    const [borrador, setBorrador] = useState<ValorAsistenciaObra>(inicial);
     const [horizontal, setHorizontal] = useState({ left: MARGEN, width: ANCHO });
-    const [guardando, setGuardando] = useState(false);
     const cerrar = () => setAbierto(false);
     const { disparadorRef, flotanteRef, pos, estilo, medir } = usePosicionFlotante<HTMLButtonElement>({
         abierto, alCerrar: cerrar, variante: 'hoja', altoMax: 560, separacion: 6,
@@ -96,27 +147,8 @@ export const EditorAsistenciaObra: React.FC<EditorProps> = ({
         const width = Math.min(ANCHO, window.innerWidth - 2 * MARGEN);
         const left = Math.max(MARGEN, Math.min(r.right - width, window.innerWidth - width - MARGEN));
         setHorizontal({ left, width });
-        setBorrador(inicial);
         medir();
         setAbierto(true);
-    };
-
-    const guardar = async () => {
-        setGuardando(true);
-        try {
-            await api.put(`/obras/${obraId}`, cuerpoAsistencia(borrador));
-            toast.success(borrador.estado === 'desde' ? 'Listo: la obra pasa lista desde esa fecha'
-                : borrador.estado === 'preparacion' ? 'Listo: la obra quedó en preparación'
-                : 'Listo: la obra no pasa asistencia');
-            window.dispatchEvent(new Event(EVENTO_ASISTENCIA_GUARDADA));
-            cerrar();
-            onGuardado?.();
-        } catch (err: unknown) {
-            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-            toast.error(msg || 'No se pudo guardar la asistencia de la obra');
-        } finally {
-            setGuardando(false);
-        }
     };
 
     return (
@@ -129,17 +161,8 @@ export const EditorAsistenciaObra: React.FC<EditorProps> = ({
             {abierto && estilo && createPortal(
                 <div ref={flotanteRef} role="dialog" aria-label={`Asistencia de ${obraNombre}`}
                     style={{ ...estilo, left: horizontal.left, width: horizontal.width, maxHeight: pos?.maxHeight }}
-                    className="z-[1200] space-y-3 overflow-y-auto overscroll-contain rounded-2xl border border-border bg-popover p-4 text-left text-foreground shadow-[var(--shadow-md)]">
-                    <div>
-                        <p className="text-sm font-bold text-foreground">Asistencia · {obraNombre}</p>
-                        <p className="text-xs text-muted-foreground">Desde cuándo esta obra pasa lista.</p>
-                    </div>
-                    <OpcionesAsistenciaObra nombre={`asis-${obraId}`} valor={borrador} onCambiar={setBorrador} />
-                    <p className="text-xs text-muted-foreground">{NOTA_PREPARACION}</p>
-                    <div className="flex justify-end gap-2 pt-1">
-                        <Button type="button" variant="ghost" size="sm" onClick={cerrar}>Cancelar</Button>
-                        <Button type="button" size="sm" onClick={() => { void guardar(); }} isLoading={guardando}>Guardar</Button>
-                    </div>
+                    className="z-[1200] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-popover p-4 text-left text-foreground shadow-[var(--shadow-md)]">
+                    <PanelAsistenciaObra obraId={obraId} obraNombre={obraNombre} inicial={inicial} onCerrar={cerrar} onGuardado={onGuardado} />
                 </div>,
                 document.body,
             )}

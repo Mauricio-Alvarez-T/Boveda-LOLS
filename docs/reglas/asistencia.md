@@ -177,8 +177,18 @@ octubre). `obras.asistencia_desde` con `participa_asistencia = 1`:
   asistencia), el formulario de la obra y «Cambiar» bajo el calendario del Inicio.
 - Migración: cada obra existente tomó el día de su **primera lista propia** (sin las filas de licencias/vacaciones);
   las que nunca guardaron una quedan en preparación.
-- Pendiente (vista previa mostrada 2026-11-20, sin aprobar): aviso al jefe y a RR.HH. cuando una obra sigue en
-  preparación pero ya tiene trabajadores.
+- **Obra en preparación que ya tiene gente** (Marcos 2026-11-20, vista previa aprobada: «que pase un aviso si sigue
+  en preparación… para el jefe que se haya olvidado o no sabe, y que a Daphne también le llegue»):
+  `GET /api/dashboard/asistencia/en-preparacion?obra_id=` (`asistencia.ver`; `asistenciaSinLista.getEnPreparacion`)
+  = obras activas, no finalizadas ni de prueba, participando, sin `asistencia_desde` y con trabajadores activos que ya
+  ingresaron. Avisa en tres lugares, hasta que se guarda la primera lista o RR.HH. pone la fecha:
+  - **Jefe de obra**, en Asistencia (`attendance/AvisoObraEnPreparacion`, ámbar, arriba del registro): «Esta obra
+    todavía no pasa lista… si ya empezaron, guarde la lista de hoy». RR.HH. no lo ve.
+  - **RR.HH.**, en la campana «Importante» (ámbar, junto a las obras sin lista): «Ya empezó…» abre las tres opciones
+    con «Pasa lista desde» hoy; «Preguntarle» manda el WhatsApp.
+  - **Celular**, en la ronda de las 8:00 (días hábiles, cada mañana mientras siga así): al jefe de esa obra
+    (`asistencia.guardar` + `usuarios.obra_id`, etiqueta `aviso-preparacion`) y a RR.HH. (`asistencia.dias_pasados`,
+    etiqueta `importante-preparacion`, importante).
 
 **Obras que no pasaron la lista en días anteriores** (Marcos 2026-11-18: «al jefe de obra se le olvidó mandar; que
 Daphne lo vea en la tarjeta y al entrar al otro día»). **`GET /api/dashboard/asistencia/sin-lista?obra_id=`**

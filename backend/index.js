@@ -617,6 +617,15 @@ app.get('/api/dashboard/asistencia/sin-lista', require('./src/middleware/auth'),
     res.json({ data });
   } catch (err) { next(err); }
 });
+// Obras «En preparación» (mig 156) que ya tienen trabajadores: aviso al jefe en Asistencia y a RR.HH. en la campana.
+app.get('/api/dashboard/asistencia/en-preparacion', require('./src/middleware/auth'), require('./src/middleware/rbac').checkPermission('asistencia.ver'), async (req, res, next) => {
+  try {
+    const obraId = req.query.obra_id ? Number(req.query.obra_id) : null;
+    if (obraId !== null && !Number.isInteger(obraId)) return res.status(400).json({ error: 'obra_id inválido' });
+    const data = await asistenciaSinListaService.getEnPreparacion(obraId);
+    res.json({ data });
+  } catch (err) { next(err); }
+});
 
 // «Inicio de gerencia» (don Luis, opción B «Tablero por tema», 2026-10-23): los seis temas que esperan una decisión
 // en una respuesta. Gate `inicio.gerencia` (mig 134); cada bloque se recorta además por el permiso de su módulo y los
