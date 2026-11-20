@@ -9,6 +9,7 @@
 | `finalizada` (mig 074) | FALSE | TRUE = obra CONCLUIDA: fuera de selectores/asistencia/gestiones/inventario/dashboard; visible solo en sección "Obras Finalizadas"; reactivable | **NO** — el trabajador sigue real (normalmente ya trasladado) |
 | `participa_inventario` (mig 026) | TRUE | FALSE = fuera de listados/selectores de inventario (stock, resumen, facturación) | No |
 | `participa_asistencia` (mig 075) | TRUE | FALSE = fuera del selector de obra en Asistencia (selector global filtrado en /asistencia + guard) | No |
+| `asistencia_desde` (mig 156) | NULL | Desde qué día pasa lista. NULL (participando) = «En preparación»: no avisa días sin lista; se llena sola con la primera lista guardada. Ver `asistencia.md` | No |
 | `participa_transferencias` (mig 075) | TRUE | FALSE = no seleccionable como origen/destino de transferencias | No |
 | `participa_bombas` (mig 075) | TRUE | FALSE = fuera del dropdown/filtro de Bombas de Hormigón (registros históricos se conservan) | No |
 

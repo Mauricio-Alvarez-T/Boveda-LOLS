@@ -11,6 +11,8 @@ const crearObra = {
     activa: { type: 'boolean' },
     participa_inventario: { type: 'boolean' },
     participa_asistencia: { type: 'boolean' },
+    // Desde qué día pasa lista (mig 156); null = «En preparación».
+    asistencia_desde: { type: 'string', format: 'date' },
     participa_transferencias: { type: 'boolean' },
     participa_bombas: { type: 'boolean' },
     encargado_nombre: { type: 'string', maxLength: 255 },

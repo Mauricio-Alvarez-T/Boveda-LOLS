@@ -163,14 +163,31 @@ solo cuentan las obras que deben marcar — activas, no finalizadas ni de prueba
 `participa_asistencia = 1` y **al menos un trabajador activo** (2026-10-20: antes una obra sin
 trabajadores figuraba siempre como pendiente).
 
+**Desde qué día pasa lista cada obra** (Marcos 2026-11-20, mig 156: BASCUÑAN 991 se creó hace más de un mes para
+Inventario y hormigón, pero recién el lunes 16 se empezó a pasar asistencia, y el Inicio la mostraba en rojo desde
+octubre). `obras.asistencia_desde` con `participa_asistencia = 1`:
+- **vacía = «En preparación»**: la obra existe (Inventario, hormigón, herramientas) pero todavía no hay gente
+  trabajando; **no avisa días sin lista**. Toda obra nueva parte así (formulario de obra).
+- **con fecha = «Pasa lista desde»** ese día: desde ahí cuenta para obras sin lista, la campana y el recordatorio.
+- **Se pone sola**: el día que se guarda la **primera lista** de una obra en preparación (`/bulk` y `/batch`,
+  `asistencia.service._marcarInicioAsistencia`, después del commit; solo si está vacía — una fecha puesta a mano no
+  se toca).
+- **A mano** (`obras.editar`): chip «Asis» de Configuración → Obras («Asis · desde 16 nov», «Asis · preparando»,
+  «Asis» atenuado si no participa) con tres opciones (En preparación · Pasa lista desde [fecha] · No pasa
+  asistencia), el formulario de la obra y «Cambiar» bajo el calendario del Inicio.
+- Migración: cada obra existente tomó el día de su **primera lista propia** (sin las filas de licencias/vacaciones);
+  las que nunca guardaron una quedan en preparación.
+- Pendiente (vista previa mostrada 2026-11-20, sin aprobar): aviso al jefe y a RR.HH. cuando una obra sigue en
+  preparación pero ya tiene trabajadores.
+
 **Obras que no pasaron la lista en días anteriores** (Marcos 2026-11-18: «al jefe de obra se le olvidó mandar; que
 Daphne lo vea en la tarjeta y al entrar al otro día»). **`GET /api/dashboard/asistencia/sin-lista?obra_id=`**
 (`asistencia.ver`; `asistenciaSinLista.service`): mira el **último mes** — los días hábiles de los **30 días
 corridos anteriores** (lunes a viernes, sin feriados activos y **sin hoy**: hoy ya lo dice «Faltan …»; Marcos
 2026-11-18: «me pidieron que guarde el último mes para controlar si algún día faltó pasar lista»; al principio eran
 5 hábiles). Mismas obras que deben marcar (activas, no finalizadas
-ni de prueba, `participa_asistencia = 1`) y además ya iniciadas ese día (`fecha_inicio`) y con algún trabajador activo
-ingresado a esa fecha. «Pasó la lista» = el mismo criterio que «guardada hoy» (filas que no cubre un período activo,
+ni de prueba, `participa_asistencia = 1`) y además que **ya pasaban lista ese día** (`asistencia_desde`, ver abajo),
+ya iniciadas (`fecha_inicio`) y con algún trabajador activo ingresado a esa fecha. «Pasó la lista» = el mismo criterio que «guardada hoy» (filas que no cubre un período activo,
 o fila para toda la dotación). Por obra: los días sin lista con **qué pasó** (`nadie` o `solo_periodos`: solo
 estaban las licencias o vacaciones), el **encargado** (`obras.encargado_nombre`) y **quién guardó la última lista**
 antes de hoy (`asistencias.registrado_por`); también los días que **sí** guardó (`guardadas`, para el calendario).
@@ -180,7 +197,8 @@ Al guardar un día, ese día deja de contar (y la obra sale cuando no le queda n
   abre el detalle (sin mover la pantalla, como las otras cifras).
 - **Detalle**: primera sección, «Requiere acción · obras que no pasaron la lista», una ficha por obra
   (`ObrasSinLista`) con el **calendario del mes** de lunes a viernes (sin lista = rojo relleno; guardada = verde suave, Marcos 19-11;
-  feriado o no correspondía = borde punteado; hoy = borde) y los días sin lista con qué pasó (los 3 más recientes;
+  antes de empezar a pasar lista, feriado o no correspondía = borde punteado; hoy = borde; debajo «Pasa lista desde
+  el lunes 16 de noviembre · Cambiar») y los días sin lista con qué pasó (los 3 más recientes;
   el resto al desplegar). Cada día sin lista —en el calendario o en la lista— abre Asistencia en esa obra y ese día
   (`/asistencia?fecha=YYYY-MM-DD` + la obra elegida arriba; la fecha solo se acepta si no es futura). «Pedir la
   lista» por WhatsApp (más de 3 días: agrupados por mes).

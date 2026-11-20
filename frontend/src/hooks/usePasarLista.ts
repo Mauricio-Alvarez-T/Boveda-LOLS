@@ -16,5 +16,8 @@ export function usePasarLista() {
     }, [obras, setSelectedObra, navigate]);
 }
 
-/** Se dispara al guardar la asistencia: la campana «Importante» vuelve a preguntar (la obra puede salir). */
+/**
+ * Se dispara al guardar la asistencia o al cambiar desde qué día pasa lista una obra (mig 156): la campana
+ * «Importante», el recordatorio del jefe y el Inicio vuelven a preguntar (la obra puede salir).
+ */
 export const EVENTO_ASISTENCIA_GUARDADA = 'boveda-asistencia-guardada';

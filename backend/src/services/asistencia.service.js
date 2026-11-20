@@ -383,6 +383,9 @@ const asistenciaService = {
 
             await conn.commit();
 
+            // Primera lista de una obra «En preparación»: desde ese día pasa lista (mig 156).
+            await this._marcarInicioAsistencia(escritos);
+
             // Después del commit, registrar logs (no bloquea la respuesta)
             if (logEntries.length > 0) {
                 this._logBulkChanges(logEntries, obraId, registradoPor, req).catch(err => {
@@ -618,6 +621,33 @@ const asistenciaService = {
         }
 
         return this.bulkCreate('ALL', registros, registradoPor, req);
+    },
+
+    /**
+     * Obra «En preparación» (participa en asistencia pero sin `asistencia_desde`): el día de la primera lista que se
+     * guarda queda como «Pasa lista desde» (Marcos 2026-11-20, mig 156: «desde que se toma asistencia»). Solo llena
+     * las que están vacías: una fecha ya puesta (o corregida a mano en Configuración → Obras) no se toca. Va después
+     * del commit y no rompe el guardado si falla (RR.HH. la puede poner a mano).
+     */
+    async _marcarInicioAsistencia(escritos) {
+        const primera = new Map();
+        for (const e of escritos || []) {
+            const obra = Number(e.obra_id);
+            const fecha = String(e.fecha || '').slice(0, 10);
+            if (!obra || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) continue;
+            if (!primera.has(obra) || fecha < primera.get(obra)) primera.set(obra, fecha);
+        }
+        for (const [obra, fecha] of primera) {
+            try {
+                await db.query(
+                    `UPDATE obras SET asistencia_desde = ?
+                     WHERE id = ? AND asistencia_desde IS NULL AND participa_asistencia = 1`,
+                    [fecha, obra]
+                );
+            } catch (err) {
+                logger.warn('No se pudo marcar el inicio de asistencia de la obra', { obra, fecha, err: err.message });
+            }
+        }
     },
 
     /**

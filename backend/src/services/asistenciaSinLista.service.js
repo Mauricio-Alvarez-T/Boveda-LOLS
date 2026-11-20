@@ -11,8 +11,10 @@ const { hoyChile, sumarDias } = require('../utils/fechaChile');
  * pasar lista»; al principio eran los últimos 5 hábiles). En cuanto alguien guarda ese día, deja de contar.
  *
  * Mismo criterio que «guardada hoy» (dashboard.service, dueño 2026-11-18):
- * - Solo las obras que deben marcar: activas, no finalizadas ni de prueba, `participa_asistencia = 1`, ya iniciadas
- *   ese día (`fecha_inicio` vacía o anterior) y con al menos un trabajador activo que ya había ingresado.
+ * - Solo las obras que deben marcar: activas, no finalizadas ni de prueba, `participa_asistencia = 1`, que ya pasaban
+ *   lista ese día (`asistencia_desde` hasta ese día: una obra «En preparación», sin fecha, no cuenta — Marcos
+ *   2026-11-20, mig 156), ya iniciadas (`fecha_inicio` vacía o anterior) y con al menos un trabajador activo que ya
+ *   había ingresado.
  * - «Pasó la lista» = hay filas de ese día que no cubre un período activo (licencia, vacaciones, permiso escriben su
  *   fila por adelantado y solas NO cuentan); si TODA la dotación tiene fila (todos de licencia), también cuenta.
  *
@@ -66,6 +68,7 @@ async function getSinLista(obraId = null) {
     const fechas = dias.map(() => 'SELECT ? AS fecha').join(' UNION ALL ');
     const [filas] = await pool.query(
         `SELECT o.id AS obra_id, o.nombre AS obra, o.encargado_nombre AS encargado, d.fecha,
+                DATE_FORMAT(o.asistencia_desde, '%Y-%m-%d') AS asistencia_desde,
                 COUNT(a.id) AS registros,
                 COUNT(CASE WHEN a.id IS NOT NULL AND NOT EXISTS (
                     SELECT 1 FROM periodos_ausencia p
@@ -80,9 +83,10 @@ async function getSinLista(obraId = null) {
          LEFT JOIN asistencias a ON a.obra_id = o.id AND a.fecha = d.fecha
          WHERE o.activa = 1 AND o.es_prueba = 0 AND o.finalizada = 0
            AND o.participa_asistencia = 1
+           AND o.asistencia_desde IS NOT NULL AND o.asistencia_desde <= d.fecha
            AND (o.fecha_inicio IS NULL OR o.fecha_inicio <= d.fecha)
            ${obraId ? 'AND o.id = ?' : ''}
-         GROUP BY o.id, o.nombre, o.encargado_nombre, d.fecha`,
+         GROUP BY o.id, o.nombre, o.encargado_nombre, o.asistencia_desde, d.fecha`,
         [...dias, ...(obraId ? [Number(obraId)] : [])]
     );
 
@@ -93,6 +97,8 @@ async function getSinLista(obraId = null) {
         if (!porObra.has(f.obra_id)) {
             porObra.set(f.obra_id, {
                 obra_id: f.obra_id, obra: f.obra, encargado: f.encargado || null,
+                // Desde qué día pasa lista (el calendario pinta los días anteriores como «antes de empezar»).
+                asistencia_desde: f.asistencia_desde ? String(f.asistencia_desde).slice(0, 10) : null,
                 dotacion: 0, dias: [], guardadas: [], ultima: null,
             });
         }

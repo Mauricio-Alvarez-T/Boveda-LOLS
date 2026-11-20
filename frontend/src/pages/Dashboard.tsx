@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAparecer } from '../hooks/useAparecer';
-import { usePasarLista } from '../hooks/usePasarLista';
+import { EVENTO_ASISTENCIA_GUARDADA, usePasarLista } from '../hooks/usePasarLista';
 import { toast } from 'sonner';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -282,6 +282,13 @@ const Dashboard: React.FC = () => {
     const verAsistencia = permisos.includes('asistencia.ver');
     const [sinLista, setSinLista] = useState<SinListaData | null>(null);
     const turnoSinLista = useRef(0);
+    // Vuelve a preguntar si cambia desde qué día pasa lista una obra («Cambiar» del calendario, mig 156).
+    const [recargaSinLista, setRecargaSinLista] = useState(0);
+    useEffect(() => {
+        const alCambiar = () => setRecargaSinLista(n => n + 1);
+        window.addEventListener(EVENTO_ASISTENCIA_GUARDADA, alCambiar);
+        return () => window.removeEventListener(EVENTO_ASISTENCIA_GUARDADA, alCambiar);
+    }, []);
     useEffect(() => {
         if (!verAsistencia || !lastUpdated) return;
         const turno = ++turnoSinLista.current;
@@ -289,7 +296,7 @@ const Dashboard: React.FC = () => {
         api.get<ApiResponse<SinListaData>>(`/dashboard/asistencia/sin-lista${query}`)
             .then(res => { if (turno === turnoSinLista.current) setSinLista(res.data.data ?? null); })
             .catch(() => { if (turno === turnoSinLista.current) setSinLista(null); });
-    }, [verAsistencia, selectedObra, lastUpdated]);
+    }, [verAsistencia, selectedObra, lastUpdated, recargaSinLista]);
     // «Pasar la lista»: Asistencia en esa obra y ese día (lo mismo que la campana «Importante»).
     const pasarLista: (o: ObraSinLista, fecha: string) => void = usePasarLista();
 

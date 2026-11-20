@@ -51,7 +51,7 @@ describe('asistenciaSinLista', () => {
             if (sql.includes('CROSS JOIN')) {
                 return [[
                     // DOMEYKO: ayer nadie pasó la lista; anteayer solo estaban las licencias.
-                    { obra_id: 7, obra: 'DOMEYKO', encargado: 'Pedro Soto', fecha: '2026-11-17', registros: 0, propios: 0, dotacion: 20 },
+                    { obra_id: 7, obra: 'DOMEYKO', encargado: 'Pedro Soto', asistencia_desde: '2026-09-01', fecha: '2026-11-17', registros: 0, propios: 0, dotacion: 20 },
                     { obra_id: 7, obra: 'DOMEYKO', encargado: 'Pedro Soto', fecha: '2026-11-16', registros: 2, propios: 0, dotacion: 20 },
                     { obra_id: 7, obra: 'DOMEYKO', encargado: 'Pedro Soto', fecha: '2026-11-13', registros: 20, propios: 18, dotacion: 20 },
                     // GORBEA: ayer sin lista.
@@ -77,7 +77,7 @@ describe('asistenciaSinLista', () => {
         expect(r.dias[0]).toBe('2026-11-17');
         expect(r.obras.map(o => o.obra)).toEqual(['DOMEYKO', 'GORBEA']);
         expect(r.obras[0]).toEqual({
-            obra_id: 7, obra: 'DOMEYKO', encargado: 'Pedro Soto', dotacion: 20,
+            obra_id: 7, obra: 'DOMEYKO', encargado: 'Pedro Soto', asistencia_desde: '2026-09-01', dotacion: 20,
             dias: [
                 { fecha: '2026-11-17', motivo: 'nadie', registros: 0 },
                 { fecha: '2026-11-16', motivo: 'solo_periodos', registros: 2 },
@@ -90,6 +90,8 @@ describe('asistenciaSinLista', () => {
 
         const [sql] = pool.query.mock.calls.find(([s]) => s.includes('CROSS JOIN'));
         expect(sql).toContain('o.participa_asistencia = 1');
+        // Una obra «En preparación» (sin fecha) no cuenta; una que pasa lista, solo desde ese día (mig 156).
+        expect(sql).toContain('o.asistencia_desde IS NOT NULL AND o.asistencia_desde <= d.fecha');
         expect(sql).toContain('FROM periodos_ausencia p');
         expect(sql).not.toContain('AND o.id = ?');
     });
