@@ -1,0 +1,1 @@
+import{K as a}from"./key-round-BNwamT9H.js";import{cG as s,bw as o,dK as e,n as i,bx as r,cP as c,cJ as n,bs as t,j as b,ae as u,bh as h,x as d,dn as p}from"./index-DY48s1Ez.js";const k={inicio:p,asistencia:d,gestiones:h,inventario:u,vehiculos:b,obras_finalizadas:t,presupuestos:n,sitio_web:c,ayuda:r,revisar_ideas:i,soporte:e,configuracion:o,buzon_ideas:s,otros:a};export{k as I};
