@@ -1,5 +1,6 @@
 import {
-    bajadaCasilla, calendarioMes, cuando, cuandoDias, queEPaso, soloRecientes, textoUltima, tramoMes,
+    bajadaCasilla, calendarioMes, cuando, cuandoDias, mensajePreguntarPreparacion, queEPaso, soloRecientes, textoUltima, tramoMes,
+    trabajadores,
     type ObraSinLista, type SinListaData,
 } from './resumenSinLista';
 import { diasPorMes, mensajeSinLista } from './mensajesWhatsApp';
@@ -74,6 +75,15 @@ describe('obras sin pasar la lista (Marcos 2026-11-18)', () => {
         expect(semanas[4][3]).toBeNull();
         expect(semanas[0][0]?.dia).toBe(19);
         expect(tramoMes(s)).toBe('19 de octubre al 17 de noviembre');
+    });
+
+    it('obra en preparación con trabajadores: textos del aviso y del WhatsApp «Preguntarle»', () => {
+        expect(trabajadores(1)).toBe('1 trabajador');
+        expect(trabajadores(7)).toBe('7 trabajadores');
+        const m = mensajePreguntarPreparacion('BASCUÑAN 991');
+        expect(m).toContain('*BASCUÑAN 991* aparece en Bóveda como obra en preparación');
+        expect(m).toContain('¿Ya empezaron a trabajar?');
+        expect(m.endsWith('_Mensaje generado desde Bóveda LOLS_')).toBe(true);
     });
 
     it('calendario: lo de antes del día en que la obra empezó a pasar lista sale «antes» (mig 156)', () => {

@@ -142,4 +142,33 @@ async function getSinLista(obraId = null) {
     return { hoy, desde, dias, obras };
 }
 
-module.exports = { getSinLista, _internal: { diasHabilesAnteriores, paso, VENTANA_DIAS } };
+/**
+ * Obras «En preparación» que ya tienen gente (Marcos 2026-11-20: «que pase un aviso si sigue en preparación… para el
+ * jefe que se haya olvidado o no sabe, y que a Daphne también le llegue»). Una obra en preparación (mig 156: participa
+ * en asistencia pero sin `asistencia_desde`) no avisa días sin lista; si ya tiene trabajadores activos que ingresaron,
+ * probablemente empezaron y nadie pasó la primera lista. Deja de salir cuando se guarda esa lista (la fecha se pone
+ * sola) o cuando RR.HH. pone la fecha a mano. Mismas obras que deben marcar: activas, no finalizadas ni de prueba.
+ */
+async function getEnPreparacion(obraId = null) {
+    const hoy = hoyChile();
+    const [filas] = await pool.query(
+        `SELECT o.id AS obra_id, o.nombre AS obra, o.encargado_nombre AS encargado, COUNT(t.id) AS dotacion
+         FROM obras o
+         JOIN trabajadores t ON t.obra_id = o.id AND t.activo = 1 AND t.es_prueba = 0
+              AND (t.fecha_ingreso IS NULL OR t.fecha_ingreso <= ?)
+         WHERE o.activa = 1 AND o.es_prueba = 0 AND o.finalizada = 0
+           AND o.participa_asistencia = 1 AND o.asistencia_desde IS NULL
+           ${obraId ? 'AND o.id = ?' : ''}
+         GROUP BY o.id, o.nombre, o.encargado_nombre
+         ORDER BY o.nombre`,
+        [hoy, ...(obraId ? [Number(obraId)] : [])]
+    );
+    return {
+        hoy,
+        obras: filas.map(f => ({
+            obra_id: f.obra_id, obra: f.obra, encargado: f.encargado || null, dotacion: Number(f.dotacion) || 0,
+        })).filter(o => o.dotacion > 0),
+    };
+}
+
+module.exports = { getSinLista, getEnPreparacion, _internal: { diasHabilesAnteriores, paso, VENTANA_DIAS } };

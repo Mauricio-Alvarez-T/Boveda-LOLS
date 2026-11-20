@@ -102,4 +102,23 @@ describe('asistenciaSinLista', () => {
         expect(sql).toContain('AND o.id = ?');
         expect(params[params.length - 1]).toBe(7);
     });
+
+    test('obras en preparación que ya tienen trabajadores (mig 156)', async () => {
+        pool.query.mockImplementation(async () => [[
+            { obra_id: 2, obra: 'BASCUÑAN 991', encargado: null, dotacion: 7 },
+            { obra_id: 5, obra: 'SIN GENTE', encargado: 'Ana', dotacion: 0 },
+        ]]);
+        const r = await servicio.getEnPreparacion();
+        expect(r.hoy).toBe('2026-11-18');
+        expect(r.obras).toEqual([{ obra_id: 2, obra: 'BASCUÑAN 991', encargado: null, dotacion: 7 }]);
+        const [sql, params] = pool.query.mock.calls[0];
+        expect(sql).toContain('o.asistencia_desde IS NULL');
+        expect(sql).toContain('o.participa_asistencia = 1');
+        expect(sql).toContain('t.fecha_ingreso <= ?');
+        expect(params).toEqual(['2026-11-18']);
+
+        await servicio.getEnPreparacion(2);
+        expect(pool.query.mock.calls[1][0]).toContain('AND o.id = ?');
+        expect(pool.query.mock.calls[1][1]).toEqual(['2026-11-18', 2]);
+    });
 });

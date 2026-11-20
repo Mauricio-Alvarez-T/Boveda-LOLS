@@ -14,7 +14,10 @@ jest.mock('../src/services/inicioGerencia.service', () => ({
     getGerencia: jest.fn(),
     _internal: { papeles: jest.fn().mockResolvedValue({ total: 0, lista: [] }), contratos: jest.fn().mockResolvedValue({ vencidos: 0, por_vencer: 0 }) },
 }));
-jest.mock('../src/services/asistenciaSinLista.service', () => ({ getSinLista: jest.fn().mockResolvedValue({ hoy: '2026-11-18', dias: [], obras: [] }) }));
+jest.mock('../src/services/asistenciaSinLista.service', () => ({
+    getSinLista: jest.fn().mockResolvedValue({ hoy: '2026-11-18', dias: [], obras: [] }),
+    getEnPreparacion: jest.fn().mockResolvedValue({ hoy: '2026-11-18', obras: [] }),
+}));
 
 const db = require('../src/config/db');
 const sinListaSvc = require('../src/services/asistenciaSinLista.service');
@@ -33,6 +36,8 @@ const circuito = (o = {}) => ({
 beforeEach(() => {
     jest.clearAllMocks();
     db.query.mockResolvedValue([[]]);
+    sinListaSvc.getSinLista.mockResolvedValue({ hoy: '2026-11-18', dias: [], obras: [] });
+    sinListaSvc.getEnPreparacion.mockResolvedValue({ hoy: '2026-11-18', obras: [] });
 });
 
 /** La hora guardada en avisos_celular_ajustes (mig 148) y, para lo demás, `resto`. */
@@ -111,8 +116,9 @@ describe('de qué le avisaremos (la franja «Active los avisos»)', () => {
 
     test('la obra: materiales por recibir; la asistencia solo si la hora es desde el mediodía', async () => {
         permisos.getPermisosEfectivos.mockResolvedValue(['inventario.ver', 'inventario.transferencias.recibir', 'asistencia.guardar']);
-        expect(await svc.temasDe({ id: 9, rol_id: 7, obra_id: 2 }, 8)).toEqual(['Materiales por recibir']);
-        expect(await svc.temasDe({ id: 9, rol_id: 7, obra_id: 2 }, 12)).toEqual(['Materiales por recibir', 'Asistencia de hoy sin registrar']);
+        expect(await svc.temasDe({ id: 9, rol_id: 7, obra_id: 2 }, 8)).toEqual(['Materiales por recibir', 'Su obra todavía no pasa lista (en preparación)']);
+        expect(await svc.temasDe({ id: 9, rol_id: 7, obra_id: 2 }, 12))
+            .toEqual(['Materiales por recibir', 'Asistencia de hoy sin registrar', 'Su obra todavía no pasa lista (en preparación)']);
     });
 
     test('RR.HH: papeles laborales y contratos', async () => {
@@ -277,6 +283,49 @@ describe('la ronda', () => {
         // Se calcula una sola vez por ronda.
         expect(sinListaSvc.getSinLista).toHaveBeenCalledTimes(1);
     });
+
+    test('obra en preparación con trabajadores: al jefe de esa obra y a RR.HH. (Marcos 2026-11-20, mig 156)', async () => {
+        sinListaSvc.getEnPreparacion.mockResolvedValue({ hoy: '2026-11-20', obras: [{ obra_id: 2, obra: 'BASCUÑAN 991', encargado: null, dotacion: 7 }] });
+        // 3 = jefe de BASCUÑAN (obra_id 2); 4 = RR.HH.; el resto, jefe de otra obra.
+        permisos.getPermisosEfectivos.mockImplementation(async (id) => (id === 4
+            ? ['asistencia.ver', 'asistencia.dias_pasados'] : ['asistencia.ver', 'asistencia.guardar']));
+        db.query.mockImplementation(async (sql, params) => {
+            const s = String(sql);
+            if (s.startsWith('SELECT id, nombre, rol_id, obra_id, bodega_id FROM usuarios WHERE email = ?')) {
+                const id = ids[params[0]] ?? 20;
+                return [[{ id, nombre: 'X', rol_id: 2, obra_id: id === 3 ? 2 : 9 }]];
+            }
+            if (s.startsWith('SELECT COUNT(*) AS n FROM avisos_celular_envios')) return [[{ n: 0 }]];
+            if (s.startsWith('INSERT IGNORE INTO avisos_celular_envios')) return [{ affectedRows: [3, 4, 20].includes(params[0]) ? 1 : 0 }];
+            return [{ affectedRows: 1 }];
+        });
+        await svc.enviarRonda(8, '2026-11-20');
+        const a = (id) => avisos.enviarA.mock.calls.filter(c => c[0][0] === id).map(c => c[1]);
+        expect(a(3)).toEqual([expect.objectContaining({
+            titulo: 'BASCUÑAN 991 todavía no pasa lista',
+            cuerpo: 'Tiene 7 trabajadores. Si ya empezaron a trabajar, guarde la lista de hoy en Asistencia.',
+            url: '/asistencia', etiqueta: 'aviso-preparacion',
+        })]);
+        expect(a(4)).toEqual([expect.objectContaining({
+            titulo: 'Importante: obra en preparación con trabajadores',
+            cuerpo: 'BASCUÑAN 991 tiene 7 trabajadores y nadie ha pasado la lista. ¿Ya empezó?',
+            etiqueta: 'importante-preparacion', importante: true,
+        })]);
+        // El jefe de otra obra no recibe nada; se calcula una sola vez.
+        expect(a(20)).toEqual([]);
+        expect(sinListaSvc.getEnPreparacion).toHaveBeenCalledTimes(1);
+    });
+
+    test('varias obras en preparación: RR.HH. las recibe juntas', () => {
+        const o = (obra) => ({ obra_id: obra.length, obra, dotacion: 3 });
+        expect(svc.mensajePreparacionRrhh({ obras: [o('A'), o('BB')] })).toEqual({
+            titulo: 'Importante: 2 obras en preparación con trabajadores',
+            cuerpo: 'A y BB tienen trabajadores y nadie ha pasado la lista. ¿Ya empezaron?',
+            url: '/',
+        });
+        expect(svc.mensajePreparacionRrhh({ obras: [] })).toBeNull();
+        expect(svc.mensajePreparacionJefe({ obras: [o('A')] }, 99)).toBeNull();
+    });
 });
 
 describe('el aviso «Importante»: solo el último día hábil', () => {
@@ -301,7 +350,8 @@ describe('el aviso «Importante»: solo el último día hábil', () => {
 
     test('la franja «Active los avisos» lo cuenta entre sus temas', async () => {
         permisos.getPermisosEfectivos.mockResolvedValue(['asistencia.ver', 'asistencia.dias_pasados']);
-        expect(await svc.temasDe({ id: 1, rol_id: 2 }, 8)).toEqual(['Obras que no pasaron la lista (importante)']);
+        expect(await svc.temasDe({ id: 1, rol_id: 2 }, 8))
+            .toEqual(['Obras que no pasaron la lista (importante)', 'Obras en preparación con trabajadores (importante)']);
     });
 });
 

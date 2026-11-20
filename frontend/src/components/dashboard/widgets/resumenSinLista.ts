@@ -3,7 +3,7 @@
  * mandar; que Daphne lo vea en la tarjeta de Asistencia y al entrar al otro día»). Lógica pura, sin DOM. Los datos
  * llegan de GET /dashboard/asistencia/sin-lista (backend: `asistenciaSinLista.service`).
  */
-import { fechaLarga } from './mensajesWhatsApp';
+import { fechaLarga, PIE_WHATSAPP } from './mensajesWhatsApp';
 
 export interface DiaSinLista {
     /** 'YYYY-MM-DD'. */
@@ -153,3 +153,30 @@ export function textoUltima(o: ObraSinLista, hoy: string): string {
 
 /** Clave para mostrar la ventana una sola vez al día por persona. */
 export const claveVisto = (usuarioId: number | string) => `boveda_sin_lista_visto_${usuarioId}`;
+
+/**
+ * Obra «En preparación» (mig 156: participa pero aún no pasa lista) que ya tiene trabajadores (Marcos 2026-11-20: «que
+ * pase un aviso si sigue en preparación… para el jefe que se haya olvidado o no sabe, y que a Daphne también le
+ * llegue»). Datos de GET /dashboard/asistencia/en-preparacion (backend: `asistenciaSinLista.getEnPreparacion`).
+ */
+export interface ObraEnPreparacion {
+    obra_id: number;
+    obra: string;
+    encargado: string | null;
+    /** Trabajadores activos que ya ingresaron. */
+    dotacion: number;
+}
+
+export interface EnPreparacionData {
+    hoy: string;
+    obras: ObraEnPreparacion[];
+}
+
+/** «7 trabajadores» / «1 trabajador». */
+export const trabajadores = (n: number) => `${n} ${n === 1 ? 'trabajador' : 'trabajadores'}`;
+
+/** «Preguntarle» por WhatsApp desde la campana de RR.HH. */
+export function mensajePreguntarPreparacion(obra: string): string {
+    return `Hola, *${obra}* aparece en Bóveda como obra en preparación y todavía no tiene listas guardadas. `
+        + `¿Ya empezaron a trabajar? Si es así, por favor pase la lista de hoy en Bóveda. Gracias.${PIE_WHATSAPP}`;
+}

@@ -214,7 +214,12 @@ async function temasDe(usuario, hora) {
         if (tiene('trabajadores.ver')) temas.push('Contratos vencidos o por vencer');
     }
     if (hora >= 12 && tiene('asistencia.guardar') && usuario.obra_id) temas.push('Asistencia de hoy sin registrar');
-    if (tiene(PERMISO_DIAS_PASADOS)) temas.push('Obras que no pasaron la lista (importante)');
+    if (tiene(PERMISO_DIAS_PASADOS)) {
+        temas.push('Obras que no pasaron la lista (importante)');
+        temas.push('Obras en preparación con trabajadores (importante)');
+    } else if (tiene('asistencia.guardar') && usuario.obra_id) {
+        temas.push('Su obra todavía no pasa lista (en preparación)');
+    }
     return temas;
 }
 
@@ -260,6 +265,47 @@ function mensajeImportante(s) {
     };
 }
 
+/**
+ * Obra «En preparación» que ya tiene trabajadores (mig 156; Marcos 2026-11-20: «que pase un aviso si sigue en
+ * preparación… para el jefe que se haya olvidado o no sabe, y que a Daphne también le llegue»). Cada mañana hábil
+ * mientras siga así: al jefe de esa obra (`asistencia.guardar` + `usuarios.obra_id`) y a RR.HH.
+ * (`asistencia.dias_pasados`). Se va solo cuando se guarda la primera lista o RR.HH. pone la fecha.
+ * Datos: `asistenciaSinLista.getEnPreparacion()`.
+ */
+const trabajadores = (n) => `${n} ${n === 1 ? 'trabajador' : 'trabajadores'}`;
+
+function mensajePreparacionJefe(p, obraId) {
+    const o = (p?.obras || []).find(x => Number(x.obra_id) === Number(obraId));
+    if (!o) return null;
+    return {
+        titulo: `${o.obra} todavía no pasa lista`,
+        cuerpo: `Tiene ${trabajadores(o.dotacion)}. Si ya empezaron a trabajar, guarde la lista de hoy en Asistencia.`,
+        url: '/asistencia',
+    };
+}
+
+function mensajePreparacionRrhh(p) {
+    const obras = p?.obras || [];
+    if (!obras.length) return null;
+    if (obras.length === 1) {
+        const o = obras[0];
+        return {
+            titulo: 'Importante: obra en preparación con trabajadores',
+            cuerpo: `${o.obra} tiene ${trabajadores(o.dotacion)} y nadie ha pasado la lista. ¿Ya empezó?`,
+            url: '/',
+        };
+    }
+    const nombres = obras.map(o => o.obra);
+    const lista = nombres.length <= 3
+        ? `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`
+        : `${nombres.slice(0, 2).join(', ')} y ${nombres.length - 2} más`;
+    return {
+        titulo: `Importante: ${obras.length} obras en preparación con trabajadores`,
+        cuerpo: `${lista} tienen trabajadores y nadie ha pasado la lista. ¿Ya empezaron?`,
+        url: '/',
+    };
+}
+
 /** El aviso (título y texto, en «usted») para esos pendientes; null si no hay nada. */
 function mensajeDe(items) {
     if (!items || !items.length) return null;
@@ -299,6 +345,12 @@ async function enviarRonda(hora, fecha) {
         if (sinLista === undefined) sinLista = await asistenciaSinLista.getSinLista().catch(() => null);
         return sinLista;
     };
+    // Igual con las obras en preparación que ya tienen gente (mig 156).
+    let enPreparacion;
+    const obrasEnPreparacion = async () => {
+        if (enPreparacion === undefined) enPreparacion = await asistenciaSinLista.getEnPreparacion().catch(() => null);
+        return enPreparacion;
+    };
     for (const h of HORARIO) {
         const [[u]] = await db.query('SELECT id, nombre, rol_id, obra_id, bodega_id FROM usuarios WHERE email = ? AND activo = 1', [h.email]);
         if (!u) continue;
@@ -312,10 +364,18 @@ async function enviarRonda(hora, fecha) {
         let items = [];
         try { items = await pendientesDe(u, hora); } catch (e) { items = []; }
         let importante = null;
+        let preparacion = null;
         try {
             const p = await permisosService.getPermisosEfectivos(u.id, u.rol_id);
-            if (p.includes(PERMISO_DIAS_PASADOS)) importante = mensajeImportante(await obrasSinLista());
-        } catch (e) { importante = null; }
+            if (p.includes(PERMISO_DIAS_PASADOS)) {
+                importante = mensajeImportante(await obrasSinLista());
+                const mp = mensajePreparacionRrhh(await obrasEnPreparacion());
+                if (mp) preparacion = { ...mp, etiqueta: 'importante-preparacion', tipo: 'importante: obra en preparación', importante: true };
+            } else if (p.includes('asistencia.guardar') && u.obra_id) {
+                const mp = mensajePreparacionJefe(await obrasEnPreparacion(), u.obra_id);
+                if (mp) preparacion = { ...mp, etiqueta: 'aviso-preparacion', tipo: 'aviso: obra en preparación' };
+            }
+        } catch (e) { importante = null; preparacion = null; }
         const m = mensajeDe(items);
         let enviados = 0;
         if (importante) {
@@ -323,11 +383,15 @@ async function enviarRonda(hora, fecha) {
             const res = await avisosCelular.enviarA([u.id], { ...importante, etiqueta: 'importante-sin-lista', tipo: 'importante: sin lista', computadorSoloSiNoEsta: true, importante: true });
             enviados += res.enviados;
         }
+        if (preparacion) {
+            const res = await avisosCelular.enviarA([u.id], { ...preparacion, computadorSoloSiNoEsta: true });
+            enviados += res.enviados;
+        }
         if (m) {
             const res = await avisosCelular.enviarA([u.id], { ...m, etiqueta: `pendientes-${hora}`, tipo: `recordatorio ${hora}:00`, computadorSoloSiNoEsta: true });
             enviados += res.enviados;
         }
-        if (m || importante) {
+        if (m || importante || preparacion) {
             if (enviados) {
                 avisados++;
             } else {
@@ -340,10 +404,10 @@ async function enviarRonda(hora, fecha) {
         } else {
             alDia++;
         }
-        const resumen = [importante, m].filter(Boolean).map(x => `${x.titulo} — ${x.cuerpo}`).join(' | ');
+        const resumen = [importante, preparacion, m].filter(Boolean).map(x => `${x.titulo} — ${x.cuerpo}`).join(' | ');
         await db.query(
             'UPDATE avisos_celular_envios SET pendientes = ?, enviados = ?, resumen = ? WHERE usuario_id = ? AND fecha = ? AND hora = ?',
-            [items.length + (importante ? 1 : 0), enviados, resumen ? resumen.slice(0, 255) : 'al día', u.id, fecha, hora]
+            [items.length + (importante ? 1 : 0) + (preparacion ? 1 : 0), enviados, resumen ? resumen.slice(0, 255) : 'al día', u.id, fecha, hora]
         );
     }
     return `recordatorios de las ${hora}:00 → ${avisados} avisado(s), ${alDia} al día, ${sinCelular} sin celular activo, ${yaEnviados} ya enviado(s)`;
@@ -360,5 +424,5 @@ async function horaDeRonda(ahora = ahoraChile()) {
 
 module.exports = {
     HORARIO, HORA_POR_DEFECTO, HORA_MIN, HORA_MAX, VENTANA_MIN, estaEnHorario, debeActivarComputador, horaRecordatorios, guardarHora,
-    pendientesDe, temasDe, mensajeDe, mensajeImportante, enviarRonda, ahoraChile, horaDeRonda, textoDias,
+    pendientesDe, temasDe, mensajeDe, mensajeImportante, mensajePreparacionJefe, mensajePreparacionRrhh, enviarRonda, ahoraChile, horaDeRonda, textoDias,
 };
