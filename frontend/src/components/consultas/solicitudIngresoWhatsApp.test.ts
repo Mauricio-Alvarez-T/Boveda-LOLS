@@ -8,6 +8,7 @@ const base = {
     nombres: 'Juan Andrés',
     apellido_paterno: 'Pérez',
     apellido_materno: 'Cotapos',
+    cargo_nombre: 'JORNAL',
     obra_nombre: 'TOESCA',
     fecha_ingreso: '2026-09-15',
     solicitante_nombre: 'Pedro Supervisor',
@@ -31,13 +32,25 @@ describe('buildSolicitudIngresoMessage', () => {
         expect(msg).not.toContain('Solicitado por');
     });
 
-    test('orden: trabajador → obra → fecha', () => {
+    test('orden: trabajador → cargo → obra → fecha', () => {
         const msg = buildSolicitudIngresoMessage(base);
         const i1 = msg.indexOf('Trabajador:');
-        const i2 = msg.indexOf('Obra:');
-        const i3 = msg.indexOf('Fecha de contratación:');
+        const i2 = msg.indexOf('Cargo:');
+        const i3 = msg.indexOf('Obra:');
+        const i4 = msg.indexOf('Fecha de contratación:');
         expect(i1).toBeLessThan(i2);
         expect(i2).toBeLessThan(i3);
+        expect(i3).toBeLessThan(i4);
+    });
+
+    test('cargo (pedido de Daphne): se muestra; ausente → (sin cargo)', () => {
+        expect(buildSolicitudIngresoMessage(base)).toContain('- Cargo: JORNAL');
+        expect(buildSolicitudIngresoMessage({ ...base, cargo_nombre: null })).toContain('- Cargo: (sin cargo)');
+    });
+
+    test('reingreso (mig 153): el título lo dice', () => {
+        expect(buildSolicitudIngresoMessage({ ...base, tipo: 'reingreso' })).toContain('*Solicitud de reingreso de trabajador*');
+        expect(buildSolicitudIngresoMessage(base)).toContain('*Solicitud de ingreso de trabajador*');
     });
 
     test('sin emojis (compatibilidad con el redirect de WhatsApp)', () => {

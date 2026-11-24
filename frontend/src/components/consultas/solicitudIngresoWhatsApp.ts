@@ -3,7 +3,8 @@
  * Función PURA (sin efectos): el envío lo maneja `utils/whatsappShare.ts`.
  *
  * Pedido del dueño (2026-09-08): al terminar la solicitud, poder avisar por
- * WhatsApp que hay una ficha pendiente, con nombre, obra y fecha de contratación.
+ * WhatsApp que hay una ficha pendiente, con nombre, cargo, obra y fecha de contratación
+ * (el cargo, pedido de Daphne 2026-11-24).
  * Convenciones del repo: `*negrita*`, `_cursiva_`, guiones, sin emojis
  * (encoding en el redirect), footer "Generado con Bóveda LOLS".
  */
@@ -13,9 +14,13 @@ export interface SolicitudIngresoMensajeInput {
     nombres: string;
     apellido_paterno: string;
     apellido_materno?: string | null;
+    /** Pedido de Daphne (2026-11-24): saber qué se está contratando. */
+    cargo_nombre?: string | null;
     obra_nombre?: string | null;
     fecha_ingreso?: string | Date | null;
     solicitante_nombre?: string | null;
+    /** 'reingreso' (mig 153): RUT de un trabajador finiquitado; el título lo dice. */
+    tipo?: 'ingreso' | 'reingreso' | null;
 }
 
 export function nombreCompletoSolicitud(s: Pick<SolicitudIngresoMensajeInput, 'nombres' | 'apellido_paterno' | 'apellido_materno'>): string {
@@ -34,10 +39,11 @@ export function fechaContratacion(f: string | Date | null | undefined): string {
 
 export function buildSolicitudIngresoMessage(s: SolicitudIngresoMensajeInput): string {
     const lines: string[] = [];
-    lines.push('*Solicitud de ingreso de trabajador*');
+    lines.push(s.tipo === 'reingreso' ? '*Solicitud de reingreso de trabajador*' : '*Solicitud de ingreso de trabajador*');
     lines.push('Pendiente de revisión por administración.');
     lines.push('');
     lines.push(`- Trabajador: ${nombreCompletoSolicitud(s)}`);
+    lines.push(`- Cargo: ${(s.cargo_nombre ?? '').trim() || '(sin cargo)'}`);
     lines.push(`- Obra: ${(s.obra_nombre ?? '').trim() || '(sin obra)'}`);
     lines.push(`- Fecha de contratación: ${fechaContratacion(s.fecha_ingreso) || '(sin fecha)'}`);
     const solicitante = (s.solicitante_nombre ?? '').trim();
