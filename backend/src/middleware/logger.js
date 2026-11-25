@@ -241,6 +241,9 @@ const activityLogger = async (req, res, next) => {
             // aquí solo duplicaría un UPDATE sin diff. El POST (CREATE) sigue global.
             // También manual: subir la foto/PDF (mig 157). «Leer factura» no cambia nada.
             if (req.method === 'PUT' && /^\/api\/facturas-inventario\/\d+(\/anular)?$/.test(req.originalUrl.split('?')[0])) return;
+            // Marca de color y nombre de colores (mig 158): no son modificaciones de la factura. Sin esta
+            // exclusión el log global quedaría como UPDATE de la factura y la dejaría «MODIFICADA».
+            if (req.method === 'PUT' && /^\/api\/facturas-inventario\/(\d+\/marca|colores\/\w+)$/.test(req.originalUrl.split('?')[0])) return;
             if (req.method === 'POST' && /^\/api\/facturas-inventario\/(\d+\/archivo|leer)$/.test(req.originalUrl.split('?')[0])) return;
 
             // Excluir queries de solo lectura que usan POST (ej. KPIs con arreglos grandes)

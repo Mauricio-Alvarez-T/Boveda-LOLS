@@ -19,6 +19,7 @@ const ITEM_RULES = {
     cantidad: { required: true, type: 'number', min: 0.0001 },
     precio_unitario: { required: true, type: 'number', min: 0 },
     descripcion_factura: { type: 'string', maxLength: 255 },
+    medidas: { type: 'string', maxLength: 60 },   // mig 158
 };
 
 // Registrada: completa (el service además exige item_id en cada línea).
@@ -64,6 +65,23 @@ router.get('/', auth, checkPermission('inventario.facturas.ver'), async (req, re
 // Antes de '/:id' para que «config» no se tome como id.
 router.get('/config', auth, checkPermission('inventario.facturas.ver'), (req, res) => {
     res.json({ data: { lectura_ia: lecturaFactura.disponible() } });
+});
+
+// ── Marcas de color y export (mig 158). Rutas de un segmento ANTES de '/:id'. ──
+
+// Paleta con el nombre de cada color (para filtros, marcas y la leyenda del Excel).
+router.get('/colores', auth, checkPermission('inventario.facturas.ver'), async (req, res, next) => {
+    try { res.json({ data: await facturaService.getColores() }); } catch (err) { next(err); }
+});
+
+router.put('/colores/:color', auth, checkPermission('inventario.facturas.gestionar'),
+    validateBody({ nombre: { type: 'string', maxLength: 60 } }, { strip: true }), async (req, res, next) => {
+        try { res.json({ data: await facturaService.setNombreColor(req.params.color, req.body.nombre, req.user.id) }); } catch (err) { next(err); }
+    });
+
+// Una fila por línea de las facturas REGISTRADAS que pasan los filtros: el front arma el Excel «COMPRAS».
+router.get('/export-lineas', auth, checkPermission('inventario.facturas.ver'), async (req, res, next) => {
+    try { res.json({ data: await facturaService.exportLineas(req.query) }); } catch (err) { next(err); }
 });
 
 // «Leer factura»: la foto/PDF viaja en memoria, se lee con IA y NO se guarda.
@@ -121,6 +139,15 @@ router.put('/:id', auth, checkPermission('inventario.facturas.gestionar'), valid
         res.json({ data: result });
     } catch (err) { next(err); }
 });
+
+// Marca de color compartida; `color: null` la quita. No cuenta como modificación (ver service).
+router.put('/:id/marca', auth, checkPermission('inventario.facturas.gestionar'),
+    validateBody({ color: { type: 'string', in: facturaService._interno.COLORES } }, { strip: true }), async (req, res, next) => {
+        try {
+            const color = req.body.color === undefined ? null : req.body.color;
+            res.json({ data: await facturaService.marcar(idValido(req.params.id), color, req.user.id, req) });
+        } catch (err) { next(err); }
+    });
 
 router.put('/:id/anular', auth, checkPermission('inventario.facturas.gestionar'), async (req, res, next) => {
     try {
