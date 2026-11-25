@@ -62,6 +62,10 @@ interface Props {
     onSaved: () => void;
 }
 
+// El cliente `api` manda JSON por defecto y axios convertiría el FormData a JSON (el archivo
+// llegaba vacío: «No se recibió el archivo»). Igual que las demás subidas de la Bóveda.
+const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } };
+
 const hoy = () => new Date().toISOString().slice(0, 10);
 const INPUT = 'w-full px-3 py-2 text-sm border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none';
 
@@ -241,7 +245,7 @@ export const FacturaFormModal: React.FC<Props> = ({ isOpen, facturaId, lecturaIA
             if (!blob) { toast.error('Primero saca una foto o sube el PDF de la factura'); return; }
             const fd = new FormData();
             fd.append('archivo', blob, archivo?.name || archivoGuardado?.nombre || 'factura');
-            const res = await api.post<ApiResponse<LecturaIA>>('/facturas-inventario/leer', fd);
+            const res = await api.post<ApiResponse<LecturaIA>>('/facturas-inventario/leer', fd, MULTIPART);
             const l = res.data.data;
             if (items.length && l.items.length) {
                 if (!window.confirm('La factura ya tiene ítems. ¿Reemplazarlos por los que se leyeron de la foto?')) {
@@ -303,7 +307,7 @@ export const FacturaFormModal: React.FC<Props> = ({ isOpen, facturaId, lecturaIA
             if (archivo && id) {
                 const fd = new FormData();
                 fd.append('archivo', archivo, archivo.name);
-                await api.post(`/facturas-inventario/${id}/archivo`, fd);
+                await api.post(`/facturas-inventario/${id}/archivo`, fd, MULTIPART);
                 setArchivoGuardado({ nombre: archivo.name, mime: archivo.type });
                 setArchivo(null);
             }
