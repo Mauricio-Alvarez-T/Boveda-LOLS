@@ -318,6 +318,9 @@ export const FacturaFormModal: React.FC<Props> = ({ isOpen, facturaId, lecturaIA
                     estado === 'borrador' ? { description: 'Lo retomas desde la lista de facturas.' } : undefined,
                 );
             }
+            // Lo guardado pasa a ser el punto de partida: cerrar ya no ve «cambios» pendientes.
+            if (estado === 'registrada') setEstadoOriginal('registrada');
+            snapshot.current = JSON.stringify({ numFactura, proveedor, fechaFactura, observaciones, items, archivo: null });
             onSaved();
             return true;
         } catch (err) {
@@ -420,7 +423,7 @@ export const FacturaFormModal: React.FC<Props> = ({ isOpen, facturaId, lecturaIA
                 {cargandoFactura ? (
                     <SkeletonFormulario campos={5} que="la factura" />
                 ) : (
-                <form onSubmit={e => { e.preventDefault(); guardar('registrada'); }} className="space-y-5" noValidate>
+                <form onSubmit={async e => { e.preventDefault(); if (await guardar('registrada')) onClose(); }} className="space-y-5" noValidate>
                     {/* ── Foto o PDF ── */}
                     <div>
                         <span className="text-xs font-bold text-brand-dark mb-1.5 block">Foto o PDF de la factura</span>
