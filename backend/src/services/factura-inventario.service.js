@@ -108,7 +108,51 @@ const computarDiffFactura = (antes, itemsAntes, data, itemsDespues) => {
     return { cambios, resumen: partes.join(' | '), items_detalle: detalleCap };
 };
 
-const httpError = (status, msg) => { const e = new Error(msg); e.statusCode = status; return e; };
+const httpError = (status, msg, extra = {}) => { const e = new Error(msg); e.statusCode = status; Object.assign(e, extra); return e; };
+
+// ── Marcas de color y filtros (mig 158) ─────────────────────────────────────
+// Marca COMPARTIDA por factura, paleta fija. El nombre de cada color vive en `facturas_colores`.
+const COLORES = ['naranjo', 'azul', 'verde', 'amarillo', 'morado'];
+const RE_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+const ERR_ESQUEMA = new Set([1054, 1146]);
+const esErrorEsquema = (err) => !!err && ERR_ESQUEMA.has(err.errno);
+
+/**
+ * WHERE de la lista y del export (mismos filtros en ambos, y en el COUNT). Alias `f` = facturas_inventario.
+ *  · fecha_desde / fecha_hasta (YYYY-MM-DD, inclusivos) sobre fecha_factura.
+ *  · q: número o proveedor (LIKE).
+ *  · color: uno de la paleta, o 'marcadas' = cualquiera con marca.
+ *  · estado: 'registrada' | 'borrador'.
+ * Valores inválidos se ignoran (el filtro no aplica), igual que en Gestiones.
+ */
+function construirFiltros(query = {}, { conMarca = true } = {}) {
+    const where = ['f.activo = 1'];
+    const params = [];
+    if (query.fecha_desde && RE_FECHA.test(String(query.fecha_desde))) {
+        where.push('f.fecha_factura >= ?');
+        params.push(String(query.fecha_desde));
+    }
+    if (query.fecha_hasta && RE_FECHA.test(String(query.fecha_hasta))) {
+        where.push('f.fecha_factura < DATE_ADD(?, INTERVAL 1 DAY)');
+        params.push(String(query.fecha_hasta));
+    }
+    const q = String(query.q || '').trim();
+    if (q) {
+        where.push('(f.numero_factura LIKE ? OR f.proveedor LIKE ?)');
+        params.push(`%${q}%`, `%${q}%`);
+    }
+    if (conMarca && query.color === 'marcadas') {
+        where.push('f.color_marca IS NOT NULL');
+    } else if (conMarca && COLORES.includes(query.color)) {
+        where.push('f.color_marca = ?');
+        params.push(query.color);
+    }
+    if (query.estado === 'registrada' || query.estado === 'borrador') {
+        where.push('f.estado = ?');
+        params.push(query.estado);
+    }
+    return { sql: where.join(' AND '), params };
+}
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 function borrarArchivo(ruta) {
@@ -141,12 +185,29 @@ function exigirCompleta(data) {
  * texto tal cual viene en el documento (lo llena la lectura con IA o queda vacío).
  */
 async function insertarItems(conn, facturaId, items) {
+    // `medidas` (mig 158): sin la columna (1054) se reintenta sin ella — la línea no se pierde.
+    let conMedidas = true;
     for (const item of items) {
+        const base = [facturaId, item.item_id || null, item.cantidad, item.precio_unitario,
+            item.descripcion_factura ? String(item.descripcion_factura).slice(0, 255) : null];
+        const medidas = item.medidas && String(item.medidas).trim() ? String(item.medidas).trim().slice(0, 60) : null;
+        if (conMedidas) {
+            try {
+                await conn.query(
+                    `INSERT INTO factura_items (factura_id, item_id, obra_id, bodega_id, cantidad, precio_unitario, descripcion_factura, medidas)
+                     VALUES (?, ?, NULL, NULL, ?, ?, ?, ?)`,
+                    [...base, medidas]
+                );
+                continue;
+            } catch (err) {
+                if (err.errno !== 1054) throw err;
+                conMedidas = false;
+            }
+        }
         await conn.query(
             `INSERT INTO factura_items (factura_id, item_id, obra_id, bodega_id, cantidad, precio_unitario, descripcion_factura)
              VALUES (?, ?, NULL, NULL, ?, ?, ?)`,
-            [facturaId, item.item_id || null, item.cantidad, item.precio_unitario,
-                item.descripcion_factura ? String(item.descripcion_factura).slice(0, 255) : null]
+            base
         );
     }
 }
@@ -295,25 +356,121 @@ const facturaInventarioService = {
      */
     async getAll(query = {}) {
         const { limit, offset } = normalizePagination(query);
-        const [rows] = await db.query(`
-            SELECT f.*, u.nombre as registrado_por_nombre,
-                   COALESCE(mv.monto_virtual, 0) as monto_virtual
-            FROM facturas_inventario f
-            LEFT JOIN usuarios u ON f.registrado_por = u.id
-            LEFT JOIN (
-                SELECT fi.factura_id, SUM(fi.cantidad * fi.precio_unitario) AS monto_virtual
-                FROM factura_items fi
-                JOIN bodegas b ON b.id = fi.bodega_id AND b.es_virtual = 1
-                WHERE fi.obra_id IS NULL
-                GROUP BY fi.factura_id
-            ) mv ON mv.factura_id = f.id
-            WHERE f.activo = 1
-            ORDER BY (f.estado = 'borrador') DESC, f.fecha_factura DESC, f.id DESC
-            LIMIT ? OFFSET ?
-        `, [limit, offset]);
+        const consulta = async (conMarca) => {
+            const filtro = construirFiltros(query, { conMarca });
+            const [rows] = await db.query(`
+                SELECT f.*, u.nombre as registrado_por_nombre,
+                       COALESCE(mv.monto_virtual, 0) as monto_virtual
+                FROM facturas_inventario f
+                LEFT JOIN usuarios u ON f.registrado_por = u.id
+                LEFT JOIN (
+                    SELECT fi.factura_id, SUM(fi.cantidad * fi.precio_unitario) AS monto_virtual
+                    FROM factura_items fi
+                    JOIN bodegas b ON b.id = fi.bodega_id AND b.es_virtual = 1
+                    WHERE fi.obra_id IS NULL
+                    GROUP BY fi.factura_id
+                ) mv ON mv.factura_id = f.id
+                WHERE ${filtro.sql}
+                ORDER BY (f.estado = 'borrador') DESC, f.fecha_factura DESC, f.id DESC
+                LIMIT ? OFFSET ?
+            `, [...filtro.params, limit, offset]);
+            const [countRows] = await db.query(`SELECT COUNT(*) as total FROM facturas_inventario f WHERE ${filtro.sql}`, filtro.params);
+            return { data: rows.map(publica), total: countRows[0].total };
+        };
+        try {
+            return await consulta(true);
+        } catch (err) {
+            // Sin la mig 158 (`color_marca`), el filtro de marca no aplica: se lista sin él.
+            if (!esErrorEsquema(err)) throw err;
+            return consulta(false);
+        }
+    },
 
-        const [countRows] = await db.query('SELECT COUNT(*) as total FROM facturas_inventario WHERE activo = 1');
-        return { data: rows.map(publica), total: countRows[0].total };
+    /**
+     * Una fila por LÍNEA de las facturas REGISTRADAS que pasan los filtros (export «COMPRAS»,
+     * mig 158). Categoría = la del ítem del catálogo; sin ítem → 'SIN CATEGORÍA' al final.
+     * Orden: categoría (su `orden`), fecha, número, línea.
+     */
+    async exportLineas(query = {}) {
+        const consulta = async (conMarca) => {
+            const filtro = construirFiltros({ ...query, estado: 'registrada' }, { conMarca });
+            const [rows] = await db.query(`
+                SELECT f.id AS factura_id, f.numero_factura, f.proveedor, f.fecha_factura,
+                       ${conMarca ? 'f.color_marca' : 'NULL AS color_marca'},
+                       fi.id AS linea_id, fi.cantidad, fi.precio_unitario, fi.descripcion_factura,
+                       ${conMarca ? 'fi.medidas' : 'NULL AS medidas'},
+                       i.nro_item, i.descripcion AS item_descripcion, i.unidad,
+                       COALESCE(c.nombre, 'SIN CATEGORÍA') AS categoria, COALESCE(c.orden, 9999) AS categoria_orden
+                FROM facturas_inventario f
+                JOIN factura_items fi ON fi.factura_id = f.id
+                LEFT JOIN items_inventario i ON i.id = fi.item_id
+                LEFT JOIN categorias_inventario c ON c.id = i.categoria_id
+                WHERE ${filtro.sql}
+                ORDER BY categoria_orden, categoria, f.fecha_factura, f.numero_factura, fi.id
+            `, filtro.params);
+            return rows.map(r => ({
+                ...r,
+                fecha_factura: normFecha(r.fecha_factura),
+                cantidad: Number(r.cantidad),
+                precio_unitario: Number(r.precio_unitario),
+                total: Math.round(Number(r.cantidad) * Number(r.precio_unitario)),
+            }));
+        };
+        try {
+            return await consulta(true);
+        } catch (err) {
+            if (!esErrorEsquema(err)) throw err;
+            return consulta(false);
+        }
+    },
+
+    /** Paleta con el nombre de cada color. Sin la mig 158 → paleta sin nombres. */
+    async getColores() {
+        try {
+            const [rows] = await db.query('SELECT color, nombre FROM facturas_colores');
+            const nombres = new Map(rows.map(r => [r.color, r.nombre]));
+            return COLORES.map(color => ({ color, nombre: nombres.get(color) ?? null }));
+        } catch (err) {
+            if (!esErrorEsquema(err)) throw err;
+            return COLORES.map(color => ({ color, nombre: null }));
+        }
+    },
+
+    async setNombreColor(color, nombre, userId) {
+        if (!COLORES.includes(color)) throw httpError(400, 'Color inválido');
+        const limpio = String(nombre ?? '').trim().slice(0, 60) || null;
+        try {
+            await db.query(
+                'INSERT INTO facturas_colores (color, nombre, updated_by) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE nombre = VALUES(nombre), updated_by = VALUES(updated_by)',
+                [color, limpio, userId ?? null]
+            );
+        } catch (err) {
+            if (esErrorEsquema(err)) throw httpError(409, 'Falta aplicar la migración 158 (marcas de facturas)', { code: 'MIGRACION_PENDIENTE' });
+            throw err;
+        }
+        return { color, nombre: limpio };
+    },
+
+    /**
+     * Marca de color compartida (null = quitar). NO es una modificación de la factura: el log va al
+     * módulo 'facturas-marcas' (el historial lee solo 'facturas-inventario'; `accion` es un ENUM fijo
+     * en logs_actividad) y el logger global excluye esta ruta.
+     */
+    async marcar(id, color, userId, req = null) {
+        if (color !== null && !COLORES.includes(color)) throw httpError(400, 'Color inválido');
+        let res;
+        try {
+            [res] = await db.query('UPDATE facturas_inventario SET color_marca = ? WHERE id = ? AND activo = 1', [color, id]);
+        } catch (err) {
+            if (esErrorEsquema(err)) throw httpError(409, 'Falta aplicar la migración 158 (marcas de facturas)', { code: 'MIGRACION_PENDIENTE' });
+            throw err;
+        }
+        if (!res.affectedRows) throw httpError(404, 'Factura no encontrada');
+        try {
+            await logManualActivity(userId, 'facturas-marcas', 'UPDATE', String(id),
+                JSON.stringify({ resumen: color ? `Marcada en ${color}` : 'Marca quitada' }), req);
+        } catch { /* el log no debe tumbar la marca */ }
+        return { id: Number(id), color_marca: color };
     },
 
     async getById(id) {
@@ -389,3 +546,4 @@ const facturaInventarioService = {
 };
 
 module.exports = facturaInventarioService;
+module.exports._interno = { construirFiltros, COLORES };

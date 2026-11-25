@@ -55,12 +55,27 @@ describe('crear() — service', () => {
         db.getConnection.mockResolvedValue(conn);
         conn.query.mockResolvedValueOnce([{ insertId: 50 }]).mockResolvedValueOnce([{ insertId: 1 }]);
 
-        const r = await facturaService.crear({ ...DATA_NUEVA, items: [{ item_id: 33, cantidad: 2, precio_unitario: 5, descripcion_factura: 'PLACA 18MM' }] }, 77);
+        const r = await facturaService.crear({ ...DATA_NUEVA, items: [{ item_id: 33, cantidad: 2, precio_unitario: 5, descripcion_factura: 'PLACA 18MM', medidas: ' 15 x 60 ' }] }, 77);
         expect(r).toEqual({ id: 50, estado: 'registrada' });
         expect(tocaStock(conn)).toBe(false);
         const ins = conn.query.mock.calls.find(c => /INSERT INTO factura_items/.test(c[0]));
-        expect(ins[0]).toMatch(/VALUES \(\?, \?, NULL, NULL, \?, \?, \?\)/);
-        expect(ins[1]).toEqual([50, 33, 2, 5, 'PLACA 18MM']);
+        // Mig 158: + medidas (recortadas).
+        expect(ins[0]).toMatch(/VALUES \(\?, \?, NULL, NULL, \?, \?, \?, \?\)/);
+        expect(ins[1]).toEqual([50, 33, 2, 5, 'PLACA 18MM', '15 x 60']);
+    });
+
+    test('mig 158 pendiente: sin la columna medidas (1054) la línea se inserta sin ella', async () => {
+        const conn = makeConn();
+        db.getConnection.mockResolvedValue(conn);
+        conn.query
+            .mockResolvedValueOnce([{ insertId: 51 }])
+            .mockRejectedValueOnce(Object.assign(new Error("Unknown column 'medidas'"), { errno: 1054 }))
+            .mockResolvedValueOnce([{ insertId: 1 }]);
+        await facturaService.crear({ ...DATA_NUEVA, items: [{ item_id: 33, cantidad: 2, precio_unitario: 5, medidas: '15 x 60' }] }, 77);
+        const inserts = conn.query.mock.calls.filter(c => /INSERT INTO factura_items/.test(c[0]));
+        expect(inserts).toHaveLength(2);
+        expect(inserts[1][0]).not.toMatch(/medidas/);
+        expect(conn.commit).toHaveBeenCalled();
     });
 
     test('borrador: se guarda incompleto (sin número, sin ítems vinculados)', async () => {
