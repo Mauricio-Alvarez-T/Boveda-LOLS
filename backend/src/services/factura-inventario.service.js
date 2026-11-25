@@ -342,9 +342,9 @@ const facturaInventarioService = {
     },
 
     /** Foto/PDF de la factura: guarda el nuevo y borra el anterior del disco. */
-    async setArchivo(id, file, userId, req = null) {
+    async setArchivo(id, file, userId, req = null, { alta = false } = {}) {
         if (!file) throw httpError(400, 'No se recibió el archivo');
-        const [[actual]] = await db.query('SELECT id, archivo_path, activo FROM facturas_inventario WHERE id = ?', [id]);
+        const [[actual]] = await db.query('SELECT id, archivo_path, activo, estado FROM facturas_inventario WHERE id = ?', [id]);
         if (!actual || !actual.activo) {
             try { fs.unlinkSync(file.path); } catch { /* */ }
             throw httpError(404, 'Factura no encontrada');
@@ -355,7 +355,10 @@ const facturaInventarioService = {
             [ruta, file.originalname, file.mimetype, id]
         );
         if (actual.archivo_path && actual.archivo_path !== ruta) borrarArchivo(actual.archivo_path);
-        await logManualActivity(
+        // Historial solo si cambia la foto de una factura YA registrada. La que sube junto con
+        // el alta (borrador o «Registrar factura», `alta`) es parte del documento, no una
+        // modificación — si no, toda factura con foto saldría «MODIFICADA».
+        if (!alta && actual.estado === 'registrada') await logManualActivity(
             userId, 'facturas-inventario', 'UPDATE', String(id),
             JSON.stringify({ resumen: `${actual.archivo_path ? 'Cambió' : 'Adjuntó'} la foto/PDF de la factura` }), req
         );

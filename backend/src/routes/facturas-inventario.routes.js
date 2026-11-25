@@ -91,6 +91,7 @@ router.get('/:id/historial', auth, checkPermission('inventario.facturas.ver'), a
 });
 
 // Foto/PDF de la factura. Descarga autenticada: documento con montos, nunca estático.
+// POST ?alta=1: la foto sube junto con el alta (no deja historial de «modificación»).
 router.get('/:id/archivo', auth, checkPermission('inventario.facturas.ver'), async (req, res, next) => {
     try {
         const { fullPath, fileName } = await facturaService.getArchivo(idValido(req.params.id));
@@ -100,7 +101,7 @@ router.get('/:id/archivo', auth, checkPermission('inventario.facturas.ver'), asy
 
 router.post('/:id/archivo', auth, checkPermission('inventario.facturas.gestionar'), uploadFactura.single('archivo'), async (req, res, next) => {
     try {
-        const result = await facturaService.setArchivo(idValido(req.params.id), req.file, req.user.id, req);
+        const result = await facturaService.setArchivo(idValido(req.params.id), req.file, req.user.id, req, { alta: req.query.alta === '1' });
         res.json({ data: result });
     } catch (err) { next(err); }
 });
