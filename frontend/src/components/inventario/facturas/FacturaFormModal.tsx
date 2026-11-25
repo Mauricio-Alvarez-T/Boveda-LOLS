@@ -41,6 +41,8 @@ interface LineItem {
     precio_unitario: number | '';
     /** Texto de la línea tal cual viene en la factura (lo llena la lectura con IA). */
     descripcion_factura: string;
+    /** Medidas opcionales, ej. «15 x 60» (mig 158) — columna MEDIDAS del Excel de compras. */
+    medidas: string;
 }
 
 interface LecturaIA {
@@ -131,6 +133,7 @@ export const FacturaFormModal: React.FC<Props> = ({ isOpen, facturaId, lecturaIA
                     cantidad: Number(it.cantidad) || 1,
                     precio_unitario: Number(it.precio_unitario) || 0,
                     descripcion_factura: it.descripcion_factura || '',
+                    medidas: it.medidas || '',
                 }));
                 const fecha = f.fecha_factura ? String(f.fecha_factura).slice(0, 10) : '';
                 setIdActual(f.id);
@@ -149,7 +152,7 @@ export const FacturaFormModal: React.FC<Props> = ({ isOpen, facturaId, lecturaIA
     const updateItem = (idx: number, patch: Partial<LineItem>) =>
         setItems(prev => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
     const addItem = () => {
-        setItems(prev => [...prev, { item_id: 0, descripcion: '', unidad: 'U', cantidad: 1, precio_unitario: '', descripcion_factura: '' }]);
+        setItems(prev => [...prev, { item_id: 0, descripcion: '', unidad: 'U', cantidad: 1, precio_unitario: '', descripcion_factura: '', medidas: '' }]);
         if (formErrors.items) setFormErrors(p => ({ ...p, items: undefined }));
     };
     const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
@@ -226,6 +229,7 @@ export const FacturaFormModal: React.FC<Props> = ({ isOpen, facturaId, lecturaIA
                     cantidad: it.cantidad,
                     precio_unitario: it.precio_unitario,
                     descripcion_factura: it.descripcion,
+                    medidas: '',
                 };
             }));
         }
@@ -289,6 +293,7 @@ export const FacturaFormModal: React.FC<Props> = ({ isOpen, facturaId, lecturaIA
                         cantidad: Number(i.cantidad) > 0 ? Number(i.cantidad) : 1,
                         precio_unitario: Number(i.precio_unitario) || 0,
                         ...(i.descripcion_factura.trim() ? { descripcion_factura: i.descripcion_factura.trim() } : {}),
+                        ...(i.medidas.trim() ? { medidas: i.medidas.trim() } : {}),
                     })),
             };
             // Borrador: solo lo que tenga algo (una fecha vacía no pasa la validación de formato).
@@ -543,6 +548,13 @@ export const FacturaFormModal: React.FC<Props> = ({ isOpen, facturaId, lecturaIA
                                                             onChange={e => updateItem(idx, { precio_unitario: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0) })}
                                                             className="w-28 pl-5 pr-2 py-1 text-xs border border-border rounded-lg text-right font-bold bg-card" />
                                                     </div>
+                                                </div>
+                                                {/* Mig 158: medidas opcionales (columna MEDIDAS del Excel de compras). */}
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-caption text-muted-foreground font-medium">Medidas:</span>
+                                                    <input type="text" maxLength={60} value={item.medidas} aria-label="Medidas (opcional)" placeholder="ej. 15 x 60"
+                                                        onChange={e => updateItem(idx, { medidas: e.target.value })}
+                                                        className="w-28 px-2 py-1 text-xs border border-border rounded-lg bg-card" />
                                                 </div>
                                             </div>
                                             <IconButton type="button" onClick={() => removeItem(idx)} aria-label="Quitar ítem de la factura"

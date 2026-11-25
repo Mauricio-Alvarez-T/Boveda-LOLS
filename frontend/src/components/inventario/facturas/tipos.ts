@@ -10,6 +10,8 @@ export interface FacturaItemDetalle {
     unidad?: string | null;
     /** Texto de la línea tal cual en la factura (mig 157). */
     descripcion_factura?: string | null;
+    /** Medidas opcionales de la línea, ej. «15 x 60» (mig 158). */
+    medidas?: string | null;
     /** Destino: solo facturas anteriores a la mig 157 (las que movían stock). */
     obra_nombre?: string | null;
     bodega_nombre?: string | null;

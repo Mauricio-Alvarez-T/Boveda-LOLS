@@ -856,6 +856,26 @@ cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea
 - **`GET /facturas-inventario/:id/historial`** (gate `ver`): historial parseado para la UI.
   En el detalle: badge `MODIFICADA` + sección "Historial de cambios".
 
+### Filtros, marcas de color, medidas y Excel «COMPRAS» (mig 158, pedido del dueño 2026-11-25)
+- **Filtros de la lista** (`GET /facturas-inventario`): `fecha_desde` / `fecha_hasta` sobre `fecha_factura`
+  (inclusivos), `q` (número o proveedor), `color` (uno de la paleta o `marcadas`), `estado`. El COUNT usa los
+  mismos filtros (`construirFiltros`). La UI pagina de a 50 con «Ver más» (antes la lista se cortaba en 20 sin aviso).
+- **Marca de color COMPARTIDA** (`facturas_inventario.color_marca`): paleta FIJA naranjo, azul, verde,
+  amarillo, morado; NULL = sin marca. `PUT /:id/marca {color|null}` [gestionar]. **No es una modificación**:
+  está excluida del activityLogger global y su log va al módulo `facturas-marcas` (el historial lee solo
+  `facturas-inventario`; `logs_actividad.accion` es un ENUM fijo), así marcar no deja la factura «MODIFICADA».
+- **Nombre de cada color** (`facturas_colores`): `GET /colores` [ver], `PUT /colores/:color {nombre}`
+  [gestionar]; vacío = sin nombre (se muestra el del color). Se edita desde la lista (botón paleta).
+- **Medidas** por línea (`factura_items.medidas`, texto opcional, 60): en el formulario, el detalle y el Excel.
+- **Excel «COMPRAS»** (front, `facturas/excelCompras.ts` con exceljs): datos de `GET /export-lineas` [ver], que
+  trae una fila por línea de las facturas **registradas** que pasan los filtros, con la categoría del ítem
+  («SIN CATEGORÍA» si falta). Columnas: ITEM, DESCRIPCIÓN, MEDIDAS, UNID, CANTIDAD, $ UNID, $ TOTAL, FACTURA,
+  FECHA, PROVEEDOR (sin M2, $M2 ni YUAN — decisión del dueño). Agrupado por categoría con SUBTOTAL y TOTAL
+  GENERAL numéricos; filas de facturas marcadas con el color suave de su marca y leyenda con los nombres.
+  Título «COMPRAS {año}» si el rango es un año completo, si no el rango.
+- Degradación D-I: sin la mig 158 la lista sale sin filtro de marca, la paleta sin nombres, marcar responde
+  409 `MIGRACION_PENDIENTE` y las líneas se guardan sin medidas.
+
 ### Bodega Virtual en facturas (mig 099 — detalle en obras-bodegas.md)
 
 - Desde la mig 157 las facturas nuevas no tienen destino, así que ya no alimentan la
