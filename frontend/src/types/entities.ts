@@ -758,9 +758,16 @@ export interface ApprovalItemState {
 
 export interface FacturaInventario {
     id: number;
-    numero_factura: string;
-    proveedor: string;
-    fecha_factura: string;
+    /** Mig 157: 'borrador' = guardada a medias («Continuar después»); número/proveedor/fecha pueden faltar. */
+    estado: 'borrador' | 'registrada';
+    numero_factura: string | null;
+    proveedor: string | null;
+    fecha_factura: string | null;
+    /** Tiene foto/PDF adjunto (mig 157). */
+    tiene_archivo?: boolean;
+    archivo_nombre?: string | null;
+    archivo_mime?: string | null;
+    registrado_por_nombre?: string | null;
     monto_neto: number;
     observaciones: string | null;
     registrado_por: number;

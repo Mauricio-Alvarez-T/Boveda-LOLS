@@ -1,11 +1,11 @@
 /**
- * Tests de la edición de facturas de inventario (PUT /:id) y su historial:
- * - editar(): reversa el stock de los ítems previos (GREATEST-clamp, igual que
- *   anular), reemplaza ítems, actualiza cabecera y re-aplica stock — en UNA
- *   transacción. Post-commit registra el diff legible vía logManualActivity.
- * - getHistorial(): lee logs_actividad filtrado por modulo+item_id+UPDATE y
- *   parsea `detalle` degradando ante JSON corrupto.
- * - Rutas: gates de permiso (gestionar/ver) + validateBody.
+ * Tests de facturas de inventario como REGISTRO de compras (mig 157, 2026-11-25):
+ * - crear()/editar(): NO tocan stock (ubicaciones_stock); borrador guarda a medias,
+ *   registrada exige número, proveedor, fecha e ítems vinculados al catálogo; una
+ *   registrada no vuelve a borrador. Historial solo para ediciones de una registrada.
+ * - anular(): no revierte stock (lo que entró por facturas viejas se queda).
+ * - getHistorial(): lee logs_actividad filtrado por modulo+item_id+UPDATE.
+ * - Rutas: gates de permiso (gestionar/ver) + validateBody (borrador vs registrada).
  */
 
 jest.mock('../src/config/db', () => ({
@@ -33,8 +33,10 @@ function makeConn() {
     };
 }
 
+const tocaStock = (conn) => conn.query.mock.calls.some(c => /ubicaciones_stock/.test(c[0]));
+
 const CABECERA = {
-    id: 7, numero_factura: 'F-100', proveedor: 'ACME', fecha_factura: new Date(2026, 5, 8),
+    id: 7, estado: 'registrada', numero_factura: 'F-100', proveedor: 'ACME', fecha_factura: new Date(2026, 5, 8),
     monto_neto: '100000.00', observaciones: null, activo: 1,
 };
 const ITEM_PREV = { id: 1, factura_id: 7, item_id: 33, obra_id: 2, bodega_id: null, cantidad: '10.0000', precio_unitario: '10000.00', descripcion: 'PLACA FENOLICA' };
@@ -42,49 +44,72 @@ const ITEM_PREV = { id: 1, factura_id: 7, item_id: 33, obra_id: 2, bodega_id: nu
 const DATA_NUEVA = {
     numero_factura: 'F-100', proveedor: 'ACME LTDA', fecha_factura: '2026-06-08',
     monto_neto: 150000, observaciones: null,
-    items: [{ item_id: 33, obra_id: 2, bodega_id: null, cantidad: 15, precio_unitario: 10000 }],
+    items: [{ item_id: 33, cantidad: 15, precio_unitario: 10000 }],
 };
+
+describe('crear() — service', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    test('registrada: inserta cabecera + ítems sin destino y NO toca stock', async () => {
+        const conn = makeConn();
+        db.getConnection.mockResolvedValue(conn);
+        conn.query.mockResolvedValueOnce([{ insertId: 50 }]).mockResolvedValueOnce([{ insertId: 1 }]);
+
+        const r = await facturaService.crear({ ...DATA_NUEVA, items: [{ item_id: 33, cantidad: 2, precio_unitario: 5, descripcion_factura: 'PLACA 18MM' }] }, 77);
+        expect(r).toEqual({ id: 50, estado: 'registrada' });
+        expect(tocaStock(conn)).toBe(false);
+        const ins = conn.query.mock.calls.find(c => /INSERT INTO factura_items/.test(c[0]));
+        expect(ins[0]).toMatch(/VALUES \(\?, \?, NULL, NULL, \?, \?, \?\)/);
+        expect(ins[1]).toEqual([50, 33, 2, 5, 'PLACA 18MM']);
+    });
+
+    test('borrador: se guarda incompleto (sin número, sin ítems vinculados)', async () => {
+        const conn = makeConn();
+        db.getConnection.mockResolvedValue(conn);
+        conn.query.mockResolvedValueOnce([{ insertId: 51 }]).mockResolvedValueOnce([{ insertId: 1 }]);
+
+        const r = await facturaService.crear({ estado: 'borrador', items: [{ cantidad: 1, precio_unitario: 0, descripcion_factura: 'algo' }] }, 77);
+        expect(r).toEqual({ id: 51, estado: 'borrador' });
+        expect(conn.query.mock.calls[0][1]).toEqual(['borrador', null, null, null, 0, null, 77]);
+    });
+
+    test('registrada con una línea sin vincular al catálogo → 400 sin tocar la BD', async () => {
+        const conn = makeConn();
+        db.getConnection.mockResolvedValue(conn);
+        await expect(facturaService.crear({ ...DATA_NUEVA, items: [{ cantidad: 1, precio_unitario: 1 }] }, 77))
+            .rejects.toMatchObject({ statusCode: 400 });
+        expect(conn.query).not.toHaveBeenCalled();
+    });
+});
 
 describe('editar() — service', () => {
     beforeEach(() => jest.clearAllMocks());
 
-    function primeHappyPath(conn) {
+    function primeHappyPath(conn, cabecera = CABECERA) {
         conn.query
-            .mockResolvedValueOnce([[CABECERA]])              // SELECT FOR UPDATE
+            .mockResolvedValueOnce([[cabecera]])              // SELECT FOR UPDATE
             .mockResolvedValueOnce([[ITEM_PREV]])             // SELECT items previos
-            .mockResolvedValueOnce([{ affectedRows: 1 }])     // reversa stock ítem previo
             .mockResolvedValueOnce([{ affectedRows: 1 }])     // DELETE factura_items
             .mockResolvedValueOnce([{ affectedRows: 1 }])     // UPDATE cabecera
             .mockResolvedValueOnce([{ insertId: 9 }])         // INSERT item nuevo
-            .mockResolvedValueOnce([{ affectedRows: 1 }])     // UPSERT stock nuevo
             .mockResolvedValueOnce([[{ id: 33, descripcion: 'PLACA FENOLICA' }]]); // descripciones
     }
 
-    test('happy path: reversa stock previo, reemplaza ítems, actualiza cabecera y loggea diff', async () => {
+    test('registrada: reemplaza ítems y cabecera SIN tocar stock y loggea diff', async () => {
         const conn = makeConn();
         db.getConnection.mockResolvedValue(conn);
         primeHappyPath(conn);
 
         const result = await facturaService.editar(7, DATA_NUEVA, 77, null);
-        expect(result).toEqual({ id: 7 });
+        expect(result).toEqual({ id: 7, estado: 'registrada' });
         expect(conn.commit).toHaveBeenCalled();
+        expect(tocaStock(conn)).toBe(false);
 
         const calls = conn.query.mock.calls;
-        // Reversa con GREATEST-clamp y <=> (igual que anular), params del ítem previo.
-        const reversa = calls.find(c => /GREATEST\(cantidad - \?, 0\)/.test(c[0]));
-        expect(reversa).toBeDefined();
-        expect(reversa[0]).toMatch(/obra_id <=> \? AND bodega_id <=> \?/);
-        expect(reversa[1]).toEqual(['10.0000', 33, 2, null]);
-        // Reemplazo de ítems.
         expect(calls.some(c => /DELETE FROM factura_items WHERE factura_id/.test(c[0]))).toBe(true);
-        // Cabecera con los 5 campos.
-        const upd = calls.find(c => /UPDATE facturas_inventario\s+SET numero_factura/.test(c[0]));
-        expect(upd[1]).toEqual(['F-100', 'ACME LTDA', '2026-06-08', 150000, null, 7]);
-        // Stock nuevo con UPSERT acumulativo.
-        const upsert = calls.find(c => /ON DUPLICATE KEY UPDATE cantidad = cantidad \+ VALUES\(cantidad\)/.test(c[0]));
-        expect(upsert[1]).toEqual([33, 2, null, 15]);
+        const upd = calls.find(c => /UPDATE facturas_inventario\s+SET estado/.test(c[0]));
+        expect(upd[1]).toEqual(['registrada', 'F-100', 'ACME LTDA', '2026-06-08', 150000, null, 7]);
 
-        // Historial: un log manual UPDATE con diff legible.
         expect(logManualActivity).toHaveBeenCalledTimes(1);
         const [uid, modulo, accion, itemId, detalle] = logManualActivity.mock.calls[0];
         expect([uid, modulo, accion, itemId]).toEqual([77, 'facturas-inventario', 'UPDATE', '7']);
@@ -92,16 +117,13 @@ describe('editar() — service', () => {
         expect(parsed.cambios.proveedor).toEqual({ de: 'ACME', a: 'ACME LTDA' });
         expect(parsed.cambios.monto_neto).toEqual({ de: 100000, a: 150000 });
         expect(parsed.cambios.fecha_factura).toBeUndefined(); // misma fecha (Date vs string, local)
-        expect(parsed.resumen).toMatch(/Proveedor: ACME → ACME LTDA/);
-        expect(parsed.resumen).toMatch(/Monto neto: \$100\.000 → \$150\.000/);
-        expect(parsed.items_detalle).toEqual(['PLACA FENOLICA: x10 → x15']);
+        expect(parsed.items_detalle).toContain('PLACA FENOLICA: x10 → x15');
     });
 
     test('sin cambios reales → NO loggea', async () => {
         const conn = makeConn();
         db.getConnection.mockResolvedValue(conn);
         primeHappyPath(conn);
-
         const igual = {
             numero_factura: 'F-100', proveedor: 'ACME', fecha_factura: '2026-06-08',
             monto_neto: 100000, observaciones: null,
@@ -109,6 +131,24 @@ describe('editar() — service', () => {
         };
         await facturaService.editar(7, igual, 77, null);
         expect(logManualActivity).not.toHaveBeenCalled();
+    });
+
+    test('borrador → registrada: cambia de estado y NO loggea (no es una modificación)', async () => {
+        const conn = makeConn();
+        db.getConnection.mockResolvedValue(conn);
+        primeHappyPath(conn, { ...CABECERA, estado: 'borrador' });
+        const r = await facturaService.editar(7, { ...DATA_NUEVA, estado: 'registrada' }, 77, null);
+        expect(r.estado).toBe('registrada');
+        expect(logManualActivity).not.toHaveBeenCalled();
+    });
+
+    test('registrada → borrador: 400, rollback', async () => {
+        const conn = makeConn();
+        db.getConnection.mockResolvedValue(conn);
+        conn.query.mockResolvedValueOnce([[CABECERA]]);
+        await expect(facturaService.editar(7, { ...DATA_NUEVA, estado: 'borrador' }, 77, null))
+            .rejects.toMatchObject({ statusCode: 400 });
+        expect(conn.rollback).toHaveBeenCalled();
     });
 
     test('400 si la factura está anulada → rollback, sin log', async () => {
@@ -145,18 +185,18 @@ describe('editar() — service', () => {
         expect(conn.rollback).toHaveBeenCalled();
         expect(logManualActivity).not.toHaveBeenCalled();
     });
+});
 
-    test('ítem sin obra ni bodega → 400 de normalizeUbicacion, rollback', async () => {
-        const conn = makeConn();
-        db.getConnection.mockResolvedValue(conn);
-        conn.query
-            .mockResolvedValueOnce([[CABECERA]])
-            .mockResolvedValueOnce([[]]);   // sin items previos
+describe('anular() — service', () => {
+    beforeEach(() => jest.clearAllMocks());
 
-        const data = { ...DATA_NUEVA, items: [{ item_id: 33, obra_id: null, bodega_id: null, cantidad: 1, precio_unitario: 1 }] };
-        await expect(facturaService.editar(7, data, 77, null))
-            .rejects.toMatchObject({ statusCode: 400 });
-        expect(conn.rollback).toHaveBeenCalled();
+    test('marca inactiva y NO revierte stock', async () => {
+        db.query
+            .mockResolvedValueOnce([[{ activo: 1, estado: 'registrada' }]])
+            .mockResolvedValueOnce([{ affectedRows: 1 }]);
+        await facturaService.anular(7, 77, null);
+        expect(db.query.mock.calls.some(c => /ubicaciones_stock/.test(c[0]))).toBe(false);
+        expect(JSON.parse(logManualActivity.mock.calls[0][4]).resumen).toBe('Factura anulada');
     });
 });
 
@@ -225,7 +265,7 @@ describe('rutas facturas-inventario — gates y validación', () => {
             .set('Authorization', `Bearer ${makeToken(['inventario.facturas.gestionar'])}`)
             .send(DATA_NUEVA);
         expect(res.status).toBe(200);
-        expect(serviceMock.editar).toHaveBeenCalledWith('7', expect.any(Object), 5, expect.anything());
+        expect(serviceMock.editar).toHaveBeenCalledWith(7, expect.any(Object), 5, expect.anything());
     });
 
     test('GET /:id/historial sin facturas.ver → 403; con ver → 200', async () => {

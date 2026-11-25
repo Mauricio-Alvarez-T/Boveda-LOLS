@@ -49,7 +49,7 @@
 
 - **Qué es**: contenedor del sistema para ítems de factura que aún no pertenecen a una
   ubicación física. Fila sembrada "Bodega Virtual" (`es_virtual=1`), renombrable vía UI,
-  NO eliminable (guard en `index.js` — destino permanente del módulo Facturas).
+  NO eliminable (guard en `index.js`; hasta la mig 157 fue el destino de ítems de Facturas).
 - **Modo de visibilidad POR USUARIO** (botón cíclico en Inventario, localStorage
   `sgdl_bodega_virtual_modo_<userId>`, hook `useBodegaVirtualModo`):
   1. **ocultar** (default): invisible en Ejecutivo/Resumen/Obra-Bod./Facturas y fuera de totales.
@@ -58,11 +58,10 @@
 - **Backend**: `GET /inventario/resumen?bodega_virtual=<modo>` (lista + `total_cantidad`
   mode-aware) y `GET /inventario/dashboard-ejecutivo?bodega_virtual=<modo>` (query #14
   patrimonio excluye su stock salvo `sumar`). Whitelist en la ruta; default `ocultar`.
-- **Facturas**: destino SIEMPRE disponible (`/bodegas?incluir_virtual=true`); el modo
-  ajusta SOLO lo mostrado — `monto_virtual` por factura se resta del monto exhibido fuera
-  de `sumar`; en `ocultar` los ítems virtuales se esconden del detalle. **El `monto_neto`
-  almacenado y el form de edición NUNCA se alteran** (documento real; filtrar el form
-  borraría ítems + stock, porque editar() reemplaza ítems).
+- **Facturas**: desde la mig 157 (2026-11-25) las facturas son solo registro de compras y
+  ya no tienen destino → no entra stock nuevo a la Bodega Virtual por facturas. Las
+  facturas anteriores con ítems virtuales conservan su `monto_virtual`; el modo ajusta
+  SOLO lo mostrado (el `monto_neto` almacenado nunca cambia).
 - **Regularización**: participa en transferencias como cualquier bodega → mover
   virtual→obra/bodega real vía wizard (por eso `useNuevoMovimientoData` pasa
   `incluir_virtual=true`).

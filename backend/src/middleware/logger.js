@@ -239,7 +239,9 @@ const activityLogger = async (req, res, next) => {
             // Facturas: el PUT de edición y el de anular se loguean manualmente desde
             // el service (diff con estado previo + resumen legible); el log genérico
             // aquí solo duplicaría un UPDATE sin diff. El POST (CREATE) sigue global.
+            // También manual: subir la foto/PDF (mig 157). «Leer factura» no cambia nada.
             if (req.method === 'PUT' && /^\/api\/facturas-inventario\/\d+(\/anular)?$/.test(req.originalUrl.split('?')[0])) return;
+            if (req.method === 'POST' && /^\/api\/facturas-inventario\/(\d+\/archivo|leer)$/.test(req.originalUrl.split('?')[0])) return;
 
             // Excluir queries de solo lectura que usan POST (ej. KPIs con arreglos grandes)
             if (req.originalUrl.match(/\/(kpi|exportar|enviar|download)/i)) return;
