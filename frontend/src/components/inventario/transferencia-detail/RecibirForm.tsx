@@ -380,6 +380,7 @@ export const RecibirForm: React.FC<{
                                 <QtyStepper
                                     value={customRecibido[c.id] || 0}
                                     onChange={v => setCustomRecibido(prev => ({ ...prev, [c.id]: v }))}
+                                    decimal
                                     size="md"
                                     variant="card"
                                     unidad={c.unidad}

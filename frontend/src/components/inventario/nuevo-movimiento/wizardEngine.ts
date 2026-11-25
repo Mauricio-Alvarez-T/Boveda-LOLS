@@ -107,8 +107,11 @@ export function useWizardEngine(modo: 'pedir' | 'mover', data: WizardData, permi
     const handleDestino = useCallback((d: Destino | null) => setDestino(d), []);
 
     const hayItems = cart.length > 0 || customLimpios.length > 0;
-    const puedeSiguiente = paso === 0 ? infer.rutaOk : paso === 1 ? (hayItems && !hayExceso) : false;
-    const puedeCrear = paso === 2 && !!infer.resuelto && !hayExceso && !submitting;
+    // Material descrito sin cantidad (campo vacío o 0): el servidor lo rechaza → no dejar avanzar.
+    // Se aceptan decimales (½ m³ = 0,5), por eso la regla es > 0 y no >= 1.
+    const hayCustomSinCantidad = customLimpios.some(c => !(Number(c.cantidad) > 0));
+    const puedeSiguiente = paso === 0 ? infer.rutaOk : paso === 1 ? (hayItems && !hayExceso && !hayCustomSinCantidad) : false;
+    const puedeCrear = paso === 2 && !!infer.resuelto && !hayExceso && !hayCustomSinCantidad && !submitting;
 
     return {
         paso, setPaso,
@@ -121,7 +124,7 @@ export function useWizardEngine(modo: 'pedir' | 'mover', data: WizardData, permi
         wizardState, infer,
         conStockFiltro, stockEnOrigen, disponibleTotal, hayExceso, allowCustom,
         nombreUbi, handleOrigen, handleDestino,
-        hayItems, puedeSiguiente, puedeCrear,
+        hayItems, hayCustomSinCantidad, puedeSiguiente, puedeCrear,
     };
 }
 

@@ -2,7 +2,7 @@
  * Tests para items_custom (items personalizados fuera de catálogo).
  *
  * Cubre:
- *   · validación de shape (descripcion no vacía, cantidad >= 1)
+ *   · validación de shape (descripcion no vacía, cantidad > 0, admite decimales)
  *   · solo permitido en flujo 'solicitud'
  *   · permite items vacíos si hay items_custom (al menos uno de los dos)
  *   · persiste en transferencia_items_custom dentro de la misma transacción
@@ -54,14 +54,26 @@ describe('crear() — items_custom', () => {
         ).rejects.toThrow(/descripcion requerida/i);
     });
 
-    test('rechaza item_custom con cantidad < 1', async () => {
+    test('rechaza item_custom con cantidad 0 como 400 (no 500)', async () => {
         await expect(
             transferenciaService.crear({
                 destino_bodega_id: 1,
                 items: [],
                 items_custom: [{ descripcion: 'Tornillos', cantidad: 0 }],
             }, 99)
-        ).rejects.toThrow(/cantidad debe ser >= 1/i);
+        ).rejects.toMatchObject({ statusCode: 400, message: expect.stringMatching(/cantidad de «Tornillos»/) });
+    });
+
+    test('rechaza item_custom con cantidad negativa o vacía', async () => {
+        for (const cantidad of [-1, '', null, 'abc']) {
+            await expect(
+                transferenciaService.crear({
+                    destino_bodega_id: 1,
+                    items: [],
+                    items_custom: [{ descripcion: 'Arena', cantidad }],
+                }, 99)
+            ).rejects.toMatchObject({ statusCode: 400 });
+        }
     });
 
     test('rechaza items_custom en flujo distinto a solicitud', async () => {
@@ -115,6 +127,29 @@ describe('crear() — items_custom', () => {
         expect(customInserts).toHaveLength(2);
         expect(customInserts[0][1]).toEqual([555, 'Tornillos hex 5mm', 100, 'U', null]);
         expect(customInserts[1][1]).toEqual([555, 'Pegamento epoxi marca X', 5, 'kg', 'Marca específica']);
+    });
+
+    test('acepta cantidad decimal en item_custom (½ m³ de arena)', async () => {
+        const conn = makeConn();
+        db.getConnection.mockResolvedValue(conn);
+        db.query.mockResolvedValueOnce([[]]);
+        conn.query
+            .mockResolvedValueOnce([{ insertId: 700 }])
+            .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+        await transferenciaService.crear({
+            destino_obra_id: 3,
+            items: [],
+            items_custom: [{ descripcion: '1/2 metro de arena fina', cantidad: 0.5, unidad: 'M3' }],
+            tipo_flujo: 'solicitud_materiales',
+        }, 99);
+
+        const customInserts = conn.query.mock.calls.filter(c =>
+            /INSERT INTO transferencia_items_custom/i.test(c[0])
+        );
+        expect(customInserts).toHaveLength(1);
+        expect(customInserts[0][1][2]).toBe(0.5);
+        expect(conn.commit).toHaveBeenCalled();
     });
 
     test('crea solicitud con items normales + items_custom (ambos persisten)', async () => {

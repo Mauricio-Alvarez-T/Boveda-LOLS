@@ -38,6 +38,11 @@ Implementación: `backend/src/services/transferencia.service.js`.
 > `inventario.movimientos.ver`, ahora registrada en catálogo + jerarquía (antes sólo existía en la
 > DB vía migración 054, por lo que caía en "Configuración → Otros" del panel de roles).
 
+- **Cantidad de ítems personalizados: decimal > 0** (½ m³ de arena = 0,5; columna DECIMAL(12,4) desde
+  mig 054). `crear()` rechaza 0/vacío/negativo con **400** «Falta la cantidad de «X»» (antes exigía `>= 1`
+  y salía como 500). En el front, `CantidadInput` (pedir) y `QtyStepper decimal` (aprobar/recibir) aceptan
+  coma o punto (`utils/parseCantidad`); el wizard no deja avanzar con un material descrito sin cantidad.
+  Los ítems de **catálogo** siguen en enteros (herramientas/equipos se cuentan por unidad).
 - `solicitud_materiales` = SOLO items personalizados (`transferencia_items_custom`), sin catálogo.
   El aprobador puede ajustar cantidad, quitar/incluir, corregir descripción, agregar ítems y dejar
   nota (mig 070), y decide la **fuente por ítem: comprar | traer de otra obra** (mig 071,
