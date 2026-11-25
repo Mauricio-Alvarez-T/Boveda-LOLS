@@ -3,7 +3,8 @@
  * una fila por línea de factura, agrupada por CATEGORÍA del ítem con subtotal, y total general.
  * Columnas: ITEM, DESCRIPCIÓN, MEDIDAS, UNID, CANTIDAD, $ UNID, $ TOTAL, FACTURA, FECHA, PROVEEDOR
  * (sin M2, $M2 ni YUAN: decisión del dueño 2026-11-25). Las filas de facturas marcadas llevan el color
- * suave de su marca y al pie va la leyenda con el nombre de cada color.
+ * suave de su marca y al pie va la leyenda con el nombre de cada color. Apartados con colores de la Bóveda
+ * (cabecera pizarra, banda verde por categoría, subtotal verde suave, total pizarra) + hoja «Resumen».
  * `construirLibroCompras` es puro (testeable en node); `descargarExcelCompras` solo guarda el archivo.
  */
 import ExcelJS from 'exceljs';
@@ -69,106 +70,214 @@ const COLUMNAS: { titulo: string; ancho: number }[] = [
     { titulo: 'PROVEEDOR', ancho: 28 },
 ];
 const PESOS = '"$"#,##0';
-const GRIS_HEADER = 'FFBFBFBF';
-const GRIS_SUBTOTAL = 'FFD9D9D9';
+const NCOL = COLUMNAS.length;
+
+// Colores de la Bóveda (no chocan con los rellenos suaves de las marcas).
+const PIZARRA = 'FF1E293B';      // cabecera de columnas, total general
+const VERDE_LOLS = 'FF029E4D';   // banda de categoría, línea bajo el título
+const VERDE_SUAVE = 'FFE6F4EC';  // fila de subtotal
+const BORDE = 'FFE2E8F0';        // separador fino entre líneas
+const GRIS_TEXTO = 'FF64748B';
+const BLANCO = 'FFFFFFFF';
+
 const solido = (argb: string): ExcelJS.Fill => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+const fuente = (extra: Partial<ExcelJS.Font> = {}): Partial<ExcelJS.Font> => ({ name: 'Segoe UI', size: 10, ...extra });
+const trazo = (argb: string, style: ExcelJS.BorderStyle = 'thin'): Partial<ExcelJS.Border> => ({ style, color: { argb } });
+
+/** Aplica relleno/fuente/borde a las columnas 1..n de una fila (las celdas unidas toman el estilo de la primera). */
+function pintarFila(row: ExcelJS.Row, n: number, estilo: { fill?: string; font?: Partial<ExcelJS.Font>; border?: Partial<ExcelJS.Borders> }) {
+    for (let c = 1; c <= n; c++) {
+        const cell = row.getCell(c);
+        if (estilo.fill) cell.fill = solido(estilo.fill);
+        if (estilo.font) cell.font = estilo.font;
+        if (estilo.border) cell.border = estilo.border;
+    }
+}
+
+const hoyDdmmaa = (d: Date) => `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+
+/** Título unido a lo ancho con línea verde debajo + subtítulo gris (filas 1 y 2). */
+function encabezado(ws: ExcelJS.Worksheet, ncol: number, titulo: string, subtitulo: string) {
+    ws.mergeCells(1, 1, 1, ncol);
+    const t = ws.getCell(1, 1);
+    t.value = titulo;
+    pintarFila(ws.getRow(1), ncol, { font: fuente({ size: 18, bold: true, color: { argb: PIZARRA } }), border: { bottom: trazo(VERDE_LOLS, 'thick') } });
+    t.alignment = { vertical: 'middle' };
+    ws.getRow(1).height = 30;
+    ws.mergeCells(2, 1, 2, ncol);
+    const s = ws.getCell(2, 1);
+    s.value = subtitulo;
+    s.font = fuente({ size: 9, italic: true, color: { argb: GRIS_TEXTO } });
+    s.alignment = { vertical: 'middle' };
+}
+
+/** Fila de cabecera de columnas: pizarra con texto blanco. `izquierda` = columnas alineadas a la izquierda. */
+function cabecera(row: ExcelJS.Row, titulos: string[], izquierda: number[]) {
+    pintarFila(row, titulos.length, { fill: PIZARRA, font: fuente({ bold: true, color: { argb: BLANCO } }) });
+    titulos.forEach((titulo, i) => {
+        const cell = row.getCell(i + 1);
+        cell.value = titulo;
+        cell.alignment = { horizontal: izquierda.includes(i + 1) ? 'left' : 'center', vertical: 'middle' };
+    });
+    row.height = 22;
+}
+
+/** Fila de total sobre fondo pizarra: etiqueta unida en 1..colValor-1, monto en colValor. */
+function filaTotal(ws: ExcelJS.Worksheet, r: number, ncol: number, colValor: number, etiqueta: string, valor: number) {
+    ws.mergeCells(r, 1, r, colValor - 1);
+    const row = ws.getRow(r);
+    pintarFila(row, ncol, { fill: PIZARRA, font: fuente({ size: 12, bold: true, color: { argb: BLANCO } }) });
+    row.getCell(1).value = etiqueta;
+    row.getCell(1).alignment = { horizontal: 'right', vertical: 'middle' };
+    row.getCell(colValor).value = valor;
+    row.getCell(colValor).numFmt = PESOS;
+    row.height = 22;
+}
+
+type OpcionesLibro = { titulo: string; filtrosTexto?: string; nombres?: Partial<Record<ColorFactura, string | null>>; generado?: Date };
 
 /**
  * Arma el libro. `nombres` = nombre de cada color (para la leyenda); `filtrosTexto` = línea bajo el título.
+ * Hoja «Compras» (detalle por categoría) + hoja «Resumen» (subtotal y % por categoría).
+ * Apartados: cabecera pizarra · banda verde por categoría · subtotal verde suave · total general pizarra.
  */
-export function construirLibroCompras(
-    lineas: LineaCompra[],
-    opts: { titulo: string; filtrosTexto?: string; nombres?: Partial<Record<ColorFactura, string | null>> }
-): ExcelJS.Workbook {
+export function construirLibroCompras(lineas: LineaCompra[], opts: OpcionesLibro): ExcelJS.Workbook {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Bóveda LOLS';
-    const ws = wb.addWorksheet('Compras', { views: [{ state: 'frozen', ySplit: 4 }] });
+    const ws = wb.addWorksheet('Compras', {
+        views: [{ state: 'frozen', ySplit: 4, showGridLines: false }],
+        pageSetup: {
+            orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '4:4',
+            margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 },
+        },
+    });
     ws.columns = COLUMNAS.map(c => ({ width: c.ancho }));
 
-    ws.getCell('B1').value = opts.titulo;
-    ws.getCell('B1').font = { bold: true, size: 16 };
-    if (opts.filtrosTexto) {
-        ws.getCell('B2').value = opts.filtrosTexto;
-        ws.getCell('B2').font = { italic: true, size: 9, color: { argb: 'FF666666' } };
-    }
-
-    const header = ws.getRow(4);
-    COLUMNAS.forEach((c, i) => {
-        const cell = header.getCell(i + 1);
-        cell.value = c.titulo;
-        cell.font = { bold: true };
-        cell.fill = solido(GRIS_HEADER);
-        cell.alignment = { horizontal: i === 1 ? 'left' : 'center', vertical: 'middle' };
-    });
-
     const { grupos, total } = agruparPorCategoria(lineas);
+    const nFacturas = new Set(lineas.map(l => l.factura_id)).size;
+    const subtitulo = [
+        opts.filtrosTexto,
+        plural(lineas.length, 'línea', 'líneas'),
+        plural(nFacturas, 'factura', 'facturas'),
+        `generado el ${hoyDdmmaa(opts.generado ?? new Date())}`,
+    ].filter(Boolean).join(' · ');
+    encabezado(ws, NCOL, opts.titulo, subtitulo);
+    cabecera(ws.getRow(4), COLUMNAS.map(c => c.titulo), [2, 10]);
+
     let r = 5;
     let correlativo = 0;
     for (const g of grupos) {
         r += 1; // fila en blanco entre grupos, como en la planilla
-        const titulo = ws.getRow(r);
-        titulo.getCell(2).value = g.categoria;
-        titulo.getCell(2).font = { bold: true, size: 11 };
+
+        // Banda de la categoría: verde LOLS a lo ancho.
+        ws.mergeCells(r, 1, r, NCOL);
+        const banda = ws.getRow(r);
+        pintarFila(banda, NCOL, { fill: VERDE_LOLS, font: fuente({ size: 11, bold: true, color: { argb: BLANCO } }) });
+        banda.getCell(1).value = `${g.categoria} · ${plural(g.lineas.length, 'línea', 'líneas')}`;
+        banda.getCell(1).alignment = { vertical: 'middle', indent: 1 };
+        banda.height = 20;
         r += 1;
+
         for (const l of g.lineas) {
             correlativo += 1;
             const fila = ws.getRow(r);
             const descripcion = l.item_descripcion || l.descripcion_factura || '';
+            const cantidad = Number(l.cantidad) || 0;
             fila.values = [
                 correlativo,
                 descripcion.toUpperCase(),
                 l.medidas || '',
                 l.unidad || 'U',
-                Number(l.cantidad) || 0,
+                cantidad,
                 Number(l.precio_unitario) || 0,
                 Number(l.total) || 0,
                 l.numero_factura || '',
                 l.fecha_factura ? ddmmaa(l.fecha_factura) : '',
                 l.proveedor || '',
             ];
+            const marca = colorDe(l.color_marca);
+            pintarFila(fila, NCOL, { font: fuente(), border: { bottom: trazo(BORDE) }, fill: marca?.excel });
+            fila.getCell(5).numFmt = Number.isInteger(cantidad) ? '#,##0' : '#,##0.##';
             fila.getCell(6).numFmt = PESOS;
             fila.getCell(7).numFmt = PESOS;
-            const marca = colorDe(l.color_marca);
-            if (marca) for (let c = 1; c <= COLUMNAS.length; c++) fila.getCell(c).fill = solido(marca.excel);
+            fila.getCell(7).font = fuente({ bold: true });
+            for (const c of [1, 3, 4, 8, 9]) fila.getCell(c).alignment = { horizontal: 'center' };
             r += 1;
         }
+
+        // Subtotal: verde suave a lo ancho, con borde verde arriba.
+        ws.mergeCells(r, 1, r, 6);
         const sub = ws.getRow(r);
-        sub.getCell(6).value = `SUBTOTAL ${g.categoria}`;
+        pintarFila(sub, NCOL, {
+            fill: VERDE_SUAVE,
+            font: fuente({ bold: true, color: { argb: PIZARRA } }),
+            border: { top: trazo(VERDE_LOLS, 'medium') },
+        });
+        sub.getCell(1).value = `SUBTOTAL ${g.categoria}`;
+        sub.getCell(1).alignment = { horizontal: 'right', vertical: 'middle' };
         sub.getCell(7).value = g.subtotal;
         sub.getCell(7).numFmt = PESOS;
-        for (const c of [6, 7]) { sub.getCell(c).font = { bold: true }; sub.getCell(c).fill = solido(GRIS_SUBTOTAL); }
-        sub.getCell(6).alignment = { horizontal: 'right' };
+        sub.height = 18;
         r += 1;
     }
 
     r += 1;
-    const tot = ws.getRow(r);
-    tot.getCell(6).value = 'TOTAL GENERAL';
-    tot.getCell(7).value = total;
-    tot.getCell(7).numFmt = PESOS;
-    for (const c of [6, 7]) { tot.getCell(c).font = { bold: true, size: 12 }; tot.getCell(c).fill = solido(GRIS_HEADER); }
-    tot.getCell(6).alignment = { horizontal: 'right' };
+    filaTotal(ws, r, NCOL, 7, 'TOTAL GENERAL', total);
 
     // Leyenda: solo los colores que aparecen.
     const usados = PALETA.filter(p => lineas.some(l => l.color_marca === p.color));
     if (usados.length) {
         r += 2;
-        ws.getRow(r).getCell(2).value = 'Marcas';
-        ws.getRow(r).getCell(2).font = { bold: true };
+        const titulo = ws.getRow(r);
+        pintarFila(titulo, 2, { fill: PIZARRA, font: fuente({ size: 9, bold: true, color: { argb: BLANCO } }) });
+        titulo.getCell(2).value = 'MARCAS';
+        const caja = { top: trazo(BORDE), left: trazo(BORDE), bottom: trazo(BORDE), right: trazo(BORDE) };
         for (const p of usados) {
             r += 1;
             const fila = ws.getRow(r);
             fila.getCell(1).fill = solido(p.excel);
+            fila.getCell(1).border = caja;
             fila.getCell(2).value = nombreColor(p.color, opts.nombres || {});
+            fila.getCell(2).font = fuente();
         }
     }
+
+    hojaResumen(wb, grupos, total, opts.titulo, subtitulo);
     return wb;
+}
+
+/** Hoja «Resumen»: una fila por categoría con líneas, subtotal y % del total. */
+function hojaResumen(wb: ExcelJS.Workbook, grupos: GrupoCompras[], total: number, titulo: string, subtitulo: string) {
+    const ws = wb.addWorksheet('Resumen', {
+        views: [{ showGridLines: false }],
+        pageSetup: { orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+    });
+    ws.columns = [{ width: 36 }, { width: 10 }, { width: 18 }, { width: 13 }];
+    encabezado(ws, 4, `RESUMEN · ${titulo}`, subtitulo);
+    cabecera(ws.getRow(4), ['CATEGORÍA', 'LÍNEAS', 'SUBTOTAL', '% DEL TOTAL'], [1]);
+    let r = 5;
+    for (const g of grupos) {
+        const fila = ws.getRow(r);
+        fila.values = [g.categoria, g.lineas.length, g.subtotal, total ? g.subtotal / total : 0];
+        pintarFila(fila, 4, { font: fuente(), border: { bottom: trazo(BORDE) } });
+        // Borde verde a la izquierda: amarra con las bandas de la hoja Compras.
+        fila.getCell(1).border = { left: trazo(VERDE_LOLS, 'thick'), bottom: trazo(BORDE) };
+        fila.getCell(1).font = fuente({ bold: true });
+        fila.getCell(2).alignment = { horizontal: 'center' };
+        fila.getCell(3).numFmt = PESOS;
+        fila.getCell(4).numFmt = '0.0%';
+        r += 1;
+    }
+    filaTotal(ws, r, 4, 3, 'TOTAL GENERAL', total);
+    ws.getRow(r).getCell(4).value = total ? 1 : 0;
+    ws.getRow(r).getCell(4).numFmt = '0.0%';
 }
 
 /** Arma y descarga el .xlsx. */
 export async function descargarExcelCompras(
     lineas: LineaCompra[],
-    opts: { titulo: string; filtrosTexto?: string; nombres?: Partial<Record<ColorFactura, string | null>> }
+    opts: OpcionesLibro
 ): Promise<void> {
     const wb = construirLibroCompras(lineas, opts);
     const buffer = await wb.xlsx.writeBuffer();

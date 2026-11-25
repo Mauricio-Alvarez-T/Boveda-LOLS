@@ -897,6 +897,12 @@ cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea
   FECHA, PROVEEDOR (sin M2, $M2 ni YUAN — decisión del dueño). Agrupado por categoría con SUBTOTAL y TOTAL
   GENERAL numéricos; filas de facturas marcadas con el color suave de su marca y leyenda con los nombres.
   Título «COMPRAS {año}» si el rango es un año completo, si no el rango.
+  **Apartados con color** (pedido del dueño 2026-11-25): cabecera de columnas pizarra `1E293B` con texto blanco,
+  **banda verde LOLS `029E4D`** a lo ancho por categoría («MAQUINARIA · 3 líneas»), subtotal en **verde suave
+  `E6F4EC`** a lo ancho con borde verde arriba, total general pizarra. Las líneas van sin cebra (solo borde
+  fino) para que el relleno de la marca siga resaltando — no usar verdes/pizarras parecidos en la paleta de
+  marcas. Subtítulo: filtros · n líneas · n facturas · fecha de generación. Hoja **«Resumen»**: categoría,
+  líneas, subtotal y % del total. Impresión horizontal ajustada al ancho con la cabecera repetida.
 - Degradación D-I: sin la mig 158 la lista sale sin filtro de marca, la paleta sin nombres, marcar responde
   409 `MIGRACION_PENDIENTE` y las líneas se guardan sin medidas.
 
