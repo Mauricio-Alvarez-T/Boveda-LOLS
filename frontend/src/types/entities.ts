@@ -775,6 +775,8 @@ export interface FacturaInventario {
     activo: boolean;
     /** Suma de ítems con destino en bodega virtual (mig 099). DECIMAL → puede llegar como string. */
     monto_virtual?: number | string;
+    /** Marca de color compartida (mig 158); null = sin marca. */
+    color_marca?: 'naranjo' | 'azul' | 'verde' | 'amarillo' | 'morado' | null;
 }
 
 export interface FacturaItem {

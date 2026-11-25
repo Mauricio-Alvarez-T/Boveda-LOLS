@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Cargando, Skeleton } from '../ui/Skeleton';
-import { Plus, FileText, Trash2, Receipt, Eye, Pencil, History, Paperclip, Clock } from 'lucide-react';
+import { Plus, FileText, Trash2, Receipt, Eye, Pencil, History, Paperclip, Clock, Download, Tag, Search, X, Palette } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import type { FacturaInventario } from '../../types/entities';
@@ -15,8 +15,15 @@ import { showApiError, showConfirmToast } from '../../utils/toastUtils';
 import { FacturaFormModal } from './facturas/FacturaFormModal';
 import { FacturaArchivoViewer } from './facturas/FacturaArchivoViewer';
 import type { FacturaDetalle } from './facturas/tipos';
+import {
+    PALETA, colorDe, nombreColor, paramsFiltros, hayFiltros, FILTROS_VACIOS,
+    type ColorFactura, type FiltrosFacturas,
+} from './facturas/marcasFactura';
+import { descargarExcelCompras, tituloCompras, type LineaCompra } from './facturas/excelCompras';
 
 const fmtMoney = fmtMoneyExacto;
+/** Facturas por página (antes la lista quedaba en las 20 del límite por defecto del backend). */
+const POR_PAGINA = 50;
 
 interface Props {
     canCreate: boolean;
@@ -54,22 +61,113 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
         resumen: string | null; items_detalle: string[];
     }>>([]);
 
-    const fetchFacturas = async () => {
-        setLoading(prev => prev || facturas.length === 0);
+    /* ── Filtros, paginación y marcas de color (mig 158) ── */
+    const [filtros, setFiltros] = useState<FiltrosFacturas>(FILTROS_VACIOS);
+    const [busqueda, setBusqueda] = useState('');          // texto del buscador; pasa a `filtros.q` con pausa
+    const [pagina, setPagina] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [cargandoMas, setCargandoMas] = useState(false);
+    const [nombresColor, setNombresColor] = useState<Partial<Record<ColorFactura, string | null>>>({});
+    const [marcandoId, setMarcandoId] = useState<number | null>(null);   // fila con la paleta abierta
+    const [coloresAbierto, setColoresAbierto] = useState(false);
+    const [borradorNombres, setBorradorNombres] = useState<Partial<Record<ColorFactura, string>>>({});
+    const [exportando, setExportando] = useState(false);
+    const pedido = useRef(0);   // descarta respuestas viejas si los filtros cambian rápido
+    const yaCargo = useRef(false);
+
+    const fetchFacturas = async (pag = 1) => {
+        const id = ++pedido.current;
+        // La silueta completa solo en la PRIMERA carga: al filtrar, la barra de filtros no puede desmontarse
+        // (perdería el foco del campo que se está escribiendo).
+        if (pag === 1) setLoading(prev => prev || !yaCargo.current); else setCargandoMas(true);
         try {
-            const res = await api.get('/facturas-inventario');
-            setFacturas(res.data.data || []);
-        } catch { setFacturas([]); }
-        finally { setLoading(false); }
+            const res = await api.get('/facturas-inventario', { params: { ...paramsFiltros(filtros), limit: POR_PAGINA, page: pag } });
+            if (id !== pedido.current) return;
+            yaCargo.current = true;
+            const nuevas: FacturaInventario[] = res.data.data || [];
+            setFacturas(prev => (pag === 1 ? nuevas : [...prev, ...nuevas]));
+            setTotal(Number(res.data.total) || 0);
+            setPagina(pag);
+        } catch {
+            if (id === pedido.current && pag === 1) { setFacturas([]); setTotal(0); }
+        } finally {
+            if (id === pedido.current) { setLoading(false); setCargandoMas(false); }
+        }
     };
 
+    const fetchColores = () => api.get('/facturas-inventario/colores')
+        .then(res => setNombresColor(Object.fromEntries(((res.data.data || []) as { color: ColorFactura; nombre: string | null }[]).map(c => [c.color, c.nombre]))))
+        .catch(() => setNombresColor({}));
+
     useEffect(() => {
-        fetchFacturas();
         api.get('/facturas-inventario/config')
             .then(res => setLecturaIA(!!res.data.data?.lectura_ia))
             .catch(() => setLecturaIA(false));
+        fetchColores();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar
     }, []);
+
+    // Cada cambio de filtro vuelve a la página 1.
+    useEffect(() => {
+        fetchFacturas(1);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchFacturas lee `filtros` del render actual
+    }, [filtros]);
+
+    // El buscador aplica con una pausa corta (no un pedido por tecla).
+    useEffect(() => {
+        const t = setTimeout(() => setFiltros(f => (f.q === busqueda ? f : { ...f, q: busqueda })), 350);
+        return () => clearTimeout(t);
+    }, [busqueda]);
+
+    const marcar = async (f: FacturaInventario, color: ColorFactura | null) => {
+        setMarcandoId(null);
+        try {
+            await api.put(`/facturas-inventario/${f.id}/marca`, { color });
+            // Si hay un filtro de color activo, la fila puede dejar de cumplirlo: se recarga; si no, se actualiza en el lugar.
+            if (filtros.color) fetchFacturas(1);
+            else setFacturas(prev => prev.map(x => (x.id === f.id ? { ...x, color_marca: color } : x)));
+        } catch (err) {
+            showApiError(err, 'No se pudo marcar la factura');
+        }
+    };
+
+    const abrirColores = () => {
+        setBorradorNombres(Object.fromEntries(PALETA.map(p => [p.color, nombresColor[p.color] || ''])));
+        setColoresAbierto(true);
+    };
+
+    const guardarNombres = async () => {
+        try {
+            const cambiados = PALETA.filter(p => (borradorNombres[p.color] || '').trim() !== (nombresColor[p.color] || ''));
+            await Promise.all(cambiados.map(p => api.put(`/facturas-inventario/colores/${p.color}`, { nombre: (borradorNombres[p.color] || '').trim() })));
+            await fetchColores();
+            setColoresAbierto(false);
+            if (cambiados.length) toast.success('Nombres de los colores guardados');
+        } catch (err) {
+            showApiError(err, 'No se pudieron guardar los nombres');
+        }
+    };
+
+    const exportar = async () => {
+        setExportando(true);
+        try {
+            const res = await api.get('/facturas-inventario/export-lineas', { params: paramsFiltros(filtros) });
+            const lineas: LineaCompra[] = res.data.data || [];
+            if (!lineas.length) { toast.info('No hay facturas registradas con estos filtros'); return; }
+            const partes: string[] = [];
+            if (filtros.desde || filtros.hasta) partes.push(`Fecha de factura: ${filtros.desde ? fmtFecha(filtros.desde) : '…'} al ${filtros.hasta ? fmtFecha(filtros.hasta) : '…'}`);
+            if (filtros.q.trim()) partes.push(`Búsqueda: «${filtros.q.trim()}»`);
+            if (filtros.color === 'marcadas') partes.push('Solo facturas marcadas');
+            else if (filtros.color) partes.push(`Marca: ${nombreColor(filtros.color, nombresColor)}`);
+            await descargarExcelCompras(lineas, { titulo: tituloCompras(filtros), filtrosTexto: partes.join(' · ') || 'Todas las facturas registradas', nombres: nombresColor });
+        } catch (err) {
+            showApiError(err, 'No se pudo exportar');
+        } finally {
+            setExportando(false);
+        }
+    };
+
+    const fetchFacturasTodo = () => fetchFacturas(1);
 
     /* ── Vista previa: cargar detalle con ítems + historial de cambios ── */
     const openDetalle = async (id: number) => {
@@ -103,7 +201,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                 try {
                     await api.put(`/facturas-inventario/${f.id}/anular`);
                     toast.success(borrador ? 'Borrador descartado' : 'Factura anulada');
-                    fetchFacturas();
+                    fetchFacturasTodo();
                 } catch (err) {
                     showApiError(err, 'Error al anular');
                 }
@@ -122,12 +220,76 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                 <h3 className="text-sm font-bold text-brand-dark">Facturas de Inventario</h3>
                 <p className="text-caption text-muted-foreground">Registro de lo comprado. No cambia el stock del inventario.</p>
             </div>
-            {canCreate && (
-                <Button variant="primary" size="sm" disabled={loading} onClick={() => setFormAbierto('nueva')}
-                    leftIcon={<Plus className="h-3.5 w-3.5" />} className="shrink-0 whitespace-nowrap">
-                    Nueva Factura
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                {/* Excel «COMPRAS» con los filtros activos (mig 158). */}
+                <Button variant="secondary" size="sm" onClick={exportar} isLoading={exportando} disabled={loading}
+                    leftIcon={<Download className="h-3.5 w-3.5" />} className="whitespace-nowrap">
+                    Exportar Excel
                 </Button>
-            )}
+                {canCreate && (
+                    <Button variant="primary" size="sm" disabled={loading} onClick={() => setFormAbierto('nueva')}
+                        leftIcon={<Plus className="h-3.5 w-3.5" />} className="whitespace-nowrap">
+                        Nueva Factura
+                    </Button>
+                )}
+            </div>
+        </div>
+    );
+
+    // Filtros: fecha de factura, búsqueda y marca de color (mig 158).
+    const chipColor = (valor: FiltrosFacturas['color'], texto: string, punto?: string) => {
+        const activo = filtros.color === valor;
+        return (
+            // eslint-disable-next-line no-restricted-syntax -- chip de filtro (toggle denso con punto de color), patrón FiltrosRapidos
+            <button key={valor || 'todas'} type="button" aria-pressed={activo}
+                onClick={() => setFiltros(f => ({ ...f, color: valor }))}
+                className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-caption font-semibold transition-colors',
+                    activo ? 'border-brand-primary bg-brand-primary/10 text-brand-dark' : 'border-border text-muted-foreground hover:bg-muted hover:text-brand-dark')}>
+                {punto && <span className={cn('h-2.5 w-2.5 rounded-full', punto)} aria-hidden="true" />}
+                {texto}
+            </button>
+        );
+    };
+    const barraFiltros = (
+        <div className="space-y-2 rounded-xl border border-border bg-card p-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-[auto_auto_1fr_auto] sm:items-end">
+                <label className="text-caption text-muted-foreground">
+                    Desde
+                    <input type="date" value={filtros.desde} max={filtros.hasta || undefined} aria-label="Fecha de factura desde"
+                        onChange={e => setFiltros(f => ({ ...f, desde: e.target.value }))}
+                        className="mt-0.5 block w-full rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-brand-dark" />
+                </label>
+                <label className="text-caption text-muted-foreground">
+                    Hasta
+                    <input type="date" value={filtros.hasta} min={filtros.desde || undefined} aria-label="Fecha de factura hasta"
+                        onChange={e => setFiltros(f => ({ ...f, hasta: e.target.value }))}
+                        className="mt-0.5 block w-full rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-brand-dark" />
+                </label>
+                <label className="col-span-2 text-caption text-muted-foreground sm:col-span-1">
+                    Buscar
+                    <span className="relative mt-0.5 block">
+                        <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                        <input type="search" value={busqueda} placeholder="N° de factura o proveedor" aria-label="Buscar por número o proveedor"
+                            onChange={e => setBusqueda(e.target.value)}
+                            className="block w-full rounded-lg border border-border bg-card py-1.5 pl-7 pr-2 text-xs text-brand-dark" />
+                    </span>
+                </label>
+                {hayFiltros(filtros) && (
+                    <Button variant="ghost" size="sm" leftIcon={<X className="h-3.5 w-3.5" />} className="col-span-2 sm:col-span-1"
+                        onClick={() => { setBusqueda(''); setFiltros(FILTROS_VACIOS); }}>
+                        Limpiar
+                    </Button>
+                )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+                {chipColor('', 'Todas')}
+                {chipColor('marcadas', 'Solo marcadas', 'bg-gradient-to-r from-orange-400 via-blue-400 to-purple-400')}
+                {PALETA.map(p => chipColor(p.color, nombreColor(p.color, nombresColor), p.punto))}
+                {canCreate && (
+                    <IconButton size="sm" variant="ghost" aria-label="Nombrar los colores" title="Ponerle nombre a cada color"
+                        onClick={abrirColores} icon={<Palette className="h-3.5 w-3.5" />} />
+                )}
+            </div>
         </div>
     );
 
@@ -162,20 +324,29 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
         const restarVirtual = bodegaVirtualModo !== 'sumar' && montoVirtual > 0;
         const montoMostrado = restarVirtual ? Number(f.monto_neto) - montoVirtual : Number(f.monto_neto);
         const abrir = () => (borrador && canCreate ? setFormAbierto(f.id) : openDetalle(f.id));
+        const marca = colorDe(f.color_marca);
         return (
+            <div key={f.id}>
             <div
-                key={f.id}
                 onClick={abrir}
                 title={borrador ? 'Continuar este borrador' : 'Ver detalle de la factura'}
                 className={cn(
                     'flex items-center justify-between gap-3 px-4 py-3 rounded-xl border transition-colors cursor-pointer',
                     borrador
                         ? 'border-dashed border-amber-300 bg-amber-50/60 hover:bg-amber-50 dark:border-amber-800/60 dark:bg-amber-500/10'
-                        : 'border-border hover:border-brand-primary/40 hover:bg-muted/40'
+                        : 'border-border hover:border-brand-primary/40 hover:bg-muted/40',
+                    // Marca de color (mig 158): borde izquierdo grueso del color.
+                    marca && cn('border-l-4', marca.borde)
                 )}
             >
                 <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                        {marca && (
+                            <span className="inline-flex items-center gap-1 text-caption font-semibold text-muted-foreground" title={`Marca: ${nombreColor(marca.color, nombresColor)}`}>
+                                <span className={cn('h-2.5 w-2.5 rounded-full', marca.punto)} aria-hidden="true" />
+                                {nombreColor(marca.color, nombresColor)}
+                            </span>
+                        )}
                         <span className="text-xs font-bold text-brand-dark">{f.numero_factura ? `#${f.numero_factura}` : 'Sin número'}</span>
                         <span className="text-caption text-muted-foreground truncate">{f.proveedor || 'Proveedor pendiente'}</span>
                         {borrador && <StatusBadge tone="warning" label="BORRADOR" />}
@@ -205,6 +376,11 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                         <IconButton onClick={() => openDetalle(f.id)} aria-label="Ver detalle" variant="ghost" size="sm"
                             icon={<Eye className="h-3.5 w-3.5" />} />
                     )}
+                    {canCreate && (
+                        <IconButton onClick={() => setMarcandoId(marcandoId === f.id ? null : f.id)} aria-label="Marcar con color"
+                            title="Marcar con color" aria-expanded={marcandoId === f.id} variant="ghost" size="sm"
+                            className="hover:bg-warning/10 hover:text-warning" icon={<Tag className="h-3.5 w-3.5" />} />
+                    )}
                     {!borrador && canCreate && (
                         <IconButton onClick={() => setFormAbierto(f.id)} aria-label="Editar factura" variant="ghost" size="sm"
                             icon={<Pencil className="h-3.5 w-3.5" />} />
@@ -215,20 +391,44 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                     )}
                 </div>
             </div>
+            {/* Paleta de la marca, bajo la fila (compartida: la ve todo el equipo). */}
+            {marcandoId === f.id && (
+                <div className="mt-1 flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2">
+                    <span className="text-caption text-muted-foreground mr-1">Marcar:</span>
+                    {PALETA.map(p => (
+                        // eslint-disable-next-line no-restricted-syntax -- muestra de color (el color es el dato), chip denso
+                        <button key={p.color} type="button" aria-pressed={f.color_marca === p.color} onClick={() => marcar(f, p.color)}
+                            className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-caption font-semibold transition-colors',
+                                f.color_marca === p.color ? 'border-brand-primary bg-brand-primary/10 text-brand-dark' : 'border-border text-muted-foreground hover:bg-muted hover:text-brand-dark')}>
+                            <span className={cn('h-2.5 w-2.5 rounded-full', p.punto)} aria-hidden="true" />
+                            {nombreColor(p.color, nombresColor)}
+                        </button>
+                    ))}
+                    {f.color_marca && (
+                        <Button variant="ghost" size="sm" onClick={() => marcar(f, null)} leftIcon={<X className="h-3.5 w-3.5" />}>Quitar marca</Button>
+                    )}
+                </div>
+            )}
+            </div>
         );
     };
 
     return (
         <div className="space-y-4">
             {encabezado}
+            {barraFiltros}
 
             {facturas.length === 0 ? (
                 <div className="py-12 text-center text-muted-foreground">
                     <FileText className="h-10 w-10 mx-auto opacity-20 mb-3" />
-                    <p className="text-sm font-medium">No hay facturas registradas</p>
-                    {canCreate && (
-                        <p className="text-xs mt-1">Haz click en <span className="font-bold text-brand-dark">+ Nueva Factura</span> para registrar la primera</p>
-                    )}
+                    {hayFiltros(filtros) ? (
+                        <p className="text-sm font-medium">Ninguna factura cumple estos filtros</p>
+                    ) : (<>
+                        <p className="text-sm font-medium">No hay facturas registradas</p>
+                        {canCreate && (
+                            <p className="text-xs mt-1">Haz click en <span className="font-bold text-brand-dark">+ Nueva Factura</span> para registrar la primera</p>
+                        )}
+                    </>)}
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -244,8 +444,40 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                             {registradas.map(fila)}
                         </div>
                     )}
+                    {/* Paginación: antes la lista se cortaba en 20 sin aviso. */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-caption text-muted-foreground">
+                        <span>{facturas.length} de {total} factura{total === 1 ? '' : 's'}</span>
+                        {facturas.length < total && (
+                            <Button variant="secondary" size="sm" isLoading={cargandoMas} onClick={() => fetchFacturas(pagina + 1)}>
+                                Ver más
+                            </Button>
+                        )}
+                    </div>
                 </div>
             )}
+
+            {/* Nombre de cada color (compartido): «naranjo = Maquinaria nueva». */}
+            <Modal isOpen={coloresAbierto} onClose={() => setColoresAbierto(false)} title="Colores de las marcas" icon={Palette} size="sm"
+                description="El nombre se ve en los filtros, en cada factura marcada y en la leyenda del Excel."
+                footer={(
+                    <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <Button type="button" variant="ghost" onClick={() => setColoresAbierto(false)}>Cancelar</Button>
+                        <Button type="button" onClick={guardarNombres}>Guardar</Button>
+                    </div>
+                )}>
+                <div className="space-y-2">
+                    {PALETA.map(p => (
+                        <label key={p.color} className="flex items-center gap-3">
+                            <span className={cn('h-4 w-4 shrink-0 rounded-full', p.punto)} aria-hidden="true" />
+                            <span className="w-20 shrink-0 text-sm text-muted-foreground">{p.etiqueta}</span>
+                            <input type="text" maxLength={60} value={borradorNombres[p.color] || ''} placeholder="Sin nombre"
+                                aria-label={`Nombre del color ${p.etiqueta}`}
+                                onChange={e => setBorradorNombres(b => ({ ...b, [p.color]: e.target.value }))}
+                                className="min-w-0 flex-1 rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-brand-dark" />
+                        </label>
+                    ))}
+                </div>
+            </Modal>
 
             {/* ═══ VISTA PREVIA (DETALLE) ═══ */}
             <Modal
@@ -347,6 +579,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                                                         )}
                                                         <p className="text-caption text-muted-foreground">
                                                             {Number(it.cantidad).toLocaleString('es-CL')} {it.unidad || ''} &middot; {fmtMoney(it.precio_unitario)} c/u
+                                                            {it.medidas ? ` · Medidas: ${it.medidas}` : ''}
                                                             {/* Destino: solo facturas anteriores a la mig 157 (las que sí movían stock). */}
                                                             {it.obra_nombre ? ` · Obra: ${it.obra_nombre}` : it.bodega_nombre ? ` · Bodega: ${it.bodega_nombre}` : ''}
                                                         </p>
@@ -444,7 +677,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                 facturaId={typeof formAbierto === 'number' ? formAbierto : null}
                 lecturaIA={lecturaIA}
                 onClose={() => setFormAbierto(null)}
-                onSaved={fetchFacturas}
+                onSaved={fetchFacturasTodo}
             />
         </div>
     );
