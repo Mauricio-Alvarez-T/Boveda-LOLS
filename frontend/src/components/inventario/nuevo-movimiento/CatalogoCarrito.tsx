@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Plus, Minus, Trash2, Search, Package, AlertCircle, ShoppingBag } from 'lucide-react';
 import { Button } from '../../ui/Button';
+import { CantidadInput } from '../../ui/CantidadInput';
 import { IconButton } from '../../ui/IconButton';
 import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { QtyStepper } from '../../ui/QtyStepper';
@@ -158,7 +159,7 @@ export const CatalogoCarrito: React.FC<{
                         {customItems.map((c, i) => (
                             <li key={i} className="flex items-center gap-2">
                                 <input value={c.descripcion} onChange={e => updCustom(i, { descripcion: e.target.value })} placeholder="Descripción del material" className="flex-1 min-w-0 h-10 px-2.5 text-xs border border-border rounded-lg" />
-                                <input type="number" inputMode="decimal" min={1} value={c.cantidad} onChange={e => updCustom(i, { cantidad: parseInt(e.target.value) || 0 })} className="w-16 h-10 px-1 text-xs text-center border border-border rounded-lg" />
+                                <CantidadInput value={c.cantidad} onChange={v => updCustom(i, { cantidad: v })} invalid={!!c.descripcion.trim() && !(c.cantidad > 0)} ariaLabel={c.descripcion ? `Cantidad de ${c.descripcion}` : 'Cantidad'} className="w-16 h-10" />
                                 <input value={c.unidad || ''} onChange={e => updCustom(i, { unidad: e.target.value })} placeholder="unidad" className="w-20 h-10 px-2 text-xs border border-border rounded-lg" />
                                 <IconButton type="button" variant="danger" size="sm" onClick={() => delCustom(i)} aria-label="Eliminar material" icon={<Trash2 className="h-4 w-4" />} className="shrink-0" />
                             </li>
@@ -166,6 +167,9 @@ export const CatalogoCarrito: React.FC<{
                     </ul>
                 )}
             </div>
+            {customItems.some(c => c.descripcion.trim() && !(c.cantidad > 0)) && (
+                <p className="mt-1.5 flex items-center gap-1 text-caption font-bold text-red-600 dark:text-red-400 shrink-0"><AlertCircle className="h-3.5 w-3.5" /> Falta la cantidad de algún material. Se aceptan decimales: ½ = 0,5.</p>
+            )}
         </div>
     );
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { parseCantidad } from '../../utils/parseCantidad';
 
 /**
  * Control de cantidad estándar (− input +) para todo el módulo de inventario/
@@ -9,6 +10,9 @@ import { cn } from '../../utils/cn';
  * - `variant='inline'`: − muted, + verde (catálogo/revisar).
  * - `variant='card'`: ambos con borde + hover (recepción).
  * - `warning`: marca el input en rojo (exceso) o ámbar (sobrante).
+ * - `decimal`: acepta fracciones con coma o punto (materiales: ½ m³ = 0,5). Los
+ *   botones siguen sumando/restando 1; − se apaga si restar 1 baja del mínimo.
+ *   Input de texto (no `type=number`): Safari iPhone en español entrega "" con «0,5».
  */
 const SIZES = {
     sm: { btn: 'h-7 w-7', input: 'w-12 h-7', icon: 'h-3.5 w-3.5' },
@@ -27,7 +31,8 @@ export const QtyStepper: React.FC<{
     warning?: 'exceso' | 'sobrante' | null;
     disabled?: boolean;
     ariaLabel?: string;
-}> = ({ value, onChange, min = 0, max, unidad, size = 'md', variant = 'inline', warning = null, disabled = false, ariaLabel }) => {
+    decimal?: boolean;
+}> = ({ value, onChange, min = 0, max, unidad, size = 'md', variant = 'inline', warning = null, disabled = false, ariaLabel, decimal = false }) => {
     const s = SIZES[size];
     // Borrador de texto mientras se edita: permite seleccionar-y-reescribir sin
     // que el valor controlado "concatene", y dejar el campo intermedio vacío.
@@ -54,24 +59,24 @@ export const QtyStepper: React.FC<{
             <button
                 type="button"
                 onClick={() => onChange(clamp(value - 1))}
-                disabled={disabled || value <= min}
+                disabled={disabled || (decimal ? value - 1 < min : value <= min)}
                 aria-label={ariaLabel ? `Restar a ${ariaLabel}` : 'Restar'}
                 className={cn(btnBase, s.btn, variant === 'card' ? cardStyle : 'bg-muted text-brand-dark')}
             >
                 <Minus className={s.icon} />
             </button>
             <input
-                type="number"
-                inputMode="numeric"
-                min={min}
-                max={max}
-                value={draft ?? String(value)}
+                type={decimal ? 'text' : 'number'}
+                inputMode={decimal ? 'decimal' : 'numeric'}
+                min={decimal ? undefined : min}
+                max={decimal ? undefined : max}
+                value={draft ?? (decimal ? String(value).replace('.', ',') : String(value))}
                 disabled={disabled}
                 onFocus={e => e.currentTarget.select()}
                 onChange={e => {
                     setDraft(e.target.value);
-                    const n = parseInt(e.target.value, 10);
-                    if (Number.isFinite(n)) onChange(clamp(n));
+                    const n = decimal ? parseCantidad(e.target.value) : parseInt(e.target.value, 10);
+                    if (n != null && Number.isFinite(n)) onChange(clamp(n));
                 }}
                 onBlur={() => setDraft(null)}
                 aria-label={ariaLabel}

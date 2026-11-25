@@ -2,6 +2,7 @@ import React from 'react';
 import { FileText, CheckCircle2, Truck, PackageCheck, Ban, ShoppingBag, Package, Minus, Plus, Trash2 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { QtyStepper } from '../../ui/QtyStepper';
+import { CantidadInput } from '../../ui/CantidadInput';
 import { IconButton } from '../../ui/IconButton';
 import type { ItemInventario } from '../../../types/entities';
 import type { Origen, Destino, InferResult, WizardState, ItemInput, CustomItemInput } from '../../../utils/inferMovimiento';
@@ -94,7 +95,7 @@ export const PasoRevisar: React.FC<{
                         {customItems.map((c, i) => (
                             <li key={i} className="flex items-center gap-2">
                                 <input value={c.descripcion} onChange={e => updCustom(i, { descripcion: e.target.value })} placeholder="Descripción del material" className="flex-1 min-w-0 h-9 px-2.5 text-xs border border-border rounded-lg" />
-                                <input type="number" inputMode="decimal" min={1} value={c.cantidad} onChange={e => updCustom(i, { cantidad: parseInt(e.target.value) || 0 })} className="w-14 h-9 px-1 text-xs text-center border border-border rounded-lg" />
+                                <CantidadInput value={c.cantidad} onChange={v => updCustom(i, { cantidad: v })} invalid={!!c.descripcion.trim() && !(c.cantidad > 0)} ariaLabel={c.descripcion ? `Cantidad de ${c.descripcion}` : 'Cantidad'} className="w-14 h-9" />
                                 <input value={c.unidad || ''} onChange={e => updCustom(i, { unidad: e.target.value })} placeholder="unidad" className="w-16 h-9 px-2 text-xs border border-border rounded-lg" />
                                 <IconButton icon={<Trash2 className="h-4 w-4" />} variant="danger" size="sm" onClick={() => delCustom(i)} className="shrink-0" aria-label="Quitar material" />
                             </li>

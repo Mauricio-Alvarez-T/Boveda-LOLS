@@ -151,7 +151,7 @@ const MaterialesAprobacionPanel: React.FC<{
                                 <div className="mt-3 space-y-3">
                                     <div className="flex items-center gap-2">
                                         <span className="text-sm font-semibold text-muted-foreground shrink-0">Cantidad</span>
-                                        <QtyStepper value={e.cantidad_aprobada} onChange={v => setEdit(e.id, { cantidad_aprobada: v })} min={1} size="md" variant="card" ariaLabel={e.descripcion} />
+                                        <QtyStepper value={e.cantidad_aprobada} onChange={v => setEdit(e.id, { cantidad_aprobada: v })} min={0.01} decimal size="md" variant="card" ariaLabel={e.descripcion} />
                                         <input value={e.unidad} onChange={ev => setEdit(e.id, { unidad: ev.target.value })}
                                             placeholder="unidad (sacos, kg...)"
                                             className="flex-1 min-w-0 h-11 px-3 text-sm rounded-lg border border-border bg-card outline-none focus:ring-2 focus:ring-brand-primary/30" />
@@ -200,7 +200,7 @@ const MaterialesAprobacionPanel: React.FC<{
                         <div className="mt-3 space-y-3">
                             <div className="flex items-center gap-2">
                                 <span className="text-sm font-semibold text-muted-foreground shrink-0">Cantidad</span>
-                                <QtyStepper value={n.cantidad} onChange={v => setNuevo(n._k, { cantidad: v })} min={1} size="md" variant="card" ariaLabel={n.descripcion || 'nuevo'} />
+                                <QtyStepper value={n.cantidad} onChange={v => setNuevo(n._k, { cantidad: v })} min={0.01} decimal size="md" variant="card" ariaLabel={n.descripcion || 'nuevo'} />
                                 <input value={n.unidad} onChange={ev => setNuevo(n._k, { unidad: ev.target.value })} placeholder="unidad (sacos, kg...)"
                                     className="flex-1 min-w-0 h-11 px-3 text-sm rounded-lg border border-border bg-card outline-none focus:ring-2 focus:ring-brand-primary/30" />
                             </div>

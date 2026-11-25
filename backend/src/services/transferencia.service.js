@@ -376,9 +376,13 @@ const transferenciaService = {
             if (!c.descripcion || typeof c.descripcion !== 'string' || !c.descripcion.trim()) {
                 throw new Error('Item personalizado: descripcion requerida');
             }
+            // Se aceptan decimales (½ m³ de arena = 0.5; columna DECIMAL(12,4) desde mig 054).
+            // Antes exigía >= 1 y salía como 500 «falla del servidor» (Felipe Escobar, 18-nov).
             const cant = Number(c.cantidad);
-            if (!Number.isFinite(cant) || cant < 1) {
-                throw new Error('Item personalizado: cantidad debe ser >= 1');
+            if (!Number.isFinite(cant) || !(cant > 0)) {
+                const err = new Error(`Falta la cantidad de «${c.descripcion.trim().slice(0, 60)}» (debe ser mayor que 0)`);
+                err.statusCode = 400;
+                throw err;
             }
         }
         if (!destino_obra_id && !destino_bodega_id) throw new Error('Debe especificar un destino');
