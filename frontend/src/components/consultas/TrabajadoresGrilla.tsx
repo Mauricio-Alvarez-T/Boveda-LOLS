@@ -44,6 +44,8 @@ interface Props {
     filtros?: React.ReactNode;
     /** Chips de atajos: van dentro de la barra de la cabecera, no en una fila propia. */
     atajos?: React.ReactNode;
+    /** La lista viene ordenada por fecha de ingreso, la más reciente primero (rango de ingreso activo). */
+    ordenIngreso?: boolean;
 }
 
 const iniciales = (w: Trabajador) => `${(w.apellido_paterno || '')[0] || ''}${(w.nombres || '')[0] || ''}`.toUpperCase();
@@ -93,6 +95,7 @@ const DocsBar: React.FC<{ pct: number; compact?: boolean }> = ({ pct, compact })
 const TrabajadoresGrillaImpl: React.FC<Props> = ({
     workers, loading, activeFilterCount, hasPermission, selected, onToggle, onClearSelection, onOpen,
     onEditar, onConstancia, onDesvincular, onReactivar, onDepurar, onEnviar, onExportar, exporting, onClearFilters, formatFecha, filtros, atajos,
+    ordenIngreso = false,
 }) => {
     const haySel = selected.size > 0;
     // Tabla O tarjetas, nunca las dos (regla §8.3): con `hidden md:table` / `md:hidden` los dos árboles
@@ -282,7 +285,11 @@ const TrabajadoresGrillaImpl: React.FC<Props> = ({
                                 <th>Trabajador</th>
                                 <th>Empresa · Obra</th>
                                 <th className="hidden xl:table-cell">Cargo</th>
-                                <th>Ingreso</th>
+                                {/* Con rango de ingreso activo la lista va por ingreso, el más reciente arriba. */}
+                                <th aria-sort={ordenIngreso ? 'descending' : undefined}
+                                    title={ordenIngreso ? 'Ordenado por fecha de ingreso, el más reciente primero' : undefined}>
+                                    Ingreso{ordenIngreso ? ' ↓' : ''}
+                                </th>
                                 <th>Documentación</th>
                                 <th className="w-32 text-right">Acciones</th>
                             </tr>

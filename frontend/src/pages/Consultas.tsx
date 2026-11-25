@@ -64,6 +64,7 @@ import { TrabajadoresGrilla } from '../components/consultas/TrabajadoresGrilla';
 import { BuscadorTrabajadores } from '../components/consultas/BuscadorTrabajadores';
 import { ObraSelector } from '../components/layout/ObraSelector';
 import { indexar, tokenizar, coincide, ranking } from '../utils/busquedaTrabajadores';
+import { ordenarPorIngresoReciente } from '../components/consultas/ordenTrabajadores';
 import { FiltrosRapidos, type FiltroRapido } from '../components/consultas/FiltrosRapidos';
 import { mesEnCurso, ultimosDias } from '../components/consultas/rangosFecha';
 import { FiltrosRail } from '../components/consultas/FiltrosRail';
@@ -189,10 +190,17 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     // TrabajadoresGrilla no serviría de nada: los dos van juntos.
     // `incluirObra`: acá sí, porque la grilla puede mostrar varias obras a la vez y buscar por obra es
     // útil. En Asistencia va apagado — ver el porqué en `OpcionesIndice`.
-    const indice = useMemo(() => workers.map(w => ({ w, idx: indexar(w, { incluirObra: true }) })), [workers]);
+    // Con un rango de fecha de ingreso («Ingresos de este mes», «Entró entre») los últimos ingresos van
+    // arriba (idea #6 de Daphne, 2026-11-25); sin él, el orden alfabético que trae el backend.
+    const ordenIngresoReciente = !!(filterIngresoDesde || filterIngresoHasta);
+    const workersOrdenados = useMemo(
+        () => (ordenIngresoReciente ? ordenarPorIngresoReciente(workers) : workers),
+        [workers, ordenIngresoReciente]
+    );
+    const indice = useMemo(() => workersOrdenados.map(w => ({ w, idx: indexar(w, { incluirObra: true }) })), [workersOrdenados]);
     const workersVisibles = useMemo(() => {
         const tokens = tokenizar(busquedaDiferida);
-        if (!tokens.length) return workers;
+        if (!tokens.length) return workersOrdenados;
         // El rango se calcula UNA vez por fila, no dentro del comparador: ahí se evaluaría O(n log n)
         // veces y cada evaluación vuelve a normalizar el mismo texto.
         return indice
@@ -200,7 +208,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
             .map(x => ({ ...x, rango: ranking(x.idx, busquedaDiferida) }))
             .sort((a, b) => a.rango - b.rango)
             .map(({ w }) => w);
-    }, [indice, workers, busquedaDiferida]);
+    }, [indice, workersOrdenados, busquedaDiferida]);
 
     // Etiqueta legible (MM/AAAA) del filtro de aniversario, si está activo.
     const aniversario10mLabel = useMemo(() => {
@@ -721,6 +729,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                     estable entre teclas — de ahí los useCallback y los useMemo de arriba. */}
                 <TrabajadoresGrilla
                     workers={workersVisibles}
+                    ordenIngreso={ordenIngresoReciente}
                     loading={loading}
                     activeFilterCount={activeFilterCount}
                     hasPermission={hasPermission}
