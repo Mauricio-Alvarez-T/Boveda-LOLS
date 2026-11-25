@@ -32,14 +32,15 @@ describe('tituloCompras', () => {
 });
 
 describe('construirLibroCompras', () => {
-    const wb = construirLibroCompras(LINEAS, { titulo: 'COMPRAS 2025', filtrosTexto: 'Del 01-01-2025 al 31-12-2025', nombres: { naranjo: 'Maquinaria nueva' } });
+    const wb = construirLibroCompras(LINEAS, { titulo: 'COMPRAS 2025', filtrosTexto: 'Del 01-01-2025 al 31-12-2025', nombres: { naranjo: 'Maquinaria nueva' }, generado: new Date(2026, 10, 25) });
     const ws = wb.getWorksheet('Compras')!;
     const filas: { n: number; v: unknown[] }[] = [];
     ws.eachRow((row, n) => filas.push({ n, v: (row.values as unknown[]).slice(1) }));
     const buscar = (texto: string) => filas.find(f => f.v.some(x => x === texto));
 
     test('título, cabecera sin M2/$M2/YUAN y en el orden de la planilla', () => {
-        expect(ws.getCell('B1').value).toBe('COMPRAS 2025');
+        expect(ws.getCell('A1').value).toBe('COMPRAS 2025');
+        expect(ws.getCell('A2').value).toBe('Del 01-01-2025 al 31-12-2025 · 3 líneas · 1 factura · generado el 25-11-2026');
         expect((ws.getRow(4).values as unknown[]).slice(1)).toEqual(['ITEM', 'DESCRIPCIÓN', 'MEDIDAS', 'UNID', 'CANTIDAD', '$ UNID', '$ TOTAL', 'FACTURA', 'FECHA', 'PROVEEDOR']);
     });
 
@@ -64,6 +65,31 @@ describe('construirLibroCompras', () => {
         expect(buscar('Maquinaria nueva')).toBeDefined();   // naranjo con nombre
         expect(buscar('Azul')).toBeDefined();               // azul sin nombre → etiqueta
         expect(buscar('Verde')).toBeUndefined();            // color no usado: no va a la leyenda
+    });
+
+    const fill = (n: number, c: number) => (ws.getRow(n).getCell(c).fill as { fgColor?: { argb?: string } } | undefined)?.fgColor?.argb;
+
+    test('apartados diferenciados: cabecera pizarra, banda verde por categoría, subtotal verde suave a lo ancho, total pizarra', () => {
+        expect(fill(4, 1)).toBe('FF1E293B');
+        expect(fill(4, 10)).toBe('FF1E293B');
+        const banda = buscar('MAQUINARIA · 2 líneas')!;
+        expect(fill(banda.n, 1)).toBe('FF029E4D');
+        expect(fill(banda.n, 10)).toBe('FF029E4D');
+        expect(buscar('ALZAPRIMAS · 1 línea')).toBeDefined();
+        const sub = buscar('SUBTOTAL MAQUINARIA')!;
+        expect(fill(sub.n, 1)).toBe('FFE6F4EC');
+        expect(fill(sub.n, 10)).toBe('FFE6F4EC');
+        expect(fill(buscar('TOTAL GENERAL')!.n, 7)).toBe('FF1E293B');
+    });
+
+    test('hoja Resumen: subtotal y % por categoría, y total', () => {
+        const rs = wb.getWorksheet('Resumen')!;
+        expect(wb.worksheets.map(w => w.name)).toEqual(['Compras', 'Resumen']);
+        expect((rs.getRow(4).values as unknown[]).slice(1)).toEqual(['CATEGORÍA', 'LÍNEAS', 'SUBTOTAL', '% DEL TOTAL']);
+        expect((rs.getRow(5).values as unknown[]).slice(1)).toEqual(['MAQUINARIA', 2, 5750000, 5750000 / 7250000]);
+        expect((rs.getRow(6).values as unknown[]).slice(1)).toEqual(['ALZAPRIMAS', 1, 1500000, 1500000 / 7250000]);
+        expect(rs.getRow(7).getCell(3).value).toBe(7250000);
+        expect(rs.getRow(7).getCell(4).value).toBe(1);
     });
 });
 
