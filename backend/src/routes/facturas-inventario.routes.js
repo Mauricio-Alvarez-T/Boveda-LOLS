@@ -2,32 +2,55 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const validateBody = require('../middleware/validateBody');
+const { uploadFactura, uploadLectura } = require('../middleware/upload-facturas');
 const facturaService = require('../services/factura-inventario.service');
+const lecturaFactura = require('../services/lecturaFactura.service');
 
 // Permisos financieros — facturas contienen montos y precios unitarios, por
 // lo que requieren `inventario.facturas.ver` para listar/leer y
 // `inventario.facturas.gestionar` para crear/editar/anular. Sustituye los
 // chequeos genéricos `inventario.ver / .crear / .eliminar` que se usaban antes.
+//
+// Desde la mig 157 una factura es el REGISTRO de lo comprado: no mueve stock ni
+// costo, y puede guardarse como borrador («Continuar después»).
 
-// Schema compartido POST (crear) / PUT (editar). strip:true evita
-// mass-assignment de `activo` / `registrado_por`. La XOR obra/bodega por ítem
-// la valida normalizeUbicacion en el service (400).
+const ITEM_RULES = {
+    item_id: { type: 'integer', min: 1 },
+    cantidad: { required: true, type: 'number', min: 0.0001 },
+    precio_unitario: { required: true, type: 'number', min: 0 },
+    descripcion_factura: { type: 'string', maxLength: 255 },
+};
+
+// Registrada: completa (el service además exige item_id en cada línea).
+// strip:true evita mass-assignment de `activo` / `registrado_por`.
 const FACTURA_SCHEMA = {
+    estado: { type: 'string', pattern: /^(borrador|registrada)$/ },
     numero_factura: { required: true, type: 'string', minLength: 1, maxLength: 50 },
     proveedor: { required: true, type: 'string', minLength: 1, maxLength: 255 },
     fecha_factura: { required: true, type: 'string', format: 'date' },
     monto_neto: { required: true, type: 'number', min: 0 },
     observaciones: { type: 'string', maxLength: 5000 },
-    items: {
-        required: true, type: 'array', minLength: 1,
-        itemRules: {
-            item_id: { required: true, type: 'integer', min: 1 },
-            obra_id: { type: 'integer', min: 1 },
-            bodega_id: { type: 'integer', min: 1 },
-            cantidad: { required: true, type: 'number', min: 0.0001 },
-            precio_unitario: { required: true, type: 'number', min: 0 },
-        },
-    },
+    items: { required: true, type: 'array', minLength: 1, itemRules: ITEM_RULES },
+};
+
+// Borrador: todo opcional — se guarda lo que haya.
+const BORRADOR_SCHEMA = {
+    estado: { required: true, type: 'string', pattern: /^borrador$/ },
+    numero_factura: { type: 'string', maxLength: 50 },
+    proveedor: { type: 'string', maxLength: 255 },
+    fecha_factura: { type: 'string', format: 'date' },
+    monto_neto: { type: 'number', min: 0 },
+    observaciones: { type: 'string', maxLength: 5000 },
+    items: { type: 'array', itemRules: ITEM_RULES },
+};
+
+const validarFactura = (req, res, next) =>
+    validateBody(req.body?.estado === 'borrador' ? BORRADOR_SCHEMA : FACTURA_SCHEMA, { strip: true })(req, res, next);
+
+const idValido = (v) => {
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 1) { const e = new Error('ID inválido'); e.statusCode = 400; throw e; }
+    return n;
 };
 
 router.get('/', auth, checkPermission('inventario.facturas.ver'), async (req, res, next) => {
@@ -37,9 +60,23 @@ router.get('/', auth, checkPermission('inventario.facturas.ver'), async (req, re
     } catch (err) { next(err); }
 });
 
+// ¿Está activa la lectura con IA? (sin clave en el .env, el botón no aparece).
+// Antes de '/:id' para que «config» no se tome como id.
+router.get('/config', auth, checkPermission('inventario.facturas.ver'), (req, res) => {
+    res.json({ data: { lectura_ia: lecturaFactura.disponible() } });
+});
+
+// «Leer factura»: la foto/PDF viaja en memoria, se lee con IA y NO se guarda.
+router.post('/leer', auth, checkPermission('inventario.facturas.gestionar'), uploadLectura.single('archivo'), async (req, res, next) => {
+    try {
+        const result = await lecturaFactura.leer(req.file);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
 router.get('/:id', auth, checkPermission('inventario.facturas.ver'), async (req, res, next) => {
     try {
-        const result = await facturaService.getById(req.params.id);
+        const result = await facturaService.getById(idValido(req.params.id));
         res.json({ data: result });
     } catch (err) { next(err); }
 });
@@ -48,30 +85,45 @@ router.get('/:id', auth, checkPermission('inventario.facturas.ver'), async (req,
 // Gate `ver`: quien puede ver la factura puede ver qué se le cambió.
 router.get('/:id/historial', auth, checkPermission('inventario.facturas.ver'), async (req, res, next) => {
     try {
-        const result = await facturaService.getHistorial(req.params.id);
+        const result = await facturaService.getHistorial(idValido(req.params.id));
         res.json({ data: result });
     } catch (err) { next(err); }
 });
 
-router.post('/', auth, checkPermission('inventario.facturas.gestionar'), validateBody(FACTURA_SCHEMA, { strip: true }), async (req, res, next) => {
+// Foto/PDF de la factura. Descarga autenticada: documento con montos, nunca estático.
+router.get('/:id/archivo', auth, checkPermission('inventario.facturas.ver'), async (req, res, next) => {
+    try {
+        const { fullPath, fileName } = await facturaService.getArchivo(idValido(req.params.id));
+        res.download(fullPath, fileName);
+    } catch (err) { next(err); }
+});
+
+router.post('/:id/archivo', auth, checkPermission('inventario.facturas.gestionar'), uploadFactura.single('archivo'), async (req, res, next) => {
+    try {
+        const result = await facturaService.setArchivo(idValido(req.params.id), req.file, req.user.id, req);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+router.post('/', auth, checkPermission('inventario.facturas.gestionar'), validarFactura, async (req, res, next) => {
     try {
         const result = await facturaService.crear(req.body, req.user.id);
         res.status(201).json({ data: result });
     } catch (err) { next(err); }
 });
 
-// Edición post-ingreso (cabecera + ítems, con ajuste de stock). El historial
+// Edición (borrador o registrada) y paso borrador → registrada. El historial
 // del cambio se registra desde el service (logManualActivity).
-router.put('/:id', auth, checkPermission('inventario.facturas.gestionar'), validateBody(FACTURA_SCHEMA, { strip: true }), async (req, res, next) => {
+router.put('/:id', auth, checkPermission('inventario.facturas.gestionar'), validarFactura, async (req, res, next) => {
     try {
-        const result = await facturaService.editar(req.params.id, req.body, req.user.id, req);
+        const result = await facturaService.editar(idValido(req.params.id), req.body, req.user.id, req);
         res.json({ data: result });
     } catch (err) { next(err); }
 });
 
 router.put('/:id/anular', auth, checkPermission('inventario.facturas.gestionar'), async (req, res, next) => {
     try {
-        const result = await facturaService.anular(req.params.id, req.user.id, req);
+        const result = await facturaService.anular(idValido(req.params.id), req.user.id, req);
         res.json({ data: result });
     } catch (err) { next(err); }
 });

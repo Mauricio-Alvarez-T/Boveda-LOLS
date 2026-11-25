@@ -1,5 +1,6 @@
+const fs = require('fs');
+const path = require('path');
 const db = require('../config/db');
-const { normalizeUbicacion } = require('../utils/ubicacionStock');
 const { normalizePagination } = require('../utils/pagination');
 const { logManualActivity } = require('../middleware/logger');
 
@@ -107,43 +108,71 @@ const computarDiffFactura = (antes, itemsAntes, data, itemsDespues) => {
     return { cambios, resumen: partes.join(' | '), items_detalle: detalleCap };
 };
 
+const httpError = (status, msg) => { const e = new Error(msg); e.statusCode = status; return e; };
+
+const UPLOADS_DIR = path.join(__dirname, '../../uploads');
+function borrarArchivo(ruta) {
+    if (!ruta) return;
+    try { fs.unlinkSync(path.join(UPLOADS_DIR, ruta)); } catch { /* ya no estaba */ }
+}
+
+/** La ruta interna del archivo no sale del servidor: el cliente solo sabe si hay uno. */
+const publica = (f) => {
+    const { archivo_path, ...resto } = f;
+    return { ...resto, tiene_archivo: !!archivo_path };
+};
+
+/**
+ * Para pasar a 'registrada' la factura tiene que estar completa: número, proveedor,
+ * fecha y al menos un ítem, todos vinculados al catálogo. Un borrador guarda lo que haya.
+ */
+function exigirCompleta(data) {
+    const items = data.items || [];
+    if (!String(data.numero_factura || '').trim()) throw httpError(400, 'Falta el número de factura');
+    if (!String(data.proveedor || '').trim()) throw httpError(400, 'Falta el proveedor');
+    if (!data.fecha_factura) throw httpError(400, 'Falta la fecha de la factura');
+    if (!items.length) throw httpError(400, 'La factura debe tener al menos un ítem');
+    if (items.some(it => !it.item_id)) throw httpError(400, 'Hay ítems sin vincular al catálogo: elige el ítem o créalo con «Nuevo»');
+}
+
+/**
+ * Ítems de la factura. Desde la mig 157 NO tocan stock: sin destino (obra/bodega
+ * NULL) — la factura es el registro de lo comprado. `descripcion_factura` guarda el
+ * texto tal cual viene en el documento (lo llena la lectura con IA o queda vacío).
+ */
+async function insertarItems(conn, facturaId, items) {
+    for (const item of items) {
+        await conn.query(
+            `INSERT INTO factura_items (factura_id, item_id, obra_id, bodega_id, cantidad, precio_unitario, descripcion_factura)
+             VALUES (?, ?, NULL, NULL, ?, ?, ?)`,
+            [facturaId, item.item_id || null, item.cantidad, item.precio_unitario,
+                item.descripcion_factura ? String(item.descripcion_factura).slice(0, 255) : null]
+        );
+    }
+}
+
 const facturaInventarioService = {
+    /**
+     * Alta. `estado: 'borrador'` guarda a medias («Continuar después»); si no, se
+     * registra y debe venir completa. Desde la mig 157 no mueve stock ni costo.
+     */
     async crear(data, userId) {
-        const { numero_factura, proveedor, fecha_factura, monto_neto, observaciones, items } = data;
-        if (!items || !items.length) throw new Error('La factura debe tener al menos un ítem');
+        const estado = data.estado === 'borrador' ? 'borrador' : 'registrada';
+        if (estado === 'registrada') exigirCompleta(data);
+        const { numero_factura, proveedor, fecha_factura, monto_neto, observaciones } = data;
+        const items = data.items || [];
 
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
-
             const [result] = await conn.query(
-                `INSERT INTO facturas_inventario (numero_factura, proveedor, fecha_factura, monto_neto, observaciones, registrado_por)
-                 VALUES (?, ?, ?, ?, ?, ?)`,
-                [numero_factura, proveedor, fecha_factura, monto_neto, observaciones || null, userId]
+                `INSERT INTO facturas_inventario (estado, numero_factura, proveedor, fecha_factura, monto_neto, observaciones, registrado_por)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [estado, numero_factura || null, proveedor || null, fecha_factura || null, monto_neto || 0, observaciones || null, userId]
             );
-            const facturaId = result.insertId;
-
-            for (const item of items) {
-                // XOR (mig 050): la factura aterriza el stock en obra XOR bodega.
-                const ubic = normalizeUbicacion(item.obra_id, item.bodega_id);
-
-                await conn.query(
-                    `INSERT INTO factura_items (factura_id, item_id, obra_id, bodega_id, cantidad, precio_unitario)
-                     VALUES (?, ?, ?, ?, ?, ?)`,
-                    [facturaId, item.item_id, ubic.obra, ubic.bodega, item.cantidad, item.precio_unitario]
-                );
-
-                // Auto-incrementar stock en destino
-                await conn.query(
-                    `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
-                     VALUES (?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                    [item.item_id, ubic.obra, ubic.bodega, item.cantidad]
-                );
-            }
-
+            await insertarItems(conn, result.insertId, items);
             await conn.commit();
-            return { id: facturaId };
+            return { id: result.insertId, estado };
         } catch (err) {
             await conn.rollback();
             throw err;
@@ -153,87 +182,61 @@ const facturaInventarioService = {
     },
 
     /**
-     * Edición post-ingreso (cabecera + ítems). Misma semántica de stock que
-     * anular + crear, en UNA transacción: reversa el stock de los ítems previos
-     * (GREATEST-clamp, igual que anular), reemplaza los ítems y re-aplica stock.
-     * Tras el commit registra el historial con diff legible (logs_actividad,
-     * accion UPDATE) vía logManualActivity — el activityLogger global excluye
-     * este PUT para no duplicar con un log sin diff.
+     * Edición (cabecera + ítems) en UNA transacción. Un borrador puede seguir siendo
+     * borrador o pasar a registrada; una registrada no vuelve a borrador. Sin stock
+     * (mig 157): las facturas viejas que sí lo movieron conservan ese stock — editar
+     * o anular ya no lo revierte (decisión del dueño 2026-11-25).
+     * Historial: solo las ediciones de una factura YA registrada (logs_actividad
+     * UPDATE vía logManualActivity; el activityLogger global excluye este PUT).
      */
     async editar(id, data, userId, req = null) {
-        const { numero_factura, proveedor, fecha_factura, monto_neto, observaciones, items } = data;
-        if (!items || !items.length) throw new Error('La factura debe tener al menos un ítem');
-
         const conn = await db.getConnection();
-        let antes, itemsAntes;
+        let antes, itemsAntes, itemsDespues, estado;
         try {
             await conn.beginTransaction();
 
             const [factRows] = await conn.query(
                 'SELECT * FROM facturas_inventario WHERE id = ? FOR UPDATE', [id]
             );
-            if (!factRows.length) {
-                const err = new Error('Factura no encontrada');
-                err.statusCode = 404;
-                throw err;
-            }
-            if (!factRows[0].activo) {
-                const err = new Error('No se puede editar una factura anulada');
-                err.statusCode = 400;
-                throw err;
-            }
+            if (!factRows.length) throw httpError(404, 'Factura no encontrada');
+            if (!factRows[0].activo) throw httpError(400, 'No se puede editar una factura anulada');
             antes = factRows[0];
 
+            estado = data.estado === 'borrador' ? 'borrador' : (data.estado === 'registrada' ? 'registrada' : antes.estado);
+            if (antes.estado === 'registrada' && estado === 'borrador') {
+                throw httpError(400, 'Una factura registrada no vuelve a borrador');
+            }
+            if (estado === 'registrada') exigirCompleta(data);
+            const items = data.items || [];
+
             const [prevItems] = await conn.query(`
-                SELECT fi.*, i.descripcion
+                SELECT fi.*, COALESCE(i.descripcion, fi.descripcion_factura) AS descripcion
                 FROM factura_items fi
-                JOIN items_inventario i ON fi.item_id = i.id
+                LEFT JOIN items_inventario i ON fi.item_id = i.id
                 WHERE fi.factura_id = ?
             `, [id]);
             itemsAntes = prevItems;
 
-            // 1) Reversar el stock de los ítems previos (idéntico a anular).
-            for (const item of prevItems) {
-                const ubic = normalizeUbicacion(item.obra_id, item.bodega_id);
-                await conn.query(
-                    `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
-                     WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
-                    [item.cantidad, item.item_id, ubic.obra, ubic.bodega]
-                );
-            }
             await conn.query('DELETE FROM factura_items WHERE factura_id = ?', [id]);
-
-            // 2) Cabecera.
             await conn.query(
                 `UPDATE facturas_inventario
-                 SET numero_factura = ?, proveedor = ?, fecha_factura = ?, monto_neto = ?, observaciones = ?
+                 SET estado = ?, numero_factura = ?, proveedor = ?, fecha_factura = ?, monto_neto = ?, observaciones = ?
                  WHERE id = ?`,
-                [numero_factura, proveedor, fecha_factura, monto_neto, observaciones || null, id]
+                [estado, data.numero_factura || null, data.proveedor || null, data.fecha_factura || null,
+                    data.monto_neto || 0, data.observaciones || null, id]
             );
-
-            // 3) Ítems nuevos + stock (idéntico a crear).
-            for (const item of items) {
-                const ubic = normalizeUbicacion(item.obra_id, item.bodega_id);
-                await conn.query(
-                    `INSERT INTO factura_items (factura_id, item_id, obra_id, bodega_id, cantidad, precio_unitario)
-                     VALUES (?, ?, ?, ?, ?, ?)`,
-                    [id, item.item_id, ubic.obra, ubic.bodega, item.cantidad, item.precio_unitario]
-                );
-                await conn.query(
-                    `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
-                     VALUES (?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                    [item.item_id, ubic.obra, ubic.bodega, item.cantidad]
-                );
-            }
+            await insertarItems(conn, id, items);
 
             // Descripciones de los ítems nuevos para el diff legible.
-            const nuevosIds = [...new Set(items.map(i => Number(i.item_id)))];
-            const [descRows] = await conn.query(
-                'SELECT id, descripcion FROM items_inventario WHERE id IN (?)', [nuevosIds]
-            );
-            const descMap = Object.fromEntries(descRows.map(r => [Number(r.id), r.descripcion]));
-            var itemsDespues = items.map(i => ({ ...i, descripcion: descMap[Number(i.item_id)] }));
+            const nuevosIds = [...new Set(items.map(i => Number(i.item_id)).filter(Boolean))];
+            let descMap = {};
+            if (nuevosIds.length) {
+                const [descRows] = await conn.query(
+                    'SELECT id, descripcion FROM items_inventario WHERE id IN (?)', [nuevosIds]
+                );
+                descMap = Object.fromEntries(descRows.map(r => [Number(r.id), r.descripcion]));
+            }
+            itemsDespues = items.map(i => ({ ...i, descripcion: descMap[Number(i.item_id)] || i.descripcion_factura }));
 
             await conn.commit();
         } catch (err) {
@@ -243,16 +246,18 @@ const facturaInventarioService = {
             conn.release();
         }
 
-        // Historial (post-commit; si no hubo cambios reales, no ensuciar el log).
-        const { cambios, resumen, items_detalle } = computarDiffFactura(antes, itemsAntes, data, itemsDespues);
-        if (Object.keys(cambios).length > 0) {
-            await logManualActivity(
-                userId, 'facturas-inventario', 'UPDATE', String(id),
-                JSON.stringify({ cambios, resumen, items_detalle }), req
-            );
+        // Historial (post-commit): solo cambios a una factura ya registrada.
+        if (antes.estado === 'registrada') {
+            const { cambios, resumen, items_detalle } = computarDiffFactura(antes, itemsAntes, data, itemsDespues);
+            if (Object.keys(cambios).length > 0) {
+                await logManualActivity(
+                    userId, 'facturas-inventario', 'UPDATE', String(id),
+                    JSON.stringify({ cambios, resumen, items_detalle }), req
+                );
+            }
         }
 
-        return { id: Number(id) };
+        return { id: Number(id), estado };
     },
 
     /**
@@ -283,13 +288,13 @@ const facturaInventarioService = {
         });
     },
 
+    /**
+     * Lista: borradores primero (lo que quedó a medias), después por fecha de compra,
+     * la más nueva arriba. monto_virtual (mig 099) solo existe en facturas viejas
+     * con destino en bodega virtual; las nuevas no tienen destino → 0.
+     */
     async getAll(query = {}) {
         const { limit, offset } = normalizePagination(query);
-        // monto_virtual: suma de los ítems con destino en bodega(s) virtuales
-        // (mig 099). La UI lo resta del monto MOSTRADO según el modo del botón;
-        // monto_neto almacenado nunca cambia (documento real). `fi.obra_id IS
-        // NULL` espeja la precedencia de normalizeUbicacion (obra gana en
-        // facturas legacy con ambos destinos seteados).
         const [rows] = await db.query(`
             SELECT f.*, u.nombre as registrado_por_nombre,
                    COALESCE(mv.monto_virtual, 0) as monto_virtual
@@ -303,12 +308,12 @@ const facturaInventarioService = {
                 GROUP BY fi.factura_id
             ) mv ON mv.factura_id = f.id
             WHERE f.activo = 1
-            ORDER BY f.fecha_factura DESC, f.id DESC
+            ORDER BY (f.estado = 'borrador') DESC, f.fecha_factura DESC, f.id DESC
             LIMIT ? OFFSET ?
         `, [limit, offset]);
 
         const [countRows] = await db.query('SELECT COUNT(*) as total FROM facturas_inventario WHERE activo = 1');
-        return { data: rows, total: countRows[0].total };
+        return { data: rows.map(publica), total: countRows[0].total };
     },
 
     async getById(id) {
@@ -318,61 +323,66 @@ const facturaInventarioService = {
             LEFT JOIN usuarios u ON f.registrado_por = u.id
             WHERE f.id = ?
         `, [id]);
-        if (!rows.length) throw new Error('Factura no encontrada');
+        if (!rows.length) throw httpError(404, 'Factura no encontrada');
 
+        // LEFT JOIN: una línea de borrador puede no estar vinculada al catálogo aún.
         const [items] = await db.query(`
             SELECT fi.*, i.descripcion as item_descripcion, i.unidad,
                    o.nombre as obra_nombre, b.nombre as bodega_nombre,
                    CASE WHEN fi.obra_id IS NULL THEN COALESCE(b.es_virtual, 0) ELSE 0 END as bodega_es_virtual
             FROM factura_items fi
-            JOIN items_inventario i ON fi.item_id = i.id
+            LEFT JOIN items_inventario i ON fi.item_id = i.id
             LEFT JOIN obras o ON fi.obra_id = o.id
             LEFT JOIN bodegas b ON fi.bodega_id = b.id
             WHERE fi.factura_id = ?
+            ORDER BY fi.id
         `, [id]);
 
-        return { ...rows[0], items };
+        return { ...publica(rows[0]), items };
     },
 
-    async anular(id, userId = null, req = null) {
-        const conn = await db.getConnection();
-        try {
-            await conn.beginTransaction();
-
-            const [factura] = await conn.query('SELECT activo FROM facturas_inventario WHERE id = ?', [id]);
-            if (!factura.length || !factura[0].activo) throw new Error('Factura no encontrada o ya anulada');
-
-            // Reversar stock
-            const [items] = await conn.query('SELECT * FROM factura_items WHERE factura_id = ?', [id]);
-            for (const item of items) {
-                // Normalizar antes del WHERE: facturas legacy pueden tener obra+bodega
-                // ambos seteados en factura_items, pero ubicaciones_stock ya fue
-                // consolidada (mig 050) a la versión obra-only.
-                const ubic = normalizeUbicacion(item.obra_id, item.bodega_id);
-                await conn.query(
-                    `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
-                     WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
-                    [item.cantidad, item.item_id, ubic.obra, ubic.bodega]
-                );
-            }
-
-            await conn.query('UPDATE facturas_inventario SET activo = 0 WHERE id = ?', [id]);
-            await conn.commit();
-
-            // Historial legible (el activityLogger global excluye este PUT).
-            await logManualActivity(
-                userId, 'facturas-inventario', 'UPDATE', String(id),
-                JSON.stringify({ resumen: 'Factura anulada — stock revertido' }), req
-            );
-
-            return { id, anulada: true };
-        } catch (err) {
-            await conn.rollback();
-            throw err;
-        } finally {
-            conn.release();
+    /** Foto/PDF de la factura: guarda el nuevo y borra el anterior del disco. */
+    async setArchivo(id, file, userId, req = null) {
+        if (!file) throw httpError(400, 'No se recibió el archivo');
+        const [[actual]] = await db.query('SELECT id, archivo_path, activo FROM facturas_inventario WHERE id = ?', [id]);
+        if (!actual || !actual.activo) {
+            try { fs.unlinkSync(file.path); } catch { /* */ }
+            throw httpError(404, 'Factura no encontrada');
         }
-    }
+        const ruta = path.relative(UPLOADS_DIR, file.path);
+        await db.query(
+            'UPDATE facturas_inventario SET archivo_path = ?, archivo_nombre = ?, archivo_mime = ? WHERE id = ?',
+            [ruta, file.originalname, file.mimetype, id]
+        );
+        if (actual.archivo_path && actual.archivo_path !== ruta) borrarArchivo(actual.archivo_path);
+        await logManualActivity(
+            userId, 'facturas-inventario', 'UPDATE', String(id),
+            JSON.stringify({ resumen: `${actual.archivo_path ? 'Cambió' : 'Adjuntó'} la foto/PDF de la factura` }), req
+        );
+        return { id: Number(id), tiene_archivo: true };
+    },
+
+    async getArchivo(id) {
+        const [[f]] = await db.query('SELECT archivo_path, archivo_nombre, archivo_mime FROM facturas_inventario WHERE id = ?', [id]);
+        if (!f) throw httpError(404, 'Factura no encontrada');
+        if (!f.archivo_path) throw httpError(404, 'La factura no tiene foto ni PDF');
+        return { fullPath: path.join(UPLOADS_DIR, f.archivo_path), fileName: f.archivo_nombre || `factura-${id}`, mime: f.archivo_mime };
+    },
+
+    /**
+     * Anular (o descartar un borrador). Desde la mig 157 no revierte stock: lo que
+     * entró por facturas viejas se queda (decisión del dueño 2026-11-25).
+     */
+    async anular(id, userId = null, req = null) {
+        const [[factura]] = await db.query('SELECT activo, estado FROM facturas_inventario WHERE id = ?', [id]);
+        if (!factura || !factura.activo) throw httpError(404, 'Factura no encontrada o ya anulada');
+        await db.query('UPDATE facturas_inventario SET activo = 0 WHERE id = ?', [id]);
+        await logManualActivity(
+            userId, 'facturas-inventario', 'UPDATE', String(id),
+            JSON.stringify({ resumen: factura.estado === 'borrador' ? 'Borrador descartado' : 'Factura anulada' }), req
+        );
+        return { id, anulada: true };
+    },
 };
 
 module.exports = facturaInventarioService;

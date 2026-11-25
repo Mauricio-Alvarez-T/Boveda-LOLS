@@ -836,36 +836,52 @@ cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea
 - Backend **sanitiza** el JSON (campos $ no llegan) si el usuario no tiene permiso —
   `backend/src/utils/sanitizeFinancialFields.js`.
 
-### Edición de facturas post-ingreso + historial
+### Facturas = registro de compras (mig 157, pedido Daphne 2026-11-25)
 
-- **`PUT /facturas-inventario/:id`** (gate `gestionar`, mismo permiso que crear/anular — su
-  descripción ya cubría "editar"): edita cabecera + ítems. Stock: **reversa lo de los ítems
-  previos (GREATEST-clamp, igual que anular) y re-aplica lo de los nuevos**, todo en UNA
-  transacción (`SELECT ... FOR UPDATE`). Factura anulada NO es editable (400).
-- POST y PUT validan body con `validateBody` (schema compartido, `strip:true` → no se puede
-  inyectar `activo`/`registrado_por`).
-- **Historial embebido**: cada edición registra en `logs_actividad` (accion UPDATE, modulo
-  `facturas-inventario`) un `detalle {cambios, resumen, items_detalle}` armado en el service
-  (diff cabecera campo a campo + delta de ítems legible). La anulación también deja registro
-  ("Factura anulada — stock revertido"). El PUT de edición y el de anular están **excluidos
-  del activityLogger global** (loggean manual, como asistencias/bulk).
-- **`GET /facturas-inventario/:id/historial`** (gate `ver`): lista el historial parseado para
-  la UI. En el modal de detalle: badge `MODIFICADA` + sección "Historial de cambios".
-- Sin kardex: crear/editar/anular NO emiten `stock_movimientos` (hueco preexistente conocido;
-  follow-up aparte si se quiere trazabilidad en el kardex para las tres operaciones).
+- **Una factura NO mueve stock ni costo.** Es el archivo de lo comprado: cabecera + ítems
+  del catálogo (cantidad, precio unitario neto) **sin destino** (obra/bodega NULL) + la
+  foto/PDF. Crear, editar y anular no tocan `ubicaciones_stock`.
+- **Facturas anteriores** (que sí sumaron stock): **ese stock se queda** (decisión del dueño);
+  editarlas o anularlas ya NO lo revierte. Siguen mostrando su destino y su `monto_virtual`.
+- **Ítems del catálogo obligatorios al registrar** (decisión del dueño): si una línea no
+  existe, se crea ahí mismo con «Nuevo» (ítem al catálogo + vinculado a la línea).
+  `factura_items.descripcion_factura` guarda el texto tal cual en el documento.
+- **Estados** (`facturas_inventario.estado`): `borrador` | `registrada`.
+  - «Continuar después» guarda un **borrador** (todo opcional: sin número, proveedor, fecha
+    ni ítems vinculados). **Cerrar el formulario (X, Esc o tocar fuera) con algo escrito
+    también lo guarda como borrador** (antes se perdía todo — reporte Daphne).
+  - Registrar exige número, proveedor, fecha y ≥1 ítem, todos con `item_id` (400 si no).
+  - Una registrada no vuelve a borrador (400). Lista: borradores arriba («Por terminar»),
+    después por fecha de compra, la más nueva primero.
+- **Foto/PDF**: `POST /facturas-inventario/:id/archivo` (multer disco,
+  `uploads/facturas-inventario/`, PDF/JPG/PNG/WEBP, 10 MB) y `GET .../:id/archivo`
+  (descarga autenticada; la ruta interna nunca sale: el cliente recibe `tiene_archivo`).
+- **Leer con IA** (`POST /facturas-inventario/leer`, gate `gestionar`, archivo en memoria —
+  no se guarda): Claude (`claude-opus-5-5`, SDK `@anthropic-ai/sdk`, salida JSON con
+  esquema) devuelve proveedor, N°, fecha, neto e ítems con el `item_id` del catálogo que
+  calce o null; el id se re-valida contra el catálogo. Solo prellena: la persona revisa y
+  registra. Se activa con `ANTHROPIC_API_KEY` en el `.env` del backend
+  (`GET /facturas-inventario/config` → `lectura_ia`); sin clave, el botón no aparece. El
+  SDK se carga perezoso (si heal-deps aún no lo instaló, el resto funciona).
+- `PUT /facturas-inventario/:id` (gate `gestionar`): edita borrador o registrada en UNA
+  transacción. POST y PUT validan con `validateBody` (schema de borrador o completo según
+  `estado`, `strip:true` → no se puede inyectar `activo`/`registrado_por`).
+- **Historial embebido**: cada edición de una factura YA registrada registra en
+  `logs_actividad` (accion UPDATE, modulo `facturas-inventario`) un `detalle {cambios,
+  resumen, items_detalle}` armado en el service. También quedan «Factura anulada»,
+  «Borrador descartado» y «Adjuntó/Cambió la foto/PDF». Editar un borrador no deja historial.
+  PUT de edición, anular y POST del archivo están **excluidos del activityLogger global**.
+- **`GET /facturas-inventario/:id/historial`** (gate `ver`): historial parseado para la UI.
+  En el detalle: badge `MODIFICADA` + sección "Historial de cambios".
 
 ### Bodega Virtual en facturas (mig 099 — detalle en obras-bodegas.md)
 
-- Destino "Bodega Virtual (virtual)" SIEMPRE disponible al ingresar/editar ítems
-  (`/bodegas?incluir_virtual=true`): es el punto de entrada para ítems que aún no
-  pertenecen a una ubicación física.
-- `getAll` expone `monto_virtual` por factura (subquery sobre `factura_items` JOIN
-  bodegas `es_virtual=1`, con `fi.obra_id IS NULL` espejando la precedencia obra>bodega
-  de `normalizeUbicacion` en filas legacy); `getById` marca ítems con `bodega_es_virtual`.
-- El modo del botón (ocultar/mostrar/sumar) ajusta SOLO montos e ítems MOSTRADOS;
-  `monto_neto` almacenado y form de edición intactos (documento real).
-- Regularización: transferencia virtual→obra/bodega real desde el wizard (la bodega
-  participa en transferencias como cualquier otra).
+- Desde la mig 157 las facturas nuevas no tienen destino, así que ya no alimentan la
+  Bodega Virtual. Las facturas anteriores con ítems en ella conservan `monto_virtual`
+  (subquery en `getAll`) y `bodega_es_virtual` (en `getById`); el modo del botón
+  (ocultar/mostrar/sumar) ajusta SOLO lo MOSTRADO de esas facturas.
+- Regularización del stock virtual existente: transferencia virtual→obra/bodega real
+  desde el wizard (la bodega participa en transferencias como cualquier otra).
 
 ## Resumen Ejecutivo (`ResumenEjecutivoPanel.tsx`, rediseño 2026-11-02)
 

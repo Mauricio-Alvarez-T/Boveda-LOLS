@@ -1,21 +1,20 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Cargando, Skeleton } from '../ui/Skeleton';
-import { Plus, Minus, FileText, Trash2, Receipt, PackagePlus, Eye, Pencil, History } from 'lucide-react';
+import { Plus, FileText, Trash2, Receipt, Eye, Pencil, History, Paperclip, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
-import type { FacturaInventario, ItemInventario, CategoriaInventario } from '../../types/entities';
-import type { ApiResponse } from '../../types';
+import type { FacturaInventario } from '../../types/entities';
 import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
-import { SearchableSelect } from '../ui/SearchableSelect';
-import { FieldError } from '../ui/FieldError';
-import { QtyStepper } from '../ui/QtyStepper';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { StatusBadge } from '../ui/StatusBadge';
 import { fmtFecha } from '../../utils/fechas';
-import { formatBodegaConResponsable } from '../../utils/formatBodega';
 import { fmtMoneyExacto } from '../../utils/format';
+import { showApiError, showConfirmToast } from '../../utils/toastUtils';
+import { FacturaFormModal } from './facturas/FacturaFormModal';
+import { FacturaArchivoViewer } from './facturas/FacturaArchivoViewer';
+import type { FacturaDetalle } from './facturas/tipos';
 
 const fmtMoney = fmtMoneyExacto;
 
@@ -25,67 +24,38 @@ interface Props {
     /**
      * Modo Bodega Virtual (mig 099). Ajusta SOLO lo MOSTRADO: cuando no está
      * en 'sumar', los ítems con destino virtual se restan del monto exhibido y
-     * en 'ocultar' además se esconden del detalle. El monto_neto almacenado y
-     * el form de edición NUNCA se alteran (documento real).
+     * en 'ocultar' además se esconden del detalle. Solo afecta a facturas
+     * anteriores a la mig 157 (las nuevas no tienen destino).
      */
     bodegaVirtualModo?: 'ocultar' | 'mostrar' | 'sumar';
 }
 
-/* ── Line item inside the create form ── */
-interface LineItem {
-    item_id: number;
-    descripcion: string;
-    unidad: string;
-    // Permiten '' (vacío) mientras el usuario edita; se coercen a número al calcular/guardar.
-    cantidad: number | '';
-    precio_unitario: number | '';
-    destino_type: 'obra' | 'bodega';
-    destino_id: number;
-}
-
+/**
+ * Facturas de inventario = REGISTRO de lo comprado (mig 157, pedido Daphne 2026-11-25).
+ * No mueven stock ni costo. Cada una guarda su foto/PDF; se puede dejar a medias
+ * como borrador («Continuar después») y la IA puede leer la foto para prellenarla.
+ * Orden: borradores arriba, después por fecha de compra (la más nueva primero).
+ */
 const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo = 'ocultar' }) => {
     const [facturas, setFacturas] = useState<FacturaInventario[]>([]);
     const [loading, setLoading] = useState(false);
+    const [lecturaIA, setLecturaIA] = useState(false);
 
-    /* ── Modal state ── */
-    const [showModal, setShowModal] = useState(false);
-    // null = alta; number = edición de esa factura (mismo modal, submit PUT).
-    const [editingId, setEditingId] = useState<number | null>(null);
+    /* ── Formulario: null = cerrado; 'nueva' = alta; número = borrador / edición ── */
+    const [formAbierto, setFormAbierto] = useState<'nueva' | number | null>(null);
 
     /* ── Vista previa (detalle) ── */
     const [detalleId, setDetalleId] = useState<number | null>(null);
-    const [detalle, setDetalle] = useState<any | null>(null);
+    const [detalle, setDetalle] = useState<FacturaDetalle | null>(null);
+    const [verArchivo, setVerArchivo] = useState(false);
     // Historial de modificaciones de la factura abierta (GET /:id/historial).
     const [historial, setHistorial] = useState<Array<{
         id: number; fecha: string; usuario_nombre: string | null;
         resumen: string | null; items_detalle: string[];
     }>>([]);
 
-    /* ── Form state ── */
-    const [numFactura, setNumFactura] = useState('');
-    const [proveedor, setProveedor] = useState('');
-    const [fechaFactura, setFechaFactura] = useState(() => new Date().toISOString().slice(0, 10));
-    const [observaciones, setObservaciones] = useState('');
-    const [items, setItems] = useState<LineItem[]>([]);
-    const [submitting, setSubmitting] = useState(false);
-    // Errores de validación inline (los mostramos bajo cada campo con <FieldError>).
-    const [formErrors, setFormErrors] = useState<{ numFactura?: string; proveedor?: string; items?: string }>({});
-
-    /* ── Catalog data for selects ── */
-    const [catalogoItems, setCatalogoItems] = useState<ItemInventario[]>([]);
-    const [obras, setObras] = useState<{ id: number; nombre: string }[]>([]);
-    const [bodegas, setBodegas] = useState<{ id: number; nombre: string; es_virtual?: boolean | number }[]>([]);
-
-    /* ── Crear ítem nuevo inline ── */
-    const [categorias, setCategorias] = useState<CategoriaInventario[]>([]);
-    const [showNewItemModal, setShowNewItemModal] = useState(false);
-    const [newItemTargetIdx, setNewItemTargetIdx] = useState<number | null>(null);
-    const [creatingItem, setCreatingItem] = useState(false);
-    const [newItem, setNewItem] = useState({ categoria_id: '' as number | '', descripcion: '', unidad: 'U', valor_compra: '' });
-
-    /* ── Fetch facturas ── */
     const fetchFacturas = async () => {
-        setLoading(true);
+        setLoading(prev => prev || facturas.length === 0);
         try {
             const res = await api.get('/facturas-inventario');
             setFacturas(res.data.data || []);
@@ -93,217 +63,13 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
         finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchFacturas(); }, []);
-
-    /* ── Fetch catalog when modal opens ── */
     useEffect(() => {
-        if (!showModal) return;
-        api.get<ApiResponse<ItemInventario[]>>('/items-inventario?activo=true&limit=500')
-            .then(res => setCatalogoItems(res.data.data))
-            .catch(() => {});
-        api.get('/obras?participa_inventario=1').then(res => setObras(res.data.data || [])).catch(() => {});
-        // incluir_virtual: la Bodega Virtual es destino SIEMPRE disponible en
-        // facturas (punto de entrada para ítems fuera del sistema), sin importar
-        // el modo de visibilidad de los otros apartados.
-        api.get('/bodegas?incluir_virtual=true&limit=100').then(res => setBodegas(res.data.data || [])).catch(() => {});
-        api.get<ApiResponse<CategoriaInventario[]>>('/categorias-inventario?activo=true&limit=100')
-            .then(res => setCategorias(res.data.data || []))
-            .catch(() => {});
-    }, [showModal]);
-
-    /* ── Abrir modal de creación de ítem para una línea concreta ── */
-    const openNewItem = (idx: number) => {
-        setNewItemTargetIdx(idx);
-        setNewItem({ categoria_id: '', descripcion: '', unidad: 'U', valor_compra: '' });
-        setShowNewItemModal(true);
-    };
-
-    /* ── Crear ítem en catálogo y auto-seleccionarlo en la línea ── */
-    const handleCreateItem = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newItem.categoria_id) { toast.error('Selecciona una categoría'); return; }
-        if (!newItem.descripcion.trim()) { toast.error('Ingresa la descripción'); return; }
-        if (!newItem.unidad.trim()) { toast.error('Ingresa la unidad'); return; }
-
-        setCreatingItem(true);
-        try {
-            const payload: Record<string, unknown> = {
-                categoria_id: Number(newItem.categoria_id),
-                descripcion: newItem.descripcion.trim(),
-                unidad: newItem.unidad.trim(),
-            };
-            if (newItem.valor_compra.trim() !== '') payload.valor_compra = Number(newItem.valor_compra) || 0;
-
-            const res = await api.post('/items-inventario', payload);
-            // El CRUD genérico devuelve el ítem DIRECTO (res.data), no envuelto en { data }.
-            // Soportamos ambas formas y validamos que llegó con id (si no, no contaminamos el catálogo).
-            const created: any = (res.data as any)?.data ?? res.data;
-            if (!created || created.id == null) {
-                throw new Error('La respuesta del servidor no incluyó el ítem creado');
-            }
-            // Refrescar catálogo e insertar el nuevo ítem para que el selector lo encuentre
-            setCatalogoItems(prev => [...prev, created]);
-            // Auto-seleccionar en la línea que disparó la creación
-            if (newItemTargetIdx != null) {
-                updateItem(newItemTargetIdx, {
-                    item_id: created.id,
-                    descripcion: created.descripcion,
-                    unidad: created.unidad,
-                    precio_unitario: created.valor_compra || '',
-                });
-            }
-            toast.success(`Ítem "${created.descripcion}" creado y vinculado`);
-            setShowNewItemModal(false);
-            setNewItemTargetIdx(null);
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al crear el ítem');
-        } finally {
-            setCreatingItem(false);
-        }
-    };
-
-    /* ── Reset form when modal closes ── */
-    const resetForm = () => {
-        setNumFactura('');
-        setProveedor('');
-        setFechaFactura(new Date().toISOString().slice(0, 10));
-        setObservaciones('');
-        setItems([]);
-    };
-
-    const handleClose = () => {
-        setShowModal(false);
-        setEditingId(null);
-        resetForm();
-        setFormErrors({});
-    };
-
-    /* ── Editar: hidrata el form con la factura y abre el mismo modal ── */
-    const openEditar = async (id: number) => {
-        try {
-            const res = await api.get(`/facturas-inventario/${id}`);
-            const f = res.data.data;
-            setNumFactura(f.numero_factura || '');
-            setProveedor(f.proveedor || '');
-            setFechaFactura(String(f.fecha_factura).slice(0, 10));
-            setObservaciones(f.observaciones || '');
-            setItems((f.items || []).map((it: any): LineItem => ({
-                item_id: it.item_id,
-                descripcion: it.item_descripcion || '',
-                unidad: it.unidad || 'U',
-                cantidad: Number(it.cantidad) || 1,
-                precio_unitario: Number(it.precio_unitario) || 0,
-                destino_type: it.obra_id ? 'obra' : 'bodega',
-                destino_id: it.obra_id ?? it.bodega_id ?? 0,
-            })));
-            setEditingId(id);
-            setShowModal(true);
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'No se pudo cargar la factura');
-        }
-    };
-
-    /* ── Item helpers ── */
-    const addItem = () => {
-        setItems([...items, {
-            item_id: 0, descripcion: '', unidad: 'U',
-            cantidad: 1, precio_unitario: '',
-            destino_type: 'bodega', destino_id: 0,
-        }]);
-    };
-
-    const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx));
-
-    const updateItem = (idx: number, patch: Partial<LineItem>) => {
-        const updated = [...items];
-        updated[idx] = { ...updated[idx], ...patch };
-        setItems(updated);
-    };
-
-    const selectCatalogItem = (idx: number, value: string | number | null) => {
-        const found = catalogoItems.find(c => c.id === Number(value));
-        updateItem(idx, {
-            item_id: Number(value) || 0,
-            descripcion: found?.descripcion || '',
-            unidad: found?.unidad || 'U',
-            precio_unitario: found?.valor_compra || '',
-        });
-    };
-
-    /* ── Computed total ── */
-    const montoNeto = useMemo(
-        () => items.reduce((sum, i) => sum + (Number(i.cantidad) || 0) * (Number(i.precio_unitario) || 0), 0),
-        [items],
-    );
-
-    const availableOptions = useMemo(() => {
-        const opts = catalogoItems.filter(Boolean).map(c => ({
-            value: c.id,
-            label: `${c.nro_item ? c.nro_item + ' — ' : ''}${c.descripcion} (${c.unidad})`,
-        }));
-        // En edición: ítems de la factura que no estén en el catálogo cargado
-        // (inactivos o fuera del limit=500) igual deben mostrarse en el select.
-        const known = new Set(opts.map(o => o.value));
-        for (const it of items) {
-            if (it.item_id && !known.has(it.item_id)) {
-                opts.push({ value: it.item_id, label: `${it.descripcion || `Ítem ${it.item_id}`} (${it.unidad})` });
-                known.add(it.item_id);
-            }
-        }
-        return opts;
-    }, [catalogoItems, items]);
-
-    const destinoOptions = useMemo(() => [
-        ...obras.map(o => ({ value: `obra-${o.id}`, label: `Obra: ${o.nombre}` })),
-        ...bodegas.map(b => ({ value: `bodega-${b.id}`, label: `Bodega: ${formatBodegaConResponsable(b)}${b.es_virtual ? ' (virtual)' : ''}` })),
-    ], [obras, bodegas]);
-
-    /* ── Submit ── */
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        // Validación inline: cada error aparece bajo su campo (no toast).
-        const errs: typeof formErrors = {};
-        if (!numFactura.trim()) errs.numFactura = 'Ingresa el número de factura';
-        if (!proveedor.trim()) errs.proveedor = 'Ingresa el proveedor';
-        if (!items.length || items.some(i => !i.item_id || Number(i.cantidad) < 1 || !i.destino_id)) {
-            errs.items = 'Agrega al menos un ítem con cantidad (mínimo 1) y destino válido';
-        }
-        setFormErrors(errs);
-        if (Object.keys(errs).length > 0) return;
-
-        setSubmitting(true);
-        try {
-            const payload = {
-                numero_factura: numFactura.trim(),
-                proveedor: proveedor.trim(),
-                fecha_factura: fechaFactura,
-                monto_neto: montoNeto,
-                observaciones: observaciones || undefined,
-                items: items.map(i => ({
-                    item_id: i.item_id,
-                    obra_id: i.destino_type === 'obra' ? i.destino_id : null,
-                    bodega_id: i.destino_type === 'bodega' ? i.destino_id : null,
-                    cantidad: Number(i.cantidad) || 0,
-                    precio_unitario: Number(i.precio_unitario) || 0,
-                })),
-            };
-            if (editingId) {
-                await api.put(`/facturas-inventario/${editingId}`, payload);
-                toast.success('Factura actualizada', {
-                    description: 'El stock fue ajustado y el cambio quedó en el historial.',
-                });
-            } else {
-                await api.post('/facturas-inventario', payload);
-                toast.success('Factura registrada correctamente');
-            }
-            handleClose();
-            fetchFacturas();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || (editingId ? 'Error al actualizar factura' : 'Error al crear factura'));
-        } finally {
-            setSubmitting(false);
-        }
-    };
+        fetchFacturas();
+        api.get('/facturas-inventario/config')
+            .then(res => setLecturaIA(!!res.data.data?.lectura_ia))
+            .catch(() => setLecturaIA(false));
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar
+    }, []);
 
     /* ── Vista previa: cargar detalle con ítems + historial de cambios ── */
     const openDetalle = async (id: number) => {
@@ -318,37 +84,47 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
             ]);
             setDetalle(resDetalle.data.data);
             setHistorial(resHistorial.data.data || []);
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'No se pudo cargar la factura');
+        } catch (err) {
+            showApiError(err, 'No se pudo cargar la factura');
             setDetalleId(null);
         }
     };
 
-    /* ── Anular ── */
-    const handleAnular = async (id: number) => {
-        if (!window.confirm('Esta accion anulara la factura y revertira el stock. Continuar?')) return;
-        try {
-            await api.put(`/facturas-inventario/${id}/anular`);
-            toast.success('Factura anulada');
-            fetchFacturas();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al anular');
-        }
+    /* ── Anular / descartar borrador (no toca stock desde la mig 157) ── */
+    const handleAnular = (f: FacturaInventario) => {
+        const borrador = f.estado === 'borrador';
+        showConfirmToast({
+            message: borrador
+                ? '¿Descartar este borrador? Se borra de la lista.'
+                : `¿Anular la factura #${f.numero_factura}? Sale de la lista; el inventario no cambia.`,
+            confirmLabel: borrador ? 'Sí, descartar' : 'Sí, anular',
+            cancelLabel: 'No',
+            onConfirm: async () => {
+                try {
+                    await api.put(`/facturas-inventario/${f.id}/anular`);
+                    toast.success(borrador ? 'Borrador descartado' : 'Factura anulada');
+                    fetchFacturas();
+                } catch (err) {
+                    showApiError(err, 'Error al anular');
+                }
+            },
+        });
     };
 
+    const borradores = facturas.filter(f => f.estado === 'borrador');
+    const registradas = facturas.filter(f => f.estado !== 'borrador');
+
     /* ── Render ── */
-    // Header + Create button (también sobre la silueta de carga, apagado: la ventana se monta recién con la lista).
+    // Header + botón (también sobre la silueta de carga, apagado: la ventana se monta recién con la lista).
     const encabezado = (
-        <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-brand-dark">Facturas de Inventario</h3>
+        <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+                <h3 className="text-sm font-bold text-brand-dark">Facturas de Inventario</h3>
+                <p className="text-caption text-muted-foreground">Registro de lo comprado. No cambia el stock del inventario.</p>
+            </div>
             {canCreate && (
-                <Button
-                    variant="primary"
-                    size="sm"
-                    disabled={loading}
-                    onClick={() => setShowModal(true)}
-                    leftIcon={<Plus className="h-3.5 w-3.5" />}
-                >
+                <Button variant="primary" size="sm" disabled={loading} onClick={() => setFormAbierto('nueva')}
+                    leftIcon={<Plus className="h-3.5 w-3.5" />}>
                     Nueva Factura
                 </Button>
             )}
@@ -379,11 +155,73 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
         </div>
     );
 
+    const fila = (f: FacturaInventario) => {
+        const borrador = f.estado === 'borrador';
+        // Monto MOSTRADO según el modo Bodega Virtual (solo facturas viejas con destino virtual).
+        const montoVirtual = Number(f.monto_virtual || 0);
+        const restarVirtual = bodegaVirtualModo !== 'sumar' && montoVirtual > 0;
+        const montoMostrado = restarVirtual ? Number(f.monto_neto) - montoVirtual : Number(f.monto_neto);
+        const abrir = () => (borrador && canCreate ? setFormAbierto(f.id) : openDetalle(f.id));
+        return (
+            <div
+                key={f.id}
+                onClick={abrir}
+                title={borrador ? 'Continuar este borrador' : 'Ver detalle de la factura'}
+                className={cn(
+                    'flex items-center justify-between gap-3 px-4 py-3 rounded-xl border transition-colors cursor-pointer',
+                    borrador
+                        ? 'border-dashed border-amber-300 bg-amber-50/60 hover:bg-amber-50 dark:border-amber-800/60 dark:bg-amber-500/10'
+                        : 'border-border hover:border-brand-primary/40 hover:bg-muted/40'
+                )}
+            >
+                <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                        <span className="text-xs font-bold text-brand-dark">{f.numero_factura ? `#${f.numero_factura}` : 'Sin número'}</span>
+                        <span className="text-caption text-muted-foreground truncate">{f.proveedor || 'Proveedor pendiente'}</span>
+                        {borrador && <StatusBadge tone="warning" label="BORRADOR" />}
+                        {f.tiene_archivo && <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" aria-label="Tiene foto o PDF" />}
+                        {restarVirtual && (
+                            <span
+                                className="px-1.5 py-0.5 rounded-md text-caption font-bold border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60 shrink-0"
+                                title={`Monto del documento: ${fmtMoney(Number(f.monto_neto))} (incluye ${fmtMoney(montoVirtual)} en bodega virtual)`}
+                            >
+                                VIRTUAL −{fmtMoney(montoVirtual)}
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-label text-muted-foreground">
+                        {f.fecha_factura ? fmtFecha(f.fecha_factura) : 'Sin fecha'} &middot; {fmtMoney(montoMostrado)} neto
+                        {borrador && f.registrado_por_nombre ? ` · empezó ${f.registrado_por_nombre}` : ''}
+                    </p>
+                </div>
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    {borrador ? (
+                        canCreate && (
+                            <Button variant="secondary" size="sm" onClick={() => setFormAbierto(f.id)} leftIcon={<Clock className="h-3.5 w-3.5" />}>
+                                Continuar
+                            </Button>
+                        )
+                    ) : (
+                        <IconButton onClick={() => openDetalle(f.id)} aria-label="Ver detalle" variant="ghost" size="sm"
+                            icon={<Eye className="h-3.5 w-3.5" />} />
+                    )}
+                    {!borrador && canCreate && (
+                        <IconButton onClick={() => setFormAbierto(f.id)} aria-label="Editar factura" variant="ghost" size="sm"
+                            icon={<Pencil className="h-3.5 w-3.5" />} />
+                    )}
+                    {canDelete && (
+                        <IconButton onClick={() => handleAnular(f)} aria-label={borrador ? 'Descartar borrador' : 'Anular factura'}
+                            variant="danger" size="sm" icon={<Trash2 className="h-3.5 w-3.5" />} />
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-4">
             {encabezado}
 
-            {/* List */}
             {facturas.length === 0 ? (
                 <div className="py-12 text-center text-muted-foreground">
                     <FileText className="h-10 w-10 mx-auto opacity-20 mb-3" />
@@ -393,70 +231,19 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                     )}
                 </div>
             ) : (
-                <div className="space-y-2">
-                    {facturas.map(f => {
-                        // Monto MOSTRADO según el modo Bodega Virtual: fuera de 'sumar',
-                        // lo virtual se resta de lo exhibido (el documento no cambia).
-                        const montoVirtual = Number(f.monto_virtual || 0);
-                        const restarVirtual = bodegaVirtualModo !== 'sumar' && montoVirtual > 0;
-                        const montoMostrado = restarVirtual ? Number(f.monto_neto) - montoVirtual : Number(f.monto_neto);
-                        return (
-                        <div
-                            key={f.id}
-                            onClick={() => openDetalle(f.id)}
-                            title="Ver detalle de la factura"
-                            className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-brand-primary/40 hover:bg-muted/40 transition-colors cursor-pointer"
-                        >
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-0.5">
-                                    <span className="text-xs font-bold text-brand-dark">#{f.numero_factura}</span>
-                                    <span className="text-caption text-muted-foreground">{f.proveedor}</span>
-                                    {restarVirtual && (
-                                        <span
-                                            className="px-1.5 py-0.5 rounded-md text-caption font-bold border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60 shrink-0"
-                                            title={`Monto del documento: ${fmtMoney(Number(f.monto_neto))} (incluye ${fmtMoney(montoVirtual)} en bodega virtual)`}
-                                        >
-                                            VIRTUAL −{fmtMoney(montoVirtual)}
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="text-label text-muted-foreground">
-                                    {fmtFecha(f.fecha_factura)} &middot; {fmtMoney(montoMostrado)} neto
-                                </p>
-                            </div>
-                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                {!f.activo && (
-                                    <StatusBadge tone="danger" label="ANULADA" />
-                                )}
-                                <IconButton
-                                    onClick={() => openDetalle(f.id)}
-                                    aria-label="Ver detalle"
-                                    variant="ghost"
-                                    size="sm"
-                                    icon={<Eye className="h-3.5 w-3.5" />}
-                                />
-                                {canCreate && f.activo && (
-                                    <IconButton
-                                        onClick={() => openEditar(f.id)}
-                                        aria-label="Editar factura (ajusta stock)"
-                                        variant="ghost"
-                                        size="sm"
-                                        icon={<Pencil className="h-3.5 w-3.5" />}
-                                    />
-                                )}
-                                {canDelete && f.activo && (
-                                    <IconButton
-                                        onClick={() => handleAnular(f.id)}
-                                        aria-label="Anular factura (revierte stock)"
-                                        variant="danger"
-                                        size="sm"
-                                        icon={<Trash2 className="h-3.5 w-3.5" />}
-                                    />
-                                )}
-                            </div>
+                <div className="space-y-4">
+                    {borradores.length > 0 && (
+                        <div className="space-y-2">
+                            <p className="text-caption font-bold uppercase tracking-wider text-muted-foreground">Por terminar</p>
+                            {borradores.map(fila)}
                         </div>
-                        );
-                    })}
+                    )}
+                    {registradas.length > 0 && (
+                        <div className="space-y-2">
+                            {borradores.length > 0 && <p className="text-caption font-bold uppercase tracking-wider text-muted-foreground">Registradas</p>}
+                            {registradas.map(fila)}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -523,11 +310,18 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                             </div>
                         </div>
 
-                        {/* Ítems — el filtrado por modo es SOLO de render: el form de
-                            edición (openEditar) siempre carga TODOS los ítems, si no,
-                            guardar en modo ocultar borraría los virtuales y su stock. */}
+                        {/* Foto / PDF de la factura */}
+                        {detalle.tiene_archivo ? (
+                            <Button variant="secondary" size="sm" onClick={() => setVerArchivo(true)} leftIcon={<Paperclip className="h-3.5 w-3.5" />}>
+                                Ver la factura ({detalle.archivo_nombre || 'foto'})
+                            </Button>
+                        ) : (
+                            <p className="text-caption text-muted-foreground italic">Sin foto ni PDF adjunto.</p>
+                        )}
+
+                        {/* Ítems — el filtrado por modo Bodega Virtual es SOLO de render (facturas viejas). */}
                         {(() => {
-                            const allItems: any[] = detalle.items || [];
+                            const allItems = detalle.items || [];
                             const virtualSum = allItems.reduce((s, it) => s + (it.bodega_es_virtual ? Number(it.cantidad) * Number(it.precio_unitario) : 0), 0);
                             const restar = bodegaVirtualModo !== 'sumar' && virtualSum > 0;
                             const visibles = bodegaVirtualModo === 'ocultar' ? allItems.filter(it => !it.bodega_es_virtual) : allItems;
@@ -537,19 +331,23 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                                     <div>
                                         <p className="text-xs font-bold text-brand-dark mb-2">Ítems</p>
                                         <div className="space-y-2">
-                                            {visibles.map((it: any, idx: number) => (
+                                            {visibles.map((it, idx) => (
                                                 <div key={idx} className="flex items-start justify-between gap-3 px-3 py-2 rounded-xl border border-border">
                                                     <div className="min-w-0">
                                                         <p className="text-xs font-semibold text-brand-dark break-words flex items-center gap-1.5">
-                                                            {it.item_descripcion}
+                                                            {it.item_descripcion || it.descripcion_factura}
                                                             {!!it.bodega_es_virtual && (
                                                                 <span className="px-1.5 py-0.5 rounded-md text-caption font-bold border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60 shrink-0">
                                                                     VIRTUAL
                                                                 </span>
                                                             )}
                                                         </p>
+                                                        {it.descripcion_factura && it.item_descripcion && it.descripcion_factura !== it.item_descripcion && (
+                                                            <p className="text-caption text-muted-foreground break-words">En la factura: «{it.descripcion_factura}»</p>
+                                                        )}
                                                         <p className="text-caption text-muted-foreground">
-                                                            {Number(it.cantidad).toLocaleString('es-CL')} {it.unidad} &middot; {fmtMoney(it.precio_unitario)} c/u
+                                                            {Number(it.cantidad).toLocaleString('es-CL')} {it.unidad || ''} &middot; {fmtMoney(it.precio_unitario)} c/u
+                                                            {/* Destino: solo facturas anteriores a la mig 157 (las que sí movían stock). */}
                                                             {it.obra_nombre ? ` · Obra: ${it.obra_nombre}` : it.bodega_nombre ? ` · Bodega: ${it.bodega_nombre}` : ''}
                                                         </p>
                                                     </div>
@@ -631,283 +429,23 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                 )}
             </Modal>
 
-            {/* ═══ CREATE MODAL ═══ */}
-            <Modal isOpen={showModal} onClose={handleClose} title={editingId ? `Editar Factura #${numFactura}` : 'Registrar Factura de Inventario'} size="lg">
-                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-                    {/* Row 1: Numero + Proveedor */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-bold text-brand-dark mb-1 block">N° Factura</label>
-                            <input
-                                type="text"
-                                value={numFactura}
-                                onChange={e => { setNumFactura(e.target.value); if (formErrors.numFactura) setFormErrors(p => ({ ...p, numFactura: undefined })); }}
-                                placeholder="Ej: 001234"
-                                className={cn(
-                                    "w-full px-3 py-2 text-sm border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none",
-                                    formErrors.numFactura ? "border-destructive" : "border-border"
-                                )}
-                            />
-                            <FieldError message={formErrors.numFactura} className="mt-1" />
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-brand-dark mb-1 block">Proveedor</label>
-                            <input
-                                type="text"
-                                value={proveedor}
-                                onChange={e => { setProveedor(e.target.value); if (formErrors.proveedor) setFormErrors(p => ({ ...p, proveedor: undefined })); }}
-                                placeholder="Nombre del proveedor"
-                                className={cn(
-                                    "w-full px-3 py-2 text-sm border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none",
-                                    formErrors.proveedor ? "border-destructive" : "border-border"
-                                )}
-                            />
-                            <FieldError message={formErrors.proveedor} className="mt-1" />
-                        </div>
-                    </div>
+            {verArchivo && detalle?.tiene_archivo && (
+                <FacturaArchivoViewer
+                    facturaId={detalle.id}
+                    nombre={detalle.archivo_nombre}
+                    mime={detalle.archivo_mime}
+                    descripcion={<span>#{detalle.numero_factura} · {detalle.proveedor} · {fmtMoney(Number(detalle.monto_neto))} neto</span>}
+                    onClose={() => setVerArchivo(false)}
+                />
+            )}
 
-                    {/* Row 2: Fecha */}
-                    <div className="w-48">
-                        <label className="text-xs font-bold text-brand-dark mb-1 block">Fecha Factura</label>
-                        <input
-                            type="date"
-                            value={fechaFactura}
-                            onChange={e => setFechaFactura(e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                        />
-                    </div>
-
-                    {/* Items */}
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-2 block">Items de la factura</label>
-                        <div className="space-y-2">
-                            {items.map((item, idx) => (
-                                <div key={idx} className="bg-muted rounded-xl border border-border p-3 space-y-3">
-                                    {/* Item selector + crear nuevo */}
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex-1 min-w-0">
-                                            <SearchableSelect
-                                                options={availableOptions.filter(o => !items.some((i, j) => j !== idx && i.item_id === o.value))}
-                                                value={item.item_id || null}
-                                                onChange={(val) => selectCatalogItem(idx, val)}
-                                                placeholder="Buscar item..."
-                                            />
-                                        </div>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => openNewItem(idx)}
-                                            title="Crear un ítem nuevo en el catálogo"
-                                            leftIcon={<PackagePlus className="h-3.5 w-3.5" />}
-                                            className="shrink-0 whitespace-nowrap"
-                                        >
-                                            <span className="hidden sm:inline">Nuevo</span>
-                                        </Button>
-                                    </div>
-
-                                    {/* Destino (obra o bodega) */}
-                                    <SearchableSelect
-                                        options={destinoOptions}
-                                        value={item.destino_id ? `${item.destino_type}-${item.destino_id}` : null}
-                                        onChange={(val) => {
-                                            if (!val) { updateItem(idx, { destino_type: 'bodega', destino_id: 0 }); return; }
-                                            const [type, id] = String(val).split('-');
-                                            updateItem(idx, {
-                                                destino_type: type as 'obra' | 'bodega',
-                                                destino_id: Number(id),
-                                            });
-                                        }}
-                                        placeholder="Destino (obra o bodega)..."
-                                    />
-
-                                    {/* Cantidad + Precio + Delete */}
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div className="flex items-center gap-3">
-                                            {/* Cantidad */}
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-caption text-muted-foreground font-medium">Cant:</span>
-                                                <QtyStepper
-                                                    value={Number(item.cantidad) || 0}
-                                                    onChange={v => updateItem(idx, { cantidad: v })}
-                                                    min={0}
-                                                    size="sm"
-                                                    unidad={item.unidad}
-                                                />
-                                            </div>
-
-                                            {/* Precio unitario */}
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-caption text-muted-foreground font-medium">P.Unit:</span>
-                                                <div className="relative">
-                                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">$</span>
-                                                    <input
-                                                        type="number" min={0} step="any"
-                                                        value={item.precio_unitario}
-                                                        onChange={e => updateItem(idx, { precio_unitario: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0) })}
-                                                        className="w-24 pl-5 pr-2 py-1 text-xs border border-border rounded-lg text-right font-bold"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <IconButton
-                                            type="button"
-                                            onClick={() => removeItem(idx)}
-                                            aria-label="Quitar ítem de la factura"
-                                            variant="danger"
-                                            size="sm"
-                                            icon={<Trash2 className="h-3.5 w-3.5" />}
-                                        />
-                                    </div>
-
-                                    {/* Subtotal */}
-                                    {Number(item.cantidad) > 0 && Number(item.precio_unitario) > 0 && (
-                                        <p className="text-caption text-right text-muted-foreground">
-                                            Subtotal: <span className="font-bold text-brand-dark">{fmtMoney(Number(item.cantidad) * Number(item.precio_unitario))}</span>
-                                        </p>
-                                    )}
-                                </div>
-                            ))}
-
-                            {/* eslint-disable-next-line no-restricted-syntax -- añadir fila (dashed full-width, borde reactivo a error) */}
-                            <button type="button" onClick={() => { addItem(); if (formErrors.items) setFormErrors(p => ({ ...p, items: undefined })); }}
-                                className={cn(
-                                    "w-full border-2 border-dashed rounded-xl py-4 text-center text-xs font-bold text-muted-foreground hover:border-brand-primary/40 hover:text-brand-primary transition-colors",
-                                    formErrors.items ? "border-destructive/60" : "border-border"
-                                )}>
-                                <Plus className="h-4 w-4 inline-block mr-1 -mt-0.5" />
-                                Agregar item
-                            </button>
-                        </div>
-                        <FieldError message={formErrors.items} className="mt-2" />
-                    </div>
-
-                    {/* Monto total */}
-                    {items.length > 0 && (
-                        <div className="flex items-center justify-between bg-muted rounded-xl px-4 py-3 border border-border">
-                            <span className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
-                                <Receipt className="h-3.5 w-3.5 text-brand-primary" />
-                                Total Neto
-                            </span>
-                            <span className="text-sm font-black text-brand-dark">{fmtMoney(montoNeto)}</span>
-                        </div>
-                    )}
-
-                    {/* Observaciones */}
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-1 block">Observaciones</label>
-                        <textarea
-                            value={observaciones}
-                            onChange={e => setObservaciones(e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-border rounded-xl resize-none h-16 focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                            placeholder="Opcional..."
-                        />
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-2">
-                        <Button type="button" variant="ghost" size="sm" onClick={handleClose}>
-                            Cancelar
-                        </Button>
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            size="sm"
-                            disabled={submitting}
-                            isLoading={submitting}
-                            leftIcon={<Receipt className="h-3.5 w-3.5" />}
-                        >
-                            {submitting
-                                ? (editingId ? 'Guardando...' : 'Registrando...')
-                                : (editingId ? 'Guardar cambios' : 'Registrar Factura')}
-                        </Button>
-                    </div>
-                </form>
-            </Modal>
-
-            {/* ═══ MODAL CREAR ÍTEM NUEVO (anidado) ═══ */}
-            <Modal isOpen={showNewItemModal} onClose={() => setShowNewItemModal(false)} title="Crear ítem nuevo" size="md">
-                <form onSubmit={handleCreateItem} className="space-y-4" noValidate>
-                    <p className="text-label text-muted-foreground">
-                        El ítem se agrega al catálogo y se vincula automáticamente a esta línea de la factura.
-                    </p>
-
-                    {/* Categoría */}
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-1 block">Categoría <span className="text-red-500">*</span></label>
-                        <select
-                            value={newItem.categoria_id}
-                            onChange={e => setNewItem(n => ({ ...n, categoria_id: e.target.value ? Number(e.target.value) : '' }))}
-                            className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                            required
-                        >
-                            <option value="">Seleccionar categoría...</option>
-                            {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                        </select>
-                    </div>
-
-                    {/* Descripción */}
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-1 block">Descripción <span className="text-red-500">*</span></label>
-                        <input
-                            type="text"
-                            value={newItem.descripcion}
-                            onChange={e => setNewItem(n => ({ ...n, descripcion: e.target.value }))}
-                            placeholder="Ej: Saco de cemento especial"
-                            className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                            required
-                        />
-                    </div>
-
-                    {/* Unidad + Valor compra */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-bold text-brand-dark mb-1 block">Unidad <span className="text-red-500">*</span></label>
-                            <input
-                                type="text"
-                                value={newItem.unidad}
-                                onChange={e => setNewItem(n => ({ ...n, unidad: e.target.value }))}
-                                placeholder="U, kg, m, m²..."
-                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-brand-dark mb-1 block">
-                                Valor compra <span className="text-muted-foreground font-normal">(opcional)</span>
-                            </label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-                                <input
-                                    type="number" min={0} step="any"
-                                    value={newItem.valor_compra}
-                                    onChange={e => setNewItem(n => ({ ...n, valor_compra: e.target.value }))}
-                                    placeholder="0"
-                                    className="w-full pl-7 pr-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-1">
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setShowNewItemModal(false)}>
-                            Cancelar
-                        </Button>
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            size="sm"
-                            disabled={creatingItem}
-                            isLoading={creatingItem}
-                            leftIcon={<PackagePlus className="h-3.5 w-3.5" />}
-                        >
-                            {creatingItem ? 'Creando...' : 'Crear y vincular'}
-                        </Button>
-                    </div>
-                </form>
-            </Modal>
+            <FacturaFormModal
+                isOpen={formAbierto !== null}
+                facturaId={typeof formAbierto === 'number' ? formAbierto : null}
+                lecturaIA={lecturaIA}
+                onClose={() => setFormAbierto(null)}
+                onSaved={fetchFacturas}
+            />
         </div>
     );
 };
