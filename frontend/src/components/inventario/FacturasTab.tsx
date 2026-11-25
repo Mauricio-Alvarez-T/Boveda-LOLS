@@ -124,7 +124,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
             </div>
             {canCreate && (
                 <Button variant="primary" size="sm" disabled={loading} onClick={() => setFormAbierto('nueva')}
-                    leftIcon={<Plus className="h-3.5 w-3.5" />}>
+                    leftIcon={<Plus className="h-3.5 w-3.5" />} className="shrink-0 whitespace-nowrap">
                     Nueva Factura
                 </Button>
             )}
