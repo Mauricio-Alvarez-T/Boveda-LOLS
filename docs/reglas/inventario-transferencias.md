@@ -869,7 +869,8 @@ cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea
 - **Historial embebido**: cada edición de una factura YA registrada registra en
   `logs_actividad` (accion UPDATE, modulo `facturas-inventario`) un `detalle {cambios,
   resumen, items_detalle}` armado en el service. También quedan «Factura anulada»,
-  «Borrador descartado» y «Adjuntó/Cambió la foto/PDF». Editar un borrador no deja historial.
+  «Borrador descartado» y «Adjuntó/Cambió la foto/PDF» (solo si la foto cambia en una factura ya
+  registrada; la que sube con el alta va con `?alta=1` y no cuenta). Editar un borrador no deja historial.
   PUT de edición, anular y POST del archivo están **excluidos del activityLogger global**.
 - **`GET /facturas-inventario/:id/historial`** (gate `ver`): historial parseado para la UI.
   En el detalle: badge `MODIFICADA` + sección "Historial de cambios".

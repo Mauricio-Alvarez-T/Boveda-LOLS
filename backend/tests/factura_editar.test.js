@@ -281,3 +281,22 @@ describe('rutas facturas-inventario — gates y validación', () => {
         expect(res200.body.data).toEqual([]);
     });
 });
+
+describe('setArchivo() — historial de la foto', () => {
+    beforeEach(() => jest.clearAllMocks());
+    const file = { path: require('path').join(__dirname, '../uploads/facturas-inventario/x.jpg'), originalname: 'x.jpg', mimetype: 'image/jpeg' };
+
+    test('foto de una registrada (edición) → deja historial', async () => {
+        db.query.mockResolvedValueOnce([[{ id: 7, archivo_path: null, activo: 1, estado: 'registrada' }]]).mockResolvedValueOnce([{}]);
+        await facturaService.setArchivo(7, file, 77, null);
+        expect(logManualActivity).toHaveBeenCalledTimes(1);
+    });
+
+    test('foto subida con el alta (?alta=1) o a un borrador → sin historial (no «MODIFICADA»)', async () => {
+        db.query.mockResolvedValueOnce([[{ id: 7, archivo_path: null, activo: 1, estado: 'registrada' }]]).mockResolvedValueOnce([{}]);
+        await facturaService.setArchivo(7, file, 77, null, { alta: true });
+        db.query.mockResolvedValueOnce([[{ id: 8, archivo_path: null, activo: 1, estado: 'borrador' }]]).mockResolvedValueOnce([{}]);
+        await facturaService.setArchivo(8, file, 77, null);
+        expect(logManualActivity).not.toHaveBeenCalled();
+    });
+});

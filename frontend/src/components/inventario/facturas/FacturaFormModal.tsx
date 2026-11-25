@@ -307,7 +307,8 @@ export const FacturaFormModal: React.FC<Props> = ({ isOpen, facturaId, lecturaIA
             if (archivo && id) {
                 const fd = new FormData();
                 fd.append('archivo', archivo, archivo.name);
-                await api.post(`/facturas-inventario/${id}/archivo`, fd, MULTIPART);
+                // ?alta=1: la foto es parte del alta, no una modificación (no marca «MODIFICADA»).
+                await api.post(`/facturas-inventario/${id}/archivo${estadoOriginal !== 'registrada' ? '?alta=1' : ''}`, fd, MULTIPART);
                 setArchivoGuardado({ nombre: archivo.name, mime: archivo.type });
                 setArchivo(null);
             }
