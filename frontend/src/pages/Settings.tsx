@@ -23,7 +23,7 @@ import type { ColumnDef } from '../components/ui/CrudTable';
 import { IconButton } from '../components/ui/IconButton';
 import { Chip } from '../components/ui/Chip';
 import { StatusBadge } from '../components/ui/StatusBadge';
-import { fmtMoney, fmtMoneyExacto } from '../utils/format';
+import { fmtMoney } from '../utils/format';
 import type { Empresa, Obra, Cargo, CargoSueldo, Conductor, TipoDocumento, EstadoAsistencia, TipoAusencia, CategoriaInventario, Bodega, ItemInventario } from '../types/entities';
 
 interface UserData {
@@ -757,7 +757,7 @@ const SettingsPage: React.FC = () => {
                                 { key: 'descripcion', label: 'Descripción' },
                                 { key: 'categoria_nombre', label: 'Categoría' },
                                 { key: 'm2', label: 'M2', render: (v) => v ? Number(v).toFixed(2) : '—' },
-                                { key: 'valor_compra', label: 'V. Compra', render: (v) => v ? fmtMoneyExacto(v) : '—' },
+                                { key: 'valor_compra', label: 'V. Compra', render: (v) => v ? fmtMoney(v) : '—' },
                                 { key: 'valor_arriendo', label: 'V. Arriendo', render: (v) => fmtMoney(v) },
                                 { key: 'unidad', label: 'Unidad' },
                             ]}
