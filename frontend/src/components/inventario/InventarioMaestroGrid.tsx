@@ -10,7 +10,8 @@ import InventarioItemCard from './InventarioItemCard';
 import { Button } from '../ui/Button';
 import type { ItemInventario } from '../../types/entities';
 import { useAuth } from '../../context/AuthContext';
-import { fmtMoney } from '../../utils/format';
+import { fmtMoneyExacto } from '../../utils/format';
+import { MontoInput } from '../ui/MontoInput';
 import { PestanasElasticas } from '../ui/PestanasElasticas';
 
 interface Props {
@@ -40,7 +41,7 @@ const PROPIETARIOS: Array<ItemInventario['propietario']> = ['lols', 'dedalius'];
 
 // Formato canónico compartido (docs/reglas/diseno.md): antes usaba
 // style:'currency', que inserta un espacio no-separable tras el "$".
-const fmtCLP = (v: number | null | undefined) => (v == null ? '—' : fmtMoney(v));
+const fmtCLP = (v: number | null | undefined) => (v == null ? '—' : fmtMoneyExacto(v));
 
 /**
  * Grid editable de ítems de inventario — Rediseño con Cards + Tabla.
@@ -520,10 +521,10 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                             </td>
                                             {verCostos && (
                                                 <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_compra') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
-                                                    <input
-                                                        type="number"
+                                                    <MontoInput
                                                         value={Number(getVal(it, 'valor_compra') ?? 0)}
-                                                        onChange={e => setField(it, 'valor_compra', Number(e.target.value))}
+                                                        onChange={v => setField(it, 'valor_compra', v)}
+                                                        aria-label="Valor de compra"
                                                         disabled={!editarCostos}
                                                         className={cn(
                                                             "w-full px-1.5 py-1 text-label text-right bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",
@@ -535,10 +536,10 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                             )}
                                             {verCostos && (
                                                 <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_arriendo') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
-                                                    <input
-                                                        type="number"
+                                                    <MontoInput
                                                         value={Number(getVal(it, 'valor_arriendo') ?? 0)}
-                                                        onChange={e => setField(it, 'valor_arriendo', Number(e.target.value))}
+                                                        onChange={v => setField(it, 'valor_arriendo', v)}
+                                                        aria-label="Valor de arriendo"
                                                         disabled={!editarCostos}
                                                         className={cn(
                                                             "w-full px-1.5 py-1 text-label text-right bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",

@@ -333,6 +333,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                     {canEditCosts ? (
                                         <CurrencyInput
                                             label="V. Compra"
+                                            decimales
                                             value={draft.valor_compra}
                                             onChange={v => setDraft(d => d ? { ...d, valor_compra: v } : d)}
                                         />

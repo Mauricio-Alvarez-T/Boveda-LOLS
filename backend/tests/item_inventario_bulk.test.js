@@ -69,6 +69,23 @@ describe('itemInventarioBulk.bulkUpdate', () => {
         expect(conn.release).toHaveBeenCalled();
     });
 
+    test('valor de compra con decimales se guarda tal cual (columna DECIMAL(12,2))', async () => {
+        const conn = makeConn();
+        db.getConnection.mockResolvedValue(conn);
+        conn.query
+            .mockResolvedValueOnce([[
+                { id: 1, categoria_id: 10, descripcion: 'Codo PVC', m2: null, valor_compra: '1250.00', valor_arriendo: '0.00', unidad: 'u', es_consumible: 1, propietario: 'lols', activo: 1 },
+            ]])
+            .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+        const result = await svc.bulkUpdate([{ id: 1, valor_compra: 1250.75 }], 99);
+
+        const [sql, params] = conn.query.mock.calls[1];
+        expect(sql).toMatch(/UPDATE items_inventario SET valor_compra = \?/);
+        expect(params).toEqual([1250.75, 1]);
+        expect(result.diff[0].changed.valor_compra).toEqual({ from: '1250.00', to: 1250.75 });
+    });
+
     test('cap 413: payload de MAX_ITEMS+1 → error con .status=413 y NO abre transacción', async () => {
         // No mockeamos getConnection — debe fallar antes de llegar a abrirla
         const tooMany = Array.from({ length: svc.MAX_ITEMS + 1 }, (_, i) => ({

@@ -962,6 +962,15 @@ Orden pedido por el dueño: **montos arriba, decisiones al final**, con gráfico
 ## Items y bodegas
 
 - `items_inventario`: soft-delete (`activo=0`) — preserva historial; imagen vía `/api/uploads/...`.
+- **Valor de compra con decimales** (pedido de Marcos, 2026-11-26): hasta **2 decimales** («$1.250,75»;
+  columna `DECIMAL(12,2)` desde mig 017, sin migración). Se escribe con **coma o punto** en el formulario
+  del ítem (Configuración), la ficha del ítem y la tabla/tarjetas del maestro de Inventario
+  (`CurrencyInput decimales` / `MontoInput`, lógica en `utils/montoDecimal.ts` con test): el punto que se
+  teclea se toma como coma; un «1500.5» pegado de una planilla es decimal, «1.500» sigue siendo mil
+  quinientos. El **valor unitario** se muestra con sus decimales (`fmtMoneyExacto`); los **totales**
+  (Σ cantidad × valor) siguen redondeados al peso (`fmtMoney`). El resto de los montos de la Bóveda
+  (sueldos, cobros, vehículos) sigue en pesos enteros. En la tabla del maestro el valor de arriendo usa
+  el mismo campo (ya aceptaba decimales allí); en los formularios el arriendo sigue entero.
 - Bodegas: soft-delete (`activa=0`); `responsable_nombre` texto libre (mig 060).
 - Items dentro de cada categoría se listan en orden alfabético (descripción ASC).
 

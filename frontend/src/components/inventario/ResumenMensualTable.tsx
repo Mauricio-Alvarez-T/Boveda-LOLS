@@ -15,7 +15,7 @@ import { exportResumen } from '../../utils/exportExcel';
 import { formatBodegaConResponsable } from '../../utils/formatBodega';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
-import { fmtMoney, fmtNumber } from '../../utils/format';
+import { fmtMoney, fmtMoneyExacto, fmtNumber } from '../../utils/format';
 
 interface Props {
     data: ResumenData;
@@ -701,7 +701,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                 <td className={cn("px-2 py-1.5 text-right text-muted-foreground border-r border-b border-border")}>{fmtMoney(item.valor_arriendo)}</td>
                                             )}
                                             {verValores && (
-                                                <td className={cn("px-2 py-1.5 text-right text-muted-foreground border-r-2 border-b border-border")}>{item.valor_compra > 0 ? fmtMoney(item.valor_compra) : ''}</td>
+                                                <td className={cn("px-2 py-1.5 text-right text-muted-foreground border-r-2 border-b border-border")}>{item.valor_compra > 0 ? fmtMoneyExacto(item.valor_compra) : ''}</td>
                                             )}
                                             {orderedLocations.map((loc, locIdx) => {
                                                 const ub = item.ubicaciones[loc.key];

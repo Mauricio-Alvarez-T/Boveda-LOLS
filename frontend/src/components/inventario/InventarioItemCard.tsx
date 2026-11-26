@@ -7,6 +7,7 @@ import type { StockLocation } from '../../hooks/inventario/useInventarioMaestro'
 import { useAuth } from '../../context/AuthContext';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
 import { Button } from '../ui/Button';
+import { MontoInput } from '../ui/MontoInput';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
@@ -328,10 +329,10 @@ const InventarioItemCard: React.FC<Props> = ({
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <label className="text-micro font-bold text-muted-foreground uppercase">V. Compra</label>
-                                    <input
-                                        type="number"
+                                    <MontoInput
                                         value={Number(getVal('valor_compra') ?? 0)}
-                                        onChange={e => setField('valor_compra', Number(e.target.value))}
+                                        onChange={v => setField('valor_compra', v)}
+                                        aria-label="Valor de compra"
                                         disabled={!editarCostos}
                                         className={cn(
                                             "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none text-right",
@@ -342,10 +343,10 @@ const InventarioItemCard: React.FC<Props> = ({
                                 </div>
                                 <div>
                                     <label className="text-micro font-bold text-muted-foreground uppercase">V. Arriendo</label>
-                                    <input
-                                        type="number"
+                                    <MontoInput
                                         value={Number(getVal('valor_arriendo') ?? 0)}
-                                        onChange={e => setField('valor_arriendo', Number(e.target.value))}
+                                        onChange={v => setField('valor_arriendo', v)}
+                                        aria-label="Valor de arriendo"
                                         disabled={!editarCostos}
                                         className={cn(
                                             "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none text-right",

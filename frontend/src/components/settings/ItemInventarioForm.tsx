@@ -19,7 +19,8 @@ const schema = z.object({
     categoria_id: z.coerce.number().int().min(1, 'Categoría requerida'),
     descripcion: z.string().min(1, 'Descripción requerida'),
     m2: z.coerce.number().optional().nullable(),
-    valor_compra: z.coerce.number().int().min(0, 'Valor >= 0'),
+    // Valor de compra con decimales (máx. 2, columna DECIMAL(12,2)): «$1.250,75».
+    valor_compra: z.coerce.number().min(0, 'Valor >= 0'),
     valor_arriendo: z.coerce.number().int().min(0, 'Valor >= 0'),
     unidad: z.string().min(1, 'Unidad requerida'),
 });
@@ -147,9 +148,13 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
             />
             <Input label="Descripción" {...register('descripcion')} error={errors.descripcion?.message} placeholder="ANDAMIO VERTICAL PATA REGULABLE" />
             {/* Grid se adapta: 3 cols cuando se ven costos, 1 col cuando se
-                ocultan (sólo M2 visible) — mantiene layout limpio. */}
-            <div className={`grid gap-4 ${verCostos ? 'grid-cols-3' : 'grid-cols-1'}`}>
-                <Input label="M2 (moldajes)" type="number" step="0.0001" {...register('m2')} error={errors.m2?.message} placeholder="0.00" />
+                ocultan (sólo M2 visible) — mantiene layout limpio. En el celular
+                (< 768 px) M2 va arriba a todo el ancho y los dos valores debajo,
+                para que «$1.250,75» no quede cortado. */}
+            <div className={`grid gap-4 ${verCostos ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-1'}`}>
+                <div className={verCostos ? 'col-span-2 md:col-span-1' : undefined}>
+                    <Input label="M2 (moldajes)" type="number" step="0.0001" {...register('m2')} error={errors.m2?.message} placeholder="0.00" />
+                </div>
                 {verCostos && (
                     <Controller
                         control={control}
@@ -157,6 +162,7 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
                         render={({ field }) => (
                             <CurrencyInput
                                 label={editarCostos ? 'Valor Compra' : 'Valor Compra (solo lectura)'}
+                                decimales
                                 value={field.value}
                                 onChange={editarCostos ? field.onChange : () => { /* readonly */ }}
                                 onBlur={field.onBlur}
