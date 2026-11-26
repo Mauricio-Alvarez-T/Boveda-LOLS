@@ -13,7 +13,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, CheckCircle2, FileCheck2, FileSignature, UserX } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileCheck2, FileSignature, FileX2, UserX } from 'lucide-react';
 
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -32,6 +32,8 @@ import {
     type CausalDesvinculacion, type DesvincularFormData, type DesvincularResultado,
 } from './desvinculacionSchema';
 import { EmitirFiniquitoModal } from '../documents/EmitirFiniquitoModal';
+import { EmitirCartaAvisoModal } from '../documents/EmitirCartaAvisoModal';
+import { PERMISO_CARTAS_AVISO } from '../documents/cartaAviso';
 import { avisoEnlaceFiniquito, type DocumentoEmitido, type WorkerBasico } from '../documents/documentosLaborales';
 
 export type { DesvincularResultado } from './desvinculacionSchema';
@@ -47,6 +49,9 @@ interface Props {
 export const DesvincularModal: React.FC<Props> = ({ isOpen, worker, onClose, onDone }) => {
     const { hasPermission } = useAuth();
     const puedeEmitirDocs = hasPermission('documentos.laborales.emitir');
+    // Carta de aviso de término (mig 160): solo con su permiso propio (hoy Matías).
+    const puedeCartas = hasPermission(PERMISO_CARTAS_AVISO);
+    const [cartaAbierta, setCartaAbierta] = useState(false);
     const [catalogo, setCatalogo] = useState<CausalDesvinculacion[]>([]);
     const [cargando, setCargando] = useState(false);
     const [errorNegocio, setErrorNegocio] = useState<string | null>(null);
@@ -117,6 +122,9 @@ export const DesvincularModal: React.FC<Props> = ({ isOpen, worker, onClose, onD
             footer={resultado ? (
                 <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                     <Button type="button" variant={finiquitoEmitido || !puedeEmitirDocs ? 'primary' : 'ghost'} onClick={() => onDone(resultado)}>Cerrar</Button>
+                    {puedeCartas && (
+                        <Button type="button" variant="outline" leftIcon={<FileX2 className="h-4 w-4" />} onClick={() => setCartaAbierta(true)}>Carta de aviso</Button>
+                    )}
                     {puedeEmitirDocs && !finiquitoEmitido && (
                         <Button type="button" leftIcon={<FileSignature className="h-4 w-4" />} onClick={() => setFiniquitoAbierto(true)}>Emitir finiquito</Button>
                     )}
@@ -162,6 +170,9 @@ export const DesvincularModal: React.FC<Props> = ({ isOpen, worker, onClose, onD
                                 ? 'El finiquito se puede emitir ahora, con la causal y las fechas de esta baja, o después desde la ficha del trabajador.'
                                 : 'El finiquito lo emite RRHH desde la ficha del trabajador (requiere "Emitir Documentos Laborales").'}
                         </p>
+                    )}
+                    {puedeCartas && (
+                        <EmitirCartaAvisoModal isOpen={cartaAbierta} onClose={() => setCartaAbierta(false)} worker={workerBasico} desvinculacion={bajaParaFiniquito} />
                     )}
                     <EmitirFiniquitoModal
                         isOpen={finiquitoAbierto}

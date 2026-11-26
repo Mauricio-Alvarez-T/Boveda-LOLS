@@ -101,7 +101,8 @@ describe('gates exclusivos (403 sin tocar la BD)', () => {
         const res = await request(app).get(`${BASE}/catalogo`).set('Authorization', `Bearer ${tokenTerreno}`);
         expect(res.status).toBe(200);
         expect(res.body.data.kit.map(k => k.codigo)).toEqual(['CONTRATO', 'ODI_D40', 'DAS', 'PTS_ALTURA', 'EPP_RECEPCION', 'RI_RECEPCION']);
-        expect(res.body.data.emitibles).toHaveLength(8);   // kit 6 + AMONESTACION + FINIQUITO (B5)
+        expect(res.body.data.emitibles).toHaveLength(9);   // kit 6 + AMONESTACION + FINIQUITO (B5) + CARTA_AVISO (mig 160)
+        expect(res.body.data.carta_aviso_causales).toEqual(['NECESIDADES_EMPRESA', 'VENCIMIENTO_PLAZO', 'INASISTENCIA']);
         expect(res.body.data.epp_default).toContain('CASCO');
         expect(res.body.data.amonestacion_motivos.length).toBeGreaterThanOrEqual(8);
     });

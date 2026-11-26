@@ -14,7 +14,7 @@ const cargoSueldoService = require('./cargoSueldo.service');
 const desvinculacionService = require('./desvinculacion.service');
 const documentosLotesService = require('./documentosLotes.service');
 const g = require('./docGenerador.service');
-const { getPlantilla, KIT_INGRESO, EMITIBLES } = require('../plantillas/documentos');
+const { getPlantilla, KIT_INGRESO, EMITIBLES, DE_LA_BAJA, PERMISO_CARTAS_AVISO } = require('../plantillas/documentos');
 const { logManualActivity } = require('../middleware/logger');
 const logger = require('../utils/logger-structured');
 
@@ -90,14 +90,14 @@ async function _armarCtx(codigo, cargado, datos) {
         const s = await cargoSueldoService.getPorCargo(cargado.trabajador.cargo_id);
         if (s && Number(s.sueldo_base) > 0) ctx.remuneracion = { sueldo_base: Number(s.sueldo_base), fuente: 'cargo_sueldos' };
     }
-    if (codigo === 'FINIQUITO') {
-        // Fila ABIERTA (no la última): una baja ya cerrada por reactivación no admite finiquito.
+    if (DE_LA_BAJA.includes(codigo)) {
+        // Fila ABIERTA (no la última): una baja ya cerrada por reactivación no admite finiquito ni carta de aviso.
         try {
             ctx.desvinculacion = await desvinculacionService.desvinculacionAbierta(cargado.trabajador.id, { estricta: true });
         } catch (err) {
             // Sin la mig 112 el 409 debe decir "migración", no "desvincula primero" (que respondería YA_DESVINCULADO).
             if (!desvinculacionService.esErrorEsquema(err)) throw err;
-            throw httpError('El finiquito requiere la migración 112 (trabajador_desvinculaciones). Avisa a TI.', 409, { code: 'MIGRACION_PENDIENTE' });
+            throw httpError(`${getPlantilla(codigo).titulo} requiere la migración 112 (trabajador_desvinculaciones). Avisa a TI.`, 409, { code: 'MIGRACION_PENDIENTE' });
         }
     }
     return ctx;
@@ -145,6 +145,7 @@ const documentosLaboralesService = {
             emitibles: EMITIBLES.map(c => { const p = getPlantilla(c); return { codigo: c, titulo: p.titulo, version: p.version }; }),
             epp_default: getPlantilla('EPP_RECEPCION').EPP_DEFAULT,
             amonestacion_motivos: getPlantilla('AMONESTACION').MOTIVOS,
+            carta_aviso_causales: getPlantilla('CARTA_AVISO').CAUSALES_CARTA,
         };
     },
 
@@ -156,10 +157,11 @@ const documentosLaboralesService = {
         const plantilla = getPlantilla(codigo);
         if (!plantilla || !EMITIBLES.includes(codigo)) throw httpError(`Documento desconocido: ${codigo}`, 400);
         const cargado = await _cargarTrabajador(trabajadorId);
-        // El finiquito es el ÚNICO documento de un trabajador desvinculado; el resto exige que esté activo.
-        if (codigo === 'FINIQUITO') {
+        // El finiquito y la carta de aviso son de un trabajador desvinculado; el resto exige que esté activo.
+        if (DE_LA_BAJA.includes(codigo)) {
             if (cargado.trabajador.activo) {
-                throw httpError('El trabajador está activo: el finiquito se emite después de desvincularlo (Gestiones → Desvincular).', 409, { code: 'TRABAJADOR_ACTIVO' });
+                const que = codigo === 'FINIQUITO' ? 'el finiquito' : 'la carta de aviso';
+                throw httpError(`El trabajador está activo: ${que} se emite después de desvincularlo (Gestiones → Desvincular).`, 409, { code: 'TRABAJADOR_ACTIVO' });
             }
         } else if (!cargado.trabajador.activo) {
             throw httpError('El trabajador está desvinculado: no se emiten documentos de ingreso ni amonestaciones.', 409);
@@ -254,6 +256,32 @@ const documentosLaboralesService = {
      * Descarga (o lectura para imprimir) de un documento — CUALQUIER documento activo, restringido o no
      * (el gate de la ruta ya exigió documentos.laborales.descargar). Marca la primera descarga y loguea.
      */
+    /**
+     * Días de falta (estado F) del trabajador en los 60 días antes de su baja vigente, para la carta de aviso por no
+     * concurrencia (art. 160 N° 3): el modal los ofrece marcados y quien emite quita o agrega. Sin baja → [].
+     */
+    async inasistenciasParaCarta(trabajadorId) {
+        const id = Number(trabajadorId);
+        if (!Number.isInteger(id) || id <= 0) throw httpError('Trabajador inválido', 400);
+        let baja = null;
+        try { baja = await desvinculacionService.desvinculacionAbierta(id); } catch (err) {
+            if (!desvinculacionService.esErrorEsquema(err)) throw err;
+        }
+        const hasta = toYmd(baja?.fecha_desvinculacion) || g.hoyYmd();
+        const [y, m, d] = hasta.split('-').map(Number);
+        const desde = g.hoyYmd(new Date(y, m - 1, d - 60));
+        const [rows] = await db.query(
+            `SELECT DATE_FORMAT(a.fecha, '%Y-%m-%d') AS fecha, o.nombre AS obra
+               FROM asistencias a
+               JOIN estados_asistencia ea ON ea.id = a.estado_id AND ea.codigo = 'F'
+               LEFT JOIN obras o ON o.id = a.obra_id
+              WHERE a.trabajador_id = ? AND a.fecha BETWEEN ? AND ?
+              ORDER BY a.fecha`,
+            [id, desde, hasta]
+        );
+        return { desde, hasta, dias: rows.map(r => ({ fecha: String(r.fecha).slice(0, 10), obra: r.obra || null })) };
+    },
+
     async abrir(id, userId, req, { modo = 'download' } = {}) {
         // «Ver como» (soporte, token con `imp`): el Super Administrador mira el documento sin marcarlo como
         // descargado por el usuario mirado (es un GET con escritura). El log queda a nombre de quien mira
@@ -262,6 +290,16 @@ const documentosLaboralesService = {
             ? () => documentoService.marcarDescargado(id)
             : async () => {};
         const info = await documentoService.getFilePath(id);
+        // Cartas de aviso (mig 160): solo con su permiso propio; lo demás, con el de documentos laborales (la ruta
+        // deja pasar con cualquiera de los dos). Se mira el token cuando lo hay.
+        const p = Array.isArray(req?.user?.p) ? req.user.p : null;
+        if (p) {
+            const esCarta = info.tipo_codigo === 'CARTA_AVISO';
+            if (esCarta ? !p.includes(PERMISO_CARTAS_AVISO) : !p.includes('documentos.laborales.descargar')) {
+                throw httpError(esCarta ? 'Las cartas de aviso solo las descarga e imprime quien tiene «Cartas de aviso de término».'
+                    : 'No tienes permisos para esta acción', 403);
+            }
+        }
         if (!fs.existsSync(info.fullPath)) throw httpError('El archivo no está en el servidor', 404);
         if (modo === 'html') {
             // Solo los .doc que ESTE motor generó son HTML: un Word binario (o un PDF) subido a la ficha
