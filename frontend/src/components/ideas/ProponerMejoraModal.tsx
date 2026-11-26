@@ -11,7 +11,7 @@ import { Meta, EstadoPill } from './Meta';
 import { FotoIdea } from './FotoIdea';
 import { IconButton } from '../ui/IconButton';
 import { VisorAdjunto } from '../ui/VisorAdjunto';
-import { comprimirMiniatura, type Miniatura } from '../../utils/compressImage';
+import { fotoLegible, type Miniatura } from '../../utils/compressImage';
 import { formatearTamano } from '../../utils/archivos';
 import { EmptyState } from '../ui/EmptyState';
 import { Cargando, Skeleton } from '../ui/Skeleton';
@@ -73,7 +73,7 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
     const [enviando, setEnviando] = useState(false);
     // Cada envío vuelve a cargar "Mis ideas" (en tres columnas está a la vista mientras se propone).
     const [enviadas, setEnviadas] = useState(0);
-    // Foto opcional (mig 121): se comprime acá mismo a ~5 KB; lo que se ve es lo que se manda.
+    // Foto opcional (mig 121): se comprime acá mismo (legible desde la mig 161, ~250 KB); lo que se ve es lo que se manda.
     const [foto, setFoto] = useState<Miniatura | null>(null);
     const [comprimiendo, setComprimiendo] = useState(false);
     const [verFoto, setVerFoto] = useState(false);
@@ -83,7 +83,8 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
 
     const cargarFoto = async (f: File) => {
         setComprimiendo(true);
-        const mini = await comprimirMiniatura(f, { maxBytes: 5 * 1024 });
+        // Que se pueda leer (mig 161, Marcos 2026-11-26): antes era una miniatura de ~5 KB y una carta no se entendía.
+        const mini = await fotoLegible(f);
         setComprimiendo(false);
         if (!mini) { toast.error('No se pudo leer esa imagen. Prueba con otra foto o captura.'); return; }
         setFoto(mini);
@@ -312,7 +313,7 @@ export const ProponerMejoraModal: React.FC<Props> = ({ isOpen, onClose, pestanaI
                         <div className="min-w-0 flex-1">
                             <p className="text-xs font-semibold text-brand-dark">Se enviará así · {formatearTamano(foto.blob.size)}</p>
                             <p className="text-micro text-muted-foreground leading-snug">
-                                Muy comprimida para no ocupar espacio: sirve para mostrar la pantalla, no para leer letra chica.
+                                Se ve con detalle: se puede leer un documento o la letra de la pantalla. Tóquela para revisarla.
                             </p>
                         </div>
                         <IconButton size="sm" onClick={() => setFoto(null)} aria-label="Quitar foto" title="Quitar" icon={<X className="h-3.5 w-3.5" />} />
