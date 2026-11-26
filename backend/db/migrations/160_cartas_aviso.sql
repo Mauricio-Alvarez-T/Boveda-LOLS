@@ -10,7 +10,10 @@
 --   2. Tipo de documento del sistema CARTA_AVISO (restringido, como contratos y finiquitos: nunca en ZIP ni por
 --      correo). INSERT IGNORE + NOT EXISTS, igual que la mig 110.
 --   3. Se le da a Matías Millanao (RR.HH.), buscándolo por su correo: si no existe (otro entorno), no se agrega nada.
---      Se le cierra la sesión (`permisos_cambiados_en`, mig 146) para que el permiso entre a su token.
+--      Para que el permiso entre a su token hay que cerrarle la sesión: si existe `usuarios.permisos_cambiados_en`
+--      (mig 146, solo en test al 26-11) se le cierra SOLO a él; si no (producción), se sube `roles.version` de RR.HH.
+--      (Paula, Matías y Daphne vuelven a iniciar sesión una vez). El 26-11 la primera versión usaba la columna sin
+--      mirar y falló en producción (los pasos 1-3 sí quedaron: son idempotentes).
 -- Idempotente: no duplica el permiso ni el tipo; repetirla solo vuelve a pedirle a Matías iniciar sesión.
 
 INSERT IGNORE INTO permisos_catalogo (clave, modulo, nombre, descripcion, orden) VALUES
@@ -29,6 +32,14 @@ WHERE u.email = 'matiasmillanao@lols.cl'
       SELECT 1 FROM permisos_usuario_override o WHERE o.usuario_id = u.id AND o.permiso_clave = 'documentos.cartas_aviso'
   );
 
-UPDATE usuarios
-SET permisos_cambiados_en = UTC_TIMESTAMP()
-WHERE email = 'matiasmillanao@lols.cl';
+SET @col_cierre := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'permisos_cambiados_en'
+);
+SET @sql := IF(@col_cierre > 0,
+    'UPDATE usuarios SET permisos_cambiados_en = UTC_TIMESTAMP() WHERE email = ''matiasmillanao@lols.cl''',
+    'UPDATE roles SET version = version + 1 WHERE nombre IN (''RR.HH'', ''RRHH'') AND id <> 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
