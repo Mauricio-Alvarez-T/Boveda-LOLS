@@ -131,6 +131,15 @@ describe('de qué le avisaremos (la franja «Active los avisos»)', () => {
         expect(await svc.temasDe({ id: 5, rol_id: 6 }, 8)).toEqual(['Lo que espera su decisión, en un solo resumen']);
     });
 
+    test('don Luis con el aviso de asistencia (mig 159, Marcos 2026-11-26): su resumen y, aparte, el «Importante»', async () => {
+        permisos.getPermisosEfectivos.mockResolvedValue(['inicio.gerencia', 'asistencia.ver', 'asistencia.dias_pasados']);
+        expect(await svc.temasDe({ id: 5, rol_id: 6 }, 8)).toEqual([
+            'Lo que espera su decisión, en un solo resumen',
+            'Obras que no pasaron la lista (importante)',
+            'Obras en preparación con trabajadores (importante)',
+        ]);
+    });
+
     test('nada que contar: no consulta nada más que sus permisos', async () => {
         permisos.getPermisosEfectivos.mockResolvedValue(['asistencia.ver']);
         expect(await svc.temasDe({ id: 8, rol_id: 5 }, 8)).toEqual([]);
