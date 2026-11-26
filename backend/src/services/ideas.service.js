@@ -34,11 +34,11 @@ const unSoloTexto = (idea) => String(idea.detalle || '').startsWith(String(idea.
 
 
 /**
- * Foto opcional (mig 121): miniatura comprimida en el cliente, meta ~5 KB. El servidor
- * acepta hasta 12 KB como red de seguridad y verifica que los bytes sean de verdad la
- * imagen que dice el data URL (no confiar en el prefijo).
+ * Foto opcional (mig 121): comprimida en el cliente. Desde la mig 161 (Marcos 2026-11-26: la foto de una carta «no
+ * se entiende nada») se comprime para que se LEA: lado largo hasta 1600 px, meta ~250 KB. El servidor acepta hasta
+ * 400 KB como red de seguridad y verifica que los bytes sean de verdad la imagen que dice el data URL.
  */
-const MAX_FOTO_BYTES = 12 * 1024;
+const MAX_FOTO_BYTES = 400 * 1024;
 const FOTO_RE = /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/;
 
 function leerFoto(dataUrl) {

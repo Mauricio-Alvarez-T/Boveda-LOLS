@@ -322,7 +322,8 @@ describe('Ideas — foto opcional (mig 121)', () => {
         expect(db.query).not.toHaveBeenCalled();
     });
 
-    test('más de 12 KB → 400 (red de seguridad si alguien se salta la compresión)', async () => {
+    test('más de 400 KB → 400 (red de seguridad si alguien se salta la compresión; mig 161)', async () => {
+        expect(svc.MAX_FOTO_BYTES).toBe(400 * 1024);
         const grande = Buffer.concat([Buffer.from([0xFF, 0xD8]), Buffer.alloc(svc.MAX_FOTO_BYTES, 1)]);
         await expect(svc.crear({ ...IDEA_OK, foto: dataUrl('image/jpeg', grande) }, { id: 7 }, {}))
             .rejects.toMatchObject({ statusCode: 400, code: 'IDEA_FOTO_PESADA' });

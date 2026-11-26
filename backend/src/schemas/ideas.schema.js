@@ -26,9 +26,9 @@ const crear = {
     pantalla_nombre: { type: 'string', maxLength: 120 },
     obra_id: { type: 'integer', min: 1 },
     dispositivo: { type: 'string', in: ['movil', 'escritorio'] },
-    // data URL de la miniatura (mig 121). 12 KB en base64 ≈ 16,4 K caracteres + prefijo;
+    // data URL de la foto (mig 121; legible desde la 161). 400 KB en base64 ≈ 546 K caracteres + prefijo;
     // el tope fino (bytes reales y formato) lo valida el service.
-    foto: { type: 'string', maxLength: 20000 },
+    foto: { type: 'string', maxLength: 560000 },
 };
 
 // PATCH /ideas/:id (revisores)

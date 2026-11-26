@@ -34,17 +34,17 @@ y la revisan una a una cuando tienen tiempo.
   sin `await`: un SMTP caído nunca hace fallar el envío), con el texto y el pantallazo adjunto.
 - **Pegar el pantallazo:** en el computador, una imagen pegada con **Ctrl+V** en cualquier parte del
   formulario queda como pantallazo (si lo pegado no es imagen, se pega el texto normal).
-- **Foto opcional, miniatura de ~5 KB** (mig 121, Marcos 15-10: "tenemos poca memoria"; el 14-10 se
-  había decidido sin adjuntos por lo mismo). Se comprime **en el teléfono** antes de subir
-  (`comprimirMiniatura` en `utils/compressImage.ts`: busca el lado más grande que entre en 5 KB, WEBP o
-  JPEG — Safari no codifica WEBP —, y si no entra devuelve la más liviana). Viaja en el mismo POST como
-  data URL y se guarda en la fila (`ideas.foto` BLOB, `foto_mime`, `foto_bytes`), no en `uploads/`.
-  El servidor rechaza > **12 KB** (`IDEA_FOTO_PESADA`) y verifica la firma real de los bytes
-  (`IDEA_FOTO_FORMATO`). La foto **nunca** viaja en los listados (`tiene_foto`); se pide a
-  `GET /api/ideas/:id/foto`, solo autor o `ideas.revisar`. En una falla va **adjunta al correo**.
-  En el formulario se llama **"Pantallazo"** (de la parte que cuesta, de dónde iría lo nuevo, o del error)
-  y muestra la miniatura tal cual se enviará, con su peso y el aviso de que no sirve para
-  leer letra chica. 1.000 ideas con foto ≈ 5 MB de BD.
+- **Foto opcional, que se pueda leer** (mig 121 + mig 161). Al principio (15-10, «tenemos poca memoria») era una
+  miniatura de ~5 KB; el 26-11 Matías mandó la foto de una carta y «no se entiende nada», y Marcos pidió mejorar la
+  vista y el archivo. Desde la **mig 161** se comprime **en el teléfono** como los documentos (`fotoLegible` en
+  `utils/compressImage.ts` → `compressImage`: lado largo hasta 1600 px, no baja de 900, JPEG con calidad que va
+  bajando, meta **~250 KB**). Viaja en el mismo POST como data URL y se guarda en la fila (`ideas.foto`
+  **MEDIUMBLOB**, `foto_mime`, `foto_bytes`), no en `uploads/`. El servidor rechaza > **400 KB**
+  (`IDEA_FOTO_PESADA`) y verifica la firma real de los bytes (`IDEA_FOTO_FORMATO`). La foto **nunca** viaja en los
+  listados (`tiene_foto`); se pide a `GET /api/ideas/:id/foto`, solo autor o `ideas.revisar`, y se abre en el visor
+  con zoom. En una falla va **adjunta al correo**. En el formulario se llama **"Pantallazo"** y muestra la foto tal
+  cual se enviará, con su peso. 100 ideas con foto ≈ 25 MB de BD. Las fotos guardadas antes de la 161 siguen siendo
+  miniaturas (no se recuperan: hay que volver a mandarlas).
 - **Sin plazos.** Se revisan cuando hay tiempo; el autor ve el estado en "Mis ideas" y un punto de
   novedad en el menú cuando cambia.
 - **El jefe no participa dentro del sistema.** Si una idea necesita su visto bueno, se conversa por fuera.

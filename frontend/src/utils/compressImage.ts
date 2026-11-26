@@ -172,3 +172,23 @@ export async function comprimirMiniatura(file: File, { maxBytes = 5 * 1024 }: { 
         return null;
     }
 }
+
+/**
+ * Foto de una idea que se pueda LEER (mig 161; Marcos 2026-11-26: la foto de una carta que mandó Matías «no se
+ * entiende nada»). Usa la misma compresión de los documentos (`compressImage`: lado largo hasta 1600 px, no baja de
+ * 900, calidad que va bajando) con una meta de `maxBytes`, y la devuelve como `Miniatura` (blob + data URL + medidas)
+ * para mandarla en el mismo JSON de la idea. El servidor acepta hasta 400 KB.
+ */
+export async function fotoLegible(file: File, { maxBytes = 250 * 1024 }: { maxBytes?: number } = {}): Promise<Miniatura | null> {
+    if (!file.type.startsWith('image/')) return null;
+    try {
+        const comprimida = await compressImage(file, { maxDim: 1600, minDim: 900, maxBytes });
+        // Solo formatos que el servidor acepta (una HEIC que el navegador no pudo leer vuelve tal cual).
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(comprimida.type)) return null;
+        const dataUrl = await blobADataUrl(comprimida);
+        const img = await loadImage(dataUrl);
+        return { blob: comprimida, dataUrl, ancho: img.width, alto: img.height };
+    } catch {
+        return null;
+    }
+}

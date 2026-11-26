@@ -8,7 +8,8 @@ import { formatearTamano } from '../../utils/archivos';
 /**
  * Foto de una idea ya guardada (mig 121). Se pide aparte —nunca viaja en los
  * listados— por el endpoint autenticado, y al tocarla se abre en el visor con zoom.
- * Es una miniatura de ~5 KB: sirve para ver qué pantalla o qué cosa es.
+ * Desde la mig 161 se guarda legible (lado largo hasta 1600 px): en el visor se lee un documento. Las fotos de antes
+ * siguen siendo miniaturas de ~5 KB.
  */
 export const FotoIdea: React.FC<{ ideaId: number; resumen: string; tamano?: number | null; compacta?: boolean }> = ({ ideaId, resumen, tamano, compacta }) => {
     const [url, setUrl] = useState<string | null>(null);
