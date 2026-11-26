@@ -9,6 +9,9 @@
  * También avisa las obras «En preparación» que ya tienen trabajadores (Marcos 2026-11-20, mig 156: «que a Daphne
  * también le llegue un mensaje de advertencia sobre una obra que está en preparación»), en ámbar: «Ya empezó…» abre
  * las tres opciones de asistencia de la obra (para poner desde qué día pasa lista) y «Preguntarle» por WhatsApp.
+ *
+ * Super Administrador (Marcos y Mauricio, por control; 2026-11-26: «no tiene que quedarse a vivir el número»): al abrirla
+ * el número rojo se va y la campana queda gris; vuelve roja solo con un aviso nuevo (`campanaVistos`).
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -30,6 +33,7 @@ import {
 import { Modal } from '../ui/Modal';
 import { PanelAsistenciaObra } from '../settings/EditorAsistenciaObra';
 import { hoyChile } from '../../utils/fechaChile';
+import { claveVistos, clavesAvisos, contarNuevos, guardarVistos, leerVistos } from './campanaVistos';
 
 const CADA_MS = 5 * 60 * 1000;
 const mayuscula = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
@@ -46,6 +50,9 @@ export const CampanaImportante: React.FC = () => {
     const [abierta, setAbierta] = useState(false);
     const ref = useCierreExterno({ abierto: abierta, alCerrar: () => setAbierta(false), escape: true, tactil: true });
     const puede = !!user && !verComo && hasPermission(PERMISO_DIAS_PASADOS);
+    // Super Administrador: lo ve por control; el número no se le queda (ver arriba).
+    const soloControl = user?.rol_id === 1;
+    const [vistos, setVistos] = useState<string[] | null>(null);
 
     const preguntar = useCallback(() => {
         if (!puede) return;
@@ -85,6 +92,13 @@ export const CampanaImportante: React.FC = () => {
     );
     if (n === 0) return ventana || null;
     const hoy = datos?.hoy ?? prep?.hoy ?? hoyChile();
+    const claves = clavesAvisos(puede ? datos : null, puede ? prep : null);
+    const llave = user ? claveVistos(user.id) : '';
+    const nuevos = soloControl ? contarNuevos(claves, vistos ?? leerVistos(llave)) : n;
+    const alAbrir = () => {
+        if (!abierta && soloControl) { guardarVistos(llave, claves); setVistos(claves); }
+        setAbierta(v => !v);
+    };
     const textoN = [
         obras.length ? (obras.length === 1 ? 'una obra no pasó la lista' : `${obras.length} obras no pasaron la lista`) : '',
         enPrep.length ? (enPrep.length === 1 ? 'una obra sigue en preparación con trabajadores' : `${enPrep.length} obras siguen en preparación con trabajadores`) : '',
@@ -93,14 +107,19 @@ export const CampanaImportante: React.FC = () => {
     return (
         <div className="relative shrink-0" ref={ref}>
             {/* eslint-disable-next-line no-restricted-syntax -- campana del encabezado (círculo con número) */}
-            <button type="button" onClick={() => setAbierta(v => !v)} aria-expanded={abierta} aria-haspopup="true"
-                aria-label={`Importante: ${textoN}`}
-                title="Importante"
-                className="relative flex h-10 w-10 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50">
+            <button type="button" onClick={alAbrir} aria-expanded={abierta} aria-haspopup="true"
+                aria-label={`Importante: ${textoN}${nuevos === 0 ? ' (ya visto)' : ''}`}
+                title={nuevos === 0 ? 'Importante (ya lo vio)' : 'Importante'}
+                className={cn('relative flex h-10 w-10 items-center justify-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40',
+                    nuevos > 0
+                        ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50'
+                        : 'border-border bg-card text-muted-foreground hover:bg-muted')}>
                 <Bell className="h-5 w-5" aria-hidden />
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-card bg-red-600 px-1 text-label font-bold text-white tabular-nums" aria-hidden>
-                    {n}
-                </span>
+                {nuevos > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-card bg-red-600 px-1 text-label font-bold text-white tabular-nums" aria-hidden>
+                        {nuevos}
+                    </span>
+                )}
             </button>
 
             {abierta && (

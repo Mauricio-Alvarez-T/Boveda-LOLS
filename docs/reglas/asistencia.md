@@ -57,6 +57,10 @@ Cada estado tiene 2 flags con semántica DISTINTA:
   pasó la lista este día… puede pasarla ahora» (al jefe: «hasta el último día del mes») o «Día que ya pasó», y queda
   a su nombre (`registrado_por`). En el Inicio, «Pasar la lista» de la ficha sale solo si puede marcar el día más
   reciente sin lista. La campana y el aviso «Importante» siguen siendo solo de `asistencia.dias_pasados` (RR.HH.).
+  **Al Super Administrador el número no se le queda** (Marcos 2026-11-26: «nosotros creamos el dashboard, programamos
+  pero no usamos el sistema»): al abrir la campana el número rojo se va y la campana queda gris; vuelve roja solo con
+  un aviso nuevo (otro día sin lista en una obra, otra obra, otra obra en preparación). Lo visto queda en su navegador
+  (`layout/campanaVistos.ts`). Para los demás se queda hasta que la lista se guarde.
 - **Recordatorio de listas olvidadas** (Marcos 2026-11-19: «a los supervisores tendría que aparecer un cartelito en
   asistencia que diga te olvidaste ayer o X días de pasar lista… y cuando lo tome desaparece»): arriba del registro
   diario de la obra elegida (`attendance/RecordatorioListaOlvidada.tsx` + `recordatorioLista.ts`), cartel ámbar «Se
