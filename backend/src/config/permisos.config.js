@@ -56,6 +56,9 @@ const MAESTRO_PERMISOS = [
     // en B1 para que el catálogo/hierarchy no se editen en paralelo; se asignan a roles en su bloque.
     ['documentos.laborales.emitir',    'Documentos', 'Emitir Documentos Laborales',                 'Gestiones → ficha del trabajador: emitir contrato, kit de ingreso, finiquito y carta de amonestación generados por Bóveda.', 5],
     ['documentos.laborales.descargar', 'Documentos', '⚠️ Descargar / Imprimir Documentos Laborales', 'Descargar o imprimir contratos, finiquitos y anexos laborales — solo oficina (RRHH, TI, administración). Incluye ver la remuneración impresa en el contrato.', 6],
+    // Cartas de aviso de término (mig 160): permiso propio, aparte de los documentos laborales (Marcos 2026-11-26:
+    // «que solo Matías pueda imprimir»). Se da a mano a la persona; el Super Administrador lo tiene por ser rol 1.
+    ['documentos.cartas_aviso',       'Documentos', 'Cartas de aviso de término', 'Emitir, descargar e imprimir las cartas de aviso de término de contrato (necesidades de la empresa, vencimiento del plazo, no concurrencia). Sin este permiso no se abren, aunque se tenga el de documentos laborales', 8],
     ['documentos.laborales.eliminar',  'Documentos', 'Eliminar Documentos Laborales', 'Quitar de la ficha un contrato, finiquito, kit o carta generado por Bóveda (queda en el historial). No se puede si está en un lote de custodia en curso', 7],
     // Custodia de documentos físicos por lotes (plan Gestiones B6, mig 114): RRHH arma lotes y recibe firmados;
     // el portador (encargado de obra) confirma el retiro de SUS lotes. Mismo texto que la mig 114.

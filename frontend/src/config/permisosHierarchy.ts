@@ -142,6 +142,8 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'documentos.laborales.emitir':             { seccion: 'consultas', subseccion: 'Documentos', verbo: 'crear' },
     'documentos.laborales.descargar':          { seccion: 'consultas', subseccion: 'Documentos', verbo: 'exportar', sensible: 'critico' },
     'documentos.laborales.eliminar':           { seccion: 'consultas', subseccion: 'Documentos', verbo: 'eliminar', sensible: 'critico' },
+    // Cartas de aviso de término (mig 160): emitir, descargar e imprimir; se da a mano (hoy solo Matías).
+    'documentos.cartas_aviso':                 { seccion: 'consultas', subseccion: 'Documentos', verbo: 'exportar', sensible: 'critico' },
     'documentos.entrega.registrar':            { seccion: 'consultas', subseccion: 'Documentos', verbo: 'editar' },
     'documentos.entrega.portar':               { seccion: 'consultas', subseccion: 'Documentos', verbo: 'editar' },
     'reportes.ver':                            { seccion: 'consultas', subseccion: 'Reportes',   verbo: 'ver' },

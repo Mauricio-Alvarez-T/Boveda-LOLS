@@ -787,6 +787,32 @@ ingreso (B2); B5 agrega el CTA tras aprobar (ver § Solicitudes → Después de 
 - **Pendiente (§10.3 del plan)**: si RRHH quiere que el sistema calcule vacaciones proporcionales e
   indemnizaciones, es un bloque aparte con vigencia histórica de sueldos.
 
+## Carta de aviso de término (mig 160 — 2026-11-26)
+
+Marcos 2026-11-26, tras ver ejemplos: «necesidades de la empresa, vencimiento de plazo y no concurrencia a sus labores,
+esas tres cartas… y que solo Matías pueda imprimir»; sin «Recibí copia» ni «c.c.» al pie («me dice Matías que no es
+necesario»).
+- **Plantilla `CARTA_AVISO`** (`plantillas/documentos/cartaAviso.plantilla.js`, tipo del sistema restringido): lugar y
+  fecha, Señor(a) con RUT y domicilio, «REF.: Aviso de término de contrato de trabajo», causal con su artículo, hechos,
+  cotizaciones pagadas hasta el mes anterior (con los comprobantes adjuntos) y firma de la empresa (p.p. el
+  representante legal). Logo de la empresa del trabajador (LOLS o MAUA). Textos = dato reemplazable.
+- **Solo tres causales** (`CAUSALES_CARTA`): necesidades de la empresa (161 N° 1), vencimiento del plazo (159 N° 4) y no
+  concurrencia (160 N° 3, en la carta: «No concurrencia del trabajador a sus labores sin causa justificada»). Otra
+  causal legal en la baja → 409 (la carta no puede decir otra cosa que la baja). Baja operativa LOLS (sin artículo) →
+  se elige una de las tres; la registrada no cambia.
+- **Sale de la baja vigente**, como el finiquito (`DE_LA_BAJA`): trabajador desvinculado, fecha de término = la de la
+  baja. Botón «Carta de aviso» en la pantalla de éxito de «Desvincular» y en la ficha (documentos laborales).
+- **Según la causal**: no concurrencia → días de falta (estado F) de Asistencia de los 60 días antes de la baja
+  (`GET /documentos-laborales/carta-aviso/inasistencias/:tid`), marcados de partida; se quitan o agregan a mano.
+  Necesidades de la empresa → solo los hechos (obligatorios). **Sin montos ni aviso previo** (Marcos 2026-11-26: «lo
+  referido a dinero… sacarlo, solo texto explicando la causal de despido»): lo que se paga va en el finiquito.
+  Vencimiento del plazo → nada más.
+- **Permiso propio `documentos.cartas_aviso`** («Cartas de aviso de término», marca delicado en Roles): emitir,
+  descargar e imprimir la carta. El de documentos laborales NO alcanza (ni por `/documentos-laborales/:id/*` ni por
+  `/documentos/download/:id`); al revés, el de cartas no abre otros documentos. La mig 160 se lo da a **Matías** por
+  correo (permiso personal) y le cierra la sesión; el Super Administrador lo tiene por ser rol 1. Los demás ven la carta
+  en la lista de la ficha, pero con Imprimir/Descargar apagados.
+
 ## Cadena de custodia de documentos físicos (plan Gestiones B6, mig 114 — 2026-09-14)
 
 

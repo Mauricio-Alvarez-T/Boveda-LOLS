@@ -145,7 +145,9 @@ const DEFS: PantallaDef[] = [
         i('documentos.eliminar', 'Borrar', 3),
         i('documentos.laborales.emitir', 'Emitir contratos y finiquitos', 3),
         x('documentos.laborales.descargar', 'Imprimir contratos con sueldo'),
-        x('documentos.laborales.eliminar', 'Eliminar contratos y finiquitos')] },
+        x('documentos.laborales.eliminar', 'Eliminar contratos y finiquitos'),
+        // Cartas de aviso (mig 160): solo a mano a la persona (Marcos 2026-11-26: «que solo Matías pueda imprimir»).
+        x('documentos.cartas_aviso', 'Emitir e imprimir cartas de aviso de término')] },
     { id: 'ingresos', nombre: 'Ingresos de trabajadores', grupo: 'gestiones', libre: true,
         explicitos: [
             { etiqueta: 'Solicita', claves: ['trabajadores.solicitud.crear'] },

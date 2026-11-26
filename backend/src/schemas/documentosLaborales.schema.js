@@ -34,6 +34,11 @@ const emitir = {
     haberes: { type: 'array', itemRules: LINEA_MONTO },
     descuentos: { type: 'array', itemRules: LINEA_MONTO },
     causal_codigo: { type: 'string', maxLength: 30 },
+    // Carta de aviso de término (mig 160). `fecha_carta` y `causal_codigo` son los de arriba; los días los sanea la
+    // plantilla (cartaAviso.requiere). Sin montos: la carta es solo texto (Marcos 2026-11-26).
+    lugar: { type: 'string', maxLength: 100 },
+    hechos: { type: 'string', maxLength: 2000 },
+    dias_inasistencia: { type: 'array', itemRules: {} },
 };
 
 // POST /kit-ingreso/:trabajadorId — varios documentos del kit de una vez (casillas del modal).

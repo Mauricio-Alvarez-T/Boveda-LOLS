@@ -5,9 +5,11 @@
  * Emitir kit / Amonestación / Finiquito por documentos.laborales.emitir. El finiquito es la ÚNICA acción
  * que aplica al trabajador desvinculado (las otras dos se apagan). B6 agrega acá "Registrar entrega".
  * Eliminar (2026-11-06): papelera junto a Descargar, SOLO visible con documentos.laborales.eliminar.
+ * Carta de aviso de término (mig 160): botón e impresión SOLO con documentos.cartas_aviso (Marcos 2026-11-26: «que
+ * solo Matías pueda imprimir»); a quien no lo tiene, la carta le aparece en la lista pero no la abre.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { FileText, Download, Printer, PackageOpen, FileWarning, FileSignature, Loader2, Lock, Trash2 } from 'lucide-react';
+import { FileText, Download, Printer, PackageOpen, FileWarning, FileSignature, FileX2, Loader2, Lock, Trash2 } from 'lucide-react';
 
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -21,6 +23,8 @@ import { Cargando, Skeleton } from '../ui/Skeleton';
 import { EmitirAmonestacionModal } from './EmitirAmonestacionModal';
 import { EmitirKitModal } from './EmitirKitModal';
 import { EmitirFiniquitoModal } from './EmitirFiniquitoModal';
+import { EmitirCartaAvisoModal } from './EmitirCartaAvisoModal';
+import { PERMISO_CARTAS_AVISO } from './cartaAviso';
 import { EliminarDocumentoModal } from './EliminarDocumentoModal';
 import { abrirGenerado } from './abrirDocumentoGenerado';
 import type { WorkerBasico } from './documentosLaborales';
@@ -53,10 +57,11 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
     const puedeDescargar = hasPermission('documentos.laborales.descargar');
     const puedeVer = hasPermission('documentos.ver');
     const puedeEliminar = hasPermission('documentos.laborales.eliminar');
+    const puedeCartas = hasPermission(PERMISO_CARTAS_AVISO);
     const [docs, setDocs] = useState<Documento[]>([]);
     const [loading, setLoading] = useState(false);
     const [local, setLocal] = useState(0);
-    const [modal, setModal] = useState<'kit' | 'amonestacion' | 'finiquito' | null>(null);
+    const [modal, setModal] = useState<'kit' | 'amonestacion' | 'finiquito' | 'carta' | null>(null);
     const [ocupado, setOcupado] = useState<string | null>(null);
     const [aEliminar, setAEliminar] = useState<Documento | null>(null);
 
@@ -98,6 +103,10 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
                 </h4>
                 <div className="flex flex-wrap gap-2">
                     {/* Finiquito (B5): condición INVERSA a las demás — solo tiene sentido con el trabajador desvinculado. */}
+                    {/* Carta de aviso (mig 160): solo quien tiene su permiso propio la ve. */}
+                    {inactivo && puedeCartas && (
+                        <Button size="sm" variant="outline" leftIcon={<FileX2 className="h-4 w-4" />} onClick={() => setModal('carta')}>Carta de aviso</Button>
+                    )}
                     {inactivo && (
                         <Button size="sm" variant={conFiniquito ? 'outline' : 'primary'} leftIcon={<FileSignature className="h-4 w-4" />} disabled={!puedeEmitir} title={tituloFiniquito}
                             onClick={() => setModal('finiquito')}>{conFiniquito ? 'Reemitir finiquito' : 'Finiquito'}</Button>
@@ -140,6 +149,10 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
                 <ul className="space-y-2">
                     {docs.map(d => {
                         const anterior = esDocDePeriodoAnterior(d, inicioPeriodoActual);
+                        // La carta de aviso se abre solo con su permiso; lo demás, con el de documentos laborales.
+                        const esCarta = d.tipo_codigo === 'CARTA_AVISO';
+                        const puedeAbrir = esCarta ? puedeCartas : puedeDescargar;
+                        const tituloNo = esCarta ? 'Solo quien tiene «Cartas de aviso de término»' : 'Solo oficina (Descargar / Imprimir Documentos Laborales)';
                         return (
                         <li key={d.id} className={cn('flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 rounded-xl px-3 py-2', anterior ? 'bg-muted' : 'bg-background')}>
                             {/* basis-48: en el teléfono el estado y los botones bajan a otra línea y el nombre no
@@ -159,11 +172,11 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
                             </div>
                             <StatusBadge domain="documentoEstado" status={d.estado || 'generado'} showIcon />
                             <div className="flex gap-1 shrink-0">
-                                <IconButton size="sm" variant="ghost" aria-label="Imprimir" title={puedeDescargar ? 'Imprimir' : 'Solo oficina (Descargar / Imprimir Documentos Laborales)'}
-                                    disabled={!puedeDescargar || ocupado === `${d.id}-print`} onClick={() => abrir(d, 'print')}
+                                <IconButton size="sm" variant="ghost" aria-label="Imprimir" title={puedeAbrir ? 'Imprimir' : tituloNo}
+                                    disabled={!puedeAbrir || ocupado === `${d.id}-print`} onClick={() => abrir(d, 'print')}
                                     icon={ocupado === `${d.id}-print` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />} />
-                                <IconButton size="sm" variant="ghost" aria-label="Descargar Word" title={puedeDescargar ? 'Descargar Word' : 'Solo oficina (Descargar / Imprimir Documentos Laborales)'}
-                                    disabled={!puedeDescargar || ocupado === `${d.id}-download`} onClick={() => abrir(d, 'download')}
+                                <IconButton size="sm" variant="ghost" aria-label="Descargar Word" title={puedeAbrir ? 'Descargar Word' : tituloNo}
+                                    disabled={!puedeAbrir || ocupado === `${d.id}-download`} onClick={() => abrir(d, 'download')}
                                     icon={ocupado === `${d.id}-download` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} />
                                 {/* Sin el permiso no se muestra (no basta deshabilitarlo: pedido del dueño). */}
                                 {puedeEliminar && (
@@ -181,6 +194,7 @@ export const DocumentosGeneradosList: React.FC<Props> = ({ trabajadorId, worker,
             <EmitirKitModal isOpen={modal === 'kit'} onClose={() => setModal(null)} worker={worker} onEmitido={emitido} onFichaActualizada={onCambio} />
             <EmitirAmonestacionModal isOpen={modal === 'amonestacion'} onClose={() => setModal(null)} worker={worker} onEmitido={emitido} />
             {aEliminar && <EliminarDocumentoModal documento={aEliminar} onClose={() => setAEliminar(null)} onEliminado={emitido} />}
+            {puedeCartas && <EmitirCartaAvisoModal isOpen={modal === 'carta'} onClose={() => setModal(null)} worker={worker} desvinculacion={ultimaDesvinculacion} onEmitido={emitido} />}
             <EmitirFiniquitoModal isOpen={modal === 'finiquito'} onClose={() => setModal(null)} worker={worker} desvinculacion={ultimaDesvinculacion} onEmitido={emitido} />
         </div>
     );

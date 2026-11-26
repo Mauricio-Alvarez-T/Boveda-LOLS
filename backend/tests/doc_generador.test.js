@@ -151,7 +151,7 @@ describe('plantillas de documentos', () => {
 
     test('catálogo: kit de 6 + amonestación + finiquito (B5); cada plantilla cumple el contrato', () => {
         expect(KIT_INGRESO).toEqual(['CONTRATO', 'ODI_D40', 'DAS', 'PTS_ALTURA', 'EPP_RECEPCION', 'RI_RECEPCION']);
-        expect(EMITIBLES).toEqual([...KIT_INGRESO, 'AMONESTACION', 'FINIQUITO']);
+        expect(EMITIBLES).toEqual([...KIT_INGRESO, 'AMONESTACION', 'FINIQUITO', 'CARTA_AVISO']);   // + carta de aviso (mig 160)
         for (const [codigo, p] of Object.entries(PLANTILLAS)) {
             expect(p.codigo).toBe(codigo);
             expect(p.version).toMatch(/^\d+\.\d+$/);
