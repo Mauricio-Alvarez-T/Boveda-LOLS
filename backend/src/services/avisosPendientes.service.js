@@ -198,7 +198,11 @@ async function pendientesDe(usuario, hora) {
 async function temasDe(usuario, hora) {
     const p = await permisosService.getPermisosEfectivos(usuario.id, usuario.rol_id);
     const tiene = (k) => p.includes(k);
-    if (tiene('inicio.gerencia')) return ['Lo que espera su decisión, en un solo resumen'];
+    // Don Luis: un resumen de su Inicio de gerencia y, aparte, el aviso «Importante» de asistencia (mig 159).
+    if (tiene('inicio.gerencia')) {
+        return ['Lo que espera su decisión, en un solo resumen',
+            ...(tiene(PERMISO_DIAS_PASADOS) ? ['Obras que no pasaron la lista (importante)', 'Obras en preparación con trabajadores (importante)'] : [])];
+    }
     const temas = [];
     if (tiene('inventario.ver')) {
         // Igual que `puede` en transferenciaService.inicioPerfil.

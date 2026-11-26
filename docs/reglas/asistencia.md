@@ -44,7 +44,7 @@ Cada estado tiene 2 flags con semántica DISTINTA:
 - **Día cerrado** (Marcos 2026-11-18: «que no tenga la opción de marcar la asistencia si ya pasó, que mejor lo vea
   Daphne»): la asistencia se marca **el mismo día** (hora de Chile; cierra a las 23:59, sin margen). Un día anterior
   solo lo marca, corrige, borra o traslada quien tiene **`asistencia.dias_pasados`** («Marcar días que ya pasaron»,
-  mig 154: Super Administrador y RR.HH.; cualquier día) o **`asistencia.dias_pasados_mes`** («Marcar días pasados del
+  mig 154: Super Administrador y RR.HH.; mig 159: también el Gerente, don Luis; cualquier día) o **`asistencia.dias_pasados_mes`** («Marcar días pasados del
   mes», mig 155: **jefes de obra** = rol «Supervisor de Obra», confirmado por Daphne el mismo 18-11: «que en obra
   pasen asistencia si se olvidaron cualquier día del mes»; solo días del **mes en curso**: un mes anterior ya cerró
   para la nómina y queda para RR.HH.). Ambos van aparte de los escalones de la matriz de Roles (marca «delicado»: no
@@ -56,7 +56,11 @@ Cada estado tiene 2 flags con semántica DISTINTA:
   bloqueados y sin Guardar/Repetir/Borrar (el calendario y el detalle se pueden abrir para ver); si puede, «{obra} no
   pasó la lista este día… puede pasarla ahora» (al jefe: «hasta el último día del mes») o «Día que ya pasó», y queda
   a su nombre (`registrado_por`). En el Inicio, «Pasar la lista» de la ficha sale solo si puede marcar el día más
-  reciente sin lista. La campana y el aviso «Importante» siguen siendo solo de `asistencia.dias_pasados` (RR.HH.).
+  reciente sin lista. La campana y el aviso «Importante» siguen siendo solo de `asistencia.dias_pasados`.
+- **Quién recibe el aviso «Importante»** (Marcos 2026-11-26: «Paula, Matías, Daphne y don Luis son los que usan el
+  sistema»; él y Mauricio lo ven por control): quien tiene `asistencia.dias_pasados` = RR.HH. (Paula, Matías,
+  Daphne), Gerente (don Luis, mig 159) y Super Administrador (Marcos, Mauricio). Al celular a las 8:00 solo llega a
+  quien está en el horario de avisos (`avisosPendientes.HORARIO`): RR.HH. y don Luis, no los Super Administrador.
   **Al Super Administrador el número no se le queda** (Marcos 2026-11-26: «nosotros creamos el dashboard, programamos
   pero no usamos el sistema»): al abrir la campana el número rojo se va y la campana queda gris; vuelve roja solo con
   un aviso nuevo (otro día sin lista en una obra, otra obra, otra obra en preparación). Lo visto queda en su navegador
