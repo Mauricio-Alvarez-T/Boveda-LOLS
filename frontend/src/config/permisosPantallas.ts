@@ -157,6 +157,9 @@ const DEFS: PantallaDef[] = [
         items: [
             { clave: 'trabajadores.solicitud.crear', etiqueta: 'Llenar la ficha de ingreso' },
             { clave: 'trabajadores.solicitud.aprobar', etiqueta: 'Aprobar o rechazar ingresos' }] },
+    // Mig 163 (Daphne 2026-11-27): tablero de análisis. Los montos además piden «Ver sueldos por cargo».
+    { id: 'analisis', nombre: 'Análisis de trabajadores', grupo: 'gestiones', etiquetas: ['Ve'], items: [
+        i('trabajadores.analisis.ver', 'Ver el análisis de trabajadores', 1)] },
     { id: 'fisicos', nombre: 'Documentos físicos', grupo: 'gestiones', libre: true,
         explicitos: [
             { etiqueta: 'Lleva', claves: ['documentos.entrega.portar'] },

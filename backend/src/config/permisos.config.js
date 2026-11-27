@@ -46,6 +46,8 @@ const MAESTRO_PERMISOS = [
     // Ficha de ingreso digital (mig 108): terreno solicita, oficina aprueba.
     ['trabajadores.solicitud.crear',  'Trabajadores', 'Solicitar Ingreso de Trabajador',          'Gestiones → botón "Nuevo ingreso": permite llenar la ficha de ingreso digital (solicitud) de un trabajador nuevo SIN necesidad de "Crear Trabajador". La solicitud queda pendiente hasta que oficina la apruebe. Pensado para supervisores / prevencionistas en terreno.', 9],
     ['trabajadores.solicitud.aprobar','Trabajadores', 'Aprobar / Rechazar Solicitudes de Ingreso', 'Gestiones → Solicitudes: permite revisar las fichas de ingreso pendientes, corregirlas, asignar la empresa y aprobarlas (crea el trabajador) o rechazarlas con motivo. Habilita el contador de pendientes en el menú.', 10],
+    // Mig 163 (pedido Daphne 2026-11-27): tablero de análisis de trabajadores. Montos: + cargos.sueldo.ver.
+    ['trabajadores.analisis.ver',     'Trabajadores', 'Ver Análisis de Trabajadores', 'Gestiones → Análisis: dotación, rotación, asistencia, perfil y papeles en gráficos y cifras, con filtros y Excel. Los montos requieren además «Ver sueldos por cargo»', 11],
 
     // DOCUMENTOS
     ['documentos.ver',              'Documentos', 'Ver Documentos',              'Ver la documentación de los trabajadores', 1],
