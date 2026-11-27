@@ -524,6 +524,21 @@ de `/:id`. Errores con el patrón del repo: `throw Object.assign(new Error(msg),
   `desvinculacionSchema.ts` (+ test). Logs: `trabajador_desvinculado` / `trabajador_reactivado` sin `detalle`.
 - Pendiente (§10.4 del plan): qué hacer con asistencias registradas después de la fecha de baja.
 
+### Desvinculación registrada por error (sin botón — mig 162, 2026-11-27)
+
+Marcos 2026-11-27: «No quiero crear ningún botón nuevo, ya que esto nunca pasa». **No se reingresa** (abriría un
+período nuevo con fecha posterior a la baja: `REINGRESO_SOLAPADO` impide volver a la fecha original) **ni se depura**
+(borra toda su asistencia y documentos; además lo impide un finiquito emitido). Se corrige con una **migración de una
+sola vez** por trabajador, copiando `162_anular_desvinculacion_por_error.sql`:
+- Guardas: el trabajador sigue desvinculado con esa fecha e ingreso, tiene UNA sola baja en el historial y ningún
+  finiquito/carta firmados. Si no cumple, no hace nada (otro entorno, ya reingresado, ya firmado → se ve aparte).
+- Efecto: finiquito/carta de aviso de esa baja anulados como en «Eliminar» de Documentos laborales (`activo = FALSE`);
+  en un lote de custodia, por llevar → «Quedó en oficina», en obra → «Volvió sin firma» (observación «Anulado:
+  desvinculación por error»; el lote se cierra si no le queda nada abierto); se borra la fila de
+  `trabajador_desvinculaciones`; el trabajador vuelve a `activo = 1` sin causal ni marca, con su `fecha_ingreso`
+  intacta (la baja nunca la cambia). La asistencia no se toca. Dos líneas en `logs_actividad` (usuario vacío).
+- En el repo (público) va solo el id interno, sin nombre ni RUT. Fuera de Bóveda: romper el finiquito impreso.
+
 ## Reingreso y períodos laborales (mig 152 — 2026-11-17)
 
 Un finiquitado que vuelve NO se crea de nuevo (`rut` es UNIQUE): se **reingresa** sobre la misma ficha y
