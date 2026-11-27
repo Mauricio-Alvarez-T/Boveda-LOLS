@@ -402,4 +402,16 @@ Regla jefatura 2026-08-17: los pagos SIEMPRE se calculan base 30 — mes de 31 s
   después arma el mensaje; si el guardado falla no envía), **Enviar sin guardar** o Cancelar. Quien no puede guardar
   (día o mes cerrado, sin `asistencia.guardar`): **Enviar con el aviso** o Cancelar. Enviada sin guardar, el mensaje
   parte con `⚠️ *ASISTENCIA NO GUARDADA EN BÓVEDA*` + «Las «A» son las propuestas por defecto: falta pasarla y
-  guardarla.». Un día guardado (aunque tenga cambios sin guardar), fines de semana y feriados: el botón sigue igual.
+  guardarla.». También sale si la lista estaba guardada pero **se cambió algo sin volver a guardar** (el Guardar está
+  en rojo): otro texto («tiene cambios que no se guardaron») y el mensaje dice «Tiene cambios que no se guardaron: lo
+  guardado en Bóveda es distinto.». Lista guardada sin cambios, fines de semana y feriados: el botón sigue igual.
+- **Color del botón Guardar** (Marcos 2026-11-27: «que el botón … esté en rojo mientras no se guarde y que cuando se
+  guarde cambie a color verde para que en terreno sepan»): **rojo** si el día no tiene lista guardada (misma regla de
+  arriba) o se cambió algo después de guardar; **verde con visto** cuando lo que se ve es lo guardado; **gris con
+  candado** («Cerrado») en un día cerrado para esa persona (`diaCerradoPara`). En el computador lleva texto
+  (Guardar / Guardada / Cerrado: al lado está la goma, también roja); en el celular, solo el ícono. Sin obra elegida,
+  cargando, sin trabajadores, fin de semana, feriado o sin `asistencia.guardar`: como siempre. Es el ÚNICO
+  recordatorio en la pantalla: Marcos no quiere franjas fijas («para que el cartel no esté todo el tiempo ahí
+  molestando»); el cartel solo sale al tocar WhatsApp. Lógica: `estadoBotonGuardar` (`listaGuardada.ts`, con test).
+  Reemplaza la luz ámbar de «falta guardar» (`ui/AvisoPendiente`, 2026-10-20). Los permisos de días pasados no cambian
+  (jefes de obra siguen con los días del mes en curso, mig 155: Marcos no lo decidió).

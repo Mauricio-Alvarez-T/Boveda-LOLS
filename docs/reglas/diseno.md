@@ -501,11 +501,14 @@ dividida) — úsalo como ancla al migrar otras pantallas en F5.
       la tarjeta entra 24 px desde el lado al que se avanza, en 200 ms (como §9.7). El contenido vive en
       `config/novedades.ts`: solo lo que ya está en el ambiente donde se muestra, escrito para quien usa
       Bóveda; una tarjeta con `permiso` la ve solo quien lo tiene.
-    - **Star Border → `ui/AvisoPendiente`**: el Guardar de Asistencia avisa cuando falta guardar (el día de
+    - **Star Border → `ui/AvisoPendiente`**: el Guardar de Asistencia avisaba cuando falta guardar (el día de
       la obra sin registros guardados, o cambios desde la última carga; en «Todas las obras» no). Una luz
       ámbar da dos vueltas al borde (`.luz-pendiente`, 2,4 s, CSS) y queda un punto ámbar mientras siga
       pendiente; las vueltas se repiten solo al pasar de «al día» a «pendiente». Ámbar = pendiente.
-      Con «reducir movimiento», solo el punto.
+      Con «reducir movimiento», solo el punto. **Desde el 2026-11-27 ese botón ya no lo usa**: avisa con su
+      color, rojo sin guardar / verde guardada / gris con candado en día cerrado (pedido de Marcos, que eligió
+      ROJO aunque la regla 4 diga ámbar para lo pendiente; `docs/reglas/asistencia.md` § Reporte WhatsApp
+      diario). El componente queda disponible para otros botones.
 12. **Pestañas de sección: `ui/PestanasElasticas`** (idea: RubberSegment). Al cambiar de pestaña el
     indicador verde se estira en 190 ms (ease-out) hasta cubrir su posición actual y la pestaña de
     destino: el borde de adelante queda ya en su lugar. A los 150 ms el borde de atrás lo sigue con un
