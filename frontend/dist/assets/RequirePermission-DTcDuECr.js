@@ -1,0 +1,1 @@
+import{j as s}from"./vendor-movimiento-CgOszf4K.js";import{u as e}from"./index-C1RB47vX.js";const n=({children:r,permiso:o})=>{const{hasPermission:t}=e();return t(o)?s.jsx(s.Fragment,{children:r}):null};export{n as R};
