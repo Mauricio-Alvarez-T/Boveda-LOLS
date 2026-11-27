@@ -21,7 +21,7 @@ import { Cargando, Skeleton } from '../../ui/Skeleton';
 import { toast } from 'sonner';
 import {
     PESTANAS, RANGOS, destinoGrilla, etiquetaCategoria, filtrosActivos, filtrosIniciales, fmtDuracion, fmtNum, fmtPct,
-    paramsApi, rangoActivo, rangoRapido, tablasDe, textoRango,
+    mesCorto, paramsApi, rangoActivo, sumarMeses, rangoRapido, tablasDe, textoRango,
     type AsistenciaApi, type CostosApi, type DatosPorPestana, type Dimension, type DotacionApi, type FiltrosAnalisis,
     type Grupo, type GrupoCosto, type PerfilApi, type PestanaAnalisis, type RotacionApi, type Tabla,
 } from './analisis';
@@ -144,11 +144,11 @@ export const AnalisisTrabajadores: React.FC<Props> = ({ obras, empresas, cargos,
                         <div className="flex items-center gap-2">
                             <label className="sr-only" htmlFor="an-desde">Desde</label>
                             <input id="an-desde" type="month" value={filtros.desde} max={filtros.hasta}
-                                onChange={e => e.target.value && cambiar({ desde: e.target.value })} className={cn(CLASE_CAMPO, 'h-9 w-[9.5rem]')} />
+                                onChange={e => e.target.value && cambiar({ desde: e.target.value })} className={cn(CLASE_CAMPO, 'h-9 w-[11.5rem]')} />
                             <span className="text-caption text-muted-foreground">a</span>
                             <label className="sr-only" htmlFor="an-hasta">Hasta</label>
                             <input id="an-hasta" type="month" value={filtros.hasta} max={hoy.slice(0, 7)}
-                                onChange={e => e.target.value && cambiar({ hasta: e.target.value })} className={cn(CLASE_CAMPO, 'h-9 w-[9.5rem]')} />
+                                onChange={e => e.target.value && cambiar({ hasta: e.target.value })} className={cn(CLASE_CAMPO, 'h-9 w-[11.5rem]')} />
                         </div>
                         <div className="ml-auto flex items-center gap-2">
                             {filtrosActivos(filtros) > 0 && (
@@ -224,7 +224,8 @@ const SelectFiltro: React.FC<{ id: string; label: string; value: string; opcione
         <label htmlFor={id} className="mb-1 block text-caption font-semibold text-muted-foreground">{label}</label>
         <select id={id} value={value} onChange={e => onChange(e.target.value)} className={CLASE_CAMPO}>
             <option value="">{todas}</option>
-            {opciones.map(o => <option key={o.value} value={String(o.value)}>{o.label}</option>)}
+            {/* Los catálogos de Gestiones traen su propio «Todas las …» con valor vacío: no repetirlo. */}
+            {opciones.filter(o => String(o.value) !== '').map(o => <option key={o.value} value={String(o.value)}>{o.label}</option>)}
         </select>
     </div>
 );
@@ -244,7 +245,8 @@ const PanelDotacion: React.FC<{ d: DotacionApi; verDim: VerDim; ver: Ver }> = ({
     return (<>
         <FilaKpis>
             <Kpi label="Activos hoy" n={d.activos} onVer={() => ver({ activo: 'true' })} />
-            <Kpi label="Cambio en el rango" texto={signo(cambio)} detalle={`De ${fmtNum(d.variacion.desde)} a ${fmtNum(d.variacion.hasta)} al cierre`} />
+            <Kpi label="Cambio en el rango" texto={signo(cambio)}
+                detalle={`${fmtNum(d.variacion.desde)} al cierre de ${mesCorto(sumarMeses(d.filtros.desde, -1))} → ${fmtNum(d.variacion.hasta)} ${d.serie[d.serie.length - 1]?.parcial ? 'hoy' : `al cierre de ${mesCorto(d.filtros.hasta)}`}`} />
             <Kpi label="Ingresos del rango" n={ingresos} detalle={reingresos ? `${fmtNum(reingresos)} fueron reingresos` : 'Ninguno fue reingreso'} />
             <Kpi label="En obra finalizada" n={d.en_obra_finalizada} tono="aviso" detalle="Activos cuya obra ya cerró" />
         </FilaKpis>
