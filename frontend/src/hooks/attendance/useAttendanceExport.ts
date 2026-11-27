@@ -6,6 +6,7 @@ import api from '../../services/api';
 import { copyToClipboard, shareViaWhatsApp } from '../../utils/whatsappShare';
 import type { Trabajador, Asistencia, EstadoAsistencia } from '../../types/entities';
 import { conDuracion } from '../../utils/avisos';
+import { AVISO_WHATSAPP_NO_GUARDADA } from '../../components/attendance/listaGuardada';
 
 interface UseAttendanceExportProps {
     date: string;
@@ -89,7 +90,12 @@ export function useAttendanceExport({
         }
     }, [hasPermission]);
 
-    const handleShareWhatsApp = useCallback(async () => {
+    /**
+     * `noGuardada`: se envía igual una asistencia sin guardar (advertencia del botón, Marcos 2026-11-27): el mensaje
+     * parte con «ASISTENCIA NO GUARDADA EN BÓVEDA» para que quien lo reciba no la tome por una lista pasada.
+     */
+    const handleShareWhatsApp = useCallback(async (opciones?: { noGuardada?: boolean }) => {
+        const aviso = opciones?.noGuardada === true ? AVISO_WHATSAPP_NO_GUARDADA : '';
         if (!hasPermission('asistencia.enviar_whatsapp')) {
             toast.error('No tienes permiso para enviar por WhatsApp');
             return;
@@ -281,7 +287,7 @@ export function useAttendanceExport({
         text += `_Este mensaje se genero usando Bóveda lols_`;
 
         try {
-            await copyToClipboard(text);
+            await copyToClipboard(aviso + text);
 
             toast.loading('Preparando link de reporte...', { id: 'whatsapp-share' });
 
@@ -309,7 +315,7 @@ export function useAttendanceExport({
             }
             const publicUrl = `${baseUrl}/asistencias/d/${token}`;
 
-            const finalMessage = `📊 *REPORTE DETALLADO (Excel):*\n${publicUrl}\n\n${text}`;
+            const finalMessage = `${aviso}📊 *REPORTE DETALLADO (Excel):*\n${publicUrl}\n\n${text}`;
 
             toast.success('¡Reporte y link listos!', {
                 id: 'whatsapp-share',
@@ -331,7 +337,7 @@ export function useAttendanceExport({
             toast.error(`Error al generar link${errorDetail}`, { id: 'whatsapp-share', ...conDuracion(8000) });
 
             setTimeout(() => {
-                shareViaWhatsApp(text, `Asistencia ${currentObra?.nombre || 'Bóveda'}`);
+                shareViaWhatsApp(aviso + text, `Asistencia ${currentObra?.nombre || 'Bóveda'}`);
             }, 2000);
         }
     }, [hasPermission]);

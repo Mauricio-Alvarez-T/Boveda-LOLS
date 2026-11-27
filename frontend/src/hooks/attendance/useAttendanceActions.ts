@@ -50,10 +50,11 @@ export function useAttendanceActions({
         latestData.current = { selectedObra, date, workers, attendance, feriadoActual, updateAttendance };
     }, [selectedObra, date, workers, attendance, feriadoActual, updateAttendance]);
 
-    const handleSave = useCallback(async () => {
+    /** Devuelve si quedó guardada («Guardar y enviar» del WhatsApp solo envía si se guardó, 2026-11-27). */
+    const handleSave = useCallback(async (): Promise<boolean> => {
         const { selectedObra: currentObra, date: currentDate, workers: currentWorkers, attendance: currentAttendance } = latestData.current;
         const isGlobal = !currentObra;
-        if (isGlobal && !hasPermission('asistencia.tomar.global')) return;
+        if (isGlobal && !hasPermission('asistencia.tomar.global')) return false;
 
         // Un timer pendiente del guardado anterior no puede devolver 'idle' a mitad de este.
         if (statusTimer.current) {
@@ -93,12 +94,14 @@ export function useAttendanceActions({
             setUltimoGuardado({ estado: 'listo', ...contexto });
             statusTimer.current = window.setTimeout(() => setUltimoGuardado(u => ({ ...u, estado: 'idle' })), 1600);
             fetchAttendanceInfo();
+            return true;
         } catch (error) {
             console.error('Error saving attendance', error);
             // El servidor explica los rechazos con sentido (p. ej. «Este día ya cerró…», 2026-11-18).
             toast.error((error as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al guardar la asistencia');
             setUltimoGuardado({ estado: 'fallo', ...contexto });
             statusTimer.current = window.setTimeout(() => setUltimoGuardado(u => ({ ...u, estado: 'idle' })), 2500);
+            return false;
         } finally {
             setSaving(false);
         }

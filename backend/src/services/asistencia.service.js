@@ -1051,9 +1051,16 @@ const asistenciaService = {
         const [feriados] = await db.query('SELECT * FROM feriados WHERE fecha = ? AND activo = 1', [fecha]);
         const feriado = feriados.length > 0 ? feriados[0] : null;
 
+        // `de_periodo`: la fila la cubre un período activo (licencia, vacaciones, permiso escriben su fila por
+        // adelantado). Con eso la pantalla sabe si el día tiene la lista guardada con la MISMA regla que la campana
+        // «Importante» (asistenciaSinLista.paso): esas filas solas no cuentan (Marcos 2026-11-27, RIVAS VICUÑA:
+        // el WhatsApp salió con las «A» propuestas de un día que solo tenía licencias y vacaciones).
         let queryParams = [fecha];
         let queryStr = `SELECT a.*, ea.nombre as estado_nombre, ea.codigo as estado_codigo, ea.color as estado_color,
                     ea.es_presente,
+                    EXISTS (SELECT 1 FROM periodos_ausencia p
+                            WHERE p.trabajador_id = a.trabajador_id AND p.activo = 1
+                              AND p.fecha_inicio <= a.fecha AND p.fecha_fin >= a.fecha) AS de_periodo,
                     t.rut, t.nombres, t.apellido_paterno, t.apellido_materno, t.cargo_id,
                     c.nombre as cargo_nombre,
                     ta.nombre as tipo_ausencia_nombre,

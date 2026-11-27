@@ -393,3 +393,13 @@ Regla jefatura 2026-08-17: los pagos SIEMPRE se calculan base 30 — mes de 31 s
 - Builder: `useAttendanceExport.ts → handleShareWhatsApp` (texto: totales, desglose por cargo y
   categoría, AUSENCIAS Y MOVIMIENTOS, aviso faltas reiteradas, saludo). Permiso
   `asistencia.enviar_whatsapp`. Emojis permitidos en WhatsApp (NO en UI de la app — ahí lucide).
+- **Advertencia si el día no tiene la lista guardada** (Marcos 2026-11-27, caso RIVAS VICUÑA 25-11: la pantalla
+  propone «A» a todos y el WhatsApp salió como lista pasada; la campana decía, con razón, que no la pasó). Al tocar
+  WhatsApp con una obra elegida, en día hábil, con trabajadores y **sin lista guardada** —misma regla que la campana:
+  filas propias; las de licencias/vacaciones/permisos solas no cuentan (`de_periodo` de GET /asistencias/obra/:id),
+  o fila para toda la dotación (`components/attendance/listaGuardada.ts`)— sale «Esta asistencia no ha sido
+  guardada» (`modals/AvisoAsistenciaNoGuardada`, hoja desde abajo en el celular): **Guardar y enviar** (guarda y
+  después arma el mensaje; si el guardado falla no envía), **Enviar sin guardar** o Cancelar. Quien no puede guardar
+  (día o mes cerrado, sin `asistencia.guardar`): **Enviar con el aviso** o Cancelar. Enviada sin guardar, el mensaje
+  parte con `⚠️ *ASISTENCIA NO GUARDADA EN BÓVEDA*` + «Las «A» son las propuestas por defecto: falta pasarla y
+  guardarla.». Un día guardado (aunque tenga cambios sin guardar), fines de semana y feriados: el botón sigue igual.

@@ -77,6 +77,17 @@ describe('getByObraAndFecha — dedupe solo en ALL', () => {
         const { registros } = await asistenciaService.getByObraAndFecha(32, '2026-08-20');
         expect(registros).toHaveLength(2);
     });
+
+    test('marca las filas que puso un período (de_periodo), para la advertencia del WhatsApp (2026-11-27)', async () => {
+        db.query
+            .mockResolvedValueOnce([[]])
+            .mockResolvedValueOnce([mockRows()])
+            .mockResolvedValueOnce([[]]);
+        await asistenciaService.getByObraAndFecha(32, '2026-08-20');
+        const sql = db.query.mock.calls[1][0];
+        expect(sql).toMatch(/EXISTS \(SELECT 1 FROM periodos_ausencia p[\s\S]*AS de_periodo/);
+        expect(sql).toMatch(/p\.activo = 1/);
+    });
 });
 
 describe('getReporte — dedupe solo sin filtro de obra', () => {
