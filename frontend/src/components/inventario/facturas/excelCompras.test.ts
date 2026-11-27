@@ -1,4 +1,4 @@
-import { agruparPorCategoria, construirLibroCompras, tituloCompras, type LineaCompra } from './excelCompras';
+import { agruparPorCategoria, agruparPorMes, construirLibroCompras, nombreMes, tituloCompras, type LineaCompra } from './excelCompras';
 import { paramsFiltros, nombreColor, hayFiltros, FILTROS_VACIOS } from './marcasFactura';
 
 const linea = (p: Partial<LineaCompra>): LineaCompra => ({
@@ -40,7 +40,7 @@ describe('construirLibroCompras', () => {
 
     test('título, cabecera sin M2/$M2/YUAN y en el orden de la planilla', () => {
         expect(ws.getCell('A1').value).toBe('COMPRAS 2025');
-        expect(ws.getCell('A2').value).toBe('Del 01-01-2025 al 31-12-2025 · 3 líneas · 1 factura · generado el 25-11-2026');
+        expect(ws.getCell('A2').value).toBe('Del 01-01-2025 al 31-12-2025 · 3 líneas · 1 factura · 1 mes · generado el 25-11-2026');
         expect((ws.getRow(4).values as unknown[]).slice(1)).toEqual(['ITEM', 'DESCRIPCIÓN', 'MEDIDAS', 'UNID', 'CANTIDAD', '$ UNID', '$ TOTAL', 'FACTURA', 'FECHA', 'PROVEEDOR']);
     });
 
@@ -80,16 +80,103 @@ describe('construirLibroCompras', () => {
         expect(fill(sub.n, 1)).toBe('FFE6F4EC');
         expect(fill(sub.n, 10)).toBe('FFE6F4EC');
         expect(fill(buscar('TOTAL GENERAL')!.n, 7)).toBe('FF1E293B');
+        const franja = buscar('ENERO 2025 · 1 factura · 3 líneas')!;
+        expect(fill(franja.n, 1)).toBe('FF1E293B');
+        expect(fill(buscar('TOTAL ENERO 2025')!.n, 7)).toBe('FFE2E8F0');
     });
 
-    test('hoja Resumen: subtotal y % por categoría, y total', () => {
+    test('hoja Resumen: bloque POR MES y bloque POR CATEGORÍA, cada uno con su total', () => {
         const rs = wb.getWorksheet('Resumen')!;
+        const v = (n: number) => (rs.getRow(n).values as unknown[]).slice(1);
         expect(wb.worksheets.map(w => w.name)).toEqual(['Compras', 'Resumen']);
-        expect((rs.getRow(4).values as unknown[]).slice(1)).toEqual(['CATEGORÍA', 'LÍNEAS', 'SUBTOTAL', '% DEL TOTAL']);
-        expect((rs.getRow(5).values as unknown[]).slice(1)).toEqual(['MAQUINARIA', 2, 5750000, 5750000 / 7250000]);
-        expect((rs.getRow(6).values as unknown[]).slice(1)).toEqual(['ALZAPRIMAS', 1, 1500000, 1500000 / 7250000]);
-        expect(rs.getRow(7).getCell(3).value).toBe(7250000);
-        expect(rs.getRow(7).getCell(4).value).toBe(1);
+        expect(v(4)[0]).toBe('POR MES');
+        expect(v(5)).toEqual(['MES', 'FACTURAS', 'LÍNEAS', 'TOTAL', '% DEL TOTAL']);
+        expect(v(6)).toEqual(['ENERO 2025', 1, 3, 7250000, 1]);
+        expect(v(7)[0]).toBe('TOTAL GENERAL');
+        expect(rs.getRow(7).getCell(4).value).toBe(7250000);
+        expect(v(9)[0]).toBe('POR CATEGORÍA');
+        expect(v(10)).toEqual(['CATEGORÍA', 'FACTURAS', 'LÍNEAS', 'SUBTOTAL', '% DEL TOTAL']);
+        expect(v(11)).toEqual(['MAQUINARIA', 1, 2, 5750000, 5750000 / 7250000]);
+        expect(v(12)).toEqual(['ALZAPRIMAS', 1, 1, 1500000, 1500000 / 7250000]);
+        expect(rs.getRow(13).getCell(4).value).toBe(7250000);
+        expect(rs.getRow(13).getCell(5).value).toBe(1);
+    });
+});
+
+describe('separado por mes (fecha de la factura)', () => {
+    // Orden del backend: categoría → fecha → número. Julio trae 2 facturas; una factura sin fecha va al final.
+    const VARIAS: LineaCompra[] = [
+        linea({ factura_id: 13, numero_factura: '284329', fecha_factura: '2026-11-18', categoria: 'ANDAMIOS', item_descripcion: 'Andamio vertical', total: 3821220 }),
+        linea({ factura_id: 10, numero_factura: '273659', fecha_factura: '2026-07-28', categoria: 'ALZAPRIMAS', item_descripcion: 'Alzaprima 4.0', total: 24705680 }),
+        linea({ factura_id: 12, numero_factura: '278290', fecha_factura: '2026-08-31', categoria: 'ALZAPRIMAS', item_descripcion: 'Alzaprima roja', total: 10822900 }),
+        linea({ factura_id: 12, numero_factura: '278290', fecha_factura: '2026-08-31', categoria: 'ALZAPRIMAS', item_descripcion: 'Alzaprima azul', total: 10822900 }),
+        linea({ factura_id: 11, numero_factura: '274120', fecha_factura: '2026-07-15', categoria: 'MAQUINARIA', item_descripcion: 'Betonera', total: 389000 }),
+        linea({ factura_id: 14, numero_factura: '9', fecha_factura: null, categoria: 'SIN CATEGORÍA', item_descripcion: 'Sin fecha', total: 1000 }),
+    ];
+
+    test('nombreMes', () => {
+        expect(nombreMes('2026-07')).toBe('JULIO 2026');
+        expect(nombreMes('2026-12')).toBe('DICIEMBRE 2026');
+        expect(nombreMes('')).toBe('SIN FECHA');
+    });
+
+    test('agruparPorMes: meses cronológicos, sin fecha al final, categorías en el orden del backend', () => {
+        const { meses, total } = agruparPorMes(VARIAS);
+        expect(meses.map(m => [m.nombre, m.facturas, m.lineas, m.total])).toEqual([
+            ['JULIO 2026', 2, 2, 25094680],
+            ['AGOSTO 2026', 1, 2, 21645800],
+            ['NOVIEMBRE 2026', 1, 1, 3821220],
+            ['SIN FECHA', 1, 1, 1000],
+        ]);
+        expect(meses[0].grupos.map(g => g.categoria)).toEqual(['ALZAPRIMAS', 'MAQUINARIA']);
+        expect(total).toBe(25094680 + 21645800 + 3821220 + 1000);
+    });
+
+    const wb = construirLibroCompras(VARIAS, { titulo: 'COMPRAS', generado: new Date(2026, 10, 27) });
+    const ws = wb.getWorksheet('Compras')!;
+    const filas: { n: number; v: unknown[] }[] = [];
+    ws.eachRow((row, n) => filas.push({ n, v: (row.values as unknown[]).slice(1) }));
+    const fila = (texto: string) => filas.find(f => f.v.some(x => x === texto))!;
+
+    test('franja por mes en orden, total de cada mes y correlativo que sigue entre meses', () => {
+        const franjas = filas.filter(f => typeof f.v[0] === 'string' && /^(JULIO|AGOSTO|NOVIEMBRE) 2026 · |^SIN FECHA · /.test(f.v[0] as string));
+        expect(franjas.map(f => f.v[0])).toEqual([
+            'JULIO 2026 · 2 facturas · 2 líneas',
+            'AGOSTO 2026 · 1 factura · 2 líneas',
+            'NOVIEMBRE 2026 · 1 factura · 1 línea',
+            'SIN FECHA · 1 factura · 1 línea',
+        ]);
+        expect(ws.getRow(fila('TOTAL JULIO 2026').n).getCell(7).value).toBe(25094680);
+        expect(ws.getRow(fila('TOTAL AGOSTO 2026').n).getCell(7).value).toBe(21645800);
+        expect(fila('BETONERA').v[0]).toBe(2);
+        expect(fila('ALZAPRIMA ROJA').v[0]).toBe(3);
+        expect(fila('ANDAMIO VERTICAL').v[0]).toBe(5);
+        expect(fila('TOTAL JULIO 2026').n).toBeLessThan(fila('AGOSTO 2026 · 1 factura · 2 líneas').n);
+        expect(ws.getRow(fila('TOTAL GENERAL').n).getCell(7).value).toBe(25094680 + 21645800 + 3821220 + 1000);
+        expect(ws.getCell('A2').value).toBe('6 líneas · 5 facturas · 4 meses · generado el 27-11-2026');
+    });
+
+    test('cada mes se pliega: detalle en nivel 1; franja y total del mes quedan visibles', () => {
+        expect(ws.properties.outlineLevelRow).toBe(1);
+        const nivel = (texto: string) => ws.getRow(fila(texto).n).outlineLevel || 0;
+        expect(nivel('ALZAPRIMAS · 1 línea')).toBe(1);
+        expect(nivel('BETONERA')).toBe(1);
+        expect(nivel('SUBTOTAL MAQUINARIA')).toBe(1);
+        expect(nivel('JULIO 2026 · 2 facturas · 2 líneas')).toBe(0);
+        expect(nivel('TOTAL JULIO 2026')).toBe(0);
+        expect(nivel('TOTAL GENERAL')).toBe(0);
+    });
+
+    test('Resumen POR MES con facturas, líneas y total de cada mes', () => {
+        const rs = wb.getWorksheet('Resumen')!;
+        const v = (n: number) => (rs.getRow(n).values as unknown[]).slice(1, 4);
+        expect([v(6), v(7), v(8), v(9)]).toEqual([['JULIO 2026', 2, 2], ['AGOSTO 2026', 1, 2], ['NOVIEMBRE 2026', 1, 1], ['SIN FECHA', 1, 1]]);
+        expect(rs.getRow(10).getCell(4).value).toBe(25094680 + 21645800 + 3821220 + 1000);
+    });
+
+    test('el libro se puede escribir a .xlsx', async () => {
+        const buffer = await wb.xlsx.writeBuffer();
+        expect(buffer.byteLength).toBeGreaterThan(1000);
     });
 });
 

@@ -24,9 +24,10 @@ import type { FacturaDetalle } from './tipos';
  *
  * La factura es el REGISTRO de lo comprado: no mueve stock ni costo, así que los
  * ítems no llevan destino. Se elige el ítem del catálogo (o se crea con «Nuevo»).
- * - Foto/PDF: se adjunta y queda guardado con la factura.
- * - «Llenar con la foto»: la IA lee el archivo y prellena todo para revisar (solo
- *   si el servidor tiene la clave; si no, el botón no aparece).
+ * - Foto/PDF: se adjunta y queda guardado con la factura. SOLO con la lectura automática
+ *   encendida (`lecturaIA`, clave en el servidor): sin ella la sección no aparece (pedido del
+ *   dueño 2026-11-27) y vuelve sola al activarla. Una foto ya guardada se sigue pudiendo «Ver».
+ * - «Llenar con la foto»: la IA lee el archivo y prellena todo para revisar.
  * - «Continuar después» guarda un borrador. Cerrar la ventana (X, Esc o tocar
  *   fuera) con algo escrito TAMBIÉN guarda el borrador: antes se perdía todo
  *   (reporte Daphne: «si uno toca cualquier parte de la pantalla, se elimina»).
@@ -430,7 +431,17 @@ export const FacturaFormModal: React.FC<Props> = ({ isOpen, facturaId, lecturaIA
                     <SkeletonFormulario campos={5} que="la factura" />
                 ) : (
                 <form onSubmit={async e => { e.preventDefault(); if (await guardar('registrada')) onClose(); }} className="space-y-5" noValidate>
-                    {/* ── Foto o PDF ── */}
+                    {/* ── Foto o PDF: solo con la lectura automática encendida. Apagada, una foto ya guardada se puede mirar. ── */}
+                    {!lecturaIA ? archivoGuardado && (
+                        <div>
+                            <span className="text-xs font-bold text-brand-dark mb-1.5 block">Foto o PDF de la factura</span>
+                            <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2">
+                                <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                <span className="min-w-0 flex-1 truncate text-xs text-brand-dark">{archivoGuardado.nombre || 'Foto guardada'}</span>
+                                <Button type="button" variant="link" size="sm" onClick={() => setVerArchivo(true)}>Ver</Button>
+                            </div>
+                        </div>
+                    ) : (
                     <div>
                         <span className="text-xs font-bold text-brand-dark mb-1.5 block">Foto o PDF de la factura</span>
                         <input ref={camaraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={elegirArchivo} />
@@ -473,6 +484,7 @@ export const FacturaFormModal: React.FC<Props> = ({ isOpen, facturaId, lecturaIA
                             )}
                         </div>
                     </div>
+                    )}
 
                     {/* ── Número + Proveedor + Fecha ── */}
                     <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-4">
