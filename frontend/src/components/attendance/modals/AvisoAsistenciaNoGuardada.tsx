@@ -41,7 +41,8 @@ export const AvisoAsistenciaNoGuardada: React.FC<Props> = ({
 }) => {
     const puedeGuardar = motivoSinGuardar === null;
     return (
-        <Modal isOpen={isOpen} onClose={onClose} size="sm"
+        // `md`: en el computador los tres botones caben en una fila (con `sm` «Cancelar» bajaba sola).
+        <Modal isOpen={isOpen} onClose={onClose} size="md"
             title="Esta asistencia no ha sido guardada"
             description={`${obraNombre} · ${fechaLarga(fecha)}`}>
             <div className="space-y-5 pb-4 md:pb-0">
