@@ -547,7 +547,8 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo 
                             <Button variant="secondary" size="sm" onClick={() => setVerArchivo(true)} leftIcon={<Paperclip className="h-3.5 w-3.5" />}>
                                 Ver la factura ({detalle.archivo_nombre || 'foto'})
                             </Button>
-                        ) : (
+                        ) : lecturaIA && (
+                            // Sin lectura automática no se suben fotos: el aviso saldría en todas.
                             <p className="text-caption text-muted-foreground italic">Sin foto ni PDF adjunto.</p>
                         )}
 

@@ -842,6 +842,11 @@ cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea
 - **Foto/PDF**: `POST /facturas-inventario/:id/archivo` (multer disco,
   `uploads/facturas-inventario/`, PDF/JPG/PNG/WEBP, 10 MB) y `GET .../:id/archivo`
   (descarga autenticada; la ruta interna nunca sale: el cliente recibe `tiene_archivo`).
+  **En el formulario la sección «Foto o PDF de la factura» (Tomar foto / Subir archivo) aparece SOLO
+  con la lectura automática encendida** (`lectura_ia`; pedido del dueño 2026-11-27: sin lectura no
+  se sube foto, así que tampoco queda copia de las facturas nuevas). Vuelve sola al poner la clave.
+  Apagada: una factura que ya tenía foto la sigue mostrando («Ver la factura» en el detalle y una
+  línea con «Ver» al editar), y el aviso «Sin foto ni PDF adjunto» no se muestra. El backend no cambia.
 - **Leer con IA** (`POST /facturas-inventario/leer`, gate `gestionar`, archivo en memoria —
   no se guarda): Claude (`claude-opus-5-5`, SDK `@anthropic-ai/sdk`, salida JSON con
   esquema) devuelve proveedor, N°, fecha, neto e ítems con el `item_id` del catálogo que
@@ -882,8 +887,18 @@ cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea
   **banda verde LOLS `029E4D`** a lo ancho por categoría («MAQUINARIA · 3 líneas»), subtotal en **verde suave
   `E6F4EC`** a lo ancho con borde verde arriba, total general pizarra. Las líneas van sin cebra (solo borde
   fino) para que el relleno de la marca siga resaltando — no usar verdes/pizarras parecidos en la paleta de
-  marcas. Subtítulo: filtros · n líneas · n facturas · fecha de generación. Hoja **«Resumen»**: categoría,
-  líneas, subtotal y % del total. Impresión horizontal ajustada al ancho con la cabecera repetida.
+  marcas. Subtítulo: filtros · n líneas · n facturas · n meses · fecha de generación. Impresión horizontal
+  ajustada al ancho con la cabecera repetida.
+  **Separado por MES** (pedido del dueño 2026-11-27): el mes es el de la **fecha de la factura**
+  (`fecha_factura`), en orden cronológico; las facturas sin fecha van al final como «SIN FECHA». Cada mes
+  parte con una **franja pizarra** a lo ancho («NOVIEMBRE 2026 · 3 facturas · 13 líneas»), dentro van las
+  categorías (banda verde + líneas + subtotal; las líneas de varias facturas de una misma categoría quedan
+  juntas, por fecha y número) y cierra con **«TOTAL {MES}»** en gris pizarra suave `E2E8F0`; al final el
+  TOTAL GENERAL. El correlativo ITEM corre por toda la hoja. El detalle de cada mes es nivel 1 del esquema
+  de Excel: con el [−] (o el botón «1») cada mes se pliega y quedan solo franjas y totales. Se arma en el
+  front (`agruparPorMes`) sobre el mismo `GET /export-lineas`: los filtros de la pantalla siguen aplicando.
+  Hoja **«Resumen»**: bloque **POR MES** (mes, facturas, líneas, total, % del total) y bloque **POR
+  CATEGORÍA** (categoría, facturas, líneas, subtotal, %), cada uno con su TOTAL GENERAL.
 - Degradación D-I: sin la mig 158 la lista sale sin filtro de marca, la paleta sin nombres, marcar responde
   409 `MIGRACION_PENDIENTE` y las líneas se guardan sin medidas.
 
