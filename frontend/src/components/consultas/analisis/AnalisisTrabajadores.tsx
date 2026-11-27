@@ -141,14 +141,15 @@ export const AnalisisTrabajadores: React.FC<Props> = ({ obras, empresas, cargos,
                             <Button key={r.key} size="sm" variant={rango === r.key ? 'primary' : 'glass'} aria-pressed={rango === r.key}
                                 onClick={() => cambiar(rangoRapido(r.key, hoy))}>{r.label}</Button>
                         ))}
-                        <div className="flex items-center gap-2">
+                        {/* En el celular desde/hasta van en su propia fila y se reparten el ancho (a 360 px no caben fijos). */}
+                        <div className="flex w-full items-center gap-2 sm:w-auto">
                             <label className="sr-only" htmlFor="an-desde">Desde</label>
                             <input id="an-desde" type="month" value={filtros.desde} max={filtros.hasta}
-                                onChange={e => e.target.value && cambiar({ desde: e.target.value })} className={cn(CLASE_CAMPO, 'h-9 w-[11.5rem]')} />
+                                onChange={e => e.target.value && cambiar({ desde: e.target.value })} className={cn(CLASE_CAMPO, 'h-9 flex-1 sm:w-[11.5rem] sm:flex-none')} />
                             <span className="text-caption text-muted-foreground">a</span>
                             <label className="sr-only" htmlFor="an-hasta">Hasta</label>
                             <input id="an-hasta" type="month" value={filtros.hasta} max={hoy.slice(0, 7)}
-                                onChange={e => e.target.value && cambiar({ hasta: e.target.value })} className={cn(CLASE_CAMPO, 'h-9 w-[11.5rem]')} />
+                                onChange={e => e.target.value && cambiar({ hasta: e.target.value })} className={cn(CLASE_CAMPO, 'h-9 flex-1 sm:w-[11.5rem] sm:flex-none')} />
                         </div>
                         <div className="ml-auto flex items-center gap-2">
                             {filtrosActivos(filtros) > 0 && (
