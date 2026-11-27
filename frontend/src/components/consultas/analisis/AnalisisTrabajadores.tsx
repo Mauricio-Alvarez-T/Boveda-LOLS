@@ -274,7 +274,7 @@ const PanelDotacion: React.FC<{ d: DotacionApi; verDim: VerDim; ver: Ver }> = ({
 
 const PanelRotacion: React.FC<{ d: RotacionApi; verDim: VerDim; ver: Ver; filtros: FiltrosAnalisis; hoy: string }> = ({ d, verDim, ver, filtros, hoy }) => {
     const t = tablasDe('rotacion', d);
-    const salidasRango = { activo: 'false', salida_desde: `${filtros.desde}-01`, salida_hasta: hoyFin(filtros.hasta, hoy) };
+    const salidasRango = { activo: '', salida_desde: `${filtros.desde}-01`, salida_hasta: hoyFin(filtros.hasta, hoy) };
     return (<>
         <FilaKpis>
             <Kpi label="Ingresos" n={d.ingresos} detalle={d.reingresos ? `${fmtNum(d.reingresos)} reingresos` : 'Sin reingresos'} />

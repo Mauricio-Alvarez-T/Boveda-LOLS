@@ -175,7 +175,7 @@ const PARAM: Record<Dimension, string> = { obra: 'obra_id', empresa: 'empresa_id
 
 /**
  * Params de la grilla para ver a las personas detrás de una barra. null = no hay a dónde ir (barra «Sin dato»
- * u «Otros»). `salidas` = desvinculados en el rango (la grilla filtra por la obra ACTUAL de la ficha).
+ * u «Otros»). `salidas` = con una baja en el rango, sigan fuera o hayan vuelto (la grilla filtra por la obra ACTUAL).
  */
 export function destinoGrilla(
     dim: Dimension, id: number | string | null, opts: { salidas?: { desde: string; hasta: string } } = {}
@@ -183,7 +183,9 @@ export function destinoGrilla(
     if (id == null || id === '') return null;
     const p: Record<string, string> = { [PARAM[dim]]: String(id) };
     if (opts.salidas) {
-        p.activo = 'false';
+        // Activos y finiquitados: el filtro de salidas de la grilla mira el historial de bajas, así que también
+        // aparecen quienes se fueron en el rango y ya volvieron (con `activo=false` quedarían fuera).
+        p.activo = '';
         p.salida_desde = opts.salidas.desde;
         p.salida_hasta = opts.salidas.hasta;
     } else {
