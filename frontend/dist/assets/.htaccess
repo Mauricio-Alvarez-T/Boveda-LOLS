@@ -1,0 +1,48 @@
+# Solo para /assets/ (2026-10-21, celular lento). Los archivos de esta carpeta llevan un hash en el nombre:
+# su contenido NUNCA cambia (un deploy crea nombres nuevos), así que se pueden guardar un año sin preguntar.
+# El .htaccess de la raíz del docroot (routing del SPA y, en producción, Passenger) NO se toca: este vive
+# aparte y el deploy lo copia con `--include '/assets/.htaccess'` (scripts/cpanel-deploy-*.sh).
+
+# ── Caché de un año, sin revalidar ──
+<IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=31536000, immutable"
+</IfModule>
+<IfModule !mod_headers.c>
+    <IfModule mod_expires.c>
+        ExpiresActive On
+        ExpiresDefault "access plus 1 year"
+    </IfModule>
+</IfModule>
+
+# ── Comprimidos hechos en el build (vite.config.ts → precomprimir): .br si el navegador lo acepta, si no .gz ──
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    RewriteCond %{HTTP:Accept-Encoding} \bbr\b
+    RewriteCond %{REQUEST_FILENAME}.br -f
+    RewriteRule ^(.+\.(js|css|svg))$ $1.br [L]
+
+    RewriteCond %{HTTP:Accept-Encoding} \bgzip\b
+    RewriteCond %{REQUEST_FILENAME}.gz -f
+    RewriteRule ^(.+\.(js|css|svg))$ $1.gz [L]
+</IfModule>
+
+# Tipo y codificación correctos para los comprimidos: sin esto un .js.br saldría como «application/x-brotli»
+# y el navegador rechazaría el módulo (la app quedaría en blanco).
+<IfModule mod_mime.c>
+    RemoveType .br .gz
+    AddEncoding br .br
+    AddEncoding gzip .gz
+</IfModule>
+<FilesMatch "\.js\.(br|gz)$">
+    ForceType text/javascript
+</FilesMatch>
+<FilesMatch "\.css\.(br|gz)$">
+    ForceType text/css
+</FilesMatch>
+<FilesMatch "\.svg\.(br|gz)$">
+    ForceType image/svg+xml
+</FilesMatch>
+<IfModule mod_headers.c>
+    Header append Vary Accept-Encoding
+</IfModule>
