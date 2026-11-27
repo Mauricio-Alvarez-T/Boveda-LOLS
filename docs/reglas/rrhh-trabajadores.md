@@ -600,6 +600,61 @@ lista en la app de los reactivados con el flujo viejo para corregirlos a mano.
   `AvisoReingreso` en la revisión (último egreso, marca, Art. 159), botón «Aprobar reingreso», chip
   «Reingreso» en la lista; tras aprobar, el kit relee la ficha.
 
+## Análisis de trabajadores (Gestiones → «Análisis», mig 163 — 2026-11-27)
+
+Pedido de RR.HH.: un tablero «tipo Power BI» con todo lo que la Bóveda sabe de los trabajadores. Sección propia de
+Gestiones (tarjeta en la portada, `?tab=analisis`), con pestañas Dotación · Rotación · Asistencia · Perfil y papeles ·
+Costos, KPIs arriba, gráficos (recharts) y **Excel de la pestaña visible** (una hoja por tabla, con los filtros usados).
+
+**Quién ve qué**
+- `trabajadores.analisis.ver` (mig 163; solo rol 1 automático, el dueño lo asigna; volver a iniciar sesión). Basta
+  para abrir Gestiones aunque no tenga otra sección (menú lateral y `permisosGestiones`).
+- **Costos** además exige `cargos.sueldo.ver` (pestaña oculta y 403 en el backend). **Horas extra** (en Asistencia)
+  solo con `asistencia.horas_extra.ver`; sin él el backend ni las consulta.
+- **Perfil y papeles solo devuelve conteos**: nunca nombres, RUT, dirección ni cuenta. El único listado con nombres es
+  «Más faltas» (Asistencia, top 10), el mismo dato que ya ve RR.HH. en Asistencia. El `detalle` interno de las bajas
+  no se lee nunca.
+
+**Filtros** (`construirFiltros`): rango `desde`/`hasta` en meses (12 por defecto, máx. 24, nunca pasa del mes en
+curso; botones 12 meses / Este año / Año pasado / 24 meses) + empresa, obra, cargo y categoría. Lo inválido se
+ignora. Siempre fuera `es_prueba = 1` (trabajador y obra). Empresa/obra/cargo apuntan a:
+- dotación, perfil y costos → la ficha **actual**;
+- salidas (rotación) → la **foto de la baja** (`trabajador_desvinculaciones.obra_id/cargo_id/empresa_id`, mig 152)
+  o la ficha si no hay foto;
+- asistencia → la obra **del registro** (`a.obra_id`) y empresa/cargo de la ficha.
+
+**Cómo se cuenta**
+- **Dotación al cierre del mes** = trabajadores con algún período laboral que cubre el último día del mes (el mes en
+  curso, a hoy). Usa los períodos (`periodosDe` + `periodos_cerrados`): quien salió y volvió no cuenta en el hueco;
+  los reactivados con el flujo viejo (período repetido) no cuentan doble.
+- **Ingresos** = períodos que empiezan en el mes; **reingreso** = un ingreso que no es el primero de esa persona.
+- **Salidas** = filas de `trabajador_desvinculaciones` con fecha en el rango (incluye las `LEGADO`).
+  **Rotación del mes** = salidas ÷ promedio de la dotación al cierre del mes anterior y de este. Rotación del rango
+  = salidas ÷ dotación promedio del rango. **Permanencia** = días de `fecha_ingreso_periodo` a la baja (promedio y
+  mediana). «Ya volvieron» = bajas del rango con `reactivado_en`.
+- **Asistencia**: días de lunes a viernes, fila vigente (`a2.id > a.id` en otra obra el mismo día).
+  **Ausentismo** = días no presentes salvo vacaciones (`es_presente = 0 AND codigo <> 'V'`) ÷ días registrados
+  (mismo criterio del Inicio). Faltas = código `F`.
+- **Fichas incompletas** = mismo criterio que el filtro «Falta en la ficha» (`FALTA_DATO` de
+  `fiscalizacion.service.js`). Documentos vencidos / por vencer en 30 días: documentos activos de activos.
+  Obligatorios completos por obra = activos con TODOS los tipos obligatorios activos cargados.
+- **Solicitudes de ingreso** del rango (por `fecha_solicitud`): estados, de reingreso y horas promedio hasta aprobar.
+- **Costo mensual ESTIMADO** = (sueldo base + colación + movilización **del cargo**) × activos hoy. No es la
+  liquidación (sin horas extra, bonos personales ni leyes sociales) y no depende del rango. Cargos sin sueldo
+  (o en 0) van a «sin dato» y no suman.
+
+**Ir al detalle**: pinchar una barra o un KPI con flecha abre **Trabajadores** con ese filtro y los del análisis
+(`obra_id`, `cargo_id`, `empresa_id`, `categoria`, `activo`, `salida_desde/hasta`, `falta_dato`, `doc_vigencia`,
+`completitud`, `no_recontratar`). Ojo: la grilla filtra por la obra ACTUAL de la ficha, así que «salidas de la obra X»
+puede mostrar menos personas si alguien cambió de obra antes de irse.
+
+**Archivos**: `backend/src/services/analisisTrabajadores.service.js` (consultas, una tras otra: pool de 10),
+`backend/src/utils/analisisCalculos.js` (puro), `backend/src/routes/analisis-trabajadores.routes.js`
+(`/api/analisis-trabajadores/{dotacion,rotacion,asistencia,perfil,costos}`), `frontend/src/components/consultas/
+analisis/` (`analisis.ts` puro + tablas del Excel, `graficos.tsx`, `excelAnalisis.ts` perezoso,
+`AnalisisTrabajadores.tsx`, cargado con `React.lazy`). Tests: `backend/tests/analisis_trabajadores.test.js`,
+`analisis.test.ts`.
+
 ## Documentos laborales generados por Bóveda (plan Gestiones B2, mig 110 — 2026-09-11)
 
 Requerimientos 2, 8 y 10 de RRHH: los documentos del ingreso los **emite el sistema**, quedan en la

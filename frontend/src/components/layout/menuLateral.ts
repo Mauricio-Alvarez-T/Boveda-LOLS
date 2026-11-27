@@ -21,7 +21,8 @@ type Quien = { rol_id?: number | string | null } | null | undefined;
 
 /**
  * Gestiones también se abre para quien solo participa de la ficha de ingreso digital (terreno u oficina) y para quien
- * porta documentos físicos (B6: el encargado de obra confirma sus lotes desde ahí). Cualquiera de estos.
+ * porta documentos físicos (B6: el encargado de obra confirma sus lotes desde ahí), y para quien solo ve el
+ * Análisis de trabajadores (mig 163). Cualquiera de estos.
  */
 export const PERMISOS_MENU_GESTIONES = [
     'trabajadores.ver',
@@ -29,6 +30,7 @@ export const PERMISOS_MENU_GESTIONES = [
     'trabajadores.solicitud.aprobar',
     'documentos.entrega.registrar',
     'documentos.entrega.portar',
+    'trabajadores.analisis.ver',
 ] as const;
 
 /** «Sitio web» se abre con cualquiera de sus permisos: editar y publicar no traen `ver` solos (checkPermission es OR). */

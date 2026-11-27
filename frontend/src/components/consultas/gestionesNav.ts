@@ -10,7 +10,7 @@
  *    memoria diga otra cosa; un `tab` explícito manda sobre todo.
  */
 
-export type SeccionGestiones = 'inicio' | 'trabajadores' | 'solicitudes' | 'fisicos';
+export type SeccionGestiones = 'inicio' | 'trabajadores' | 'solicitudes' | 'fisicos' | 'analisis';
 export type SeccionTrabajo = Exclude<SeccionGestiones, 'inicio'>;
 
 export interface PermisosGestiones {
@@ -20,6 +20,8 @@ export interface PermisosGestiones {
     solicitudes: boolean;
     /** documentos.entrega.registrar || .portar */
     fisicos: boolean;
+    /** trabajadores.analisis.ver (Análisis de trabajadores, mig 163) */
+    analisis: boolean;
 }
 
 export const SECCION_LABEL: Record<SeccionGestiones, string> = {
@@ -27,10 +29,11 @@ export const SECCION_LABEL: Record<SeccionGestiones, string> = {
     trabajadores: 'Trabajadores',
     solicitudes: 'Solicitudes de ingreso',
     fisicos: 'Documentos físicos',
+    analisis: 'Análisis',
 };
 
 /** Orden fijo de las secciones de trabajo (switcher del header y tarjetas de la portada). */
-const ORDEN: SeccionTrabajo[] = ['trabajadores', 'solicitudes', 'fisicos'];
+const ORDEN: SeccionTrabajo[] = ['trabajadores', 'solicitudes', 'fisicos', 'analisis'];
 
 /** Query params de la grilla (espejo de hooks/consultas/useConsultasFilters.ts). Un deep-link con alguno abre la grilla. */
 export const PARAMS_GRILLA = ['q', 'obra_id', 'empresa_id', 'cargo_id', 'categoria', 'activo', 'completitud', 'ausentes', 'aniversario10m', 'ingreso_desde', 'ingreso_hasta', 'falta_dato', 'doc_tipo_falta', 'doc_vigencia', 'salida_desde', 'salida_hasta', 'no_recontratar', 'reingreso_sin_fecha', 'finiquito', 'solo_prueba'] as const;
@@ -52,13 +55,15 @@ export function seccionesDisponibles(p: PermisosGestiones): SeccionTrabajo[] {
 /**
  * Qué secciones de Gestiones abre cada permiso (Consultas.tsx y la ficha de «Soporte · usuarios» usan esta misma
  * regla): la grilla con `trabajadores.ver`; Solicitudes de ingreso con crear o aprobar fichas (terreno solicita,
- * oficina aprueba); Documentos físicos con registrar entregas (RRHH arma lotes) o portarlas (el encargado de obra).
+ * oficina aprueba); Documentos físicos con registrar entregas (RRHH arma lotes) o portarlas (el encargado de obra);
+ * Análisis (tablero de trabajadores, mig 163) con `trabajadores.analisis.ver`.
  */
 export function permisosGestiones(tiene: (permiso: string) => boolean): PermisosGestiones {
     return {
         trabajadores: tiene('trabajadores.ver'),
         solicitudes: tiene('trabajadores.solicitud.crear') || tiene('trabajadores.solicitud.aprobar'),
         fisicos: tiene('documentos.entrega.registrar') || tiene('documentos.entrega.portar'),
+        analisis: tiene('trabajadores.analisis.ver'),
     };
 }
 
