@@ -645,8 +645,9 @@ ignora. Siempre fuera `es_prueba = 1` (trabajador y obra). Empresa/obra/cargo ap
 
 **Ir al detalle**: pinchar una barra o un KPI con flecha abre **Trabajadores** con ese filtro y los del análisis
 (`obra_id`, `cargo_id`, `empresa_id`, `categoria`, `activo`, `salida_desde/hasta`, `falta_dato`, `doc_vigencia`,
-`completitud`, `no_recontratar`). Ojo: la grilla filtra por la obra ACTUAL de la ficha, así que «salidas de la obra X»
-puede mostrar menos personas si alguien cambió de obra antes de irse.
+`completitud`, `no_recontratar`). Las salidas van con `activo=` (todos): el filtro de salidas de la grilla mira el
+historial de bajas, así que también salen quienes ya volvieron. Ojo: la grilla filtra por la obra ACTUAL de la ficha y
+oculta las obras finalizadas, así que «salidas de la obra X» puede mostrar menos personas que la barra.
 
 **Archivos**: `backend/src/services/analisisTrabajadores.service.js` (consultas, una tras otra: pool de 10),
 `backend/src/utils/analisisCalculos.js` (puro), `backend/src/routes/analisis-trabajadores.routes.js`

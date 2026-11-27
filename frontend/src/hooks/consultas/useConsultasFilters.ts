@@ -38,7 +38,7 @@ export const useConsultasFilters = () => {
     const [filterEmpresa, setFilterEmpresa] = useState<string>(searchParams.get('empresa_id') || '');
     const [filterCargo, setFilterCargo] = useState<string>(searchParams.get('cargo_id') || '');
     const [filterCategoria, setFilterCategoria] = useState<string>(searchParams.get('categoria') || '');
-    const [filterActivo, setFilterActivo] = useState<string>(searchParams.get('activo') || 'true');
+    const [filterActivo, setFilterActivo] = useState<string>(searchParams.get('activo') ?? 'true'); // `activo=` = todos (salidas del Análisis)
     const [filterCompletitud, setFilterCompletitud] = useState<string>(searchParams.get('completitud') || '');
     const [filterAusentes, setFilterAusentes] = useState<boolean>(searchParams.get('ausentes') === 'true');
     // Filtro "cumplen 10 meses de contrato" en un mes objetivo (YYYY-MM). No tiene

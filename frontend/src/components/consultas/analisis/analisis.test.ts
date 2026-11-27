@@ -46,7 +46,7 @@ describe('destinoGrilla (ir al detalle)', () => {
         expect(destinoGrilla('obra', 5)).toEqual({ obra_id: '5', activo: 'true' });
         expect(destinoGrilla('categoria', 'rotativo')).toEqual({ categoria: 'rotativo', activo: 'true' });
         expect(destinoGrilla('cargo', 3, { salidas: { desde: '2026-01-01', hasta: '2026-11-27' } }))
-            .toEqual({ cargo_id: '3', activo: 'false', salida_desde: '2026-01-01', salida_hasta: '2026-11-27' });
+            .toEqual({ cargo_id: '3', activo: '', salida_desde: '2026-01-01', salida_hasta: '2026-11-27' });
         expect(destinoGrilla('obra', null)).toBeNull();
     });
 });
