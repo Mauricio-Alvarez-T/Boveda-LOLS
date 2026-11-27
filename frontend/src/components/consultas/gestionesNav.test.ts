@@ -7,26 +7,29 @@ import {
 describe('permisosGestiones (qué sección abre cada permiso; Consultas y la ficha de Soporte)', () => {
     const con = (...p: string[]) => (k: string) => p.includes(k);
     it('cada sección con sus permisos', () => {
-        expect(permisosGestiones(con())).toEqual({ trabajadores: false, solicitudes: false, fisicos: false });
-        expect(permisosGestiones(con('trabajadores.ver'))).toEqual({ trabajadores: true, solicitudes: false, fisicos: false });
+        expect(permisosGestiones(con())).toEqual({ trabajadores: false, solicitudes: false, fisicos: false, analisis: false });
+        expect(permisosGestiones(con('trabajadores.ver'))).toEqual({ trabajadores: true, solicitudes: false, fisicos: false, analisis: false });
         expect(permisosGestiones(con('trabajadores.solicitud.crear')).solicitudes).toBe(true);
         expect(permisosGestiones(con('trabajadores.solicitud.aprobar')).solicitudes).toBe(true);
         expect(permisosGestiones(con('documentos.entrega.registrar')).fisicos).toBe(true);
         expect(permisosGestiones(con('documentos.entrega.portar')).fisicos).toBe(true);
+        expect(permisosGestiones(con('trabajadores.analisis.ver'))).toEqual({ trabajadores: false, solicitudes: false, fisicos: false, analisis: true });
     });
 });
 
-const TODO: PermisosGestiones = { trabajadores: true, solicitudes: true, fisicos: true };
-const RRHH: PermisosGestiones = { trabajadores: true, solicitudes: true, fisicos: true };
-const TERRENO: PermisosGestiones = { trabajadores: false, solicitudes: true, fisicos: false };
-const PORTADOR: PermisosGestiones = { trabajadores: false, solicitudes: false, fisicos: true };
-const NADA: PermisosGestiones = { trabajadores: false, solicitudes: false, fisicos: false };
+const TODO: PermisosGestiones = { trabajadores: true, solicitudes: true, fisicos: true, analisis: true };
+const RRHH: PermisosGestiones = { trabajadores: true, solicitudes: true, fisicos: true, analisis: false };
+const TERRENO: PermisosGestiones = { trabajadores: false, solicitudes: true, fisicos: false, analisis: false };
+const PORTADOR: PermisosGestiones = { trabajadores: false, solicitudes: false, fisicos: true, analisis: false };
+const NADA: PermisosGestiones = { trabajadores: false, solicitudes: false, fisicos: false, analisis: false };
 const base = { tab: null, tieneParamsGrilla: false, ultima: null };
 
 describe('gestionesNav (plan Gestiones B8)', () => {
-    it('seccionesDisponibles: orden fijo trabajadores → solicitudes → fisicos', () => {
-        expect(seccionesDisponibles(TODO)).toEqual(['trabajadores', 'solicitudes', 'fisicos']);
-        expect(seccionesDisponibles({ trabajadores: false, solicitudes: true, fisicos: true })).toEqual(['solicitudes', 'fisicos']);
+    it('seccionesDisponibles: orden fijo trabajadores → solicitudes → fisicos → analisis', () => {
+        expect(seccionesDisponibles(TODO)).toEqual(['trabajadores', 'solicitudes', 'fisicos', 'analisis']);
+        // Solo el Análisis: se entra directo a él (sin portada de una tarjeta).
+        expect(resolverSeccion({ ...base, permisos: { ...NADA, analisis: true } })).toBe('analisis');
+        expect(seccionesDisponibles({ trabajadores: false, solicitudes: true, fisicos: true, analisis: false })).toEqual(['solicitudes', 'fisicos']);
         expect(seccionesDisponibles(PORTADOR)).toEqual(['fisicos']);
         expect(seccionesDisponibles(NADA)).toEqual([]);
     });
@@ -47,14 +50,14 @@ describe('gestionesNav (plan Gestiones B8)', () => {
 
     it('deep-link con params de grilla abre la grilla solo si tiene trabajadores.ver', () => {
         expect(resolverSeccion({ ...base, tieneParamsGrilla: true, ultima: 'fisicos', permisos: RRHH })).toBe('trabajadores');
-        expect(resolverSeccion({ ...base, tieneParamsGrilla: true, permisos: { trabajadores: false, solicitudes: true, fisicos: true } })).toBe('inicio');
-        expect(resolverSeccion({ ...base, tieneParamsGrilla: true, ultima: 'fisicos', permisos: { trabajadores: false, solicitudes: true, fisicos: true } })).toBe('fisicos');
+        expect(resolverSeccion({ ...base, tieneParamsGrilla: true, permisos: { trabajadores: false, solicitudes: true, fisicos: true, analisis: false } })).toBe('inicio');
+        expect(resolverSeccion({ ...base, tieneParamsGrilla: true, ultima: 'fisicos', permisos: { trabajadores: false, solicitudes: true, fisicos: true, analisis: false } })).toBe('fisicos');
     });
 
     it('memoria: última válida gana; sin permiso se descarta; sin memoria → portada con ≥2 secciones', () => {
         expect(resolverSeccion({ ...base, ultima: 'fisicos', permisos: RRHH })).toBe('fisicos');
-        expect(resolverSeccion({ ...base, ultima: 'trabajadores', permisos: { trabajadores: false, solicitudes: true, fisicos: true } })).toBe('inicio');
-        expect(resolverSeccion({ ...base, permisos: { trabajadores: true, solicitudes: true, fisicos: false } })).toBe('inicio');
+        expect(resolverSeccion({ ...base, ultima: 'trabajadores', permisos: { trabajadores: false, solicitudes: true, fisicos: true, analisis: false } })).toBe('inicio');
+        expect(resolverSeccion({ ...base, permisos: { trabajadores: true, solicitudes: true, fisicos: false, analisis: false } })).toBe('inicio');
     });
 
     it('una sola sección: nunca portada (ni con tab=inicio); cero permisos → null', () => {
@@ -101,7 +104,7 @@ describe('gestionesNav (plan Gestiones B8)', () => {
         expect(guardarUltima(7, 'fisicos', roto)).toBe(false);
     });
 
-    it('SECCION_LABEL cubre las cuatro secciones', () => {
-        expect(Object.keys(SECCION_LABEL).sort()).toEqual(['fisicos', 'inicio', 'solicitudes', 'trabajadores']);
+    it('SECCION_LABEL cubre las cinco secciones', () => {
+        expect(Object.keys(SECCION_LABEL).sort()).toEqual(['analisis', 'fisicos', 'inicio', 'solicitudes', 'trabajadores']);
     });
 });

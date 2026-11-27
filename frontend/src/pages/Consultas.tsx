@@ -60,6 +60,8 @@ import { useDocumentosAlertas } from '../hooks/useDocumentosAlertas';
 import { useSeccionGestiones } from '../hooks/consultas/useSeccionGestiones';
 import { GestionesInicio } from '../components/consultas/GestionesInicio';
 import { SECCION_LABEL, permisosGestiones, type SeccionGestiones } from '../components/consultas/gestionesNav';
+// Análisis (mig 163) trae recharts: se carga solo al entrar a esa sección.
+const AnalisisTrabajadores = React.lazy(() => import('../components/consultas/analisis/AnalisisTrabajadores'));
 import { TrabajadoresGrilla } from '../components/consultas/TrabajadoresGrilla';
 import { BuscadorTrabajadores } from '../components/consultas/BuscadorTrabajadores';
 import { ObraSelector } from '../components/layout/ObraSelector';
@@ -133,11 +135,11 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     // Documentos físicos (plan Gestiones B6): RRHH arma lotes; el portador (encargado de obra) confirma los suyos.
     // La regla de qué sección abre cada permiso vive en `permisosGestiones` (gestionesNav.ts; la usa también la
     // ficha de Soporte · usuarios).
-    const { trabajadores: puedeVerTrabajadores, solicitudes: verSolicitudes, fisicos: verFisicos } = permisosGestiones(hasPermission);
+    const { trabajadores: puedeVerTrabajadores, solicitudes: verSolicitudes, fisicos: verFisicos, analisis: verAnalisis } = permisosGestiones(hasPermission);
     // Sección actual (plan Gestiones B8): portada con tarjetas, o trabajadores | solicitudes | fisicos.
     // La URL (?tab=) es la fuente de verdad; sin tab se abre lo último que usó esta persona (o la portada).
-    const permisosSecciones = useMemo(() => ({ trabajadores: puedeVerTrabajadores, solicitudes: verSolicitudes, fisicos: verFisicos }),
-        [puedeVerTrabajadores, verSolicitudes, verFisicos]);
+    const permisosSecciones = useMemo(() => ({ trabajadores: puedeVerTrabajadores, solicitudes: verSolicitudes, fisicos: verFisicos, analisis: verAnalisis }),
+        [puedeVerTrabajadores, verSolicitudes, verFisicos, verAnalisis]);
     const { seccion, irA, disponibles } = useSeccionGestiones({ permisos: permisosSecciones, userId: user?.id, seccionFija });
     const esGrilla = seccion === 'trabajadores';
     // Con una sola sección no hay portada ni switcher (se entra directo, como antes).
@@ -591,7 +593,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     const centroMovil = useMemo(() => (conSwitcher && seccion && seccion !== 'inicio'
         ? <SeccionEnCurso titulo={SECCION_LABEL[seccion]} onVolver={() => irASeccion('inicio')} />
         : null), [conSwitcher, seccion, irASeccion]);
-    useSetCentroMovil(centroMovil, { ocultarObra: seccion === 'fisicos' || (esGrilla && !conRail) });
+    useSetCentroMovil(centroMovil, { ocultarObra: seccion === 'fisicos' || seccion === 'analisis' || (esGrilla && !conRail) });
 
     // Los mismos controles para el rail (desktop) y la hoja (móvil): se instancian UNA vez y se montan
     // en el sitio que corresponda al ancho. Nunca los dos a la vez (antes sí, y duplicaba aria-labels).
@@ -701,6 +703,15 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
                 />
             ) : seccion === 'fisicos' ? (
                 <DocumentosFisicosPanel />
+            ) : seccion === 'analisis' ? (
+                <React.Suspense fallback={null}>
+                    <AnalisisTrabajadores
+                        obras={obraOptions}
+                        empresas={empresaOptions}
+                        cargos={cargoOptions}
+                        onVerTrabajadores={params => irASeccion('trabajadores', params)}
+                    />
+                </React.Suspense>
             ) : seccion === 'solicitudes' ? (
                 <SolicitudesIngresoPanel
                     refreshKey={solicitudesVersion}

@@ -42,6 +42,10 @@
 - `cargos.sueldo.ver/.editar` (mig 111, plan Gestiones B3) son $ pero viven en el módulo **Cargos** y
   NO en `PERMISOS_FINANCIEROS` (lista exclusiva de inventario); gates exclusivos sin patrón OR; los montos
   jamás entran a `logs_actividad` (exclusión en `logger.js` + `EXCLUDED_KEYS`). Ver rrhh-trabajadores.md.
+- **Análisis de trabajadores → Costos** (mig 163) exige `trabajadores.analisis.ver` **y** `cargos.sueldo.ver`
+  (`GET /api/analisis-trabajadores/costos`, gate encadenado). Muestra montos AGREGADOS y rotulados **estimado**
+  (sueldo del cargo × activos), nunca la remuneración de una persona. Sus horas extra exigen `asistencia.horas_extra.ver`.
+  Ver rrhh-trabajadores.md § Análisis de trabajadores.
 - `documentos.laborales.descargar` (mig 110, plan Gestiones B2) **implica ver la remuneración**: el
   contrato que descarga o imprime trae el sueldo base impreso en cifras y en letras. Tratarlo como
   permiso sensible aunque no esté en `PERMISOS_FINANCIEROS`. El snapshot `documentos.metadata` (que

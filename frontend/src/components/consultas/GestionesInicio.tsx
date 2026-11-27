@@ -10,7 +10,7 @@
  * Solo tokens del DS: el hero usa verde de marca fijo (idéntico en dark), el resto bg-card/border/muted.
  */
 import React from 'react';
-import { SearchCheck, ClipboardList, Truck, ArrowRight, ChevronRight, AlertTriangle, Inbox } from 'lucide-react';
+import { SearchCheck, ClipboardList, Truck, ArrowRight, ChevronRight, AlertTriangle, Inbox, BarChart3 } from 'lucide-react';
 
 import { Button } from '../ui/Button';
 import { NumeroRodante } from '../ui/NumeroRodante';
@@ -205,6 +205,19 @@ export const GestionesInicio: React.FC<Props> = ({ permisos, hasPermission, soli
                             <Cifra n={lotes ? lotes.por_confirmar : null} label={lotes?.alcance === 'propios' ? 'te esperan' : 'sin retirar'} tono="aviso" />
                             <Cifra n={lotes ? lotes.en_terreno : null} label="en terreno" />
                             {alertasCriticas > 0 && <Cifra n={alertasCriticas} label="críticos" tono="critico" />}
+                        </TileContador>
+                    )}
+
+                    {permisos.analisis && (
+                        <TileContador icon={BarChart3} titulo="Análisis"
+                            descripcion="Dotación, rotación, asistencia, perfil y papeles de los trabajadores en gráficos, con filtros y Excel."
+                            onEntrar={() => onIr('analisis')}
+                            pie={(
+                                <div className="flex flex-wrap gap-2">
+                                    <Button size="sm" variant="glass" onClick={() => onIr('analisis')}>Ver análisis</Button>
+                                </div>
+                            )}>
+                            <BarChart3 aria-hidden className="h-12 w-12 text-brand-primary/30" />
                         </TileContador>
                     )}
                 </div>
