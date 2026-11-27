@@ -222,6 +222,8 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     // Ficha de ingreso digital (mig 108): terreno solicita, oficina aprueba/rechaza.
     'trabajadores.solicitud.crear':            { seccion: 'configuracion', subseccion: 'Trabajadores', verbo: 'crear' },
     'trabajadores.solicitud.aprobar':          { seccion: 'configuracion', subseccion: 'Trabajadores', verbo: 'editar' },
+    // Mig 163: Gestiones → Análisis (montos: + cargos.sueldo.ver).
+    'trabajadores.analisis.ver':               { seccion: 'configuracion', subseccion: 'Trabajadores', verbo: 'ver' },
 
     // Empresas
     'empresas.ver':                            { seccion: 'configuracion', subseccion: 'Empresas', verbo: 'ver' },
