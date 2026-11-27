@@ -522,6 +522,8 @@ export interface Asistencia {
     horas_extra: number;
     registrado_por: number;
     registrado_por_nombre?: string;
+    /** 1 si la fila la puso por adelantado un período activo (licencia, vacaciones…): sola no es una lista. */
+    de_periodo?: number | boolean | null;
 }
 
 export interface ConfiguracionHorario {

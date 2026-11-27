@@ -24,6 +24,7 @@ import { useSetPageHeader } from '../../context/PageHeaderContext';
 import { useAuth } from '../../context/AuthContext';
 import { WorkerDocsContent } from './modals/WorkerDocsContent';
 import { BorrarAsistenciaModal } from './modals/BorrarAsistenciaModal';
+import { AvisoAsistenciaNoGuardada, type MotivoSinGuardar } from './modals/AvisoAsistenciaNoGuardada';
 import { RecordatorioListaOlvidada } from './RecordatorioListaOlvidada';
 import { AvisoObraEnPreparacion } from './AvisoObraEnPreparacion';
 import { toast } from 'sonner';
@@ -67,7 +68,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
         searchQuery, setSearchQuery, selectedEmpresaId, setSelectedEmpresaId,
         statusFilter, setStatusFilter, alertasFaltas, periodosMap,
         reportMonth, setReportMonth, reportYear, setReportYear, fetchAttendanceInfo,
-        summary, isSaturday, isSunday, registrosGuardados
+        summary, isSaturday, isSunday, registrosGuardados, listaGuardada
     } = attendanceData;
 
     // Día cerrado (Marcos 2026-11-18): un día anterior a hoy (hora de Chile) lo marca o corrige RR.HH.
@@ -94,6 +95,33 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
     const { handleExportExcel, handleShareWhatsApp } = useAttendanceExport({
         date, workers, attendance, estados, reportMonth, reportYear
     });
+
+    // Advertencia del WhatsApp (Marcos 2026-11-27): un día de obra sin la lista guardada (las filas de licencias y
+    // vacaciones solas no cuentan) no se envía como si estuviera pasada. Fines de semana y feriados siguen igual.
+    const [avisoNoGuardada, setAvisoNoGuardada] = useState(false);
+    const [guardandoParaEnviar, setGuardandoParaEnviar] = useState(false);
+    const motivoSinGuardar: MotivoSinGuardar = !hasPermission('asistencia.guardar') ? 'permiso'
+        : diaCerrado ? (motivoCierre === 'mes' ? 'mes' : 'dia') : null;
+    const pedirWhatsApp = useCallback(() => {
+        if (selectedObra && !loading && workers.length > 0 && !noLaboral && !listaGuardada) {
+            setAvisoNoGuardada(true);
+            return;
+        }
+        void handleShareWhatsApp();
+    }, [selectedObra, loading, workers.length, noLaboral, listaGuardada, handleShareWhatsApp]);
+    const guardarYEnviar = async () => {
+        setGuardandoParaEnviar(true);
+        const guardada = await handleSave();
+        setGuardandoParaEnviar(false);
+        // Si no se guardó, el error ya salió en pantalla y la advertencia sigue abierta.
+        if (!guardada) return;
+        setAvisoNoGuardada(false);
+        void handleShareWhatsApp();
+    };
+    const enviarSinGuardar = () => {
+        setAvisoNoGuardada(false);
+        void handleShareWhatsApp({ noGuardada: true });
+    };
 
     // Estados Locales de UI
     const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
@@ -245,7 +273,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
         if (!(selectedObra || isGlobalActive)) return null;
         return (
             <AttendanceHeaderActions
-                handleShareWhatsApp={handleShareWhatsApp}
+                handleShareWhatsApp={pedirWhatsApp}
                 handleExportExcel={() => handleExportExcel(false)}
                 toggleFeriado={toggleFeriado}
                 handleSave={handleSave}
@@ -274,7 +302,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                 setReportYear={setReportYear}
             />
         );
-    }, [selectedObra, canTakeGlobal, handleShareWhatsApp, handleExportExcel, toggleFeriado, handleSave, saving, saveStatus, loading, workers.length, permisoDelDia, feriadoActual, isSunday, isSaturday, selectedEmpresaId, setSelectedEmpresaId, availableEmpresas, repetirDiaAnterior, repeating, reportMonth, reportYear, setReportMonth, setReportYear]);
+    }, [selectedObra, canTakeGlobal, pedirWhatsApp, handleExportExcel, toggleFeriado, handleSave, saving, saveStatus, loading, workers.length, permisoDelDia, feriadoActual, isSunday, isSaturday, selectedEmpresaId, setSelectedEmpresaId, availableEmpresas, repetirDiaAnterior, repeating, reportMonth, reportYear, setReportMonth, setReportYear]);
 
     useSetPageHeader(headerTitle, headerActionsRef);
 
@@ -695,6 +723,19 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                 obraId={selectedObra?.id ?? calendarWorker?.obra_id ?? undefined}
                 onSuccess={fetchAttendanceInfo}
             />
+
+            {selectedObra && (
+                <AvisoAsistenciaNoGuardada
+                    isOpen={avisoNoGuardada}
+                    onClose={() => { if (!guardandoParaEnviar) setAvisoNoGuardada(false); }}
+                    obraNombre={selectedObra.nombre}
+                    fecha={date}
+                    motivoSinGuardar={motivoSinGuardar}
+                    guardando={guardandoParaEnviar}
+                    onGuardarYEnviar={() => { void guardarYEnviar(); }}
+                    onEnviarSinGuardar={enviarSinGuardar}
+                />
+            )}
 
             <BorrarAsistenciaModal
                 isOpen={showBorrar}

@@ -8,6 +8,7 @@ import type { Trabajador, Asistencia, EstadoAsistencia, ConfiguracionHorario, Fe
 import type { ApiResponse } from '../../types';
 import { indexar, tokenizar, coincide } from '../../utils/busquedaTrabajadores';
 import { fueraDePeriodo, periodosDe } from '../../utils/periodosLaborales';
+import { listaGuardada as listaGuardadaDelDia } from '../../components/attendance/listaGuardada';
 
 export type AlertaFalta = { trabajador_id: number; total_faltas: number; alertas: { tipo: string; mensaje: string }[] };
 
@@ -29,6 +30,7 @@ export function useAttendanceData() {
     });
     const [loading, setLoading] = useState(false);
     const [registrosGuardados, setRegistrosGuardados] = useState(0);
+    const [listaGuardada, setListaGuardada] = useState(true);
     const [hayCambios, setHayCambios] = useState(false);
     const [workers, setWorkers] = useState<Trabajador[]>([]);
     const [attendance, setAttendance] = useState<Record<number, Partial<Asistencia>>>({});
@@ -160,6 +162,9 @@ export function useAttendanceData() {
             const existing = attendanceData.registros;
             // Para el aviso de «falta guardar» del botón Guardar: lo que ya está guardado de este día.
             setRegistrosGuardados(existing.length);
+            // ¿Lista pasada? Las filas de licencias/vacaciones solas no cuentan (advertencia del WhatsApp, 2026-11-27).
+            const dotacion = workerList.filter(w => fueraDePeriodo(date, periodosDe(w)) === null).length;
+            setListaGuardada(listaGuardadaDelDia(existing, dotacion));
             setHayCambios(false);
             setFeriadoActual(attendanceData.feriado || null);
             setHorariosObra(schedulesRes.data.data || []);
@@ -398,5 +403,7 @@ export function useAttendanceData() {
         pendienteGuardar,
         /** Filas guardadas del día cargado (0 = nadie pasó la lista; aviso del día pasado para RR.HH.). */
         registrosGuardados,
+        /** El día cargado tiene la lista pasada (filas propias; las de licencias/vacaciones solas no cuentan). */
+        listaGuardada,
     };
 }
