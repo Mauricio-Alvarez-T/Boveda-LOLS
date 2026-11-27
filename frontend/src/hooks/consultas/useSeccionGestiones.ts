@@ -50,8 +50,9 @@ export function useSeccionGestiones({ permisos, userId, seccionFija }: Opts) {
         setSearchParams(prev => {
             const next = new URLSearchParams(prev);
             next.set('tab', destino);
-            // Fuera de la grilla los filtros no aplican: no arrastrarlos a la portada ni a otra sección.
-            if (destino !== 'trabajadores') { for (const k of PARAMS_GRILLA) next.delete(k); next.delete('page'); }
+            // Fuera de la grilla los filtros no aplican: no arrastrarlos a la portada ni a otra sección. Con `extra` la
+            // grilla queda EXACTAMENTE en esos filtros (Consultas.irASeccion los aplica también al estado).
+            if (destino !== 'trabajadores' || extra) { for (const k of PARAMS_GRILLA) next.delete(k); next.delete('page'); }
             if (extra) for (const [k, v] of Object.entries(extra)) next.set(k, v);
             return next;
         });

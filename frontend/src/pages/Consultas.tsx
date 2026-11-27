@@ -171,6 +171,7 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
         filterFiniquito, setFilterFiniquito,
         filterSoloPrueba, setFilterSoloPrueba,
         handleClearFilters,
+        aplicarFiltros,
         activeFilterCount
     } = useConsultasFilters();
 
@@ -426,8 +427,11 @@ const ConsultasPage: React.FC<{ seccionFija?: SeccionGestiones }> = ({ seccionFi
     const irASeccion = useCallback((s: SeccionGestiones, extra?: Record<string, string>) => {
         setShowFilters(false);
         setShowCreatePanel(false);
+        // Saltar a la grilla CON filtros (atajos de la portada, «ir al detalle» del Análisis): la página ya está
+        // montada y los filtros solo se leen de la URL al montar → se aplican aquí además de ir a la URL.
+        if (s === 'trabajadores' && extra) aplicarFiltros(extra);
         irA(s, extra);
-    }, [irA]);
+    }, [irA, aplicarFiltros]);
     // Modificando Header Global
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-4 flex-1 min-w-0">

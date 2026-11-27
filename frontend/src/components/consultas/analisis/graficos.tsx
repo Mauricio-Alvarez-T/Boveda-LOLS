@@ -156,7 +156,7 @@ export const BarrasH: React.FC<{
     const alto = Math.max(filas.length * 34 + 16, 80);
     const clicable = (b: Barra) => !!onElegir && b.id != null && b.id !== '';
     return (
-        <div style={{ height: alto }} className="w-full">
+        <div style={{ height: alto }} className="w-full [&_*:focus:not(:focus-visible)]:outline-none">
             <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={filas} layout="vertical" margin={{ top: 4, right: margenDerecho, bottom: 4, left: 0 }} barCategoryGap={6}>
                     <XAxis type="number" hide />
@@ -213,7 +213,7 @@ export const SerieMeses: React.FC<{
                     ))}
                 </ul>
             )}
-            <div style={{ height: alto }} className="w-full">
+            <div style={{ height: alto }} className="w-full [&_*:focus:not(:focus-visible)]:outline-none">
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={filas} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />

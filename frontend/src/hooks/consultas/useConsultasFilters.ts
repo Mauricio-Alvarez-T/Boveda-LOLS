@@ -99,6 +99,36 @@ export const useConsultasFilters = () => {
         setSearchParams(prev => { const tab = new URLSearchParams(prev).get('tab'); const next = new URLSearchParams(); if (tab) next.set('tab', tab); return next; });
     }, [selectedObra, setSearchParams, publicarBusqueda]);
 
+    /**
+     * Pone la grilla EXACTAMENTE en estos filtros (lo que no venga queda en su valor por defecto). Los filtros se leen
+     * de la URL solo al montar la página; al saltar a la grilla desde otra sección de Gestiones (atajos de la portada,
+     * «ir al detalle» del Análisis) la página ya estaba montada y la URL nueva no los tocaba: se veía la grilla con los
+     * filtros de antes. `useSeccionGestiones.irA` escribe los mismos params en la URL (recargar da lo mismo).
+     */
+    const aplicarFiltros = useCallback((p: Record<string, string>) => {
+        const g = (k: string) => p[k] ?? '';
+        if (g('q') !== textoRef.current) { publicarBusqueda(g('q')); setResetBusqueda(n => n + 1); }
+        setFilterObra(p.obra_id ?? (selectedObra ? selectedObra.id.toString() : ''));
+        setFilterEmpresa(g('empresa_id'));
+        setFilterCargo(g('cargo_id'));
+        setFilterCategoria(g('categoria'));
+        setFilterActivo(p.activo ?? 'true');
+        setFilterCompletitud(g('completitud'));
+        setFilterAusentes(g('ausentes') === 'true');
+        setFilterAniversario10m(g('aniversario10m'));
+        setFilterIngresoDesde(g('ingreso_desde'));
+        setFilterIngresoHasta(g('ingreso_hasta'));
+        setFilterFaltaDato(g('falta_dato'));
+        setFilterDocTipoFalta(g('doc_tipo_falta'));
+        setFilterDocVigencia(g('doc_vigencia'));
+        setFilterSalidaDesde(g('salida_desde'));
+        setFilterSalidaHasta(g('salida_hasta'));
+        setFilterNoRecontratar(g('no_recontratar') === 'true');
+        setFilterReingresoSinFecha(g('reingreso_sin_fecha') === 'true');
+        setFilterFiniquito(g('finiquito'));
+        setFilterSoloPrueba(g('solo_prueba') === 'true');
+    }, [selectedObra, publicarBusqueda]);
+
     // Quita solo el filtro de aniversario (chip removible), limpiando también la URL.
     const clearAniversario10m = useCallback(() => {
         setFilterAniversario10m('');
@@ -155,6 +185,7 @@ export const useConsultasFilters = () => {
         filterSoloPrueba, setFilterSoloPrueba,
         clearAniversario10m,
         handleClearFilters,
+        aplicarFiltros,
         activeFilterCount
     };
 };
