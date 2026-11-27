@@ -25,6 +25,7 @@ import { useAuth } from '../../context/AuthContext';
 import { WorkerDocsContent } from './modals/WorkerDocsContent';
 import { BorrarAsistenciaModal } from './modals/BorrarAsistenciaModal';
 import { AvisoAsistenciaNoGuardada, type MotivoSinGuardar } from './modals/AvisoAsistenciaNoGuardada';
+import { estadoBotonGuardar } from './listaGuardada';
 import { RecordatorioListaOlvidada } from './RecordatorioListaOlvidada';
 import { AvisoObraEnPreparacion } from './AvisoObraEnPreparacion';
 import { toast } from 'sonner';
@@ -68,7 +69,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
         searchQuery, setSearchQuery, selectedEmpresaId, setSelectedEmpresaId,
         statusFilter, setStatusFilter, alertasFaltas, periodosMap,
         reportMonth, setReportMonth, reportYear, setReportYear, fetchAttendanceInfo,
-        summary, isSaturday, isSunday, registrosGuardados, listaGuardada
+        summary, isSaturday, isSunday, registrosGuardados, listaGuardada, hayCambios
     } = attendanceData;
 
     // Día cerrado (Marcos 2026-11-18): un día anterior a hoy (hora de Chile) lo marca o corrige RR.HH.
@@ -96,19 +97,29 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
         date, workers, attendance, estados, reportMonth, reportYear
     });
 
-    // Advertencia del WhatsApp (Marcos 2026-11-27): un día de obra sin la lista guardada (las filas de licencias y
-    // vacaciones solas no cuentan) no se envía como si estuviera pasada. Fines de semana y feriados siguen igual.
+    // Color del Guardar (Marcos 2026-11-27): rojo mientras no se guarde, verde al guardar, gris con candado en un día
+    // cerrado. Es el único recordatorio en pantalla: nada de franjas fijas («que no esté todo el tiempo molestando»).
+    const estadoGuardar = estadoBotonGuardar({
+        conObra: !!selectedObra, cargando: loading, hayTrabajadores: workers.length > 0, noLaboral,
+        diaCerrado, puedeGuardar, listaGuardada, hayCambios,
+    });
+
+    // Advertencia del WhatsApp (Marcos 2026-11-27): lo que no está guardado (día sin lista —las filas de licencias y
+    // vacaciones solas no cuentan— o cambios sin guardar, el botón en rojo) no se envía como si estuviera guardado.
+    // Sale solo al tocar WhatsApp. Fines de semana y feriados siguen igual.
     const [avisoNoGuardada, setAvisoNoGuardada] = useState(false);
     const [guardandoParaEnviar, setGuardandoParaEnviar] = useState(false);
     const motivoSinGuardar: MotivoSinGuardar = !hasPermission('asistencia.guardar') ? 'permiso'
         : diaCerrado ? (motivoCierre === 'mes' ? 'mes' : 'dia') : null;
+    /** Solo hay cambios sin guardar (la lista sí estaba guardada): otro texto en el cartel y en el mensaje. */
+    const soloCambios = listaGuardada && hayCambios;
     const pedirWhatsApp = useCallback(() => {
-        if (selectedObra && !loading && workers.length > 0 && !noLaboral && !listaGuardada) {
+        if (selectedObra && !loading && workers.length > 0 && !noLaboral && (!listaGuardada || hayCambios)) {
             setAvisoNoGuardada(true);
             return;
         }
         void handleShareWhatsApp();
-    }, [selectedObra, loading, workers.length, noLaboral, listaGuardada, handleShareWhatsApp]);
+    }, [selectedObra, loading, workers.length, noLaboral, listaGuardada, hayCambios, handleShareWhatsApp]);
     const guardarYEnviar = async () => {
         setGuardandoParaEnviar(true);
         const guardada = await handleSave();
@@ -120,7 +131,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
     };
     const enviarSinGuardar = () => {
         setAvisoNoGuardada(false);
-        void handleShareWhatsApp({ noGuardada: true });
+        void handleShareWhatsApp({ noGuardada: soloCambios ? 'cambios' : 'lista' });
     };
 
     // Estados Locales de UI
@@ -279,7 +290,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                 handleSave={handleSave}
                 saving={saving}
                 saveStatus={saveStatus}
-                pendiente={attendanceData.pendienteGuardar}
+                estadoGuardar={estadoGuardar}
                 loading={loading}
                 hasWorkers={workers.length > 0}
                 hasPermission={permisoDelDia}
@@ -731,6 +742,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoActividades }) => {
                     obraNombre={selectedObra.nombre}
                     fecha={date}
                     motivoSinGuardar={motivoSinGuardar}
+                    soloCambios={soloCambios}
                     guardando={guardandoParaEnviar}
                     onGuardarYEnviar={() => { void guardarYEnviar(); }}
                     onEnviarSinGuardar={enviarSinGuardar}

@@ -16,6 +16,8 @@ interface Props {
     /** 'YYYY-MM-DD' del día que se está viendo. */
     fecha: string;
     motivoSinGuardar: MotivoSinGuardar;
+    /** La lista estaba guardada, pero se cambió algo sin volver a guardar (el botón Guardar está en rojo). */
+    soloCambios?: boolean;
     guardando: boolean;
     onGuardarYEnviar: () => void;
     onEnviarSinGuardar: () => void;
@@ -37,9 +39,13 @@ const TEXTO: Record<'dia' | 'mes' | 'permiso', string> = {
  * EN BÓVEDA». En el celular es la hoja desde abajo del Modal; en el computador, la ventana al centro.
  */
 export const AvisoAsistenciaNoGuardada: React.FC<Props> = ({
-    isOpen, onClose, obraNombre, fecha, motivoSinGuardar, guardando, onGuardarYEnviar, onEnviarSinGuardar,
+    isOpen, onClose, obraNombre, fecha, motivoSinGuardar, soloCambios = false, guardando, onGuardarYEnviar, onEnviarSinGuardar,
 }) => {
     const puedeGuardar = motivoSinGuardar === null;
+    const texto = !puedeGuardar ? TEXTO[motivoSinGuardar]
+        : soloCambios
+            ? 'Está enviando una asistencia que no ha sido guardada: tiene cambios que no se guardaron. Si la envía así, lo que diga el mensaje no es lo que quedó en Bóveda.'
+            : 'Está enviando una asistencia que no ha sido guardada. Las «A» son las que Bóveda propone: si la envía así, el día sigue sin lista.';
     return (
         // `md`: en el computador los tres botones caben en una fila (con `sm` «Cancelar» bajaba sola).
         <Modal isOpen={isOpen} onClose={onClose} size="md"
@@ -50,11 +56,7 @@ export const AvisoAsistenciaNoGuardada: React.FC<Props> = ({
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300" aria-hidden>
                         <AlertTriangle className="h-5 w-5" />
                     </span>
-                    <p className="text-sm text-muted-foreground">
-                        {puedeGuardar
-                            ? 'Está enviando una asistencia que no ha sido guardada. Las «A» son las que Bóveda propone: si la envía así, el día sigue sin lista.'
-                            : TEXTO[motivoSinGuardar]}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{texto}</p>
                 </div>
                 {/* Celular: uno bajo otro, el principal arriba. Computador: en fila a la derecha, el principal al final. */}
                 <div className="flex flex-col gap-2 md:flex-row-reverse md:flex-wrap md:justify-start">

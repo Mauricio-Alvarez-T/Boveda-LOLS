@@ -6,7 +6,7 @@ import api from '../../services/api';
 import { copyToClipboard, shareViaWhatsApp } from '../../utils/whatsappShare';
 import type { Trabajador, Asistencia, EstadoAsistencia } from '../../types/entities';
 import { conDuracion } from '../../utils/avisos';
-import { AVISO_WHATSAPP_NO_GUARDADA } from '../../components/attendance/listaGuardada';
+import { AVISO_WHATSAPP_CAMBIOS_SIN_GUARDAR, AVISO_WHATSAPP_NO_GUARDADA } from '../../components/attendance/listaGuardada';
 
 interface UseAttendanceExportProps {
     date: string;
@@ -93,9 +93,11 @@ export function useAttendanceExport({
     /**
      * `noGuardada`: se envía igual una asistencia sin guardar (advertencia del botón, Marcos 2026-11-27): el mensaje
      * parte con «ASISTENCIA NO GUARDADA EN BÓVEDA» para que quien lo reciba no la tome por una lista pasada.
+     * `lista` = el día no tiene lista; `cambios` = estaba guardada pero se cambió algo sin volver a guardar.
      */
-    const handleShareWhatsApp = useCallback(async (opciones?: { noGuardada?: boolean }) => {
-        const aviso = opciones?.noGuardada === true ? AVISO_WHATSAPP_NO_GUARDADA : '';
+    const handleShareWhatsApp = useCallback(async (opciones?: { noGuardada?: 'lista' | 'cambios' }) => {
+        const aviso = opciones?.noGuardada === 'lista' ? AVISO_WHATSAPP_NO_GUARDADA
+            : opciones?.noGuardada === 'cambios' ? AVISO_WHATSAPP_CAMBIOS_SIN_GUARDAR : '';
         if (!hasPermission('asistencia.enviar_whatsapp')) {
             toast.error('No tienes permiso para enviar por WhatsApp');
             return;

@@ -381,9 +381,8 @@ export function useAttendanceData() {
     const dayOfWeek = new Date(date + 'T12:00:00').getDay();
     const isSaturday = dayOfWeek === 6;
     const isSunday = dayOfWeek === 0;
-    // «Falta guardar» (2026-10-20): el día de esta obra no tiene nada guardado, o se cambió algo desde la
-    // última carga. En «Todas las obras» no se avisa (cada obra guarda la suya).
-    const pendienteGuardar = !!selectedObra && !loading && workers.length > 0 && (registrosGuardados === 0 || hayCambios);
+    // El «falta guardar» del botón (luz ámbar, 2026-10-20) pasó a ser su color: rojo / verde / gris con candado
+    // (Marcos 2026-11-27, `estadoBotonGuardar` en components/attendance/listaGuardada.ts).
 
     return {
         date, setDate, navigateDate,
@@ -400,10 +399,11 @@ export function useAttendanceData() {
         fetchAttendanceInfo,
         summary,
         isSaturday, isSunday,
-        pendienteGuardar,
         /** Filas guardadas del día cargado (0 = nadie pasó la lista; aviso del día pasado para RR.HH.). */
         registrosGuardados,
         /** El día cargado tiene la lista pasada (filas propias; las de licencias/vacaciones solas no cuentan). */
         listaGuardada,
+        /** Se cambió algo en la pantalla desde la última carga (sin guardar todavía). */
+        hayCambios,
     };
 }
